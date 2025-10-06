@@ -1,0 +1,6 @@
+node_modules/
+dist/
+rust/target/
+js/pkg/
+*.log
+.DS_Store
