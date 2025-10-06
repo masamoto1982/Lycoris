@@ -1,0 +1,163 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', monospace;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #333;
+    min-height: 100vh;
+}
+
+.container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 1rem;
+}
+
+header {
+    background: rgba(255, 255, 255, 0.95);
+    padding: 1rem 2rem;
+    border-radius: 10px;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+h1 {
+    font-size: 1.5rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.version {
+    color: #666;
+    font-size: 0.875rem;
+}
+
+.header-actions {
+    margin-left: auto;
+}
+
+.github-link {
+    padding: 0.5rem 1rem;
+    background: #333;
+    color: white;
+    text-decoration: none;
+    border-radius: 5px;
+    transition: all 0.3s;
+}
+
+.github-link:hover {
+    background: #555;
+    transform: translateY(-2px);
+}
+
+.main-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.panel {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 10px;
+    padding: 1rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+section {
+    margin-bottom: 1rem;
+}
+
+section:last-child {
+    margin-bottom: 0;
+}
+
+h2 {
+    font-size: 1.125rem;
+    margin-bottom: 0.5rem;
+    color: #667eea;
+}
+
+#code-input {
+    width: 100%;
+    min-height: 300px;
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 0.875rem;
+    resize: vertical;
+}
+
+.controls {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+button {
+    padding: 0.5rem 1rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.display-area,
+.state-display,
+.words-display {
+    background: #f8f8f8;
+    border: 1px solid #e0e0e0;
+    border-radius: 5px;
+    padding: 0.5rem;
+    min-height: 100px;
+    max-height: 200px;
+    overflow-y: auto;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 0.875rem;
+}
+
+.stack-item {
+    display: inline-block;
+    margin: 2px;
+    padding: 2px 6px;
+    background: #667eea;
+    color: white;
+    border-radius: 3px;
+}
+
+.word-button {
+    display: inline-block;
+    margin: 2px;
+    padding: 4px 8px;
+    background: #764ba2;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 0.875rem;
+}
+
+.word-button:hover {
+    background: #8b5fc7;
+}
+
+@media (max-width: 768px) {
+    .main-layout {
+        grid-template-columns: 1fr;
+    }
+}
