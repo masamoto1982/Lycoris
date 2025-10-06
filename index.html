@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lycoris - Meta-Circular Language</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🌺 Lycoris</h1>
+            <span class="version">v1.0.0</span>
+            <div class="header-actions">
+                <a href="https://github.com/yourusername/lycoris" class="github-link" target="_blank">
+                    GitHub
+                </a>
+            </div>
+        </header>
+        
+        <main class="main-layout">
+            <div class="panel">
+                <section class="input-area">
+                    <h2>Input</h2>
+                    <textarea id="code-input" placeholder="# Lycoris - Where code blooms into data
+
+# Define factorial
+[ [ n ] [ n 1 = : 1 : n n 1 - FACT * ] ] 'FACT' DEF
+
+# Test it
+5 FACT PRINT
+
+# Self-modifying code
+[ 'SELF' ? @ ] 'SELF' DEF"></textarea>
+                    <div class="controls">
+                        <button id="run-btn">Run</button>
+                        <button id="clear-btn">Clear</button>
+                    </div>
+                </section>
+            </div>
+            
+            <div class="panel">
+                <section class="output-area">
+                    <h2>Output</h2>
+                    <div id="output-display" class="display-area"></div>
+                </section>
+                <section class="stack-area">
+                    <h2>Stack</h2>
+                    <div id="stack-display" class="state-display"></div>
+                </section>
+                <section class="dictionary-area">
+                    <h2>Dictionary</h2>
+                    <div id="custom-words-display" class="words-display"></div>
+                </section>
+            </div>
+        </main>
+    </div>
+    
+    <script type="module" src="js/main.ts"></script>
+</body>
+</html>
