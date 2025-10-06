@@ -1,0 +1,26 @@
+{
+  "name": "lycoris-lang",
+  "version": "1.0.0",
+  "description": "Meta-circular programming language where code and data are one",
+  "type": "module",
+  "scripts": {
+    "build:wasm": "cd rust && wasm-pack build --target web --out-dir ../js/pkg",
+    "build:ts": "tsc",
+    "build": "npm run build:wasm && npm run build:ts && vite build",
+    "dev": "vite",
+    "preview": "vite preview",
+    "clean": "rm -rf dist js/pkg rust/target"
+  },
+  "keywords": ["programming-language", "wasm", "meta-circular", "forth", "lisp"],
+  "author": "Lycoris Contributors",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lycoris-lang/lycoris.git"
+  }
+}
