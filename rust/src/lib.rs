@@ -2,7 +2,7 @@ use wasm_bindgen::prelude::*;
 use std::collections::HashMap;
 use serde::{Serialize, Deserialize};
 use num_bigint::BigInt;
-use num_traits::{Zero, One, Num};  // Numトレイト追加！
+use num_traits::{Zero, One, ToPrimitive}; 
 use std::str::FromStr;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
