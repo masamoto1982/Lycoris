@@ -31,7 +31,8 @@ function setupEventListeners() {
     document.getElementById('clear-btn')?.addEventListener('click', clearInput);
     
     document.getElementById('code-input')?.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+        // Run code on Shift+Enter
+        if (e.key === 'Enter' && e.shiftKey) {
             e.preventDefault();
             runCode();
         }
@@ -51,9 +52,10 @@ async function runCode() {
         if (outputDisplay) {
             if (result.status === 'OK') {
                 outputDisplay.textContent = result.output || '(No output)';
-                // Don't clear input to allow for iterative development
-                // input.value = ''; 
+                // Clear input only on successful execution
+                input.value = ''; 
             } else {
+                // On error, keep the code in the editor for easy correction
                 outputDisplay.textContent = `Error: ${result.message}`;
             }
         }
@@ -100,7 +102,6 @@ function updateDisplay() {
 
 function formatValue(value: Value): string {
     if (!value || !value.type) {
-        // Handle potential inconsistencies if the wasm output is not as expected
         return '?';
     }
     switch (value.type) {
