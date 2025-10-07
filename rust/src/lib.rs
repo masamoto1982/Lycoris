@@ -394,7 +394,7 @@ impl LycorisInterpreter {
                         self.eval_token(&t)?;
                     }
                 } else {
-                    self.stack.push(Value::string(s.to_string()));
+                    self.stack.push(Value::vec(vec![Value::string(s.to_string())]));
                 }
             }
         }
