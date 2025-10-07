@@ -100,7 +100,6 @@ h2 {
     font-size: 1.125rem;
     margin-bottom: 0.75rem;
     color: var(--header-color);
-    border-bottom: 1px solid var(--border-color);
     padding-bottom: 0.5rem;
 }
 
@@ -175,25 +174,27 @@ button:hover {
 .words-display {
     display: flex;
     flex-wrap: wrap;
+    align-items: flex-start; /* This is the fix! Prevents items from stretching. */
     gap: 5px;
-    padding: 0.5rem; /* Adjust padding for a tighter look */
+    padding: 0.5rem;
 }
 
 .word-button {
-    padding: 2px 6px; /* Reduced padding for smaller buttons */
+    padding: 2px 6px;
     background: #4d1a1a;
     border: 1px solid var(--border-color);
     color: var(--header-color);
     border-radius: 3px;
     cursor: pointer;
-    font-size: 0.8rem; /* Slightly smaller font */
-    transition: background-color 0.2s, color 0.2s; /* Smooth transition */
+    font-size: 0.8rem;
+    transition: background-color 0.2s, color 0.2s;
+    /* The general button hover effects are not needed here */
 }
 
 .word-button:hover {
     background: #b30000;
     color: white;
-    transform: none;
+    transform: none; 
     box-shadow: none;
 }
 
