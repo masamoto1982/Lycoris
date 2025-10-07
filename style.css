@@ -100,7 +100,6 @@ h2 {
     font-size: 1.125rem;
     margin-bottom: 0.75rem;
     color: var(--header-color);
-    border-bottom: 1px solid var(--border-color);
     padding-bottom: 0.5rem;
 }
 
@@ -176,23 +175,25 @@ button:hover {
     display: flex;
     flex-wrap: wrap;
     gap: 5px;
+    padding: 0.5rem; /* Adjust padding for a tighter look */
 }
 
 .word-button {
-    padding: 4px 8px;
+    padding: 2px 6px; /* Reduced padding for smaller buttons */
     background: #4d1a1a;
     border: 1px solid var(--border-color);
     color: var(--header-color);
     border-radius: 3px;
     cursor: pointer;
-    font-size: 0.875rem;
+    font-size: 0.8rem; /* Slightly smaller font */
+    transition: background-color 0.2s, color 0.2s; /* Smooth transition */
 }
 
 .word-button:hover {
     background: #b30000;
     color: white;
-    transform: none; /* Override default button hover */
-    box-shadow: none; /* Override default button hover */
+    transform: none;
+    box-shadow: none;
 }
 
 @media (max-width: 768px) {
