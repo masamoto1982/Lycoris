@@ -5,6 +5,18 @@ use num_bigint::BigInt;
 use num_traits::{Zero, One, Signed};
 use std::str::FromStr;
 use num_integer::Integer;
+use regex::Regex;
+
+#[wasm_bindgen(typescript_custom_section)]
+const TS_APPEND_CONTENT: &'static str = r#"
+/**
+* Value types used in Lycoris
+*/
+export interface Value {
+  type: 'number' | 'string' | 'boolean' | 'vector' | 'symbol' | 'nil';
+  value: any;
+}
+"#;
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "type", content = "value")]
@@ -82,7 +94,7 @@ impl LycorisInterpreter {
         // Comments are handled by stopping at '#'
         let code_without_comments = code.split('#').next().unwrap_or("").trim();
         // Use regex to handle strings and other tokens
-        let re = regex::Regex::new(r#"'[^']*'|\[|\]|\S+"#).unwrap();
+        let re = Regex::new(r#"'[^']*'|\[|\]|\S+"#).unwrap();
         re.find_iter(code_without_comments)
           .map(|mat| mat.as_str().to_string())
           .collect()
