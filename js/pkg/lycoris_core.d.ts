@@ -1,45 +1,31 @@
 /* tslint:disable */
 /* eslint-disable */
 /**
- * Lycoris Interpreter WebAssembly Interface
- */
+*/
 export class LycorisInterpreter {
   free(): void;
-  /**
-   * Creates a new Lycoris interpreter instance
-   */
+/**
+* @returns {LycorisInterpreter}
+*/
   constructor();
-  /**
-   * Execute Lycoris code
-   * @param {string} code
-   * @returns {Promise<any>}
-   */
-  execute(code: string): Promise<any>;
-  /**
-   * Get current stack state
-   * @returns {any}
-   */
+/**
+* @param {string} code
+* @returns {any}
+*/
+  execute(code: string): any;
+/**
+* @returns {any}
+*/
   get_stack(): any;
-  /**
-   * Get custom words information
-   * @returns {any}
-   */
+/**
+* @returns {any}
+*/
   get_custom_words_info(): any;
-  /**
-   * Reset interpreter state
-   * @returns {any}
-   */
+/**
+* @returns {any}
+*/
   reset(): any;
 }
-
-/**
- * Initialize the WebAssembly module
- * @param {InitInput | Promise<InitInput>} input
- * @returns {Promise<InitOutput>}
- */
-export default function init(
-  input?: InitInput | Promise<InitInput>
-): Promise<InitOutput>;
 
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
 
@@ -59,16 +45,16 @@ export interface InitOutput {
 }
 
 /**
- * Value types used in Lycoris
- */
+* Value types used in Lycoris
+*/
 export interface Value {
-  type: 'number' | 'string' | 'boolean' | 'vector' | 'nil';
+  type: 'number' | 'string' | 'boolean' | 'vector' | 'symbol' | 'nil';
   value: any;
 }
 
 /**
- * Execution result
- */
+* Execution result
+*/
 export interface ExecuteResult {
   status: 'OK' | 'ERROR';
   output?: string;
@@ -76,3 +62,10 @@ export interface ExecuteResult {
   error?: boolean;
   stack?: Value[];
 }
+
+/**
+* Initialize the WebAssembly module
+* @param {InitInput | Promise<InitInput>} input
+* @returns {Promise<InitOutput>}
+*/
+export default function init(input?: InitInput | Promise<InitInput>): Promise<InitOutput>;
