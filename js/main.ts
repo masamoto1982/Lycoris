@@ -1,23 +1,27 @@
-import type { LycorisInterpreter } from './pkg/lycoris_core';
+import init, { LycorisInterpreter, Value } from './pkg/lycoris_core.js';
 
 declare global {
     interface Window {
         lycorisInterpreter: LycorisInterpreter;
+        insertWord: (word: string) => void;
     }
 }
 
-async function init() {
+async function main() {
     try {
-        const wasm = await import('./pkg/lycoris_core.js');
-        await wasm.default();
-        window.lycorisInterpreter = new wasm.LycorisInterpreter();
+        await init();
+        window.lycorisInterpreter = new LycorisInterpreter();
         
         setupEventListeners();
         updateDisplay();
         
         console.log('Lycoris initialized');
     } catch (error) {
-        console.error('Failed to initialize:', error);
+        console.error('Failed to initialize Wasm module:', error);
+        const outputDisplay = document.getElementById('output-display');
+        if (outputDisplay) {
+            outputDisplay.textContent = 'Error: Failed to load WebAssembly module. Check the console for details.';
+        }
     }
 }
 
@@ -26,7 +30,7 @@ function setupEventListeners() {
     document.getElementById('clear-btn')?.addEventListener('click', clearInput);
     
     document.getElementById('code-input')?.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && e.shiftKey) {
+        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
             e.preventDefault();
             runCode();
         }
@@ -45,8 +49,9 @@ async function runCode() {
         const outputDisplay = document.getElementById('output-display');
         if (outputDisplay) {
             if (result.status === 'OK') {
-                outputDisplay.textContent = result.output || 'OK';
-                input.value = '';
+                outputDisplay.textContent = result.output || '(No output)';
+                // Don't clear input to allow for iterative development
+                // input.value = ''; 
             } else {
                 outputDisplay.textContent = `Error: ${result.message}`;
             }
@@ -55,61 +60,76 @@ async function runCode() {
         updateDisplay();
     } catch (error) {
         console.error('Execution error:', error);
+        const outputDisplay = document.getElementById('output-display');
+        if (outputDisplay) {
+            outputDisplay.textContent = `Execution Error: ${error}`;
+        }
     }
 }
 
 function clearInput() {
     const input = document.getElementById('code-input') as HTMLTextAreaElement;
     input.value = '';
+    const outputDisplay = document.getElementById('output-display');
+    if(outputDisplay) outputDisplay.textContent = '';
+    window.lycorisInterpreter.reset();
+    updateDisplay();
     input.focus();
 }
 
 function updateDisplay() {
     // Update stack
-    const stack = window.lycorisInterpreter.get_stack();
+    const stack = window.lycorisInterpreter.get_stack() as Value[];
     const stackDisplay = document.getElementById('stack-display');
     if (stackDisplay) {
-        if (stack.length === 0) {
-            stackDisplay.textContent = '(empty)';
-        } else {
-            stackDisplay.innerHTML = stack.map((item: any) => 
-                `<div class="stack-item">${formatValue(item)}</div>`
-            ).join('');
-        }
+        stackDisplay.innerHTML = stack.length === 0 
+            ? '(empty)'
+            : stack.map(item => `<div class="stack-item">${formatValue(item)}</div>`).join('');
     }
     
     // Update dictionary
-    const words = window.lycorisInterpreter.get_custom_words_info();
+    const words = window.lycorisInterpreter.get_custom_words_info() as [string, string][];
     const dictDisplay = document.getElementById('custom-words-display');
     if (dictDisplay) {
-        dictDisplay.innerHTML = words.map((word: any) => 
-            `<button class="word-button" onclick="insertWord('${word[0]}')">${word[0]}</button>`
+        dictDisplay.innerHTML = words.map(([name, body]) => 
+            `<button class="word-button" title="${body}" onclick="insertWord('${name}')">${name}</button>`
         ).join('');
     }
 }
 
-function formatValue(value: any): string {
-    if (value.type === 'vector') {
-        const items = value.value.map((v: any) => formatValue(v)).join(' ');
-        return `[${items}]`;
+function formatValue(value: Value): string {
+    switch (value.type) {
+        case 'number':
+            const { numerator, denominator } = value.value;
+            return denominator === '1' ? numerator : `${numerator}/${denominator}`;
+        case 'string':
+            return `'${value.value}'`;
+        case 'boolean':
+            return value.value ? 'TRUE' : 'FALSE';
+        case 'vector':
+            const items = (value.value as Value[]).map(v => formatValue(v)).join(' ');
+            return `[ ${items} ]`;
+        case 'symbol':
+            return value.value;
+        case 'nil':
+            return 'NIL';
+        default:
+            const unhandled = value as any;
+            if(unhandled.String) return `'${unhandled.String}'`;
+            if(unhandled.Number) return `${unhandled.Number.numerator}/${unhandled.Number.denominator}`;
+            return '?';
     }
-    if (value.type === 'number') {
-        const { numerator, denominator } = value.value;
-        return denominator === '1' ? numerator : `${numerator}/${denominator}`;
-    }
-    if (value.type === 'string') return `'${value.value}'`;
-    if (value.type === 'boolean') return value.value ? 'TRUE' : 'FALSE';
-    if (value.type === 'nil') return 'NIL';
-    return '?';
 }
 
-(window as any).insertWord = (word: string) => {
+window.insertWord = (word: string) => {
     const input = document.getElementById('code-input') as HTMLTextAreaElement;
     const pos = input.selectionStart;
     const text = input.value;
     input.value = text.slice(0, pos) + word + ' ' + text.slice(pos);
     input.focus();
+    input.selectionStart = pos + word.length + 1;
+    input.selectionEnd = pos + word.length + 1;
 };
 
 // Initialize on load
-document.addEventListener('DOMContentLoaded', init);
+document.addEventListener('DOMContentLoaded', main);
