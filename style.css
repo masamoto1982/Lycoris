@@ -4,10 +4,22 @@
     box-sizing: border-box;
 }
 
+:root {
+    --base-bg: #1a0000;
+    --panel-bg: rgba(26, 0, 0, 0.7);
+    --display-bg: rgba(0, 0, 0, 0.4);
+    --text-color: #f0e6e6;
+    --header-color: #ff4d4d;
+    --accent-grad-start: #ff4d4d;
+    --accent-grad-end: #b30000;
+    --border-color: rgba(255, 77, 77, 0.3);
+    --shadow-color: rgba(255, 0, 0, 0.4);
+}
+
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', monospace;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: #333;
+    font-family: 'Helvetica Neue', 'Arial', 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', 'BIZ UDPGothic', sans-serif;
+    background: radial-gradient(ellipse at bottom, #4d0000 0%, #1a0000 80%);
+    color: var(--text-color);
     min-height: 100vh;
 }
 
@@ -18,26 +30,28 @@ body {
 }
 
 header {
-    background: rgba(255, 255, 255, 0.95);
+    background: var(--panel-bg);
     padding: 1rem 2rem;
     border-radius: 10px;
     margin-bottom: 1rem;
     display: flex;
     align-items: center;
     gap: 1rem;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border: 1px solid var(--border-color);
+    box-shadow: 0 0 15px var(--shadow-color);
 }
 
 h1 {
-    font-size: 1.5rem;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+    font-size: 1.8rem;
+    color: var(--header-color);
+    text-shadow: 0 0 10px var(--shadow-color);
 }
 
 .version {
-    color: #666;
+    color: #999;
     font-size: 0.875rem;
+    align-self: flex-end;
+    padding-bottom: 2px;
 }
 
 .header-actions {
@@ -46,16 +60,17 @@ h1 {
 
 .github-link {
     padding: 0.5rem 1rem;
-    background: #333;
+    background: linear-gradient(135deg, var(--accent-grad-start), var(--accent-grad-end));
     color: white;
     text-decoration: none;
     border-radius: 5px;
-    transition: all 0.3s;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.3);
 }
 
 .github-link:hover {
-    background: #555;
     transform: translateY(-2px);
+    box-shadow: 0 4px 10px var(--shadow-color);
 }
 
 .main-layout {
@@ -65,10 +80,12 @@ h1 {
 }
 
 .panel {
-    background: rgba(255, 255, 255, 0.95);
+    background: var(--panel-bg);
+    backdrop-filter: blur(5px);
+    border: 1px solid var(--border-color);
     border-radius: 10px;
     padding: 1rem;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 0 15px rgba(0,0,0,0.2);
 }
 
 section {
@@ -81,19 +98,29 @@ section:last-child {
 
 h2 {
     font-size: 1.125rem;
-    margin-bottom: 0.5rem;
-    color: #667eea;
+    margin-bottom: 0.75rem;
+    color: var(--header-color);
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.5rem;
 }
 
 #code-input {
     width: 100%;
     min-height: 300px;
-    padding: 0.5rem;
-    border: 1px solid #ddd;
+    padding: 0.75rem;
+    border: 1px solid var(--border-color);
     border-radius: 5px;
-    font-family: 'Consolas', 'Monaco', monospace;
-    font-size: 0.875rem;
+    font-family: 'Consolas', 'Monaco', 'Andale Mono', 'Ubuntu Mono', monospace;
+    font-size: 0.9rem;
     resize: vertical;
+    background-color: var(--display-bg);
+    color: var(--text-color);
+}
+
+#code-input:focus {
+    outline: none;
+    box-shadow: 0 0 10px var(--shadow-color);
+    border-color: var(--header-color);
 }
 
 .controls {
@@ -103,61 +130,76 @@ h2 {
 }
 
 button {
-    padding: 0.5rem 1rem;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 0.6rem 1.2rem;
+    background: linear-gradient(135deg, var(--accent-grad-start), var(--accent-grad-end));
     color: white;
     border: none;
     border-radius: 5px;
     cursor: pointer;
-    transition: all 0.3s;
+    font-weight: bold;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.3);
 }
 
 button:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 4px 10px var(--shadow-color);
 }
 
 .display-area,
 .state-display,
 .words-display {
-    background: #f8f8f8;
-    border: 1px solid #e0e0e0;
+    background: var(--display-bg);
+    border: 1px solid var(--border-color);
     border-radius: 5px;
-    padding: 0.5rem;
+    padding: 0.75rem;
     min-height: 100px;
     max-height: 200px;
     overflow-y: auto;
-    font-family: 'Consolas', 'Monaco', monospace;
-    font-size: 0.875rem;
+    font-family: 'Consolas', 'Monaco', 'Andale Mono', 'Ubuntu Mono', monospace;
+    font-size: 0.9rem;
+    white-space: pre-wrap;
+    word-break: break-all;
 }
 
 .stack-item {
     display: inline-block;
-    margin: 2px;
-    padding: 2px 6px;
-    background: #667eea;
+    margin: 3px;
+    padding: 3px 8px;
+    background-color: #b30000;
     color: white;
-    border-radius: 3px;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.5);
+}
+
+.words-display {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
 }
 
 .word-button {
-    display: inline-block;
-    margin: 2px;
     padding: 4px 8px;
-    background: #764ba2;
-    color: white;
-    border: none;
+    background: #4d1a1a;
+    border: 1px solid var(--border-color);
+    color: var(--header-color);
     border-radius: 3px;
     cursor: pointer;
     font-size: 0.875rem;
 }
 
 .word-button:hover {
-    background: #8b5fc7;
+    background: #b30000;
+    color: white;
+    transform: none; /* Override default button hover */
+    box-shadow: none; /* Override default button hover */
 }
 
 @media (max-width: 768px) {
     .main-layout {
         grid-template-columns: 1fr;
+    }
+    h1 {
+        font-size: 1.5rem;
     }
 }
