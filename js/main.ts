@@ -1,5 +1,5 @@
 import init, { LycorisInterpreter } from './pkg/lycoris_core.js';
-import type { Value } from './pkg/lycoris_core.js';
+import type { Value } from './pkg/lycoris_core.d';
 
 declare global {
     interface Window {
