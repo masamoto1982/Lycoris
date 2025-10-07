@@ -9,7 +9,7 @@
 <body>
     <div class="container">
         <header>
-            <h1>🌺 Lycoris</h1>
+            <h1>Lycoris</h1>
             <span class="version">ver.202510070400</span>
             <div class="header-actions">
                 <a href="https://github.com/masamoto1982/lycoris" class="github-link" target="_blank">
@@ -24,13 +24,14 @@
                     <h2>Input</h2>
                     <textarea id="code-input" placeholder="# Lycoris - Where code blooms into data
 
-# Define factorial
-[ [ n ] [ n 1 = : 1 : n n 1 - FACT * ] ] 'FACT' DEF
+# Define factorial using stack-based recursion
+# Usage: 5 FACT PRINT
+[ DUP 1 > [ DUP 1 - FACT * ] [ DROP 1 ] : ] 'FACT' DEF
 
 # Test it
 5 FACT PRINT
 
-# Self-modifying code
+# Self-referential code
 [ 'SELF' ? @ ] 'SELF' DEF"></textarea>
                     <div class="controls">
                         <button id="run-btn">Run</button>
