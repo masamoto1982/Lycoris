@@ -2,7 +2,7 @@ use wasm_bindgen::prelude::*;
 use std::collections::HashMap;
 use serde::{Serialize, Deserialize};
 use num_bigint::BigInt;
-use num_traits::{Zero, One, Signed};
+use num_traits::{Zero, One};
 use std::str::FromStr;
 use num_integer::Integer;
 use regex::Regex;
@@ -53,7 +53,6 @@ pub struct LycorisInterpreter {
 fn default_dictionary() -> HashMap<String, Vec<Value>> {
     let mut dict = HashMap::new();
     dict.insert("EVAL".to_string(), vec![Value::Symbol("@".to_string())]);
-    dict.insert("APPLY".to_string(), vec![Value::Symbol("!".to_string())]);
     dict
 }
 
@@ -94,13 +93,11 @@ impl LycorisInterpreter {
     fn parse(&self, tokens: &[String]) -> Vec<Value> {
         tokens.iter().map(|token| {
             match token.as_str() {
-                s if self.is_number(s) => {
+                s if s.parse::<f64>().is_ok() || s.contains('/') => {
                     let (n, d) = self.parse_number(s);
                     Value::num(n, d)
                 }
-                s if s.starts_with('\'') && s.ends_with('\'') => {
-                    Value::String(s[1..s.len() - 1].to_string())
-                }
+                s if s.starts_with('\'') && s.ends_with('\'') => Value::String(s[1..s.len() - 1].to_string()),
                 "TRUE" => Value::Boolean(true),
                 "FALSE" => Value::Boolean(false),
                 "NIL" => Value::Nil,
@@ -109,28 +106,20 @@ impl LycorisInterpreter {
         }).collect()
     }
 
-    fn is_number(&self, s: &str) -> bool {
-        s.parse::<f64>().is_ok() || (s.contains('/') && s.split('/').count() == 2)
-    }
-
     fn parse_number(&self, s: &str) -> (BigInt, BigInt) {
         if s.contains('/') {
             let parts: Vec<_> = s.split('/').collect();
-            let n = BigInt::from_str(parts[0]).unwrap_or_else(|_| Zero::zero());
-            let d = BigInt::from_str(parts[1]).unwrap_or_else(|_| One::one());
-            if d.is_zero() { (n, d) } else { (n, d) }
+            (BigInt::from_str(parts[0]).unwrap_or_default(), BigInt::from_str(parts[1]).unwrap_or_else(|_| One::one()))
         } else if s.contains('.') {
             let mut parts = s.split('.');
-            let int_part_str = parts.next().unwrap_or("0");
+            let int_part = BigInt::from_str(parts.next().unwrap_or("0")).unwrap_or_default();
             let frac_part_str = parts.next().unwrap_or("0");
-            let int_part = BigInt::from_str(int_part_str).unwrap_or_else(|_| Zero::zero());
-            let frac_part = BigInt::from_str(frac_part_str).unwrap_or_else(|_| Zero::zero());
+            let frac_part = BigInt::from_str(frac_part_str).unwrap_or_default();
             let denom = BigInt::from(10).pow(frac_part_str.len() as u32);
-            let mut numer = int_part * &denom + frac_part;
-             if s.starts_with('-') { numer = -numer.abs(); }
-            (numer, denom)
+            let numer = int_part * &denom + frac_part;
+            (if s.starts_with('-') { -numer } else { numer }, denom)
         } else {
-            (BigInt::from_str(s).unwrap_or_else(|_| Zero::zero()), One::one())
+            (BigInt::from_str(s).unwrap_or_default(), One::one())
         }
     }
 
@@ -181,81 +170,71 @@ impl LycorisInterpreter {
                 "PRINT" => self.op_print(), "DEF" => self.op_def(), "?" => self.op_lookup(),
                 ":" => self.op_if(), "MAP" => self.op_map(), "RESET" => self.op_reset(),
                 _ => { self.stack.push(Value::Vector(vec![value.clone()])); Ok(()) }
-            }?;
+            }
         } else {
              self.stack.push(Value::Vector(vec![value.clone()]));
+             Ok(())
         }
-        Ok(())
     }
 
     fn pop_first_value(&mut self) -> Result<Value, String> {
         let vec_val = self.stack.pop().ok_or("Stack underflow")?;
         if let Value::Vector(mut v) = vec_val {
-            if v.is_empty() { Ok(Value::Nil) } else { Ok(v.remove(0)) }
-        } else {
-            Err("Expected a vector on the stack".to_string())
+            Ok(if v.is_empty() { Value::Nil } else { v.remove(0) })
+        } else { Err("Internal error: Expected a vector on the stack".to_string()) }
+    }
+
+    fn extract_number(&self, val: &Value) -> Result<(BigInt, BigInt), String> {
+        if let Value::Number { numerator, denominator } = val {
+            Ok((numerator.clone(), denominator.clone()))
+        } else { Err(format!("Expected a number, but got {}", self.value_to_string_inner(val))) }
+    }
+
+    fn is_truthy(&self, val: &Value) -> bool {
+        match val {
+            Value::Boolean(b) => *b,
+            Value::Number { numerator, .. } => !numerator.is_zero(),
+            Value::Vector(v) => !v.is_empty(),
+            Value::Nil => false,
+            _ => true,
         }
     }
 
     fn op_arithmetic(&mut self, op: &str) -> Result<(), String> {
-        let b = self.pop_first_value()?;
-        let a = self.pop_first_value()?;
-        let (an, ad) = self.extract_number(&a)?;
-        let (bn, bd) = self.extract_number(&b)?;
+        let b_val = self.pop_first_value()?;
+        let a_val = self.pop_first_value()?;
+        let (an, ad) = self.extract_number(&a_val)?;
+        let (bn, bd) = self.extract_number(&b_val)?;
         let (rn, rd) = match op {
             "+" => (an * &bd + bn * &ad, ad * bd),
             "-" => (an * &bd - bn * &ad, ad * bd),
             "*" => (an * bn, ad * bd),
-            "/" => {
-                if bn.is_zero() { return Err("Division by zero".into()); }
-                (an * bd, ad * bn)
-            }
-            _ => return Err("Unknown operator".into())
+            "/" => { if bn.is_zero() { return Err("Division by zero".into()); } (an * bd, ad * bn) }
+            _ => unreachable!(),
         };
         self.stack.push(Value::Vector(vec![Value::num(rn, rd)]));
         Ok(())
-    }
-
-    fn op_eval(&mut self) -> Result<(), String> {
-        let val = self.stack.pop().ok_or("Stack underflow for EVAL")?;
-        if let Value::Vector(v) = val { self.eval_tokens(&v) } 
-        else { Err("EVAL requires a vector".to_string()) }
-    }
-
-    fn op_dup(&mut self) -> Result<(), String> {
-        let val = self.stack.last().ok_or("Stack underflow for DUP")?.clone();
-        self.stack.push(val); Ok(())
-    }
-
-    fn op_drop(&mut self) -> Result<(), String> {
-        self.stack.pop().ok_or("Stack underflow for DROP")?; Ok(())
-    }
-
-    fn op_swap(&mut self) -> Result<(), String> {
-        if self.stack.len() < 2 { return Err("Stack underflow for SWAP".to_string()); }
-        let a = self.stack.pop().unwrap();
-        let b = self.stack.pop().unwrap();
-        self.stack.push(a); self.stack.push(b); Ok(())
     }
     
     fn op_comparison(&mut self, op: &str) -> Result<(), String> {
         let b = self.pop_first_value()?;
         let a = self.pop_first_value()?;
-        let result = match (a, b) {
+        let result = match (&a, &b) { // Use references to prevent moving values
             (Value::Number{numerator: an, denominator: ad}, Value::Number{numerator: bn, denominator: bd}) => {
                 match op {
-                    "=" => an * &bd == bn * &ad,
-                    "<" => (an * &bd) < (bn * &ad),
-                    ">" => (an * &bd) > (bn * &ad),
-                    "<=" => (an * &bd) <= (bn * &ad),
-                    ">=" => (an * &bd) >= (bn * &ad),
-                    _ => false
+                    "=" => an * bd == bn * ad,
+                    "<" => an * bd < bn * ad,
+                    ">" => an * bd > bn * ad,
+                    "<=" => an * bd <= bn * ad,
+                    ">=" => an * bd >= bn * ad,
+                    _ => false,
                 }
             },
             (Value::String(sa), Value::String(sb)) => sa == sb,
-            _ => return Err("Comparison requires two numbers or two strings".to_string())
+            _ => return Err("Comparison requires two numbers or two strings".to_string()),
         };
-        self.stack.push(Value::Vector(vec![Value::Boolean(result)])); Ok(())
+        self.stack.push(Value::Vector(vec![Value::Boolean(result)]));
+        Ok(())
     }
 
     fn op_logic(&mut self, op: &str) -> Result<(), String> {
@@ -275,6 +254,27 @@ impl LycorisInterpreter {
         Ok(())
     }
 
+    fn op_eval(&mut self) -> Result<(), String> {
+        let val = self.stack.pop().ok_or("Stack underflow for EVAL")?;
+        if let Value::Vector(v) = val { self.eval_tokens(&v) } 
+        else { Err("EVAL requires a vector".to_string()) }
+    }
+
+    fn op_dup(&mut self) -> Result<(), String> {
+        self.stack.last().map(|v| self.stack.push(v.clone())).ok_or("Stack underflow for DUP".to_string())
+    }
+
+    fn op_drop(&mut self) -> Result<(), String> {
+        self.stack.pop().map(|_| ()).ok_or("Stack underflow for DROP".to_string())
+    }
+
+    fn op_swap(&mut self) -> Result<(), String> {
+        if self.stack.len() < 2 { return Err("Stack underflow for SWAP".to_string()); }
+        let a = self.stack.pop().unwrap();
+        let b = self.stack.pop().unwrap();
+        self.stack.push(a); self.stack.push(b); Ok(())
+    }
+
     fn op_print(&mut self) -> Result<(), String> {
         let val = self.stack.pop().ok_or("Stack underflow for PRINT")?;
         self.output.push_str(&self.value_to_string(&val)); self.output.push(' '); Ok(())
@@ -285,9 +285,7 @@ impl LycorisInterpreter {
         let body_val = self.stack.pop().ok_or("Stack underflow for DEF body")?;
         if let (Value::String(name), Value::Vector(body)) = (name_val, body_val) {
             self.dictionary.insert(name.to_uppercase(), body); Ok(())
-        } else {
-            Err("DEF requires a string name and a vector body".to_string())
-        }
+        } else { Err("DEF requires a string name and a vector body".to_string()) }
     }
     
     fn op_lookup(&mut self) -> Result<(), String> {
@@ -301,8 +299,8 @@ impl LycorisInterpreter {
     fn op_if(&mut self) -> Result<(), String> {
         let else_branch = self.stack.pop().ok_or("Stack underflow for : (else branch)")?;
         let then_branch = self.stack.pop().ok_or("Stack underflow for : (then branch)")?;
-        let cond = self.pop_first_value()?;
-        let branch_to_eval = if self.is_truthy(&cond) { then_branch } else { else_branch };
+        let cond_val = self.pop_first_value()?;
+        let branch_to_eval = if self.is_truthy(&cond_val) { then_branch } else { else_branch };
         if let Value::Vector(v) = branch_to_eval { self.eval_tokens(&v) } 
         else { Err("Branches for : must be vectors".to_string()) }
     }
@@ -325,38 +323,19 @@ impl LycorisInterpreter {
         self.stack.clear(); self.dictionary = default_dictionary(); self.output = "System reset.".into(); Ok(())
     }
 
-    fn extract_number(&self, val: &Value) -> Result<(BigInt, BigInt), String> {
-        if let Value::Number { numerator, denominator } = val {
-            Ok((numerator.clone(), denominator.clone()))
-        } else { Err(format!("Expected a number, but got {}", self.value_to_string_inner(val))) }
-    }
-    
-    fn is_truthy(&self, val: &Value) -> bool {
-        match val {
-            Value::Boolean(b) => *b,
-            Value::Number { numerator, .. } => !numerator.is_zero(),
-            Value::Nil => false,
-            _ => true,
-        }
-    }
-
     fn value_to_string(&self, val: &Value) -> String {
         match val {
-            Value::Vector(v) => {
-                let items: Vec<String> = v.iter().map(|item| self.value_to_string_inner(item)).collect();
-                if v.len() == 1 { items.join(" ") } else { format!("[ {} ]", items.join(" ")) }
-            }
+            Value::Vector(v) if v.len() == 1 => self.value_to_string_inner(&v[0]),
             _ => self.value_to_string_inner(val),
         }
     }
 
     fn value_to_string_inner(&self, val: &Value) -> String {
         match val {
-            Value::Number { numerator, denominator } => {
-                if denominator == &One::one() { numerator.to_string() } else { format!("{}/{}", numerator, denominator) }
-            }
+            Value::Number { numerator, denominator } if denominator == &One::one() => numerator.to_string(),
+            Value::Number { numerator, denominator } => format!("{}/{}", numerator, denominator),
             Value::String(s) => format!("'{}'", s),
-            Value::Boolean(b) => if *b { "TRUE".to_string() } else { "FALSE".to_string() },
+            Value::Boolean(b) => if *b { "TRUE" } else { "FALSE" }.to_string(),
             Value::Vector(v) => {
                 let items: Vec<String> = v.iter().map(|item| self.value_to_string_inner(item)).collect();
                 format!("[ {} ]", items.join(" "))
@@ -371,7 +350,7 @@ impl LycorisInterpreter {
 
     #[wasm_bindgen]
     pub fn get_custom_words_info(&self) -> JsValue {
-        let words: Vec<Vec<String>> = self.dictionary.iter()
+        let words: Vec<_> = self.dictionary.iter()
             .map(|(k, v)| vec![k.clone(), self.value_to_string_inner(&Value::Vector(v.clone()))])
             .collect();
         serde_wasm_bindgen::to_value(&words).unwrap()
