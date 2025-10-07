@@ -34,7 +34,7 @@ impl Value {
     fn simplify_fraction(n: BigInt, d: BigInt) -> (BigInt, BigInt) {
         if d.is_zero() { return (n, d); }
         let common = n.gcd(&d);
-        (n / common, d / common)
+        (n / common.clone(), d / common)
     }
 
     fn num(n: BigInt, d: BigInt) -> Self {
@@ -92,7 +92,6 @@ impl LycorisInterpreter {
     }
 
     fn parse(&self, tokens: &[String]) -> Vec<Value> {
-        // This function now only parses tokens into non-vector Values
         tokens.iter().map(|token| {
             match token.as_str() {
                 s if self.is_number(s) => {
@@ -181,7 +180,7 @@ impl LycorisInterpreter {
                 "AND" | "OR" | "NOT" => self.op_logic(s),
                 "PRINT" => self.op_print(), "DEF" => self.op_def(), "?" => self.op_lookup(),
                 ":" => self.op_if(), "MAP" => self.op_map(), "RESET" => self.op_reset(),
-                _ => self.stack.push(Value::Vector(vec![value.clone()])),
+                _ => { self.stack.push(Value::Vector(vec![value.clone()])); Ok(()) }
             }?;
         } else {
              self.stack.push(Value::Vector(vec![value.clone()]));
@@ -189,7 +188,6 @@ impl LycorisInterpreter {
         Ok(())
     }
 
-    // Helper to extract the first element from a vector on the stack
     fn pop_first_value(&mut self) -> Result<Value, String> {
         let vec_val = self.stack.pop().ok_or("Stack underflow")?;
         if let Value::Vector(mut v) = vec_val {
@@ -244,15 +242,13 @@ impl LycorisInterpreter {
         let b = self.pop_first_value()?;
         let a = self.pop_first_value()?;
         let result = match (a, b) {
-            (Value::Number{numerator: an, ..}, Value::Number{numerator: bn, ..}) => {
-                let (a_val, b_val) = self.extract_number(&a)?;
-                let (b_val_n, b_val_d) = self.extract_number(&b)?;
+            (Value::Number{numerator: an, denominator: ad}, Value::Number{numerator: bn, denominator: bd}) => {
                 match op {
-                    "=" => a_val.0 * &b_val_d == b_val_n * &a_val.1,
-                    "<" => (a_val.0 * &b_val_d) < (b_val_n * &a_val.1),
-                    ">" => (a_val.0 * &b_val_d) > (b_val_n * &a_val.1),
-                    "<=" => (a_val.0 * &b_val_d) <= (b_val_n * &a_val.1),
-                    ">=" => (a_val.0 * &b_val_d) >= (b_val_n * &a_val.1),
+                    "=" => an * &bd == bn * &ad,
+                    "<" => (an * &bd) < (bn * &ad),
+                    ">" => (an * &bd) > (bn * &ad),
+                    "<=" => (an * &bd) <= (bn * &ad),
+                    ">=" => (an * &bd) >= (bn * &ad),
                     _ => false
                 }
             },
