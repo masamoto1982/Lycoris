@@ -141,10 +141,14 @@ impl LycorisInterpreter {
                             if balance == 0 { break; }
                             end += 1;
                         }
-                        if balance != 0 { return Err("Mismatched brackets".to_string()); }
+                        if balance != 0 || end >= values.len() {
+                            return Err("Mismatched brackets".to_string());
+                        }
                         self.stack.push(Value::Vector(values[start..end].to_vec()));
-                        i = end;
+                        i = end + 1; // 修正点：']'の次からループを再開
+                        continue; // 修正点：ループの最後でiが余計にインクリメントされるのを防ぐ
                     }
+                    "]" => return Err("Unexpected ']' found".to_string()),
                     _ => self.eval_value(value)?,
                 }
             } else {
