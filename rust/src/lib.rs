@@ -2,9 +2,9 @@ use wasm_bindgen::prelude::*;
 use std::collections::HashMap;
 use serde::{Serialize, Deserialize};
 use num_bigint::BigInt;
-use num_traits::{Zero, One, ToPrimitive, Signed};
+use num_traits::{Zero, One, Signed};
 use std::str::FromStr;
-use std::mem;
+use num_integer::Integer;
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "type", content = "value")]
@@ -104,7 +104,7 @@ impl LycorisInterpreter {
                 // Booleans & Nil
                 "TRUE" => values.push(Value::Boolean(true)),
                 "FALSE" => values.push(Value::Boolean(false)),
-                "NIL" => values.push(Value.Nil),
+                "NIL" => values.push(Value::Nil),
                 // Vectors or Symbols
                 _ => values.push(Value::Symbol(token.to_string())),
             }
@@ -128,7 +128,7 @@ impl LycorisInterpreter {
             let frac_part_str = parts.next().unwrap_or("0");
             let int_part = BigInt::from_str(int_part_str).unwrap_or_else(|_| Zero::zero());
             let frac_part = BigInt::from_str(frac_part_str).unwrap_or_else(|_| Zero::zero());
-            let mut denom = BigInt::from(10).pow(frac_part_str.len() as u32);
+            let denom = BigInt::from(10).pow(frac_part_str.len() as u32);
             let mut numer = int_part * &denom + frac_part;
              if s.starts_with('-') {
                 numer = -numer.abs();
@@ -322,20 +322,22 @@ impl LycorisInterpreter {
     }
 
     fn do_comparison(&self, a: Value, b: Value, op: &str) -> Result<Value, String> {
-        if let (Value::Number{numerator: an, denominator: ad}, Value::Number{numerator: bn, denominator: bd}) = (a, b) {
-            let result = match op {
-                "=" => an * &bd == bn * &ad,
-                "<" => (an * &bd) < (bn * &ad),
-                ">" => (an * &bd) > (bn * &ad),
-                "<=" => (an * &bd) <= (bn * &ad),
-                ">=" => (an * &bd) >= (bn * &ad),
-                _ => false
-            };
-            Ok(Value::Boolean(result))
-        } else if let (Value::String(sa), Value::String(sb)) = (a,b) {
-             Ok(Value::Boolean(sa == sb))
-        } else {
-             Err("Comparison requires two numbers or two strings".to_string())
+        match (a, b) {
+            (Value::Number{numerator: an, denominator: ad}, Value::Number{numerator: bn, denominator: bd}) => {
+                let result = match op {
+                    "=" => an * &bd == bn * &ad,
+                    "<" => (an * &bd) < (bn * &ad),
+                    ">" => (an * &bd) > (bn * &ad),
+                    "<=" => (an * &bd) <= (bn * &ad),
+                    ">=" => (an * &bd) >= (bn * &ad),
+                    _ => false
+                };
+                Ok(Value::Boolean(result))
+            },
+            (Value::String(sa), Value::String(sb)) => {
+                 Ok(Value::Boolean(sa == sb))
+            },
+            _ => Err("Comparison requires two numbers or two strings".to_string())
         }
     }
 
@@ -423,7 +425,3 @@ impl LycorisInterpreter {
         })).unwrap()
     }
 }
-
-// Need to add regex dependency in Cargo.toml
-// [dependencies]
-// regex = "1"
