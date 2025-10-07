@@ -100,6 +100,7 @@ h2 {
     font-size: 1.125rem;
     margin-bottom: 0.75rem;
     color: var(--header-color);
+    border-bottom: 1px solid var(--border-color);
     padding-bottom: 0.5rem;
 }
 
@@ -128,7 +129,7 @@ h2 {
     margin-top: 0.5rem;
 }
 
-.button {
+button {
     padding: 0.6rem 1.2rem;
     background: linear-gradient(135deg, var(--accent-grad-start), var(--accent-grad-end));
     color: white;
