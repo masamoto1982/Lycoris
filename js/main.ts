@@ -1,4 +1,5 @@
-import init, { LycorisInterpreter, Value } from './pkg/lycoris_core.js';
+import init, { LycorisInterpreter } from './pkg/lycoris_core.js';
+import type { Value } from './pkg/lycoris_core.js';
 
 declare global {
     interface Window {
@@ -98,9 +99,13 @@ function updateDisplay() {
 }
 
 function formatValue(value: Value): string {
+    if (!value || !value.type) {
+        // Handle potential inconsistencies if the wasm output is not as expected
+        return '?';
+    }
     switch (value.type) {
         case 'number':
-            const { numerator, denominator } = value.value;
+            const { numerator, denominator } = value.value as { numerator: string, denominator: string };
             return denominator === '1' ? numerator : `${numerator}/${denominator}`;
         case 'string':
             return `'${value.value}'`;
@@ -110,16 +115,14 @@ function formatValue(value: Value): string {
             const items = (value.value as Value[]).map(v => formatValue(v)).join(' ');
             return `[ ${items} ]`;
         case 'symbol':
-            return value.value;
+            return String(value.value);
         case 'nil':
             return 'NIL';
         default:
-            const unhandled = value as any;
-            if(unhandled.String) return `'${unhandled.String}'`;
-            if(unhandled.Number) return `${unhandled.Number.numerator}/${unhandled.Number.denominator}`;
             return '?';
     }
 }
+
 
 window.insertWord = (word: string) => {
     const input = document.getElementById('code-input') as HTMLTextAreaElement;
