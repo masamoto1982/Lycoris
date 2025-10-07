@@ -219,7 +219,7 @@ impl LycorisInterpreter {
     fn op_comparison(&mut self, op: &str) -> Result<(), String> {
         let b = self.pop_first_value()?;
         let a = self.pop_first_value()?;
-        let result = match (&a, &b) { // Use references to prevent moving values
+        let result = match (&a, &b) {
             (Value::Number{numerator: an, denominator: ad}, Value::Number{numerator: bn, denominator: bd}) => {
                 match op {
                     "=" => an * bd == bn * ad,
@@ -261,7 +261,12 @@ impl LycorisInterpreter {
     }
 
     fn op_dup(&mut self) -> Result<(), String> {
-        self.stack.last().map(|v| self.stack.push(v.clone())).ok_or("Stack underflow for DUP".to_string())
+        if let Some(val) = self.stack.last() {
+            self.stack.push(val.clone());
+            Ok(())
+        } else {
+            Err("Stack underflow for DUP".to_string())
+        }
     }
 
     fn op_drop(&mut self) -> Result<(), String> {
