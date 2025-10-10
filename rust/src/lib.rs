@@ -5,7 +5,6 @@ use num_bigint::BigInt;
 use num_traits::{Zero, One};
 use std::str::FromStr;
 use num_integer::Integer;
-use regex::Regex;
 
 #[wasm_bindgen(typescript_custom_section)]
 const TS_APPEND_CONTENT: &'static str = r#"
@@ -75,6 +74,12 @@ pub struct LycorisInterpreter {
 fn default_dictionary() -> HashMap<String, Vec<Value>> {
     let mut dict = HashMap::new();
     dict.insert("EVAL".to_string(), vec![Value::Symbol("@".to_string())]);
+    dict.insert("DUP".to_string(), vec![Value::Symbol("DUP".to_string())]);
+    dict.insert("DROP".to_string(), vec![Value::Symbol("DROP".to_string())]);
+    dict.insert("SWAP".to_string(), vec![Value::Symbol("SWAP".to_string())]);
+    dict.insert("PRINT".to_string(), vec![Value::Symbol("PRINT".to_string())]);
+    dict.insert("DEF".to_string(), vec![Value::Symbol("DEF".to_string())]);
+    dict.insert("IF".to_string(), vec![Value::Symbol(":".to_string())]);
     dict
 }
 
@@ -92,13 +97,24 @@ impl LycorisInterpreter {
     #[wasm_bindgen]
     pub fn execute(&mut self, code: &str) -> Result<JsValue, JsValue> {
         self.output.clear();
-        let tokens = self.tokenize(code);
-        let values = self.parse(&tokens);
+        
+        // 改行でコードブロックを分割
+        let lines: Vec<&str> = code.split('\n').collect();
+        
+        for line in lines {
+            let line = line.trim();
+            if line.is_empty() {
+                continue;
+            }
+            
+            let tokens = self.tokenize(line);
+            let values = self.parse(&tokens);
 
-        if let Err(e) = self.eval_tokens(&values) {
-            return Ok(serde_wasm_bindgen::to_value(&serde_json::json!({
-                "status": "ERROR", "message": e, "error": true
-            })).unwrap());
+            if let Err(e) = self.eval_tokens(&values) {
+                return Ok(serde_wasm_bindgen::to_value(&serde_json::json!({
+                    "status": "ERROR", "message": e, "error": true
+                })).unwrap());
+            }
         }
 
         Ok(serde_wasm_bindgen::to_value(&serde_json::json!({
@@ -107,75 +123,155 @@ impl LycorisInterpreter {
     }
 
     fn tokenize(&self, code: &str) -> Vec<String> {
-        let code_without_comments = code.split('#').next().unwrap_or("").trim();
-        let re = Regex::new(r#"'[^']*'|\[|\]|\S+"#).unwrap();
-        re.find_iter(code_without_comments).map(|mat| mat.as_str().to_string()).collect()
+        let mut tokens = Vec::new();
+        let mut current = String::new();
+        let mut in_string = false;
+        let mut escape_next = false;
+
+        for c in code.chars() {
+            if escape_next {
+                current.push(c);
+                escape_next = false;
+                continue;
+            }
+
+            match c {
+                '\\' => {
+                    escape_next = true;
+                    continue;
+                }
+                '"' => {
+                    if in_string {
+                        current.push('"');
+                        tokens.push(current.clone());
+                        current.clear();
+                        in_string = false;
+                    } else {
+                        if !current.is_empty() {
+                            tokens.push(current.clone());
+                            current.clear();
+                        }
+                        current.push('"');
+                        in_string = true;
+                    }
+                    continue;
+                }
+                ' ' | '\t' if !in_string => {
+                    if !current.is_empty() {
+                        tokens.push(current.clone());
+                        current.clear();
+                    }
+                    continue;
+                }
+                _ => {
+                    current.push(c);
+                }
+            }
+        }
+
+        if !current.is_empty() {
+            tokens.push(current);
+        }
+
+        tokens
     }
 
     fn parse(&self, tokens: &[String]) -> Vec<Value> {
-        tokens.iter().map(|token| {
-            match token.as_str() {
-                s if s.parse::<f64>().is_ok() || s.contains('/') => {
-                    let (n, d) = self.parse_number(s);
-                    Value::num(n, d)
-                }
-                s if s.starts_with('\'') && s.ends_with('\'') => Value::String(s[1..s.len() - 1].to_string()),
-                "TRUE" => Value::Boolean(true),
-                "FALSE" => Value::Boolean(false),
-                "NIL" => Value::Nil,
-                _ => Value::Symbol(token.to_string()),
+        let mut values = Vec::new();
+        
+        for token in tokens {
+            // 辞書ワードをチェック
+            if self.dictionary.contains_key(&token.to_uppercase()) {
+                values.push(Value::Symbol(token.to_string()));
+                continue;
             }
-        }).collect()
+            
+            // 文字列
+            if token.starts_with('"') && token.ends_with('"') {
+                let content = &token[1..token.len()-1];
+                values.push(Value::String(content.to_string()));
+                continue;
+            }
+            
+            // 真偽値
+            if token == "TRUE" {
+                values.push(Value::Boolean(true));
+                continue;
+            }
+            if token == "FALSE" {
+                values.push(Value::Boolean(false));
+                continue;
+            }
+            
+            // Nil
+            if token == "NIL" {
+                values.push(Value::Nil);
+                continue;
+            }
+            
+            // 数値（整数、小数、分数）
+            if let Ok((n, d)) = self.parse_number(token) {
+                values.push(Value::num(n, d));
+                continue;
+            }
+            
+            // その他はシンボル
+            values.push(Value::Symbol(token.to_string()));
+        }
+        
+        values
     }
 
-    fn parse_number(&self, s: &str) -> (BigInt, BigInt) {
+    fn parse_number(&self, s: &str) -> Result<(BigInt, BigInt), ()> {
+        // 分数の処理 (a/b形式)
         if s.contains('/') {
-            let parts: Vec<_> = s.split('/').collect();
-            (BigInt::from_str(parts[0]).unwrap_or_default(), BigInt::from_str(parts[1]).unwrap_or_else(|_| One::one()))
-        } else if s.contains('.') {
-            let mut parts = s.split('.');
-            let int_part = BigInt::from_str(parts.next().unwrap_or("0")).unwrap_or_default();
-            let frac_part_str = parts.next().unwrap_or("0");
-            let frac_part = BigInt::from_str(frac_part_str).unwrap_or_default();
-            let denom = BigInt::from(10).pow(frac_part_str.len() as u32);
-            let numer = int_part * &denom + frac_part;
-            (if s.starts_with('-') { -numer } else { numer }, denom)
-        } else {
-            (BigInt::from_str(s).unwrap_or_default(), One::one())
+            let parts: Vec<&str> = s.split('/').collect();
+            if parts.len() == 2 {
+                if let (Ok(n), Ok(d)) = (
+                    BigInt::from_str(parts[0]),
+                    BigInt::from_str(parts[1])
+                ) {
+                    return Ok((n, d));
+                }
+            }
+            return Err(());
         }
+        
+        // 小数の処理
+        if s.contains('.') {
+            let parts: Vec<&str> = s.split('.').collect();
+            if parts.len() == 2 {
+                if let (Ok(int_part), Ok(frac_part)) = (
+                    BigInt::from_str(parts[0]),
+                    BigInt::from_str(parts[1])
+                ) {
+                    let frac_str = parts[1];
+                    let denom = BigInt::from(10).pow(frac_str.len() as u32);
+                    let sign = if int_part.is_negative() { -BigInt::one() } else { BigInt::one() };
+                    let numer = if int_part.is_zero() {
+                        if s.starts_with('-') { -BigInt::from_str(frac_str).unwrap() } else { BigInt::from_str(frac_str).unwrap() }
+                    } else {
+                        &int_part.abs() * &denom + BigInt::from_str(frac_str).unwrap()
+                    } * sign;
+                    return Ok((numer, denom));
+                }
+            }
+            return Err(());
+        }
+        
+        // 整数の処理
+        if let Ok(n) = BigInt::from_str(s) {
+            return Ok((n, BigInt::one()));
+        }
+        
+        Err(())
     }
 
     fn eval_tokens(&mut self, values: &[Value]) -> Result<(), String> {
         let mut i = 0;
         while i < values.len() {
             let value = &values[i];
-            if let Value::Symbol(s) = value {
-                match s.as_str() {
-                    "[" => {
-                        let start = i + 1;
-                        let mut balance = 1;
-                        let mut end = start;
-                        while end < values.len() {
-                            if let Value::Symbol(t) = &values[end] {
-                                if t == "[" { balance += 1; }
-                                if t == "]" { balance -= 1; }
-                            }
-                            if balance == 0 { break; }
-                            end += 1;
-                        }
-                        if balance != 0 || end >= values.len() {
-                            return Err("Mismatched brackets".to_string());
-                        }
-                        self.stack.push(Value::Vector(values[start..end].to_vec()));
-                        i = end + 1;
-                        continue;
-                    }
-                    "]" => return Err("Unexpected ']' found".to_string()),
-                    _ => self.eval_value(value)?,
-                }
-            } else {
-                self.stack.push(value.clone());
-            }
+            self.eval_value(value)?;
             i += 1;
         }
         Ok(())
@@ -183,19 +279,31 @@ impl LycorisInterpreter {
 
     fn eval_value(&mut self, value: &Value) -> Result<(), String> {
         if let Value::Symbol(s) = value {
-            if let Some(def) = self.dictionary.get(&s.to_uppercase()) {
+            let s_upper = s.to_uppercase();
+            
+            // 辞書をチェック
+            if let Some(def) = self.dictionary.get(&s_upper) {
                 return self.eval_tokens(&def.clone());
             }
 
-            match s.as_str() {
+            match s_upper.as_str() {
                 "@" | "EVAL" => self.op_eval(),
-                "DUP" => self.op_dup(), "DROP" => self.op_drop(), "SWAP" => self.op_swap(),
-                "+" | "-" | "*" | "/" => self.op_arithmetic(s),
-                "=" | "<" | ">" | "<=" | ">=" => self.op_comparison(s),
-                "AND" | "OR" | "NOT" => self.op_logic(s),
-                "PRINT" => self.op_print(), "DEF" => self.op_def(), "?" => self.op_lookup(),
-                ":" => self.op_if(), "MAP" => self.op_map(), "RESET" => self.op_reset(),
-                _ => { self.stack.push(value.clone()); Ok(()) }
+                "DUP" => self.op_dup(), 
+                "DROP" => self.op_drop(), 
+                "SWAP" => self.op_swap(),
+                "+" | "-" | "*" | "/" => self.op_arithmetic(&s_upper),
+                "=" | "<" | ">" | "<=" | ">=" => self.op_comparison(&s_upper),
+                "AND" | "OR" | "NOT" => self.op_logic(&s_upper),
+                "PRINT" => self.op_print(), 
+                "DEF" => self.op_def(), 
+                "?" => self.op_lookup(),
+                ":" => self.op_if(), 
+                "MAP" => self.op_map(), 
+                "RESET" => self.op_reset(),
+                _ => { 
+                    self.stack.push(value.clone()); 
+                    Ok(()) 
+                }
             }
         } else {
             self.stack.push(value.clone());
@@ -210,7 +318,9 @@ impl LycorisInterpreter {
     fn extract_number(&self, val: &Value) -> Result<(BigInt, BigInt), String> {
         if let Value::Number { numerator, denominator } = val {
             Ok((numerator.clone(), denominator.clone()))
-        } else { Err(format!("Expected a number, but got {}", self.value_to_string(val))) }
+        } else { 
+            Err(format!("Expected a number, but got {}", self.value_to_string(val))) 
+        }
     }
 
     fn is_truthy(&self, val: &Value) -> bool {
@@ -232,7 +342,12 @@ impl LycorisInterpreter {
             "+" => (an * &bd + bn * &ad, ad * bd),
             "-" => (an * &bd - bn * &ad, ad * bd),
             "*" => (an * bn, ad * bd),
-            "/" => { if bn.is_zero() { return Err("Division by zero".into()); } (an * bd, ad * bn) }
+            "/" => { 
+                if bn.is_zero() { 
+                    return Err("Division by zero".into()); 
+                } 
+                (an * bd, ad * bn) 
+            }
             _ => unreachable!(),
         };
         self.stack.push(Value::num(rn, rd));
@@ -253,7 +368,14 @@ impl LycorisInterpreter {
                     _ => false,
                 }
             },
-            (Value::String(sa), Value::String(sb)) => sa == sb,
+            (Value::String(sa), Value::String(sb)) => match op {
+                "=" => sa == sb,
+                "<" => sa < sb,
+                ">" => sa > sb,
+                "<=" => sa <= sb,
+                ">=" => sa >= sb,
+                _ => false,
+            },
             _ => return Err("Comparison requires two numbers or two strings".to_string()),
         };
         self.stack.push(Value::Boolean(result));
@@ -269,7 +391,11 @@ impl LycorisInterpreter {
             "AND" | "OR" => {
                 let b = self.pop_value()?;
                 let a = self.pop_value()?;
-                let result = if op == "AND" { self.is_truthy(&a) && self.is_truthy(&b) } else { self.is_truthy(&a) || self.is_truthy(&b) };
+                let result = if op == "AND" { 
+                    self.is_truthy(&a) && self.is_truthy(&b) 
+                } else { 
+                    self.is_truthy(&a) || self.is_truthy(&b) 
+                };
                 self.stack.push(Value::Boolean(result));
             }
             _ => {}
@@ -279,8 +405,11 @@ impl LycorisInterpreter {
 
     fn op_eval(&mut self) -> Result<(), String> {
         let val = self.stack.pop().ok_or("Stack underflow for EVAL")?;
-        if let Value::Vector(v) = val { self.eval_tokens(&v) } 
-        else { Err("EVAL requires a vector".to_string()) }
+        if let Value::Vector(v) = val { 
+            self.eval_tokens(&v) 
+        } else { 
+            Err("EVAL requires a vector".to_string()) 
+        }
     }
 
     fn op_dup(&mut self) -> Result<(), String> {
@@ -297,31 +426,43 @@ impl LycorisInterpreter {
     }
 
     fn op_swap(&mut self) -> Result<(), String> {
-        if self.stack.len() < 2 { return Err("Stack underflow for SWAP".to_string()); }
+        if self.stack.len() < 2 { 
+            return Err("Stack underflow for SWAP".to_string()); 
+        }
         let a = self.stack.pop().unwrap();
         let b = self.stack.pop().unwrap();
-        self.stack.push(a); self.stack.push(b); Ok(())
+        self.stack.push(a); 
+        self.stack.push(b); 
+        Ok(())
     }
 
     fn op_print(&mut self) -> Result<(), String> {
         let val = self.stack.pop().ok_or("Stack underflow for PRINT")?;
-        self.output.push_str(&self.value_to_string(&val)); self.output.push(' '); Ok(())
+        self.output.push_str(&self.value_to_string(&val)); 
+        self.output.push(' '); 
+        Ok(())
     }
 
     fn op_def(&mut self) -> Result<(), String> {
         let name_val = self.pop_value()?;
         let body_val = self.stack.pop().ok_or("Stack underflow for DEF body")?;
         if let (Value::String(name), Value::Vector(body)) = (name_val, body_val) {
-            self.dictionary.insert(name.to_uppercase(), body); Ok(())
-        } else { Err("DEF requires a string name and a vector body".to_string()) }
+            self.dictionary.insert(name.to_uppercase(), body); 
+            Ok(())
+        } else { 
+            Err("DEF requires a string name and a vector body".to_string()) 
+        }
     }
     
     fn op_lookup(&mut self) -> Result<(), String> {
         let name = self.pop_value()?;
         if let Value::String(n) = name {
             let body = self.dictionary.get(&n.to_uppercase()).cloned().unwrap_or_default();
-            self.stack.push(Value::Vector(body)); Ok(())
-        } else { Err("? requires a string name".to_string()) }
+            self.stack.push(Value::Vector(body)); 
+            Ok(())
+        } else { 
+            Err("? requires a string name".to_string()) 
+        }
     }
     
     fn op_if(&mut self) -> Result<(), String> {
@@ -329,8 +470,11 @@ impl LycorisInterpreter {
         let then_branch = self.stack.pop().ok_or("Stack underflow for : (then branch)")?;
         let cond_val = self.pop_value()?;
         let branch_to_eval = if self.is_truthy(&cond_val) { then_branch } else { else_branch };
-        if let Value::Vector(v) = branch_to_eval { self.eval_tokens(&v) } 
-        else { Err("Branches for : must be vectors".to_string()) }
+        if let Value::Vector(v) = branch_to_eval { 
+            self.eval_tokens(&v) 
+        } else { 
+            Err("Branches for : must be vectors".to_string()) 
+        }
     }
 
     fn op_map(&mut self) -> Result<(), String> {
@@ -343,19 +487,29 @@ impl LycorisInterpreter {
                 self.eval_tokens(&f_vec)?;
                 results.push(self.stack.pop().unwrap_or(Value::Nil));
             }
-            self.stack.push(Value::Vector(results)); Ok(())
-        } else { Err("MAP requires two vectors".to_string()) }
+            self.stack.push(Value::Vector(results)); 
+            Ok(())
+        } else { 
+            Err("MAP requires two vectors".to_string()) 
+        }
     }
 
     fn op_reset(&mut self) -> Result<(), String> {
-        self.stack.clear(); self.dictionary = default_dictionary(); self.output = "System reset.".into(); Ok(())
+        self.stack.clear(); 
+        self.dictionary = default_dictionary(); 
+        self.output = "System reset.".into(); 
+        Ok(())
     }
 
     fn value_to_string(&self, val: &Value) -> String {
         match val {
-            Value::Number { numerator, denominator } if denominator == &One::one() => numerator.to_string(),
-            Value::Number { numerator, denominator } => format!("{}/{}", numerator, denominator),
-            Value::String(s) => format!("'{}'", s),
+            Value::Number { numerator, denominator } if denominator == &One::one() => {
+                numerator.to_string()
+            },
+            Value::Number { numerator, denominator } => {
+                format!("{}/{}", numerator, denominator)
+            },
+            Value::String(s) => format!("\"{}\"", s),
             Value::Boolean(b) => if *b { "TRUE" } else { "FALSE" }.to_string(),
             Value::Vector(v) => {
                 let items: Vec<String> = v.iter().map(|item| self.value_to_string(item)).collect();
@@ -367,11 +521,14 @@ impl LycorisInterpreter {
     }
     
     #[wasm_bindgen]
-    pub fn get_stack(&self) -> JsValue { serde_wasm_bindgen::to_value(&self.stack).unwrap() }
+    pub fn get_stack(&self) -> JsValue { 
+        serde_wasm_bindgen::to_value(&self.stack).unwrap() 
+    }
 
     #[wasm_bindgen]
     pub fn get_custom_words_info(&self) -> JsValue {
         let words: Vec<_> = self.dictionary.iter()
+            .filter(|(k, _)| !default_dictionary().contains_key(*k))
             .map(|(k, v)| vec![k.clone(), self.value_to_string(&Value::Vector(v.clone()))])
             .collect();
         serde_wasm_bindgen::to_value(&words).unwrap()
@@ -380,6 +537,9 @@ impl LycorisInterpreter {
     #[wasm_bindgen]
     pub fn reset(&mut self) -> JsValue {
         self.op_reset().unwrap();
-        serde_wasm_bindgen::to_value(&serde_json::json!({ "status": "OK", "output": self.output.clone() })).unwrap()
+        serde_wasm_bindgen::to_value(&serde_json::json!({ 
+            "status": "OK", 
+            "output": self.output.clone() 
+        })).unwrap()
     }
 }
