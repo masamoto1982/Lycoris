@@ -1,0 +1,306 @@
+/* Lycoris CSS */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    background-color: #1e1e1e;
+    color: #d4d4d4;
+    height: 100vh;
+    overflow: hidden;
+}
+
+.lycoris-container {
+    height: 100vh;
+    display: grid;
+    gap: 2px;
+    background-color: #2d2d2d;
+}
+
+/* Desktop Layout - 2x2 Grid */
+.lycoris-container.desktop {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+}
+
+.desktop .output-panel {
+    grid-column: 1;
+    grid-row: 1;
+}
+
+.desktop .stack-panel {
+    grid-column: 2;
+    grid-row: 1;
+}
+
+.desktop .input-panel {
+    grid-column: 1;
+    grid-row: 2;
+}
+
+.desktop .dictionary-panel {
+    grid-column: 2;
+    grid-row: 2;
+}
+
+/* Mobile Layout */
+.lycoris-container.mobile {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr;
+}
+
+.mobile .panel {
+    display: none;
+    height: 100vh;
+}
+
+/* Panel Styles */
+.panel {
+    background-color: #1e1e1e;
+    border: 1px solid #3e3e3e;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.panel h3 {
+    background-color: #2d2d2d;
+    padding: 10px;
+    border-bottom: 1px solid #3e3e3e;
+    color: #cccccc;
+    font-size: 14px;
+    font-weight: bold;
+    text-transform: uppercase;
+    flex-shrink: 0;
+}
+
+.panel .content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px;
+}
+
+/* Input Panel */
+.input-panel {
+    display: flex;
+    flex-direction: column;
+}
+
+#input {
+    flex: 1;
+    background-color: #252526;
+    color: #d4d4d4;
+    border: none;
+    padding: 10px;
+    font-family: inherit;
+    font-size: 14px;
+    resize: none;
+    outline: none;
+}
+
+.button-group {
+    display: flex;
+    gap: 5px;
+    padding: 10px;
+    background-color: #2d2d2d;
+    border-top: 1px solid #3e3e3e;
+}
+
+button {
+    flex: 1;
+    padding: 8px 16px;
+    background-color: #0e639c;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: bold;
+    transition: background-color 0.2s;
+}
+
+button:hover {
+    background-color: #1177bb;
+}
+
+button:active {
+    background-color: #094771;
+}
+
+/* Stack Display */
+.stack-item {
+    padding: 5px;
+    margin: 2px 0;
+    background-color: #252526;
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+}
+
+.stack-item .index {
+    color: #858585;
+    margin-right: 10px;
+    min-width: 30px;
+}
+
+.stack-item .value {
+    flex: 1;
+    font-family: inherit;
+}
+
+/* Value Type Colors */
+.vector { color: #4ec9b0; }
+.string { color: #ce9178; }
+.number { color: #b5cea8; }
+.boolean { color: #569cd6; }
+.nil { color: #808080; }
+
+/* Dictionary Table */
+.dictionary-content {
+    overflow-y: auto;
+}
+
+.dictionary-content table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.dictionary-content th {
+    background-color: #2d2d2d;
+    padding: 8px;
+    text-align: left;
+    border-bottom: 1px solid #3e3e3e;
+    position: sticky;
+    top: 0;
+}
+
+.dictionary-content td {
+    padding: 6px 8px;
+    border-bottom: 1px solid #2d2d2d;
+}
+
+.dictionary-content tr:hover {
+    background-color: #252526;
+}
+
+.word-name {
+    font-weight: bold;
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+.word-name:hover {
+    opacity: 0.8;
+}
+
+/* Output Display */
+#output pre {
+    font-family: inherit;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    line-height: 1.5;
+}
+
+.error {
+    color: #f48771;
+    padding: 10px;
+    background-color: #362b2b;
+    border-left: 3px solid #f48771;
+    margin: 5px 0;
+}
+
+.empty {
+    color: #858585;
+    font-style: italic;
+    text-align: center;
+    padding: 20px;
+}
+
+.loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    color: #858585;
+    font-size: 18px;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: #1e1e1e;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #424242;
+    border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #4e4e4e;
+}
+
+/* Processing Indicator */
+.processing-indicator {
+    padding: 10px;
+    background-color: #0e639c;
+    color: white;
+    text-align: center;
+    margin: 10px;
+    border-radius: 3px;
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 0.8; }
+    50% { opacity: 1; }
+    100% { opacity: 0.8; }
+}
+
+/* Disabled button state */
+button:disabled {
+    background-color: #555;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+/* Long number display */
+.number[title] {
+    cursor: help;
+    text-decoration: underline dotted;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+    .panel h3 {
+        padding: 15px;
+        font-size: 16px;
+    }
+    
+    button {
+        padding: 12px 20px;
+        font-size: 14px;
+    }
+    
+    #input {
+        font-size: 16px;
+        -webkit-text-size-adjust: 100%;
+    }
+    
+    .stack-item {
+        padding: 8px;
+        font-size: 14px;
+    }
+    
+    .dictionary-content td {
+        padding: 10px;
+        font-size: 14px;
+    }
+}
