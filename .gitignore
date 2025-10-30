@@ -2,8 +2,10 @@
 node_modules/
 
 # Build outputs
-www/pkg/
-www/js/
+www/pkg/*
+!www/pkg/.gitkeep
+www/js/*
+!www/js/.gitkeep
 target/
 pkg/*
 !pkg/*.d.ts
