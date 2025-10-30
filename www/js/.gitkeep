@@ -1,0 +1,2 @@
+# This file ensures the js/ directory is tracked by git
+# The actual compiled JavaScript files are generated during build
