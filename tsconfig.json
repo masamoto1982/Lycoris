@@ -12,6 +12,6 @@
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": false
   },
-  "include": ["src/**/*.ts", "src/**/*.d.ts"],
+  "include": ["src/**/*.ts", "src/**/*.d.ts", "pkg/**/*.d.ts"],
   "exclude": ["node_modules", "www/pkg"]
 }
