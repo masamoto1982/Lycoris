@@ -1,7 +1,7 @@
 use wasm_bindgen::prelude::*;
 use num_bigint::BigInt;
 use num_rational::BigRational;
-use num_traits::{Zero, One, ToPrimitive};
+use num_traits::{Zero, ToPrimitive};
 use serde::{Serialize, Deserialize};
 use std::collections::HashMap;
 use std::str::FromStr;
@@ -372,7 +372,7 @@ impl Interpreter {
                             // 小さな整数に変換可能か確認
                             if let Some(exp_u32) = exp_int.to_u32() {
                                 if exp_u32 <= 10000 {  // 安全のため上限を設定
-                                    let result = base.value.pow(exp_u32);
+                                    let result = base.value.pow(exp_u32 as i32);
                                     self.stack.push(Value::Number(Number { value: result }));
                                 } else {
                                     return Err(JsValue::from_str("Exponent too large (max 10000)"));
