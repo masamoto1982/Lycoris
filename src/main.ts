@@ -1,3 +1,4 @@
+// @ts-ignore
 import init, { Interpreter } from '../pkg/lycoris.js';
 
 class LycorisUI {
