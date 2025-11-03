@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lycoris - A Stack Rewriting Language</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Lycoris</h1>
+            <p class="tagline">A Stack Rewriting Language</p>
+        </header>
+
+        <main>
+            <div class="panel output-panel">
+                <div class="panel-header">
+                    <h2>Output</h2>
+                    <button id="clear-btn" class="small-btn">Clear</button>
+                </div>
+                <div id="output" class="panel-content"></div>
+            </div>
+
+            <div class="panel stack-panel">
+                <div class="panel-header">
+                    <h2>Stack</h2>
+                    <button id="clear-stack-btn" class="small-btn">Clear Stack</button>
+                </div>
+                <div id="stack" class="panel-content">
+                    <div class="empty">Stack is empty</div>
+                </div>
+            </div>
+
+            <div class="panel input-panel">
+                <div class="panel-header">
+                    <h2>Input</h2>
+                </div>
+                <textarea 
+                    id="input" 
+                    class="input-area" 
+                    placeholder="Enter Lycoris code...
+Examples:
+  5 3 add
+  [1 2 3] 2 @mul
+  [1 2 3 4 5] *add
+  5 dup mul
+
+Ctrl+Enter to execute
+Ctrl+↑/↓ for history"></textarea>
+                <div class="button-group">
+                    <button id="execute-btn" class="primary-btn">Execute (Ctrl+Enter)</button>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>Lycoris v0.1.0 | Where the Stack IS the Program</p>
+        </footer>
+    </div>
+
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>

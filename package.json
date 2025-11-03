@@ -1,0 +1,17 @@
+{
+  "name": "lycoris",
+  "version": "0.1.0",
+  "description": "A Stack Rewriting Language",
+  "scripts": {
+    "build:wasm": "wasm-pack build --target web --out-dir www/pkg",
+    "build:ts": "tsc",
+    "build": "npm run build:wasm && npm run build:ts",
+    "dev": "npm run build && python3 -m http.server 8080 -d www",
+    "watch": "tsc --watch"
+  },
+  "author": "masamoto yamashiro",
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}
