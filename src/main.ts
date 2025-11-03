@@ -1,4 +1,4 @@
-import init, { Interpreter } from '../www/pkg/lycoris.js';
+import init, { Interpreter } from '../pkg/lycoris.js';
 
 class LycorisUI {
     private interpreter: Interpreter | null = null;
