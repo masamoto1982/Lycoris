@@ -166,23 +166,11 @@ pub fn op_str(interp: &mut Interpreter) -> Result<()> {
 /// written as a literal or built by the program, so leniency here would only
 /// create a second numeric language for a program to trip over.
 fn convert_value_to_number(val: &Value) -> Result<Value> {
-    // The text as it is held: copying it out (`value_as_string`) built a
-    // `Vec<char>` and a `String` for every `NUM`, to read the same characters.
     if let Some(s) = val.as_text() {
-        let parsed = if crate::tokenizer::is_number_token_lexeme(s) {
-            Fraction::from_str(s).ok()
-        } else {
-            None
-        };
-        match parsed {
-            Some(fraction) => return Ok(Value::from_fraction(fraction)),
-            None => {
-                return Ok(Value::nil_with_reason(
-                    NilReason::InvalidEncoding,
-                    Recoverability::Recoverable,
-                ));
-            }
-        }
+        return Ok(number_from_text(
+            s,
+            crate::tokenizer::is_number_token_lexeme(s),
+        ));
     }
 
     // A number is not Text: NUM parses, it does not pass through. Accepting
@@ -194,24 +182,42 @@ fn convert_value_to_number(val: &Value) -> Result<Value> {
     ))
 }
 
+/// What `NUM` answers for `text`, given whether it is a numeric lexeme: the
+/// number it denotes, or an `invalidEncoding` NIL.
+fn number_from_text(text: &str, is_lexeme: bool) -> Value {
+    match is_lexeme.then(|| Fraction::from_str(text).ok()).flatten() {
+        Some(fraction) => Value::from_fraction(fraction),
+        None => Value::nil_with_reason(NilReason::InvalidEncoding, Recoverability::Recoverable),
+    }
+}
+
 pub fn op_num(interp: &mut Interpreter) -> Result<()> {
+    // Anything but a String — or nothing — is `convert_value_to_number`'s
+    // refusal, with the operand restored.
+    let Some(text) = interp.stack.last().and_then(Value::as_text) else {
+        return apply_unary_cast(interp, convert_value_to_number);
+    };
+    // The text is read where it is held, and whether it is a numeric lexeme
+    // is decided once for the ceiling and the parse together.
+    let is_lexeme = crate::tokenizer::is_number_token_lexeme(text);
     // The numeric-literal ceiling holds here as it does in source: the text
     // is read by the same grammar, and `'1e99999999' NUM` would otherwise
     // spend minutes building a hundred-million-digit integer from eleven
     // characters. Refused by name, as the tokenizer refuses the same lexeme
     // in source (LANG.MACHINE.LIMITS); the operand stays where it was.
     let limit = interp.runtime_limits.max_numeric_literal_digits;
-    let too_large = interp
-        .stack
-        .last()
-        .and_then(Value::as_text)
-        .filter(|text| crate::tokenizer::is_number_token_lexeme(text))
-        .map(crate::tokenizer::denoted_digit_count)
-        .filter(|&digits| digits > limit as u64);
-    if let Some(digits) = too_large {
-        return Err(crate::interpreter::ceiling_refusal::numeric_literal_refused(limit, digits));
+    if is_lexeme {
+        let digits = crate::tokenizer::denoted_digit_count(text);
+        if digits > limit as u64 {
+            return Err(
+                crate::interpreter::ceiling_refusal::numeric_literal_refused(limit, digits),
+            );
+        }
     }
-    apply_unary_cast(interp, convert_value_to_number)
+    let number = number_from_text(text, is_lexeme);
+    interp.stack.pop();
+    interp.stack.push(number);
+    Ok(())
 }
 
 #[cfg(test)]

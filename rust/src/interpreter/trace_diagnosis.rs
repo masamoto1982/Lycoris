@@ -106,11 +106,13 @@ impl NilProduction {
 ///
 /// The built diagnosis is boxed. Inline, its 256 bytes made every event as
 /// wide whether or not anything ever read it, and an event is moved several
-/// times on its way into the trace.
+/// times on its way into the trace. The facts it is built from are held
+/// inline: they are a fraction of that width, and every `nilProduced` event
+/// has them, so a box would be one more allocation per absence a block mints.
 #[derive(Clone)]
 pub struct EventDiagnosis {
     built: OnceLock<Box<DebugDiagnosis>>,
-    pending: Option<Box<NilProduction>>,
+    pending: Option<NilProduction>,
 }
 
 impl EventDiagnosis {
@@ -126,7 +128,7 @@ impl EventDiagnosis {
     pub(crate) fn nil_produced(production: NilProduction) -> Self {
         Self {
             built: OnceLock::new(),
-            pending: Some(Box::new(production)),
+            pending: Some(production),
         }
     }
 
