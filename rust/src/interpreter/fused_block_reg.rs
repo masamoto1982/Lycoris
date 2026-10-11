@@ -192,6 +192,22 @@ fn exec_column(ins: &Instr, regs: &mut [i64], width: usize, len: usize) -> bool 
         Src::Const(v) => Col::Splat(v),
     };
     let (a, b, c) = (col(ins.a), col(ins.b), col(ins.c));
+    // A division by a positive power of two — `N 2 DIV` — is a shift: the
+    // arithmetic shift is the floor, and the bits it drops say whether the
+    // quotient is exact. Neither can leave the tier, and a hardware divide
+    // per lane is most of what the walk would otherwise cost.
+    if let (Kind::FloorDiv | Kind::ExactDiv, Col::Splat(p)) = (ins.kind, b) {
+        if p > 0 && p & (p - 1) == 0 {
+            let (shift, low) = (p.trailing_zeros(), p - 1);
+            return match ins.kind {
+                Kind::FloorDiv => zip2(dst, a, b, |x, _| (x >> shift, false)),
+                _ => zip2(dst, a, b, |x, _| match x & low {
+                    0 => (x >> shift, false),
+                    _ => (POISON, false),
+                }),
+            };
+        }
+    }
     match ins.kind {
         Kind::Add => zip2(dst, a, b, i64::overflowing_add),
         Kind::Sub => zip2(dst, a, b, i64::overflowing_sub),

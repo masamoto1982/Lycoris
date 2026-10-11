@@ -132,6 +132,15 @@ fn add_in_words((an, ad): Pair, (bn, bd): Pair, subtract: bool) -> Option<Option
     if ad == 1 && bd == 1 {
         return Some(Some((an.checked_add(bn)?, 1)));
     }
+    // An integer beside a fraction: `g` is 1 and the sum `(a·d + c) / d` is
+    // already reduced, as `c` shares no factor with `d`; and it is not zero,
+    // as `d > 1` does not divide `c`. So no gcd is needed to know either.
+    if ad == 1 {
+        return Some(Some((checked_mul(an, bd)?.checked_add(bn)?, bd)));
+    }
+    if bd == 1 {
+        return Some(Some((checked_mul(bn, ad)?.checked_add(an)?, ad)));
+    }
     let g = gcd64(ad, bd);
     if g == 1 {
         let n = checked_mul(an, bd)?.checked_add(checked_mul(bn, ad)?)?;

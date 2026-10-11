@@ -87,9 +87,57 @@ fn dense_integer_sort(interp: &mut Interpreter, value: &Value) -> Result<Option<
     crate::interpreter::collection_meter::charge_comparison_sort_of(interp, value)?;
 
     let mut sorted: Vec<i64> = data.numerators.to_vec();
-    sorted.sort_unstable();
+    sort_integers(&mut sorted);
     interp.stack.push(Value::from_int_tensor(sorted));
     Ok(Some(()))
+}
+
+/// Bits per pass of `sort_integers`' radix sort: 2,048 buckets, whose counts
+/// stay in the first-level cache.
+const RADIX_BITS: u32 = 11;
+
+/// `values` in ascending order, as `sort_unstable` leaves them.
+///
+/// A long run of integers spanning a range a few radix digits wide — the
+/// usual case, ids and counts and residues — is sorted by least significant
+/// digit first instead: each value's offset from the least is a key whose
+/// order is the values' order, and a pass per digit of the widest offset
+/// costs a read and a write per value, where comparing costs one per value
+/// per halving. Equal integers are indistinguishable, so how either sort
+/// orders them is too, and the two answers are the same list.
+pub(crate) fn sort_integers(values: &mut Vec<i64>) {
+    let (Some(&least), Some(&most)) = (values.iter().min(), values.iter().max()) else {
+        return;
+    };
+    let span = most.abs_diff(least);
+    let passes = (u64::BITS - span.leading_zeros()).div_ceil(RADIX_BITS);
+    if values.len() < 1024 || passes > 3 {
+        values.sort_unstable();
+        return;
+    }
+    let key = |v: i64| v.abs_diff(least);
+    let mut counts = vec![[0usize; 1 << RADIX_BITS]; passes as usize];
+    let mask = (1u64 << RADIX_BITS) - 1;
+    for &v in values.iter() {
+        let k = key(v);
+        for (pass, count) in counts.iter_mut().enumerate() {
+            count[((k >> (pass as u32 * RADIX_BITS)) & mask) as usize] += 1;
+        }
+    }
+    let mut scratch = vec![0i64; values.len()];
+    for (pass, count) in counts.iter_mut().enumerate() {
+        let shift = pass as u32 * RADIX_BITS;
+        let mut next = 0;
+        for slot in count.iter_mut() {
+            (*slot, next) = (next, next + *slot);
+        }
+        for &v in values.iter() {
+            let slot = &mut count[((key(v) >> shift) & mask) as usize];
+            scratch[*slot] = v;
+            *slot += 1;
+        }
+        std::mem::swap(values, &mut scratch);
+    }
 }
 
 pub fn op_sort(interp: &mut Interpreter) -> Result<()> {
@@ -191,6 +239,37 @@ mod tests {
         let non_numeric = Value::from_vector(vec![scalar(1, 1), scalar(2, 1)]);
         let items = vec![scalar(1, 1), non_numeric];
         assert!(order_indices(&items).is_err());
+    }
+
+    proptest::proptest! {
+        #![proptest_config(proptest::prelude::ProptestConfig::with_cases(200))]
+
+        /// The radix sort answers what the comparison sort does, over spans
+        /// of one digit to past three (where it hands over), negative values
+        /// and the ends of a machine word among them.
+        #[test]
+        fn integer_sort_is_the_comparison_sort(
+            base in proptest::prelude::any::<i64>(),
+            span_bits in 0u32..40,
+            len in 0usize..5000,
+            seed in proptest::prelude::any::<u64>(),
+        ) {
+            let span = if span_bits == 0 { 0 } else { (1u64 << span_bits) - 1 };
+            let mut state = seed | 1;
+            let mut values: Vec<i64> = (0..len)
+                .map(|_| {
+                    state ^= state << 13;
+                    state ^= state >> 7;
+                    state ^= state << 17;
+                    base.saturating_add_unsigned(state % (span + 1))
+                })
+                .collect();
+            values.extend([base, i64::MIN, i64::MAX].iter().take(seed as usize % 4));
+            let mut expected = values.clone();
+            expected.sort_unstable();
+            sort_integers(&mut values);
+            proptest::prop_assert_eq!(values, expected);
+        }
     }
 }
 

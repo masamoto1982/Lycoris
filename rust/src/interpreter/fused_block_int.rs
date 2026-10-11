@@ -305,6 +305,11 @@ fn promote_lanes(ty: Ty, lanes: Vec<i64>) -> Value {
             None,
         );
     }
+    // Booleans are never promoted: a Vector of them is what `from_truths`
+    // builds, without a `Plain` and a pass over the children per lane.
+    if ty == Ty::Bool {
+        return Value::from_truths(lanes.into_iter().map(|n| n != 0));
+    }
     promote(lanes.into_iter().map(|n| plain(ty, n)).collect())
 }
 
@@ -354,32 +359,28 @@ pub(crate) fn run(
             }
         }
         (FusedWalk::Filter, _) => {
-            let mut kept = Vec::new();
+            // Every element is written and only a kept one is counted, so
+            // the loop has no branch on the predicate.
+            let mut kept = vec![0; elements.len()];
+            let mut count = 0;
             program.run_columns(&elements, |xs, keep| {
-                kept.extend(
-                    xs.iter()
-                        .zip(keep)
-                        .filter(|(_, k)| **k != 0)
-                        .map(|(x, _)| *x),
-                );
-            })?;
-            promote_lanes(elem_ty, kept)
-        }
-        (FusedWalk::Fold | FusedWalk::Scan, Some((_, mut acc))) => {
-            let mut visited = Vec::with_capacity(match walk {
-                FusedWalk::Scan => elements.len(),
-                _ => 0,
-            });
-            let scan = walk == FusedWalk::Scan;
-            acc = program.run_accumulating(&elements, acc, |a| {
-                if scan {
-                    visited.push(plain(typed.out, a).into_value());
+                for (&x, &k) in xs.iter().zip(keep) {
+                    kept[count] = x;
+                    count += usize::from(k != 0);
                 }
             })?;
-            match walk {
-                FusedWalk::Scan => Value::from_vector(visited),
-                _ => plain(typed.out, acc).into_value(),
-            }
+            kept.truncate(count);
+            promote_lanes(elem_ty, kept)
+        }
+        (FusedWalk::Scan, Some((_, acc))) => {
+            let mut visited = Vec::with_capacity(elements.len());
+            program.run_accumulating(&elements, acc, |a| {
+                visited.push(plain(typed.out, a).into_value());
+            })?;
+            Value::from_vector(visited)
+        }
+        (FusedWalk::Fold, Some((_, acc))) => {
+            plain(typed.out, program.run_accumulating(&elements, acc, |_| {})?).into_value()
         }
         (FusedWalk::Fold | FusedWalk::Scan, None) => return None,
     };
