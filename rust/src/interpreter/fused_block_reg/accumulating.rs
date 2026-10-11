@@ -148,12 +148,26 @@ impl RegProgram {
         // A short walk's registers fit on the stack: a nested `FOLD` runs
         // this once per row, and two heap buffers a call were a fair share
         // of a three-element walk.
-        let mut regs: smallvec::SmallVec<[i64; 64]> = smallvec::smallvec![0i64; self.regs * width];
-        let mut scalars: smallvec::SmallVec<[i64; 16]> = smallvec::smallvec![0i64; self.regs];
+        //
+        // A block whose every instruction reads the accumulator and that is
+        // one instruction on it — `[ ADD ]` — reads the element straight from
+        // `elements`, so it needs neither buffer, and clearing them was most
+        // of a short walk.
+        let fills_regs = !free.is_empty() || per_run_reads_element;
+        let mut regs: smallvec::SmallVec<[i64; 64]> = if fills_regs {
+            smallvec::smallvec![0i64; self.regs * width]
+        } else {
+            smallvec::SmallVec::new()
+        };
+        let mut scalars: smallvec::SmallVec<[i64; 16]> = if single.is_none() {
+            smallvec::smallvec![0i64; self.regs]
+        } else {
+            smallvec::SmallVec::new()
+        };
         let mut acc = seed;
         for chunk in elements.chunks(width) {
             let len = chunk.len();
-            if !free.is_empty() || per_run_reads_element {
+            if fills_regs {
                 regs[width..width + len].copy_from_slice(chunk);
             }
             for ins in free {

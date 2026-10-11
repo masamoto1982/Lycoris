@@ -431,10 +431,17 @@ fn one_lane(lane: Fraction) -> Option<Value> {
     Some(Value::new(
         ValueData::Tensor {
             data: std::sync::Arc::new(data),
-            shape: std::sync::Arc::new(vec![1]),
+            shape: ONE_LANE_SHAPE.with(std::sync::Arc::clone),
         },
         None,
     ))
+}
+
+thread_local! {
+    /// The shape every one-lane Tensor `one_lane` builds carries, allocated
+    /// once: a nested `FOLD` answers one per row, and a shape is read by its
+    /// content wherever it is read, so sharing one is unobservable.
+    static ONE_LANE_SHAPE: std::sync::Arc<Vec<usize>> = std::sync::Arc::new(vec![1]);
 }
 
 /// The answer of a lane walk, as the interpreted walk gives it: `FOLD`'s

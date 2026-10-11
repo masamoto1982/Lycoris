@@ -29,9 +29,12 @@ use crate::types::fraction::{Fraction, FractionRepr};
 /// A shape on the way up the walk; four dimensions fit without allocating.
 type Shape = smallvec::SmallVec<[usize; 4]>;
 
+/// Plain `Vec`s while the walk appends: a child Tensor's columns are copied
+/// in by `extend_from_slice`, which a `Vec` does as one copy and a `SmallVec`
+/// as an insertion; the finished columns move into the tensor uncopied.
 struct Columns {
-    nums: Column,
-    dens: Column,
+    nums: Vec<i64>,
+    dens: Vec<i64>,
 }
 
 /// The plain scalars a per-element walk answers, written into the two columns
@@ -105,16 +108,20 @@ impl ScalarColumns {
 /// `values` promoted to a dense Tensor, or `None` for the two-step route.
 pub(super) fn try_promote_columns(values: &[Value]) -> Option<Value> {
     let mut columns = Columns {
-        nums: Column::with_capacity(values.len()),
-        dens: Column::with_capacity(values.len()),
+        nums: Vec::with_capacity(values.len()),
+        dens: Vec::with_capacity(values.len()),
     };
     let shape = append_values(values, &mut columns)?.into_vec();
     if shape.iter().product::<usize>() != columns.nums.len() {
         return None;
     }
     let is_pure_integer = columns.dens.iter().all(|&d| d == 1);
-    let tensor =
-        DenseTensor::from_columns(columns.nums, columns.dens, shape.clone(), is_pure_integer);
+    let tensor = DenseTensor::from_columns(
+        Column::from_vec(columns.nums),
+        Column::from_vec(columns.dens),
+        shape.clone(),
+        is_pure_integer,
+    );
     Some(Value::new(
         ValueData::Tensor {
             data: Arc::new(tensor),

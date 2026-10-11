@@ -4,7 +4,7 @@
 //! callers observe one sequence API regardless of the internal representation.
 
 use super::fraction::Fraction;
-use super::value_tensor::{tensor_child, tensor_to_nested_values};
+use super::value_tensor::{tensor_child, tensor_child_sharing, tensor_to_nested_values};
 use super::{Value, ValueData};
 use std::sync::Arc;
 
@@ -112,6 +112,16 @@ impl Value {
             | ValueData::Nil
             | ValueData::Symbol(_)
             | ValueData::Record(_) => None,
+        }
+    }
+
+    /// A reader of this value's children by index, each as `child` answers
+    /// it, for a walk that reads many (`Children`).
+    #[inline]
+    pub fn children_reader(&self) -> Children<'_> {
+        Children {
+            value: self,
+            row_shape: None,
         }
     }
 
@@ -311,4 +321,25 @@ impl Value {
     // sites now use as_vector()/as_vector_view() (Tensor-aware) plus the
     // value-to-tokens bridge in interpreter/value_as_code.rs for "is this
     // executable" and "run it" respectively.
+}
+
+/// `Value::child`, for a walk that reads child after child of one value: the
+/// rows of a dense Tensor of rank two or more share one shape allocation
+/// instead of each building its own (`tensor_child_sharing`).
+pub struct Children<'a> {
+    value: &'a Value,
+    row_shape: Option<Arc<Vec<usize>>>,
+}
+
+impl Children<'_> {
+    /// The child at `index`, exactly as `Value::child` answers it.
+    #[inline]
+    pub fn get(&mut self, index: usize) -> Option<Value> {
+        match &self.value.data {
+            ValueData::Tensor { data, shape } => {
+                tensor_child_sharing(data, shape, index, &mut self.row_shape)
+            }
+            _ => self.value.child(index),
+        }
+    }
 }
