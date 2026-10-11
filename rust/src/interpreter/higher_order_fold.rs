@@ -242,7 +242,7 @@ mod tests {
     /// `&` resolves to the same contract and executor as `AND`
     /// (LANG.SOURCE.NORMALIZE), including inside a predicate block.
     ///
-    /// The operands are Booleans because `AND` is `booleanLogic`, whose input
+    /// The operands are Booleans because `AND` is a truth-order connective, whose input
     /// domain is two-valued (LANG.VALUES.TRUTH). This case used to read
     /// `{ [ 0 ] [ 1 ] AND }`, where `[ 0 ]` and `[ 1 ]` are vector literals
     /// rather than the index lenses they resemble; it passed only because
@@ -274,7 +274,7 @@ mod tests {
         );
     }
 
-    /// A `booleanLogic` Word raises its registered `nonTruthValue` ERROR on a
+    /// A truth-order connective raises its registered `nonTruthValue` ERROR on a
     /// scalar operand: the Boolean and Scalar domains are disjoint, so `1` is
     /// not TRUE and `0` is not FALSE (LANG.VALUES.DISJOINT).
     #[tokio::test]

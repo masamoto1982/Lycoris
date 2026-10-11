@@ -105,9 +105,8 @@ const digestOf = (text) => createHash('sha256').update(text).digest('hex').slice
 // Each family's label, and the Reference page that explains it and carries its
 // contracts. A page may carry several families.
 const FAMILIES = {
-  booleanLogic: { en: 'Logic', ja: '論理', page: 'operators' },
-  comparison: { en: 'Comparison', ja: '比較', page: 'operators' },
-  exactArithmetic: { en: 'Exact arithmetic', ja: '厳密な算術', page: 'operators' },
+  truthOrder: { en: 'Logic and order (the truth order)', ja: '論理と順序(真理順序)', page: 'operators' },
+  knowledgeOrder: { en: 'Exact arithmetic (the knowledge order)', ja: '厳密な算術(知識順序)', page: 'operators' },
   collection: { en: 'Vectors', ja: 'ベクトル', page: 'vector-ops' },
   record: { en: 'Records', ja: 'Record', page: 'records' },
   higherOrder: { en: 'Iteration', ja: '反復', page: 'control' },

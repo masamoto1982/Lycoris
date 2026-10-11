@@ -59,9 +59,9 @@ for (const word of words.entries) {
   // A Word that tests its operands and answers a truth value is named with a
   // trailing `?` (NIL?, HAS?), and a `?` name always answers one.
   // Relations and connectives (EQ LT GT, AND NOT SELECT) are operators, named
-  // for the operation, and exempt.
+  // for the operation, and exempt: the truth-order family.
   const answersTruth = /-> \[ (TRUE \| FALSE|truths?) \]/.test(word.documentation.stackEffect);
-  const operator = ['comparison', 'booleanLogic'].includes(word.family);
+  const operator = word.family === 'truthOrder';
   if (!operator && answersTruth !== word.name.endsWith('?')) {
     fail(
       answersTruth

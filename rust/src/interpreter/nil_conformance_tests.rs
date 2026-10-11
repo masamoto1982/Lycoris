@@ -69,7 +69,7 @@ const CORE_PASSTHROUGH: &[(&str, NilClass)] = &[
 ];
 
 /// Families whose Core passthrough words this suite is responsible for.
-const COVERED_FAMILIES: &[&str] = &["exactArithmetic", "comparison", "booleanLogic"];
+const COVERED_FAMILIES: &[&str] = &["knowledgeOrder", "truthOrder"];
 
 fn lookup_class(name: &str) -> Option<NilClass> {
     CORE_PASSTHROUGH

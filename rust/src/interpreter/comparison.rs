@@ -79,7 +79,7 @@ fn push_equality_scalar_fastpath(interp: &mut Interpreter, invert: bool) -> bool
 
 /// Apply an ordering Word across the shapes LANG.COLLECTIONS.LIFT allows.
 ///
-/// The alignment is `lane_lift`'s, shared with `booleanLogic`, so a
+/// The alignment is `lane_lift`'s, shared with the truth-order connectives, so a
 /// comparison and the `AND` that combines two of its results agree on what
 /// pairs: equal lengths pair lane by lane, and a one-lane operand is reused
 /// across the other's length. That last case is what makes a mask writable

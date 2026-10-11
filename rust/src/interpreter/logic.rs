@@ -15,7 +15,7 @@ enum Truth {
     Unknown,
 }
 
-/// The truth value of a `booleanLogic` operand.
+/// The truth value of a truth-order connective's operand.
 ///
 /// TRUE, FALSE and BOTH are the Boolean data values and NIL reads as UNKNOWN
 /// (LANG.VALUES.TRUTH); nothing else is a truth value, so a scalar, a String

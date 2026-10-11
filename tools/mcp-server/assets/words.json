@@ -3,7 +3,7 @@
   "entries": [
     {
       "name": "TRUE",
-      "family": "booleanLogic",
+      "family": "truthOrder",
       "stack": {
         "inputs": 0,
         "outputs": 1,
@@ -55,7 +55,7 @@
     },
     {
       "name": "FALSE",
-      "family": "booleanLogic",
+      "family": "truthOrder",
       "stack": {
         "inputs": 0,
         "outputs": 1,
@@ -107,7 +107,7 @@
     },
     {
       "name": "BOTH",
-      "family": "booleanLogic",
+      "family": "truthOrder",
       "stack": {
         "inputs": 0,
         "outputs": 1,
@@ -159,7 +159,7 @@
     },
     {
       "name": "AND",
-      "family": "booleanLogic",
+      "family": "truthOrder",
       "stack": {
         "inputs": 2,
         "outputs": 1,
@@ -221,7 +221,7 @@
     },
     {
       "name": "NOT",
-      "family": "booleanLogic",
+      "family": "truthOrder",
       "stack": {
         "inputs": 1,
         "outputs": 1,
@@ -280,7 +280,7 @@
     },
     {
       "name": "SELECT",
-      "family": "booleanLogic",
+      "family": "truthOrder",
       "stack": {
         "inputs": 3,
         "outputs": 1,
@@ -344,7 +344,7 @@
     },
     {
       "name": "RECONCILE",
-      "family": "booleanLogic",
+      "family": "knowledgeOrder",
       "stack": {
         "inputs": 2,
         "outputs": 1,
@@ -385,6 +385,7 @@
         }
       },
       "clauses": [
+        "LANG.VALUES.SHAPE",
         "LANG.VALUES.TRUTH",
         "LANG.VALUES.DENOTATION",
         "LANG.FAILURE.PROJECT"
@@ -404,7 +405,7 @@
     },
     {
       "name": "EQ",
-      "family": "comparison",
+      "family": "truthOrder",
       "stack": {
         "inputs": 2,
         "outputs": 1,
@@ -464,7 +465,7 @@
     },
     {
       "name": "LT",
-      "family": "comparison",
+      "family": "truthOrder",
       "stack": {
         "inputs": 2,
         "outputs": 1,
@@ -528,7 +529,7 @@
     },
     {
       "name": "GT",
-      "family": "comparison",
+      "family": "truthOrder",
       "stack": {
         "inputs": 2,
         "outputs": 1,
@@ -592,7 +593,7 @@
     },
     {
       "name": "ADD",
-      "family": "exactArithmetic",
+      "family": "knowledgeOrder",
       "stack": {
         "inputs": 2,
         "outputs": 1,
@@ -636,6 +637,7 @@
         }
       },
       "clauses": [
+        "LANG.VALUES.SHAPE",
         "LANG.VALUES.EXACT",
         "LANG.COLLECTIONS.LIFT",
         "LANG.FAILURE.TRICHOTOMY"
@@ -655,7 +657,7 @@
     },
     {
       "name": "SUB",
-      "family": "exactArithmetic",
+      "family": "knowledgeOrder",
       "stack": {
         "inputs": 2,
         "outputs": 1,
@@ -699,6 +701,7 @@
         }
       },
       "clauses": [
+        "LANG.VALUES.SHAPE",
         "LANG.VALUES.EXACT",
         "LANG.COLLECTIONS.LIFT",
         "LANG.FAILURE.TRICHOTOMY"
@@ -719,7 +722,7 @@
     },
     {
       "name": "MUL",
-      "family": "exactArithmetic",
+      "family": "knowledgeOrder",
       "stack": {
         "inputs": 2,
         "outputs": 1,
@@ -763,6 +766,7 @@
         }
       },
       "clauses": [
+        "LANG.VALUES.SHAPE",
         "LANG.VALUES.EXACT",
         "LANG.COLLECTIONS.LIFT",
         "LANG.FAILURE.TRICHOTOMY"
@@ -782,7 +786,7 @@
     },
     {
       "name": "DIV",
-      "family": "exactArithmetic",
+      "family": "knowledgeOrder",
       "stack": {
         "inputs": 2,
         "outputs": 1,
@@ -826,6 +830,7 @@
         }
       },
       "clauses": [
+        "LANG.VALUES.SHAPE",
         "LANG.VALUES.EXACT",
         "LANG.COLLECTIONS.LIFT",
         "LANG.FAILURE.TRICHOTOMY",
@@ -846,7 +851,7 @@
     },
     {
       "name": "FLOOR",
-      "family": "exactArithmetic",
+      "family": "knowledgeOrder",
       "stack": {
         "inputs": 1,
         "outputs": 1,
@@ -887,6 +892,7 @@
         }
       },
       "clauses": [
+        "LANG.VALUES.SHAPE",
         "LANG.VALUES.EXACT",
         "LANG.COLLECTIONS.LIFT",
         "LANG.FAILURE.TRICHOTOMY"
@@ -906,7 +912,7 @@
     },
     {
       "name": "ROUND",
-      "family": "exactArithmetic",
+      "family": "knowledgeOrder",
       "stack": {
         "inputs": 1,
         "outputs": 1,
@@ -947,6 +953,7 @@
         }
       },
       "clauses": [
+        "LANG.VALUES.SHAPE",
         "LANG.VALUES.EXACT",
         "LANG.COLLECTIONS.LIFT",
         "LANG.FAILURE.TRICHOTOMY"
@@ -967,7 +974,7 @@
     },
     {
       "name": "MIN",
-      "family": "exactArithmetic",
+      "family": "truthOrder",
       "stack": {
         "inputs": 2,
         "outputs": 1,
@@ -1011,6 +1018,7 @@
         }
       },
       "clauses": [
+        "LANG.VALUES.TRUTH",
         "LANG.VALUES.EXACT",
         "LANG.COLLECTIONS.LIFT",
         "LANG.FAILURE.TRICHOTOMY",
@@ -1032,7 +1040,7 @@
     },
     {
       "name": "MAX",
-      "family": "exactArithmetic",
+      "family": "truthOrder",
       "stack": {
         "inputs": 2,
         "outputs": 1,
@@ -1076,6 +1084,7 @@
         }
       },
       "clauses": [
+        "LANG.VALUES.TRUTH",
         "LANG.VALUES.EXACT",
         "LANG.COLLECTIONS.LIFT",
         "LANG.FAILURE.TRICHOTOMY",
@@ -1097,7 +1106,7 @@
     },
     {
       "name": "SQRT",
-      "family": "exactArithmetic",
+      "family": "knowledgeOrder",
       "stack": {
         "inputs": 1,
         "outputs": 1,
@@ -1138,6 +1147,7 @@
         }
       },
       "clauses": [
+        "LANG.VALUES.SHAPE",
         "LANG.VALUES.EXACT",
         "LANG.COLLECTIONS.LIFT",
         "LANG.FAILURE.TRICHOTOMY",
@@ -1158,7 +1168,7 @@
     },
     {
       "name": "POW",
-      "family": "exactArithmetic",
+      "family": "knowledgeOrder",
       "stack": {
         "inputs": 2,
         "outputs": 1,
@@ -1205,6 +1215,7 @@
         }
       },
       "clauses": [
+        "LANG.VALUES.SHAPE",
         "LANG.VALUES.EXACT",
         "LANG.COLLECTIONS.LIFT",
         "LANG.FAILURE.TRICHOTOMY",
@@ -1227,7 +1238,7 @@
     },
     {
       "name": "GCD",
-      "family": "exactArithmetic",
+      "family": "knowledgeOrder",
       "stack": {
         "inputs": 2,
         "outputs": 1,
@@ -1271,6 +1282,7 @@
         }
       },
       "clauses": [
+        "LANG.VALUES.SHAPE",
         "LANG.VALUES.EXACT",
         "LANG.COLLECTIONS.LIFT",
         "LANG.FAILURE.TRICHOTOMY",
@@ -1292,7 +1304,7 @@
     },
     {
       "name": "RATIO",
-      "family": "exactArithmetic",
+      "family": "knowledgeOrder",
       "stack": {
         "inputs": 1,
         "outputs": 1,
@@ -1333,6 +1345,7 @@
         }
       },
       "clauses": [
+        "LANG.VALUES.SHAPE",
         "LANG.VALUES.EXACT",
         "LANG.COLLECTIONS.LIFT",
         "LANG.FAILURE.TRICHOTOMY",

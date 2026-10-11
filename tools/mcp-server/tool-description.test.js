@@ -41,7 +41,7 @@ const descriptions = TOOLS.flatMap(({ description, inputSchema }) => [
 //
 // A family counts as announced when the surface names at least one of its
 // Words. Requiring the family's own label instead would pin the marketing
-// wording rather than the coverage, and `booleanLogic` is not a phrase anyone
+// wording rather than the coverage, and `knowledgeOrder` is not a phrase anyone
 // should have to write.
 const families = new Map();
 for (const entry of registry.entries) {
@@ -54,9 +54,8 @@ for (const entry of registry.entries) {
 // rather than chosen between, and `DEF` is named for the one case — defining a
 // Word — a caller has to know is possible at all.
 const MUST_ANNOUNCE = [
-  "exactArithmetic",
-  "comparison",
-  "booleanLogic",
+  "knowledgeOrder",
+  "truthOrder",
   "collection",
   "higherOrder",
   "text",

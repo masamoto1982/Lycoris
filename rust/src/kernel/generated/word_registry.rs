@@ -96,12 +96,10 @@ pub enum WordId {
 /// narrower than the canonical one.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Family {
-    /// `booleanLogic`
-    BooleanLogic,
-    /// `comparison`
-    Comparison,
-    /// `exactArithmetic`
-    ExactArithmetic,
+    /// `knowledgeOrder`
+    KnowledgeOrder,
+    /// `truthOrder`
+    TruthOrder,
     /// `collection`
     Collection,
     /// `higherOrder`
@@ -124,9 +122,8 @@ impl Family {
     /// The canonical spec string for this variant.
     pub const fn as_spec_str(self) -> &'static str {
         match self {
-            Family::BooleanLogic => "booleanLogic",
-            Family::Comparison => "comparison",
-            Family::ExactArithmetic => "exactArithmetic",
+            Family::KnowledgeOrder => "knowledgeOrder",
+            Family::TruthOrder => "truthOrder",
             Family::Collection => "collection",
             Family::HigherOrder => "higherOrder",
             Family::Text => "text",
@@ -611,7 +608,7 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
     GeneratedWord {
         id: WordId::True,
         name: "TRUE",
-        family: Family::BooleanLogic,
+        family: Family::TruthOrder,
         stack_inputs: Arity::Fixed(0),
         stack_outputs: Arity::Fixed(1),
         operand_roles: &[],
@@ -652,7 +649,7 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
     GeneratedWord {
         id: WordId::False,
         name: "FALSE",
-        family: Family::BooleanLogic,
+        family: Family::TruthOrder,
         stack_inputs: Arity::Fixed(0),
         stack_outputs: Arity::Fixed(1),
         operand_roles: &[],
@@ -693,7 +690,7 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
     GeneratedWord {
         id: WordId::Both,
         name: "BOTH",
-        family: Family::BooleanLogic,
+        family: Family::TruthOrder,
         stack_inputs: Arity::Fixed(0),
         stack_outputs: Arity::Fixed(1),
         operand_roles: &[],
@@ -734,7 +731,7 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
     GeneratedWord {
         id: WordId::And,
         name: "AND",
-        family: Family::BooleanLogic,
+        family: Family::TruthOrder,
         stack_inputs: Arity::Fixed(2),
         stack_outputs: Arity::Fixed(1),
         operand_roles: &[OperandRole::Truth, OperandRole::Truth],
@@ -775,7 +772,7 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
     GeneratedWord {
         id: WordId::Not,
         name: "NOT",
-        family: Family::BooleanLogic,
+        family: Family::TruthOrder,
         stack_inputs: Arity::Fixed(1),
         stack_outputs: Arity::Fixed(1),
         operand_roles: &[OperandRole::Truth],
@@ -816,7 +813,7 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
     GeneratedWord {
         id: WordId::Select,
         name: "SELECT",
-        family: Family::BooleanLogic,
+        family: Family::TruthOrder,
         stack_inputs: Arity::Fixed(3),
         stack_outputs: Arity::Fixed(1),
         operand_roles: &[OperandRole::Element, OperandRole::Element, OperandRole::Truth],
@@ -857,7 +854,7 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
     GeneratedWord {
         id: WordId::Reconcile,
         name: "RECONCILE",
-        family: Family::BooleanLogic,
+        family: Family::KnowledgeOrder,
         stack_inputs: Arity::Fixed(2),
         stack_outputs: Arity::Fixed(1),
         operand_roles: &[OperandRole::Element, OperandRole::Element],
@@ -898,7 +895,7 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
     GeneratedWord {
         id: WordId::Eq,
         name: "EQ",
-        family: Family::Comparison,
+        family: Family::TruthOrder,
         stack_inputs: Arity::Fixed(2),
         stack_outputs: Arity::Fixed(1),
         operand_roles: &[OperandRole::Data, OperandRole::Data],
@@ -939,7 +936,7 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
     GeneratedWord {
         id: WordId::Lt,
         name: "LT",
-        family: Family::Comparison,
+        family: Family::TruthOrder,
         stack_inputs: Arity::Fixed(2),
         stack_outputs: Arity::Fixed(1),
         operand_roles: &[OperandRole::Leaf, OperandRole::Leaf],
@@ -980,7 +977,7 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
     GeneratedWord {
         id: WordId::Gt,
         name: "GT",
-        family: Family::Comparison,
+        family: Family::TruthOrder,
         stack_inputs: Arity::Fixed(2),
         stack_outputs: Arity::Fixed(1),
         operand_roles: &[OperandRole::Leaf, OperandRole::Leaf],
@@ -1021,7 +1018,7 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
     GeneratedWord {
         id: WordId::Add,
         name: "ADD",
-        family: Family::ExactArithmetic,
+        family: Family::KnowledgeOrder,
         stack_inputs: Arity::Fixed(2),
         stack_outputs: Arity::Fixed(1),
         operand_roles: &[OperandRole::Leaf, OperandRole::Leaf],
@@ -1062,7 +1059,7 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
     GeneratedWord {
         id: WordId::Sub,
         name: "SUB",
-        family: Family::ExactArithmetic,
+        family: Family::KnowledgeOrder,
         stack_inputs: Arity::Fixed(2),
         stack_outputs: Arity::Fixed(1),
         operand_roles: &[OperandRole::Leaf, OperandRole::Leaf],
@@ -1103,7 +1100,7 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
     GeneratedWord {
         id: WordId::Mul,
         name: "MUL",
-        family: Family::ExactArithmetic,
+        family: Family::KnowledgeOrder,
         stack_inputs: Arity::Fixed(2),
         stack_outputs: Arity::Fixed(1),
         operand_roles: &[OperandRole::Leaf, OperandRole::Leaf],
@@ -1144,7 +1141,7 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
     GeneratedWord {
         id: WordId::Div,
         name: "DIV",
-        family: Family::ExactArithmetic,
+        family: Family::KnowledgeOrder,
         stack_inputs: Arity::Fixed(2),
         stack_outputs: Arity::Fixed(1),
         operand_roles: &[OperandRole::Leaf, OperandRole::Leaf],
@@ -1185,7 +1182,7 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
     GeneratedWord {
         id: WordId::Floor,
         name: "FLOOR",
-        family: Family::ExactArithmetic,
+        family: Family::KnowledgeOrder,
         stack_inputs: Arity::Fixed(1),
         stack_outputs: Arity::Fixed(1),
         operand_roles: &[OperandRole::Leaf],
@@ -1226,7 +1223,7 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
     GeneratedWord {
         id: WordId::Round,
         name: "ROUND",
-        family: Family::ExactArithmetic,
+        family: Family::KnowledgeOrder,
         stack_inputs: Arity::Fixed(1),
         stack_outputs: Arity::Fixed(1),
         operand_roles: &[OperandRole::Leaf],
@@ -1267,7 +1264,7 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
     GeneratedWord {
         id: WordId::Min,
         name: "MIN",
-        family: Family::ExactArithmetic,
+        family: Family::TruthOrder,
         stack_inputs: Arity::Fixed(2),
         stack_outputs: Arity::Fixed(1),
         operand_roles: &[OperandRole::Leaf, OperandRole::Leaf],
@@ -1308,7 +1305,7 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
     GeneratedWord {
         id: WordId::Max,
         name: "MAX",
-        family: Family::ExactArithmetic,
+        family: Family::TruthOrder,
         stack_inputs: Arity::Fixed(2),
         stack_outputs: Arity::Fixed(1),
         operand_roles: &[OperandRole::Leaf, OperandRole::Leaf],
@@ -1349,7 +1346,7 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
     GeneratedWord {
         id: WordId::Sqrt,
         name: "SQRT",
-        family: Family::ExactArithmetic,
+        family: Family::KnowledgeOrder,
         stack_inputs: Arity::Fixed(1),
         stack_outputs: Arity::Fixed(1),
         operand_roles: &[OperandRole::Leaf],
@@ -1390,7 +1387,7 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
     GeneratedWord {
         id: WordId::Pow,
         name: "POW",
-        family: Family::ExactArithmetic,
+        family: Family::KnowledgeOrder,
         stack_inputs: Arity::Fixed(2),
         stack_outputs: Arity::Fixed(1),
         operand_roles: &[OperandRole::Leaf, OperandRole::Leaf],
@@ -1431,7 +1428,7 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
     GeneratedWord {
         id: WordId::Gcd,
         name: "GCD",
-        family: Family::ExactArithmetic,
+        family: Family::KnowledgeOrder,
         stack_inputs: Arity::Fixed(2),
         stack_outputs: Arity::Fixed(1),
         operand_roles: &[OperandRole::Leaf, OperandRole::Leaf],
@@ -1472,7 +1469,7 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
     GeneratedWord {
         id: WordId::Ratio,
         name: "RATIO",
-        family: Family::ExactArithmetic,
+        family: Family::KnowledgeOrder,
         stack_inputs: Arity::Fixed(1),
         stack_outputs: Arity::Fixed(1),
         operand_roles: &[OperandRole::Leaf],

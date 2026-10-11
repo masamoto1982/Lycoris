@@ -87,7 +87,7 @@ async fn every_leaving_word_has_a_witness_and_only_those_do() {
 async fn closed_arithmetic_stays_in_the_field_over_finite_operands() {
     for word in GENERATED_WORDS
         .iter()
-        .filter(|w| w.field == FieldClosure::Closed && w.family == Family::ExactArithmetic)
+        .filter(|w| w.field == FieldClosure::Closed && w.family == Family::KnowledgeOrder)
     {
         let Arity::Fixed(arity) = word.stack_inputs else {
             continue;
