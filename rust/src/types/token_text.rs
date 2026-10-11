@@ -105,7 +105,7 @@ impl Name {
 }
 
 impl Clone for Name {
-    #[inline]
+    #[inline(always)]
     fn clone(&self) -> Self {
         Name(match &self.0 {
             Repr::Inline { len, bytes } => Repr::Inline {
@@ -139,7 +139,7 @@ impl std::borrow::Borrow<str> for Name {
 }
 
 impl PartialEq for Name {
-    #[inline]
+    #[inline(always)]
     fn eq(&self, other: &Self) -> bool {
         match (&self.0, &other.0) {
             (
@@ -271,7 +271,7 @@ pub struct NumberLiteral {
 }
 
 impl Clone for NumberLiteral {
-    #[inline]
+    #[inline(always)]
     fn clone(&self) -> Self {
         Self {
             lexeme: self.lexeme.clone(),

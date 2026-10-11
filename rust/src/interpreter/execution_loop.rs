@@ -189,12 +189,17 @@ impl Interpreter {
         // A lexical failure is a fault in the writing, not in any value, so it
         // is classified as one rather than arriving as an uncategorized
         // `Custom` whose only next check was "read the message".
-        let (tokens, spans) =
-            crate::tokenizer::tokenize_with_spans(code).map_err(AjisaiError::MalformedSource)?;
-        self.source_spans = spans;
+        let source =
+            crate::tokenizer::tokenize_source(code).map_err(AjisaiError::MalformedSource)?;
+        self.source_spans = source.spans;
         self.current_source_span = None;
-        self.check_source_numeric_literals(&tokens)?;
-        self.execute_section_core(&tokens, 0)?;
+        // The ceiling depends on a literal's lexeme alone, and every other
+        // Number token is a copy of a first spelling that comes before it, so
+        // checking the first spellings in order fails at the same token, with
+        // the same count, as checking every token did.
+        let first_numbers = source.first_numbers.iter().map(|&at| &source.tokens[at]);
+        self.check_source_numeric_literals(first_numbers)?;
+        self.execute_section_core(&source.tokens, 0)?;
         self.check_fresh_nesting()
     }
 
@@ -204,7 +209,10 @@ impl Interpreter {
     /// exponent's magnitude (`tokenizer::denoted_digit_count`) — so the bound
     /// tracks the magnitude of the BigInt that would be built: `1e99999999`
     /// is nine characters and used to spend minutes building its integer.
-    pub(crate) fn check_source_numeric_literals(&self, tokens: &[Token]) -> Result<()> {
+    pub(crate) fn check_source_numeric_literals<'a>(
+        &self,
+        tokens: impl IntoIterator<Item = &'a Token>,
+    ) -> Result<()> {
         for token in tokens {
             if let Token::Number(literal) = token {
                 let digits = literal.denoted_digits();

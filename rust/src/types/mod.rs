@@ -363,7 +363,7 @@ pub enum Token {
 /// token for every repeated lexeme, and the derived copy was an out-of-line
 /// call per token.
 impl Clone for Token {
-    #[inline]
+    #[inline(always)]
     fn clone(&self) -> Self {
         match self {
             Token::Number(literal) => Token::Number(literal.clone()),

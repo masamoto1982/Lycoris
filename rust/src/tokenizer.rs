@@ -31,6 +31,23 @@ pub fn tokenize(input: &str) -> Result<Vec<Token>, String> {
 /// from `REFLECT` data were never written anywhere, and inventing a position
 /// for them would be worse than having none.
 pub fn tokenize_with_spans(input: &str) -> Result<(Vec<Token>, Vec<SourceSpan>), String> {
+    tokenize_source(input).map(|source| (source.tokens, source.spans))
+}
+
+/// A program's text, read: its tokens, where each was written, and which of
+/// them are the first spelling of a numeric lexeme.
+pub(crate) struct SourceTokens {
+    pub(crate) tokens: Vec<Token>,
+    pub(crate) spans: Vec<SourceSpan>,
+    /// The index of each Number token whose lexeme no earlier token spelled.
+    /// Every other Number token is a copy of one of these, so a check that
+    /// depends on the lexeme alone — the numeric-literal ceiling — finds its
+    /// first failure among them, at the same token, by reading only these.
+    pub(crate) first_numbers: Vec<usize>,
+}
+
+/// [`tokenize_with_spans`], and the first spelling of each numeric lexeme.
+pub(crate) fn tokenize_source(input: &str) -> Result<SourceTokens, String> {
     // Sized once from a count of the words: growing a Vec of 40-byte tokens
     // by doubling copied every token about twice more.
     let words = ascii_word_count(input);
@@ -49,6 +66,7 @@ pub fn tokenize_with_spans(input: &str) -> Result<(Vec<Token>, Vec<SourceSpan>),
     // when the gate ran after tokenizing.
     let mut depth: usize = 0;
     let mut stray_close = false;
+    let mut first_numbers = Vec::new();
 
     // One pass over the text: `pos` is the byte offset of the next character
     // and `here` its line and column, so a token's span is the cursor's
@@ -166,8 +184,13 @@ pub fn tokenize_with_spans(input: &str) -> Result<(Vec<Token>, Vec<SourceSpan>),
         // grammar accepts the entire lexeme, otherwise a name. This is why no
         // character needs special treatment — `1/2` is a number because the
         // whole token parses as one, and `/` is a name for the same reason.
-        let token =
-            parse_number_from_string(token_str).unwrap_or_else(|| Token::Symbol(token_str.into()));
+        let token = match parse_number_from_string(token_str) {
+            Some(number) => {
+                first_numbers.push(tokens.len());
+                number
+            }
+            None => Token::Symbol(token_str.into()),
+        };
         seen.remember(key, token_str, tokens.len());
         tokens.push(token);
         spans.push(span);
@@ -191,7 +214,11 @@ pub fn tokenize_with_spans(input: &str) -> Result<(Vec<Token>, Vec<SourceSpan>),
         spans.len(),
         "every token must carry the position it was written at"
     );
-    Ok((tokens, spans))
+    Ok(SourceTokens {
+        tokens,
+        spans,
+        first_numbers,
+    })
 }
 
 /// The delimiter characters: the one pair `spec/grammar.json` declares.
