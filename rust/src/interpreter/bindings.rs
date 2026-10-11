@@ -332,7 +332,7 @@ fn check_binding_acyclic(interp: &Interpreter, names: &[String], subject: &Value
 pub(crate) fn binding_names(value: &Value) -> Result<Vec<String>> {
     // A String's name is its text (what `value_as_string` reads from one).
     if let crate::types::ValueData::Text(text) = &value.data {
-        return Ok(vec![text.to_string()]);
+        return Ok(vec![String::from(&**text)]);
     }
     let Some(children) = value.as_vector() else {
         return Err(AjisaiError::declared(
@@ -347,7 +347,7 @@ pub(crate) fn binding_names(value: &Value) -> Result<Vec<String>> {
         .iter()
         .map(|child| {
             if let crate::types::ValueData::Text(text) = &child.data {
-                Ok(text.to_string())
+                Ok(String::from(&**text))
             } else {
                 Err(AjisaiError::declared(
                     "nonText",

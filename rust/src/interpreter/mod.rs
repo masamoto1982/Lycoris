@@ -21,6 +21,8 @@ pub(crate) mod dense_kernels;
 #[cfg(test)]
 mod dense_kernels_tests;
 #[cfg(test)]
+mod dense_quotient_tests;
+#[cfg(test)]
 mod dense_slice_route_tests;
 pub mod error_flow_trace;
 #[cfg(test)]

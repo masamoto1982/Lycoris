@@ -10,7 +10,7 @@ use crate::interpreter::Interpreter;
 use proptest::prelude::*;
 
 #[derive(Debug, PartialEq)]
-struct Observation {
+pub(super) struct Observation {
     outcome: std::result::Result<(), String>,
     values: String,
     usage: crate::interpreter::ResourceUsage,
@@ -18,7 +18,7 @@ struct Observation {
     trace: String,
 }
 
-fn observe(source: &str, dense: bool, bits: Option<u64>) -> Observation {
+pub(super) fn observe(source: &str, dense: bool, bits: Option<u64>) -> Observation {
     let mut interp = Interpreter::new();
     interp.set_dense_kernels_enabled(dense);
     if let Some(bits) = bits {
@@ -39,7 +39,7 @@ fn observe(source: &str, dense: bool, bits: Option<u64>) -> Observation {
     }
 }
 
-fn assert_same(source: &str, bits: Option<u64>) {
+pub(super) fn assert_same(source: &str, bits: Option<u64>) {
     assert_eq!(
         observe(source, true, bits),
         observe(source, false, bits),
@@ -194,7 +194,7 @@ fn hand_picked_programs_agree() {
     }
 }
 
-fn kernel_hits(source: &str) -> u64 {
+pub(super) fn kernel_hits(source: &str) -> u64 {
     let before = crate::interpreter::dense_kernels::kernel_hits_on_this_thread();
     let mut interp = Interpreter::new();
     let _ = crate::agent::block_on(interp.execute(source));

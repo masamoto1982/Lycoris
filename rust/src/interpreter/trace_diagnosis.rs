@@ -24,10 +24,29 @@
 #[path = "trace_diagnosis_tests.rs"]
 mod tests;
 
-use std::sync::OnceLock;
+use std::sync::{Arc, OnceLock};
+
+use smallvec::SmallVec;
 
 use super::debug_diagnosis::{DebugDiagnosis, ErrorPhase, ResourceLimitFacts};
 use crate::error::NilReason;
+
+/// The `message` of the `nilProduced` event `word` records for `reason`.
+///
+/// Spelled out with `push_str` rather than `format!`: one is written for every
+/// absence a Word mints, a block's per element, and the formatting machinery
+/// cost more than the text.
+pub(crate) fn nil_produced_message(word: &str, reason: &NilReason) -> String {
+    const LEAD: &str = "NIL produced by ";
+    const REASON: &str = " reason=";
+    let reason = reason.as_protocol_str();
+    let mut message = String::with_capacity(LEAD.len() + word.len() + REASON.len() + reason.len());
+    message.push_str(LEAD);
+    message.push_str(word);
+    message.push_str(REASON);
+    message.push_str(reason);
+    message
+}
 
 /// The facts a `nilProduced` diagnosis is built from.
 #[derive(Clone)]
@@ -36,14 +55,16 @@ pub(crate) struct NilProduction {
     pub(crate) reason: NilReason,
     pub(crate) stack_len_before: usize,
     pub(crate) stack_len_after: usize,
-    pub(crate) message: String,
     /// The Word's canonical name, when the live dictionary held it as a User
     /// Word at the moment the NIL was produced.
     pub(crate) user_word: Option<String>,
     pub(crate) resource_limit: Option<ResourceLimitFacts>,
     /// The Words this production was later found to have happened inside,
     /// innermost first — `DebugDiagnosis::with_enclosing_word`, deferred.
-    pub(crate) enclosing: Vec<String>,
+    /// A block that answers a NIL per element encloses every one of them in
+    /// the same frame, so the frame's name is shared rather than copied, and
+    /// the first two frames are held inline.
+    pub(crate) enclosing: SmallVec<[Arc<str>; 2]>,
 }
 
 impl NilProduction {
@@ -64,7 +85,8 @@ impl NilProduction {
             Some(&self.reason),
             self.stack_len_before,
             self.stack_len_after,
-            Some(self.message.clone()),
+            // The event's own message, which these facts determine.
+            Some(nil_produced_message(&self.word, &self.reason)),
         );
         // `with_user_vocabulary` reads the vocabulary for two things: whether
         // the locus is a User Word, and — for a misspelled name only — the
@@ -81,10 +103,16 @@ impl NilProduction {
 }
 
 /// A trace event's diagnosis: built already, or built on first read.
+///
+/// The built diagnosis is boxed. Inline, its 256 bytes made every event as
+/// wide whether or not anything ever read it, and an event is moved several
+/// times on its way into the trace. The facts it is built from are held
+/// inline: they are a fraction of that width, and every `nilProduced` event
+/// has them, so a box would be one more allocation per absence a block mints.
 #[derive(Clone)]
 pub struct EventDiagnosis {
-    built: OnceLock<DebugDiagnosis>,
-    pending: Option<Box<NilProduction>>,
+    built: OnceLock<Box<DebugDiagnosis>>,
+    pending: Option<NilProduction>,
 }
 
 impl EventDiagnosis {
@@ -92,7 +120,7 @@ impl EventDiagnosis {
     /// deferred (a Word's failure, which ends the run).
     pub(crate) fn built(diagnosis: DebugDiagnosis) -> Self {
         Self {
-            built: OnceLock::from(diagnosis),
+            built: OnceLock::from(Box::new(diagnosis)),
             pending: None,
         }
     }
@@ -100,22 +128,30 @@ impl EventDiagnosis {
     pub(crate) fn nil_produced(production: NilProduction) -> Self {
         Self {
             built: OnceLock::new(),
-            pending: Some(Box::new(production)),
+            pending: Some(production),
         }
     }
 
     fn get(&self) -> &DebugDiagnosis {
         self.built.get_or_init(|| {
-            self.pending
-                .as_ref()
-                .expect("an unbuilt diagnosis keeps the facts it is built from")
-                .build()
+            Box::new(
+                self.pending
+                    .as_ref()
+                    .expect("an unbuilt diagnosis keeps the facts it is built from")
+                    .build(),
+            )
         })
     }
 
     /// Record the frame this event happened inside. Before the diagnosis is
     /// built the frame joins the facts it will be built from, in order.
     pub(crate) fn with_enclosing_word(&mut self, word: &str) {
+        self.with_enclosing_frame(&Arc::from(word));
+    }
+
+    /// [`Self::with_enclosing_word`] with the frame's name already shared,
+    /// for a frame that encloses many events.
+    pub(crate) fn with_enclosing_frame(&mut self, word: &Arc<str>) {
         match self.built.get_mut() {
             Some(diagnosis) => diagnosis.with_enclosing_word(word),
             None => self
@@ -123,7 +159,7 @@ impl EventDiagnosis {
                 .as_mut()
                 .expect("an unbuilt diagnosis keeps the facts it is built from")
                 .enclosing
-                .push(word.to_string()),
+                .push(Arc::clone(word)),
         }
     }
 

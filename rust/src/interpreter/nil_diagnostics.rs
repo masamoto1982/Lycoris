@@ -35,7 +35,7 @@ use crate::types::{Value, ValueData};
 
 use super::debug_diagnosis::{CauseClass, DebugCheck, DebugDiagnosis, LocalizedText};
 use super::error_flow_trace::{ErrorFlowEvent, ErrorFlowEventKind};
-use super::trace_diagnosis::{EventDiagnosis, NilProduction};
+use super::trace_diagnosis::{nil_produced_message, EventDiagnosis, NilProduction};
 
 /// The operational-NIL metadata of a value, or `None` when it is not an
 /// operational NIL.
@@ -233,13 +233,16 @@ impl Interpreter {
     /// Mark every `nilProduced` event recorded since `trace_len` as having
     /// happened inside `word`; `true` when there was at least one.
     fn enclose_nil_productions_since(&mut self, trace_len: usize, word: &str) -> bool {
+        // One shared name for every event the frame encloses: a block that
+        // answered a NIL per element left one event per element.
+        let mut frame: Option<std::sync::Arc<str>> = None;
         let mut enclosed = false;
         for event in self.error_flow_trace_log.iter_mut().skip(trace_len) {
             if event.kind != ErrorFlowEventKind::NilProduced {
                 continue;
             }
             if let Some(diagnosis) = event.diagnosis.as_mut() {
-                diagnosis.with_enclosing_word(word);
+                diagnosis.with_enclosing_frame(frame.get_or_insert_with(|| word.into()));
             }
             enclosed = true;
         }
@@ -250,11 +253,7 @@ impl Interpreter {
         // A NIL is reported by its reason and by nothing else: an error
         // category beside it would name an outcome the run did not have.
         let stack_len_after = self.stack.len();
-        let message = format!(
-            "NIL produced by {} reason={}",
-            word,
-            reason.as_protocol_str()
-        );
+        let message = nil_produced_message(word, &reason);
         // The absence envelope belongs to the value that actually carries the
         // projection, which for a lifted Word is a lane rather than the result.
         let absence = self.stack.last().and_then(projected_absence_metadata);
@@ -277,10 +276,9 @@ impl Interpreter {
             reason,
             stack_len_before,
             stack_len_after,
-            message: message.clone(),
             user_word,
             resource_limit,
-            enclosing: Vec::new(),
+            enclosing: Default::default(),
         });
         self.push_error_flow_trace(ErrorFlowEvent {
             kind: ErrorFlowEventKind::NilProduced,
