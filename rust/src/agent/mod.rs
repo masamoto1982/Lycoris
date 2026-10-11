@@ -305,7 +305,8 @@ pub(crate) fn resolve_words(interp: &Interpreter, tokens: &[Token]) -> ResolvedW
 
 /// The frame region of every token (see [`resolve_words`]). Assumes the
 /// bracket structure already passed the tokenizer's structural validation
-/// (`tokenizer::validate_code_tokens`, which `tokenize` runs on every result).
+/// (`tokenizer::validate_code_tokens`'s rule, which `tokenize` holds every
+/// result to).
 fn frame_regions(tokens: &[Token]) -> Vec<usize> {
     // Match every `[` to its `]` first, so a block can be recognised as a
     // DEF body from its opening side.
