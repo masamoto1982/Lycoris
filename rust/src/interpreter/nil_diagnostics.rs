@@ -197,9 +197,23 @@ impl Interpreter {
 
     /// [`Self::dispatch_word`] for a canonical name already known to name no
     /// Core Word (`symbol_cache`): the same dispatch without probing Core.
-    pub(crate) fn dispatch_word_beyond_core(&mut self, name: &str) -> crate::error::Result<()> {
+    ///
+    /// The binding read comes first, as it does there, and is answered
+    /// without the witness: copying a bound value onto the stack mints no
+    /// absence and records nothing, so the record `trace_nil_outcome` would
+    /// make for it is always nothing.
+    #[inline]
+    pub(crate) fn dispatch_word_beyond_core(
+        &mut self,
+        name: &crate::types::Name,
+    ) -> crate::error::Result<()> {
+        if let Some(value) = self.lookup_binding(name) {
+            self.stack.push(value);
+            return Ok(());
+        }
+        let name = name.as_str();
         let witness = self.begin_dispatch();
-        let outcome = self.execute_resolved_word(name, None);
+        let outcome = self.execute_unbound_word(name, None);
         self.end_dispatch(name, witness, outcome)
     }
 

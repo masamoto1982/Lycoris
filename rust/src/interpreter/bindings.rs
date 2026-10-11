@@ -23,7 +23,7 @@
 //! name is text in the body like every other name.
 
 use crate::error::{AjisaiError, Result};
-use crate::types::Value;
+use crate::types::{Name, Value};
 use std::sync::Arc;
 
 use super::Interpreter;
@@ -38,7 +38,7 @@ use super::Interpreter;
 /// the blocks written beneath it and never into a Word called from it.
 #[derive(Debug, Default, Clone)]
 pub(crate) struct BindingScope {
-    names: crate::fast_hash::FastMap<Arc<str>, Value>,
+    names: super::binding_table::ScopeNames,
     barrier: bool,
 }
 
@@ -86,8 +86,15 @@ impl Interpreter {
         self.binding_scopes.push(BindingScope::root());
     }
 
-    /// The value bound to `name` in the frames this one can see.
-    pub(crate) fn lookup_binding(&self, name: &str) -> Option<Value> {
+    /// The value bound to `name` in the frames this one can see. `name` is a
+    /// canonical name's text, or the canonical [`Name`] itself, which the
+    /// token walk holds and which compares without reading it as text.
+    #[inline]
+    pub(crate) fn lookup_binding<Q>(&self, name: &Q) -> Option<Value>
+    where
+        Name: std::borrow::Borrow<Q>,
+        Q: std::hash::Hash + Eq + ?Sized,
+    {
         for scope in self.binding_scopes.iter().rev() {
             if let Some(bound) = scope.names.get(name) {
                 return Some(bound.clone());
@@ -119,7 +126,7 @@ impl Interpreter {
     /// would buy nothing. This is a local, not a definition: the rule that
     /// protects a referenced Word from being redefined is about names other
     /// code can reach, and nothing outside this frame can reach this one.
-    pub(crate) fn bind_local(&mut self, name: Arc<str>, value: Value) {
+    pub(crate) fn bind_local(&mut self, name: Name, value: Value) {
         if let Some(scope) = self.binding_scopes.last_mut() {
             scope.names.insert(name, value);
         }
@@ -228,7 +235,7 @@ pub(crate) fn op_bind(interp: &mut Interpreter) -> Result<()> {
                 std::borrow::Cow::Owned(folded) => folded.into(),
                 std::borrow::Cow::Borrowed(_) => text,
             };
-            interp.bind_local(key, subject);
+            interp.bind_local(key.into(), subject);
         }
         several => {
             // Destructuring is exact. A Vector longer than the name list would
@@ -279,11 +286,11 @@ fn bind_one(interp: &mut Interpreter, name_value: Value, text: Arc<str>) -> Resu
         interp.stack.push(name_value);
         return Err(error);
     }
-    // The key shares the name's own `Arc<str>` when it needs no folding, so
-    // a `BIND` makes no copy of the name for the table.
-    let key: Arc<str> = match crate::word_name::canonical_word_name(&text) {
-        std::borrow::Cow::Owned(folded) => folded.into(),
-        std::borrow::Cow::Borrowed(_) => text,
+    // The key is the name uppercased: the text in hand already when it has
+    // no lowercase letter to fold.
+    let key = match crate::word_name::canonical_word_name(&text) {
+        std::borrow::Cow::Owned(folded) => Name::from(folded),
+        std::borrow::Cow::Borrowed(_) => Name::from(text),
     };
     interp.bind_local(key, subject);
     Ok(())

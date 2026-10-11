@@ -96,7 +96,7 @@ pub(crate) struct Segment {
     /// Names the run's own frame binds, and the slot holding each one's
     /// last value. A called Word's frame ends with the call, so its names
     /// are not here.
-    pub(crate) binds: Vec<(Arc<str>, u32)>,
+    pub(crate) binds: Vec<(crate::types::Name, u32)>,
     /// Words dispatched, User Word calls included.
     pub(crate) steps: usize,
     /// Each User Word called, once, and how many calls in all.
@@ -148,7 +148,7 @@ impl Segment {
         }
         let mut slots: SmallVec<[Slot; 8]> = SmallVec::from_elem(Slot::Bool(false), self.slots);
         for (name, slot) in &self.reads {
-            slots[*slot as usize] = Slot::of(&interp.lookup_binding(name)?)?;
+            slots[*slot as usize] = Slot::of(&interp.lookup_binding(name.as_str())?)?;
         }
 
         let (mut work, mut fastpath) = (0u64, 0u64);
@@ -232,15 +232,15 @@ impl Segment {
         if built > 0 {
             interp.global_epoch += built;
             interp.execution_epoch = interp.global_epoch;
-        }
-        for (name, plan) in builds {
-            interp.store_compiled_plan_for_word(name, plan);
+            for (name, plan) in builds {
+                interp.store_compiled_plan_for_word(name, plan);
+            }
         }
         for (name, slot) in &self.binds {
-            interp.bind_local(Arc::clone(name), slots[*slot as usize].into_value());
+            interp.bind_local(name.clone(), slots[*slot as usize].into_value());
         }
         interp.stack.truncate(base);
-        for slot in stack {
+        for &slot in &stack {
             interp.stack.push(slot.into_value());
         }
         // Where the dispatch's last check left the mark. Only pushes follow

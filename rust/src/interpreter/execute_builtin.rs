@@ -83,13 +83,22 @@ impl Interpreter {
         name: &str,
         core: Option<std::sync::Arc<crate::types::WordDefinition>>,
     ) -> Result<()> {
-        let core_found = core.is_some();
-        if !core_found {
+        if core.is_none() {
             if let Some(value) = self.lookup_binding(name) {
                 self.stack.push(value);
                 return Ok(());
             }
         }
+        self.execute_unbound_word(name, core)
+    }
+
+    /// [`Self::execute_resolved_word`] for a name no binding answered.
+    pub(crate) fn execute_unbound_word(
+        &mut self,
+        name: &str,
+        core: Option<std::sync::Arc<crate::types::WordDefinition>>,
+    ) -> Result<()> {
+        let core_found = core.is_some();
 
         // `name` is already canonical, and resolution answers under that same
         // name, so the dispatch asks only for the definition. Taking a name back

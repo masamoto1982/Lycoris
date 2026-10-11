@@ -41,7 +41,7 @@ pub(crate) fn value_elements_to_tokens(elements: &[Value]) -> Result<Vec<Token>>
 
 fn push_value_as_tokens(value: &Value, out: &mut Vec<Token>) -> Result<()> {
     match &value.data {
-        ValueData::Symbol(name) => out.push(Token::Symbol(name.clone())),
+        ValueData::Symbol(name) => out.push(Token::Symbol(name.into())),
         ValueData::Text(s) => out.push(Token::String(s.clone())),
         // The value is already in hand, so it is carried across rather than
         // formatted into a string for the executor to parse back. That round
@@ -105,7 +105,7 @@ pub(crate) fn value_elements_to_source_tokens(elements: &[Value]) -> Result<Vec<
         match &element.data {
             // At the top level of a body a bare name is a call, as it is for
             // any Vector run as code.
-            ValueData::Symbol(name) => tokens.push(Token::Symbol(name.clone())),
+            ValueData::Symbol(name) => tokens.push(Token::Symbol(name.into())),
             _ => push_source_expression(element, &mut tokens)?,
         }
     }
@@ -138,7 +138,7 @@ fn writes_as_literal(value: &Value) -> bool {
 /// The literal spelling of a value `writes_as_literal` admits.
 fn push_literal(value: &Value, out: &mut Vec<Token>) {
     match &value.data {
-        ValueData::Symbol(name) => out.push(Token::Symbol(name.clone())),
+        ValueData::Symbol(name) => out.push(Token::Symbol(name.into())),
         ValueData::Text(s) => out.push(Token::String(s.clone())),
         ValueData::Scalar(f) => out.push(Token::number_from_value(f.clone())),
         ValueData::ExactScalar(ExactReal::Rational(f)) => {
@@ -170,7 +170,7 @@ fn push_source_expression(value: &Value, out: &mut Vec<Token>) -> Result<()> {
         // being read out of a literal.
         ValueData::Symbol(name) => {
             out.push(Token::VectorStart);
-            out.push(Token::Symbol(name.clone()));
+            out.push(Token::Symbol(name.into()));
             out.push(Token::VectorEnd);
             out.push(Token::number_from_value(integer(0)));
             out.push(Token::Symbol("GET".into()));
