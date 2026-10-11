@@ -14,7 +14,7 @@
 //! and quotient of the magnitudes, the quotient keeping the dividend's sign.
 //! `small_divisor_tests` holds the two equal.
 
-use num_bigint::{BigInt, BigUint, Sign};
+use num_bigint::{BigInt, BigUint};
 use num_traits::Zero;
 
 /// A dividend this wide or narrower is left to the operators: the setup of a
@@ -130,7 +130,8 @@ pub(crate) fn gcd_with_word(wide: &BigInt, d: &BigInt) -> Option<BigInt> {
 #[inline]
 pub(crate) fn quotient(a: &BigInt, d: &BigInt) -> BigInt {
     match single_word(d) {
-        Some(word) if a.bits() > WIDE_BITS && a.sign() != Sign::NoSign => div_word(a, word),
+        // Zero has no bits, so a wide `a` is never zero.
+        Some(word) if a.bits() > WIDE_BITS => div_word(a, word),
         _ => a / d,
     }
 }

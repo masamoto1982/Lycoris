@@ -61,13 +61,10 @@ impl Fraction {
             if b == d {
                 return Self::create_from_i128((a as i128) + (c as i128), b as i128);
             }
-            if let Some(num) = (a as i128).checked_mul(d as i128).and_then(|ad| {
-                (c as i128)
-                    .checked_mul(b as i128)
-                    .and_then(|cb| ad.checked_add(cb))
-            }) {
-                return Self::create_from_i128(num, (b as i128) * (d as i128));
-            }
+            // Each product is under 2^126 in magnitude, so their sum
+            // is under 2^127: it always fits.
+            let num = (a as i128) * (d as i128) + (c as i128) * (b as i128);
+            return Self::create_from_i128(num, (b as i128) * (d as i128));
         }
 
         self.add_wide(other, false)
@@ -121,13 +118,10 @@ impl Fraction {
             if b == d {
                 return Self::create_from_i128((a as i128) - (c as i128), b as i128);
             }
-            if let Some(num) = (a as i128).checked_mul(d as i128).and_then(|ad| {
-                (c as i128)
-                    .checked_mul(b as i128)
-                    .and_then(|cb| ad.checked_sub(cb))
-            }) {
-                return Self::create_from_i128(num, (b as i128) * (d as i128));
-            }
+            // Each product is under 2^126 in magnitude, so their difference
+            // is under 2^127: it always fits.
+            let num = (a as i128) * (d as i128) - (c as i128) * (b as i128);
+            return Self::create_from_i128(num, (b as i128) * (d as i128));
         }
 
         self.add_wide(other, true)
@@ -224,9 +218,8 @@ impl Fraction {
             let b_r = (b / g2) as i128;
             let c_r = (c / g2) as i128;
             let d_r = (d / g1) as i128;
-            if let (Some(num), Some(den)) = (a_r.checked_mul(c_r), b_r.checked_mul(d_r)) {
-                return Self::from_coprime_i128(num, den);
-            }
+            // Four machine words over i128: the products always fit.
+            return Self::from_coprime_i128(a_r * c_r, b_r * d_r);
         }
 
         let (an, ad): (BigInt, BigInt) = self.to_bigint_pair();
@@ -281,9 +274,8 @@ impl Fraction {
             let b_r = (b / g2) as i128;
             let c_r = (c / g1) as i128;
             let d_r = (d / g2) as i128;
-            if let (Some(num), Some(den)) = (a_r.checked_mul(d_r), b_r.checked_mul(c_r)) {
-                return Self::from_coprime_i128(num, den);
-            }
+            // Four machine words over i128: the products always fit.
+            return Self::from_coprime_i128(a_r * d_r, b_r * c_r);
         }
 
         let (an, ad): (BigInt, BigInt) = self.to_bigint_pair();
@@ -395,10 +387,6 @@ impl Fraction {
             return Fraction::from_repr(self.repr.clone());
         }
 
-        if self.is_zero() {
-            return Fraction::from_repr(FractionRepr::Small(0, 1));
-        }
-
         match &self.repr {
             FractionRepr::Small(n, d) => {
                 let is_negative = *n < 0;
@@ -477,9 +465,8 @@ pub(crate) fn balanced_bigint_gcd(a: &BigInt, b: &BigInt) -> BigInt {
     // on ordinary integers, and the reduction of every fraction a little past
     // a machine word.
     if wide.bits() <= 128 {
-        if let (Some(x), Some(y)) = (wide.magnitude().to_u128(), narrow.magnitude().to_u128()) {
-            return BigInt::from(x.gcd(&y));
-        }
+        let word = |n: &BigInt| n.magnitude().to_u128().expect("within 128 bits");
+        return BigInt::from(word(wide).gcd(&word(narrow)));
     }
     if narrow.bits() > LEHMER_BITS {
         return crate::types::lehmer_gcd::gcd(wide, narrow);
