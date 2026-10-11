@@ -246,6 +246,56 @@ fn conjoin_in_place(interp: &mut Interpreter, b_val: &Value) -> Option<Result<()
     Some(Ok(()))
 }
 
+/// `SELECT` written into its truth operand when that is a flat Vector of
+/// truth values and each candidate is a leaf or a Vector of leaves as long
+/// as the mask (or one lane long): each mask lane becomes the candidate it
+/// chooses, as the lifted law would have built it. The candidates are taken
+/// off the stack only when it answers; `false` leaves everything in place.
+fn select_in_place(interp: &mut Interpreter, mask: &mut Value) -> bool {
+    let Some(width) = mask.as_vector_view().map(|lanes| lanes.len()) else {
+        return false;
+    };
+    let fits = |v: &Value| match &v.data {
+        ValueData::Vector(items) => {
+            (items.len() == 1 || items.len() == width)
+                && items.iter().all(|lane| !is_container(lane))
+        }
+        _ => !is_container(v),
+    };
+    let depth = interp.stack.len();
+    if depth < 2 || !fits(&interp.stack[depth - 1]) || !fits(&interp.stack[depth - 2]) {
+        return false;
+    }
+    // Only a mask nothing else holds: copying a shared one first costs more
+    // than building the answer, since every lane is overwritten anyway.
+    if !matches!(&mask.data, ValueData::Vector(items) if Arc::strong_count(items) == 1) {
+        return false;
+    }
+    let Some(lanes) = sole_truth_lanes(mask) else {
+        return false;
+    };
+    let when_false = interp.stack.pop().expect("checked above");
+    let when_true = interp.stack.pop().expect("checked above");
+    fn pick(v: &Value, index: usize) -> &Value {
+        match &v.data {
+            ValueData::Vector(items) => &items[if items.len() == 1 { 0 } else { index }],
+            _ => v,
+        }
+    }
+    for (index, lane) in lanes.iter_mut().enumerate() {
+        let (t, f) = (pick(&when_true, index), pick(&when_false, index));
+        *lane = compute_selection(t, f, lane).expect("every mask lane is a truth value");
+    }
+    true
+}
+
+fn is_container(v: &Value) -> bool {
+    matches!(
+        v.data,
+        ValueData::Vector(_) | ValueData::Tensor { .. } | ValueData::Record(_)
+    )
+}
+
 /// `SELECT` — the conditional.
 ///
 /// `[ whenTrue ] [ whenFalse ] [ mask ] SELECT` answers one of the two
@@ -264,7 +314,11 @@ pub fn op_select(interp: &mut Interpreter) -> Result<()> {
         return Err(AjisaiError::stack_underflow());
     }
 
-    let mask = interp.stack.pop().ok_or(AjisaiError::stack_underflow())?;
+    let mut mask = interp.stack.pop().ok_or(AjisaiError::stack_underflow())?;
+    if select_in_place(interp, &mut mask) {
+        interp.stack.push(mask);
+        return Ok(());
+    }
     let when_false = interp.stack.pop().ok_or(AjisaiError::stack_underflow())?;
     let when_true = interp.stack.pop().ok_or(AjisaiError::stack_underflow())?;
 
@@ -300,6 +354,10 @@ mod in_place_tests {
         ]
     }
 
+    fn right_lanes(all: &[Value]) -> Vec<Value> {
+        all.iter().flat_map(|_| all.iter().cloned()).collect()
+    }
+
     fn run(stack: Vec<Value>, op: fn(&mut Interpreter) -> Result<()>) -> Vec<Value> {
         let mut interp = Interpreter::new();
         interp.stack.extend(stack);
@@ -316,7 +374,7 @@ mod in_place_tests {
             .iter()
             .flat_map(|a| all.iter().map(move |_| a.clone()))
             .collect();
-        let right: Vec<Value> = all.iter().flat_map(|_| all.iter().cloned()).collect();
+        let right = right_lanes(&all);
         let (left, right) = (Value::from_vector(left), Value::from_vector(right));
         let expected = lifted_conjunction(&left, &right).unwrap();
         for shared in [false, true] {
@@ -336,5 +394,19 @@ mod in_place_tests {
         }
         let expected = lift_lanes([&left], |[x]| compute_inverted_value(x)).unwrap();
         assert_eq!(run(vec![left.clone()], op_not), vec![expected]);
+        let numbers =
+            |k: i64| Value::from_vector((0..25).map(|i| Value::from_int(i * k)).collect());
+        let one = |v: Value| Value::from_vector(vec![v]);
+        for (t, f) in [
+            (Value::from_int(1), Value::from_int(0)),
+            (numbers(1), numbers(-1)),
+            (one(Value::from_int(1)), numbers(2)),
+            (Value::from_bool(true), Value::both()),
+        ] {
+            let mask = || Value::from_vector(right_lanes(&all));
+            let expected = lift_lanes([&t, &f, &mask()], |[t, f, m]| compute_selection(t, f, m));
+            let answer = run(vec![t.clone(), f.clone(), mask()], op_select);
+            assert_eq!(answer, vec![expected.unwrap()], "{t:?} {f:?}");
+        }
     }
 }
