@@ -2,7 +2,6 @@
 //! renderings the cast and text Words share.
 
 use crate::error::{AjisaiError, NilReason, Result};
-use crate::interpreter::value_extraction_helpers::value_as_string;
 use crate::interpreter::Interpreter;
 use crate::semantic::Recoverability;
 use crate::types::fraction::Fraction;
@@ -167,10 +166,11 @@ pub fn op_str(interp: &mut Interpreter) -> Result<()> {
 /// written as a literal or built by the program, so leniency here would only
 /// create a second numeric language for a program to trip over.
 fn convert_value_to_number(val: &Value) -> Result<Value> {
-    if val.is_text() {
-        let s = value_as_string(val).unwrap_or_default();
-        let parsed = if crate::tokenizer::is_number_token_lexeme(&s) {
-            Fraction::from_str(&s).ok()
+    // The text as it is held: copying it out (`value_as_string`) built a
+    // `Vec<char>` and a `String` for every `NUM`, to read the same characters.
+    if let Some(s) = val.as_text() {
+        let parsed = if crate::tokenizer::is_number_token_lexeme(s) {
+            Fraction::from_str(s).ok()
         } else {
             None
         };
