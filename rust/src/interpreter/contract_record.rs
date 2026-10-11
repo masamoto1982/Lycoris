@@ -65,6 +65,11 @@ pub(crate) fn registered_contract_record(word: &GeneratedWord) -> Value {
         ("errorWhen", texts(word.error_when)),
         ("partiality", text(word.partiality.as_spec_str())),
         ("field", text(word.field.as_spec_str())),
+        ("zeroShapes", text(word.zero_shapes.as_spec_str())),
+        (
+            "shapes",
+            texts(super::word_contract::core_word_shapes(word.name).shape_names()),
+        ),
         ("purity", text(word.purity.as_spec_str())),
         ("determinism", text(word.determinism.as_spec_str())),
         (
@@ -105,6 +110,7 @@ pub(crate) fn inferred_contract_record(contract: &WordContract) -> Value {
         ("outputs", outputs),
         ("partiality", text(contract.partiality.as_spec_str())),
         ("field", text(contract.field.as_spec_str())),
+        ("shapes", texts(contract.shapes.shape_names())),
         ("purity", text(contract.purity.as_spec_str())),
         ("determinism", text(contract.determinism.as_spec_str())),
         ("cost", cost_record(steps.0, numeric.0, collection.0)),

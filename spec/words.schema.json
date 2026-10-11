@@ -164,6 +164,7 @@
     "errorWhen",
     "partiality",
     "field",
+    "zeroShapes",
     "purity",
     "determinism",
     "cost",
@@ -277,11 +278,34 @@
      ]
     },
     "field": {
-     "description": "Whether the Word keeps numbers inside the field (LANG.CONTRACT.FIELD): `closed` when every number it answers lies in the field whenever every number it reads does, `leaving` when it can answer one of the three points over zero (`1/0`, `-1/0`, `0/0`) from operands that hold none. Only the total operations that reach past the field are `leaving` — `DIV` (`1 0 DIV`), `POW` (`0 -1 POW`) and `NUM` (`'1/0' NUM`); a Word that only carries, orders or rounds numbers is `closed`, and a Word that runs a block is `closed` itself, the block's own Words deciding for it. `rust/src/field_closure_laws.rs` holds one witness per `leaving` Word and runs every `closed` arithmetic Word over finite operands.",
+     "description": "Whether the Word keeps numbers inside the field (LANG.CONTRACT.FIELD): `closed` when every number it answers lies in the field whenever every number it reads does, `leaving` when it can answer one of the three points over zero (`1/0`, `-1/0`, `0/0`) from operands that hold none. Only the total operations that reach past the field are `leaving` — `DIV` (`1 0 DIV`), `POW` (`0 -1 POW`) and `NUM` (`'1/0' NUM`); a Word that only carries, orders or rounds numbers is `closed`, and a Word that runs a block is `closed` itself, the block's own Words deciding for it. It is the projection of `zeroShapes`, and `rust/src/zero_shape_contract_laws.rs` holds the two to agreement; `rust/src/field_closure_laws.rs` holds one witness per `leaving` Word and runs every `closed` arithmetic Word over finite operands.",
      "type": "string",
      "enum": [
       "closed",
       "leaving"
+     ]
+    },
+    "zeroShapes": {
+     "description": "What the Word does to the zero shapes of numbers (LANG.VALUES.SHAPE, LANG.CONTRACT.FIELD): the law the contract inference applies to the shapes its operands may take to learn the shapes its results may take. `none` answers no number; `carry` answers only numbers its operands held; `count` answers fresh non-negative integers (a length, an index, a divisor); `carryCount` does both; `finite` answers fresh finite numbers; `parse` may answer any number, the three points over zero included; `sum`, `difference`, `product`, `quotient`, `power`, `root` and `round` are the tables of LANG.VALUES.SHAPE read per sign; `map`, `filter` and `fold` answer what their block answers over the elements (and, for `fold`, the accumulator), `filter` keeping elements rather than block results; `exec` runs code the inference does not follow. `field` is this law's projection: a Word is `leaving` exactly when its law can answer a point over zero from finite operands — `quotient`, `power` and `parse`. `rust/src/zero_shape_contract_laws.rs` runs every Word over operands of every shape and holds each answer to its law.",
+     "type": "string",
+     "enum": [
+      "none",
+      "carry",
+      "count",
+      "carryCount",
+      "finite",
+      "parse",
+      "sum",
+      "difference",
+      "product",
+      "quotient",
+      "power",
+      "root",
+      "round",
+      "map",
+      "filter",
+      "fold",
+      "exec"
      ]
     },
     "purity": {

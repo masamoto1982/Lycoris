@@ -50,6 +50,7 @@
       "effects": [],
       "partiality": "total",
       "field": "closed",
+      "zeroShapes": "none",
       "vocabularyTier": "kernel"
     },
     {
@@ -101,6 +102,7 @@
       "effects": [],
       "partiality": "total",
       "field": "closed",
+      "zeroShapes": "none",
       "vocabularyTier": "kernel"
     },
     {
@@ -152,6 +154,7 @@
       "effects": [],
       "partiality": "total",
       "field": "closed",
+      "zeroShapes": "none",
       "vocabularyTier": "kernel"
     },
     {
@@ -213,6 +216,7 @@
       "effects": [],
       "partiality": "total",
       "field": "closed",
+      "zeroShapes": "none",
       "vocabularyTier": "kernel"
     },
     {
@@ -271,6 +275,7 @@
       "effects": [],
       "partiality": "total",
       "field": "closed",
+      "zeroShapes": "none",
       "vocabularyTier": "kernel"
     },
     {
@@ -334,6 +339,7 @@
       "effects": [],
       "partiality": "total",
       "field": "closed",
+      "zeroShapes": "carry",
       "vocabularyTier": "kernel"
     },
     {
@@ -393,6 +399,7 @@
       "effects": [],
       "partiality": "projecting",
       "field": "closed",
+      "zeroShapes": "carry",
       "vocabularyTier": "kernel"
     },
     {
@@ -452,6 +459,7 @@
       "effects": [],
       "partiality": "total",
       "field": "closed",
+      "zeroShapes": "none",
       "vocabularyTier": "kernel"
     },
     {
@@ -515,6 +523,7 @@
       "effects": [],
       "partiality": "projecting",
       "field": "closed",
+      "zeroShapes": "none",
       "vocabularyTier": "kernel"
     },
     {
@@ -578,6 +587,7 @@
       "effects": [],
       "partiality": "projecting",
       "field": "closed",
+      "zeroShapes": "none",
       "vocabularyTier": "kernel"
     },
     {
@@ -640,6 +650,7 @@
       "effects": [],
       "partiality": "total",
       "field": "closed",
+      "zeroShapes": "sum",
       "vocabularyTier": "kernel"
     },
     {
@@ -702,6 +713,7 @@
       "effects": [],
       "partiality": "total",
       "field": "closed",
+      "zeroShapes": "difference",
       "vocabularyTier": "standard",
       "standardKind": "shorthand"
     },
@@ -765,6 +777,7 @@
       "effects": [],
       "partiality": "total",
       "field": "closed",
+      "zeroShapes": "product",
       "vocabularyTier": "kernel"
     },
     {
@@ -828,6 +841,7 @@
       "effects": [],
       "partiality": "total",
       "field": "leaving",
+      "zeroShapes": "quotient",
       "vocabularyTier": "kernel"
     },
     {
@@ -887,6 +901,7 @@
       "effects": [],
       "partiality": "total",
       "field": "closed",
+      "zeroShapes": "round",
       "vocabularyTier": "kernel"
     },
     {
@@ -946,6 +961,7 @@
       "effects": [],
       "partiality": "total",
       "field": "closed",
+      "zeroShapes": "round",
       "vocabularyTier": "standard",
       "standardKind": "algorithm"
     },
@@ -1010,6 +1026,7 @@
       "effects": [],
       "partiality": "projecting",
       "field": "closed",
+      "zeroShapes": "carry",
       "vocabularyTier": "standard",
       "standardKind": "namedPattern"
     },
@@ -1074,6 +1091,7 @@
       "effects": [],
       "partiality": "projecting",
       "field": "closed",
+      "zeroShapes": "carry",
       "vocabularyTier": "standard",
       "standardKind": "namedPattern"
     },
@@ -1135,6 +1153,7 @@
       "effects": [],
       "partiality": "projecting",
       "field": "closed",
+      "zeroShapes": "root",
       "vocabularyTier": "kernel"
     },
     {
@@ -1203,6 +1222,7 @@
       "effects": [],
       "partiality": "projecting",
       "field": "leaving",
+      "zeroShapes": "power",
       "vocabularyTier": "kernel"
     },
     {
@@ -1266,6 +1286,7 @@
       "effects": [],
       "partiality": "projecting",
       "field": "closed",
+      "zeroShapes": "count",
       "vocabularyTier": "standard",
       "standardKind": "operational"
     },
@@ -1327,6 +1348,7 @@
       "effects": [],
       "partiality": "projecting",
       "field": "closed",
+      "zeroShapes": "finite",
       "vocabularyTier": "standard",
       "standardKind": "operational"
     },
@@ -1404,6 +1426,7 @@
       "effects": [],
       "partiality": "projecting",
       "field": "closed",
+      "zeroShapes": "carry",
       "vocabularyTier": "kernel"
     },
     {
@@ -1462,6 +1485,7 @@
       "effects": [],
       "partiality": "total",
       "field": "closed",
+      "zeroShapes": "count",
       "vocabularyTier": "kernel"
     },
     {
@@ -1525,6 +1549,7 @@
       "effects": [],
       "partiality": "projecting",
       "field": "closed",
+      "zeroShapes": "carry",
       "vocabularyTier": "standard",
       "standardKind": "namedPattern"
     },
@@ -1589,6 +1614,7 @@
       "effects": [],
       "partiality": "projecting",
       "field": "closed",
+      "zeroShapes": "carry",
       "vocabularyTier": "standard",
       "standardKind": "namedPattern"
     },
@@ -1650,6 +1676,7 @@
       "effects": [],
       "partiality": "total",
       "field": "closed",
+      "zeroShapes": "carry",
       "vocabularyTier": "kernel"
     },
     {
@@ -1708,6 +1735,7 @@
       "effects": [],
       "partiality": "total",
       "field": "closed",
+      "zeroShapes": "carry",
       "vocabularyTier": "standard",
       "standardKind": "namedPattern"
     },
@@ -1757,6 +1785,7 @@
       "effects": [],
       "partiality": "partial",
       "field": "closed",
+      "zeroShapes": "carry",
       "vocabularyTier": "kernel"
     },
     {
@@ -1819,6 +1848,7 @@
       "effects": [],
       "partiality": "total",
       "field": "closed",
+      "zeroShapes": "finite",
       "vocabularyTier": "kernel"
     },
     {
@@ -1889,6 +1919,7 @@
       "effects": [],
       "partiality": "total",
       "field": "closed",
+      "zeroShapes": "carry",
       "vocabularyTier": "standard",
       "standardKind": "operational"
     },
@@ -1946,6 +1977,7 @@
       "effects": [],
       "partiality": "projecting",
       "field": "closed",
+      "zeroShapes": "count",
       "vocabularyTier": "kernel"
     },
     {
@@ -2008,6 +2040,7 @@
       "effects": [],
       "partiality": "total",
       "field": "closed",
+      "zeroShapes": "carry",
       "vocabularyTier": "kernel"
     },
     {
@@ -2066,6 +2099,7 @@
       "effects": [],
       "partiality": "total",
       "field": "closed",
+      "zeroShapes": "carry",
       "vocabularyTier": "kernel"
     },
     {
@@ -2122,6 +2156,7 @@
       "effects": [],
       "partiality": "total",
       "field": "closed",
+      "zeroShapes": "count",
       "vocabularyTier": "kernel"
     },
     {
@@ -2183,6 +2218,7 @@
       "effects": [],
       "partiality": "projecting",
       "field": "closed",
+      "zeroShapes": "carry",
       "vocabularyTier": "standard",
       "standardKind": "operational"
     },
@@ -2245,6 +2281,7 @@
       "effects": [],
       "partiality": "projecting",
       "field": "closed",
+      "zeroShapes": "count",
       "vocabularyTier": "standard",
       "standardKind": "operational"
     },
@@ -2304,6 +2341,7 @@
       "effects": [],
       "partiality": "total",
       "field": "closed",
+      "zeroShapes": "carry",
       "vocabularyTier": "standard",
       "standardKind": "operational"
     },
@@ -2364,6 +2402,7 @@
       "effects": [],
       "partiality": "total",
       "field": "closed",
+      "zeroShapes": "carryCount",
       "vocabularyTier": "standard",
       "standardKind": "operational"
     },
@@ -2424,6 +2463,7 @@
       "effects": [],
       "partiality": "total",
       "field": "closed",
+      "zeroShapes": "carry",
       "vocabularyTier": "standard",
       "standardKind": "operational"
     },
@@ -2500,6 +2540,7 @@
       "effects": [],
       "partiality": "projecting",
       "field": "closed",
+      "zeroShapes": "carry",
       "vocabularyTier": "kernel"
     },
     {
@@ -2562,6 +2603,7 @@
       "effects": [],
       "partiality": "total",
       "field": "closed",
+      "zeroShapes": "carry",
       "vocabularyTier": "standard",
       "standardKind": "operational"
     },
@@ -2634,6 +2676,7 @@
       "effects": [],
       "partiality": "projecting",
       "field": "closed",
+      "zeroShapes": "count",
       "vocabularyTier": "standard",
       "standardKind": "algorithm"
     },
@@ -2698,6 +2741,7 @@
       "effects": [],
       "partiality": "total",
       "field": "closed",
+      "zeroShapes": "carry",
       "vocabularyTier": "kernel"
     },
     {
@@ -2756,6 +2800,7 @@
       "effects": [],
       "partiality": "total",
       "field": "closed",
+      "zeroShapes": "carry",
       "vocabularyTier": "kernel"
     },
     {
@@ -2814,6 +2859,7 @@
       "effects": [],
       "partiality": "total",
       "field": "closed",
+      "zeroShapes": "carry",
       "vocabularyTier": "kernel"
     },
     {
@@ -2876,6 +2922,7 @@
       "effects": [],
       "partiality": "projecting",
       "field": "closed",
+      "zeroShapes": "carry",
       "vocabularyTier": "kernel"
     },
     {
@@ -2937,6 +2984,7 @@
       "effects": [],
       "partiality": "total",
       "field": "closed",
+      "zeroShapes": "none",
       "vocabularyTier": "kernel"
     },
     {
@@ -2997,6 +3045,7 @@
       "effects": [],
       "partiality": "total",
       "field": "closed",
+      "zeroShapes": "carry",
       "vocabularyTier": "kernel"
     },
     {
@@ -3058,6 +3107,7 @@
       "effects": [],
       "partiality": "partial",
       "field": "closed",
+      "zeroShapes": "map",
       "vocabularyTier": "kernel"
     },
     {
@@ -3120,6 +3170,7 @@
       "effects": [],
       "partiality": "partial",
       "field": "closed",
+      "zeroShapes": "filter",
       "vocabularyTier": "standard",
       "standardKind": "operational"
     },
@@ -3184,6 +3235,7 @@
       "effects": [],
       "partiality": "partial",
       "field": "closed",
+      "zeroShapes": "fold",
       "vocabularyTier": "kernel"
     },
     {
@@ -3247,6 +3299,7 @@
       "effects": [],
       "partiality": "partial",
       "field": "closed",
+      "zeroShapes": "fold",
       "vocabularyTier": "standard",
       "standardKind": "operational"
     },
@@ -3307,6 +3360,7 @@
       "effects": [],
       "partiality": "total",
       "field": "closed",
+      "zeroShapes": "none",
       "vocabularyTier": "kernel"
     },
     {
@@ -3366,6 +3420,7 @@
       "effects": [],
       "partiality": "total",
       "field": "closed",
+      "zeroShapes": "none",
       "vocabularyTier": "kernel"
     },
     {
@@ -3425,6 +3480,7 @@
       "effects": [],
       "partiality": "total",
       "field": "closed",
+      "zeroShapes": "none",
       "vocabularyTier": "standard",
       "standardKind": "algorithm"
     },
@@ -3485,6 +3541,7 @@
       "effects": [],
       "partiality": "total",
       "field": "closed",
+      "zeroShapes": "none",
       "vocabularyTier": "standard",
       "standardKind": "algorithm"
     },
@@ -3545,6 +3602,7 @@
       "effects": [],
       "partiality": "total",
       "field": "closed",
+      "zeroShapes": "none",
       "vocabularyTier": "standard",
       "standardKind": "algorithm"
     },
@@ -3608,6 +3666,7 @@
       "effects": [],
       "partiality": "total",
       "field": "closed",
+      "zeroShapes": "none",
       "vocabularyTier": "standard",
       "standardKind": "algorithm"
     },
@@ -3672,6 +3731,7 @@
       "effects": [],
       "partiality": "projecting",
       "field": "closed",
+      "zeroShapes": "count",
       "vocabularyTier": "standard",
       "standardKind": "algorithm"
     },
@@ -3737,6 +3797,7 @@
       "effects": [],
       "partiality": "total",
       "field": "closed",
+      "zeroShapes": "none",
       "vocabularyTier": "standard",
       "standardKind": "algorithm"
     },
@@ -3800,6 +3861,7 @@
       "effects": [],
       "partiality": "projecting",
       "field": "leaving",
+      "zeroShapes": "parse",
       "vocabularyTier": "kernel"
     },
     {
@@ -3862,6 +3924,7 @@
       "effects": [],
       "partiality": "projecting",
       "field": "closed",
+      "zeroShapes": "none",
       "vocabularyTier": "kernel"
     },
     {
@@ -3927,6 +3990,7 @@
       "effects": [],
       "partiality": "projecting",
       "field": "closed",
+      "zeroShapes": "none",
       "vocabularyTier": "standard",
       "standardKind": "operational"
     },
@@ -3990,6 +4054,7 @@
       "effects": [],
       "partiality": "projecting",
       "field": "closed",
+      "zeroShapes": "finite",
       "vocabularyTier": "standard",
       "standardKind": "algorithm"
     },
@@ -4049,6 +4114,7 @@
       "effects": [],
       "partiality": "projecting",
       "field": "closed",
+      "zeroShapes": "none",
       "vocabularyTier": "standard",
       "standardKind": "algorithm"
     },
@@ -4100,6 +4166,7 @@
       "effects": [],
       "partiality": "partial",
       "field": "closed",
+      "zeroShapes": "exec",
       "vocabularyTier": "kernel"
     },
     {
@@ -4155,7 +4222,7 @@
         "LANG.FAILURE.PROJECT"
       ],
       "documentation": {
-        "summary": "The contract of a Word or of a block, as a Record: `[ SQRT ] 0 GET CONTRACT 'partiality' GET` is `'projecting'`. For a Symbol naming a Core Word it is the registered record of `spec/words.json` (LANG.CONTRACT.REGISTRY), keyed by the registry's own field names — `name` `vocabularyTier` `inputs` `outputs` `nilPolicy` `projection` `errorWhen` `partiality` `field` `purity` `determinism` `cost` `effects`, so `[ DIV ] 0 GET CONTRACT 'cost' GET` asks a Word's cost class before running it, and `[ 0 DIV ] CONTRACT 'field' GET` is `'leaving'`: whether code can answer a point over zero from operands holding none is read before it runs (LANG.CONTRACT.FIELD). For a Symbol naming a User Word, or for a block of code, it is the contract inferred without running anything — the same inference `ajisai check --contract` runs from outside the language — keyed `inputs` `outputs` `partiality` `field` `purity` `determinism` `cost` `effects` — the same keys, in the same vocabulary, so the two compare directly — and `confidence` `gaps`, where `confidence` and `gaps` carry the check's own trichotomy (LANG.CONTRACT.CHECK) as data: an unresolved dependency is a gap in the answer, not an ERROR. A block is never evaluated, so `[ 42 PRINT ] CONTRACT` reports `consoleWrite` under `effects` without printing. A Symbol that names no Word projects `notFound`; an operand that is neither a Symbol nor a block is an ERROR (`notASymbol`).",
+        "summary": "The contract of a Word or of a block, as a Record: `[ SQRT ] 0 GET CONTRACT 'partiality' GET` is `'projecting'`. For a Symbol naming a Core Word it is the registered record of `spec/words.json` (LANG.CONTRACT.REGISTRY), keyed by the registry's own field names — `name` `vocabularyTier` `inputs` `outputs` `nilPolicy` `projection` `errorWhen` `partiality` `field` `zeroShapes` `shapes` `purity` `determinism` `cost` `effects`, so `[ DIV ] 0 GET CONTRACT 'cost' GET` asks a Word's cost class before running it, and `[ 0 DIV ] CONTRACT 'field' GET` is `'leaving'`: whether code can answer a point over zero from operands holding none is read before it runs, and `[ 0 MUL 0 DIV ] CONTRACT 'shapes' GET` is `[ 'zero' 'nullity' ]`: which zero shapes its numbers may take, so a body that never holds `0/0` never asks its order (LANG.CONTRACT.FIELD). For a Symbol naming a User Word, or for a block of code, it is the contract inferred without running anything — the same inference `ajisai check --contract` runs from outside the language — keyed `inputs` `outputs` `partiality` `field` `shapes` `purity` `determinism` `cost` `effects` — the same keys, in the same vocabulary, so the two compare directly — and `confidence` `gaps`, where `confidence` and `gaps` carry the check's own trichotomy (LANG.CONTRACT.CHECK) as data: an unresolved dependency is a gap in the answer, not an ERROR. A block is never evaluated, so `[ 42 PRINT ] CONTRACT` reports `consoleWrite` under `effects` without printing. A Symbol that names no Word projects `notFound`; an operand that is neither a Symbol nor a block is an ERROR (`notASymbol`).",
         "hover": "CONTRACT — the contract of a Word or a block, as a Record",
         "syntax": "[ ADD ] 0 GET CONTRACT",
         "stackEffect": "[ symbol | code ] -> [ record ]"
@@ -4164,6 +4231,7 @@
       "effects": [],
       "partiality": "projecting",
       "field": "closed",
+      "zeroShapes": "count",
       "vocabularyTier": "kernel"
     },
     {
@@ -4221,6 +4289,7 @@
       "effects": [],
       "partiality": "partial",
       "field": "closed",
+      "zeroShapes": "none",
       "vocabularyTier": "kernel"
     },
     {
@@ -4273,6 +4342,7 @@
       "effects": [],
       "partiality": "total",
       "field": "closed",
+      "zeroShapes": "none",
       "vocabularyTier": "kernel"
     },
     {
@@ -4329,6 +4399,7 @@
       "effects": [],
       "partiality": "total",
       "field": "closed",
+      "zeroShapes": "none",
       "vocabularyTier": "kernel"
     },
     {
@@ -4386,6 +4457,7 @@
       "effects": [],
       "partiality": "projecting",
       "field": "closed",
+      "zeroShapes": "none",
       "vocabularyTier": "kernel"
     },
     {
@@ -4446,6 +4518,7 @@
       "effects": [],
       "partiality": "projecting",
       "field": "closed",
+      "zeroShapes": "none",
       "vocabularyTier": "kernel"
     },
     {
@@ -4511,6 +4584,7 @@
       "effects": [],
       "partiality": "partial",
       "field": "closed",
+      "zeroShapes": "none",
       "vocabularyTier": "kernel"
     },
     {
@@ -4578,6 +4652,7 @@
       ],
       "partiality": "partial",
       "field": "closed",
+      "zeroShapes": "none",
       "vocabularyTier": "kernel"
     },
     {
@@ -4639,6 +4714,7 @@
       ],
       "partiality": "partial",
       "field": "closed",
+      "zeroShapes": "none",
       "vocabularyTier": "kernel"
     },
     {
@@ -4697,6 +4773,7 @@
       "effects": [],
       "partiality": "total",
       "field": "closed",
+      "zeroShapes": "none",
       "vocabularyTier": "kernel"
     },
     {
@@ -4753,6 +4830,7 @@
       ],
       "partiality": "total",
       "field": "closed",
+      "zeroShapes": "none",
       "vocabularyTier": "kernel"
     }
   ]

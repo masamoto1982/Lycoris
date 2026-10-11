@@ -5,6 +5,7 @@ use super::contract_decl::ContractDecl;
 use super::contract_gap::{parse_cost_terms, CostDecl};
 use crate::coreword_registry::FieldClosure;
 use crate::interpreter::word_contract::{ContractDeterminism, ContractPartiality, ContractPurity};
+use crate::interpreter::zero_shape::ZeroAtoms;
 
 /// Parse the `#:contract` directives out of `source`. Malformed directives
 /// are returned as error messages so a typo never passes silently.
@@ -30,6 +31,7 @@ pub(crate) fn parse_contract_directives(source: &str) -> (Vec<ContractDecl>, Vec
             purity: None,
             partiality: None,
             field: None,
+            shapes: None,
             determinism: None,
             cost: CostDecl::default(),
             raw: raw.clone(),
@@ -107,6 +109,18 @@ fn parse_term(term: &str, decl: &mut ContractDecl) -> Result<(), String> {
                 "`closed` or `leaving`",
             )?)
         }
+        "shapes" => {
+            let mut declared = ZeroAtoms::NONE;
+            for name in v.split(',').filter(|n| !n.is_empty()) {
+                declared = declared.union(value(
+                    key,
+                    name,
+                    ZeroAtoms::from_shape_name(name),
+                    "a comma-separated list of `zero`, `nonzero`, `infinite` and `nullity`, or `none`",
+                )?);
+            }
+            decl.shapes = Some(declared);
+        }
         "determinism" => {
             decl.determinism = Some(value(
                 key,
@@ -123,6 +137,6 @@ fn parse_term(term: &str, decl: &mut ContractDecl) -> Result<(), String> {
 fn unknown_term(term: &str) -> String {
     format!(
         "unknown term `{term}` (expected `inputs=N`, `outputs=N`, `purity=…`, \
-         `partiality=…`, `field=…`, `determinism=…`, or `cost steps=… numeric=… collection=…`)"
+         `partiality=…`, `field=…`, `shapes=…`, `determinism=…`, or `cost steps=… numeric=… collection=…`)"
     )
 }

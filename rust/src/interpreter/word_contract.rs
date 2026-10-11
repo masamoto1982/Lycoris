@@ -25,6 +25,8 @@ pub use super::word_contract_widen::{
 };
 use super::word_cost::{CostBound, CostSim, DepCost};
 use super::word_space::{DepSpace, SpaceBound, SpaceClass, SpaceSim};
+pub(crate) use super::zero_shape::core_word_shapes;
+use super::zero_shape::ZeroAtoms;
 use super::Interpreter;
 
 pub const WORD_CONTRACT_SCHEMA_VERSION: u32 = 2;
@@ -49,6 +51,14 @@ pub struct WordContract {
     /// when the word is `closed`, and when only a code operand the walk could
     /// not read made it `leaving` (the gaps name that instead).
     pub field_exits: Vec<String>,
+    /// The zero shapes its numbers may take from operands in the field, read
+    /// per sign (LANG.CONTRACT.FIELD's `shapes`); `field` is its projection.
+    pub shapes: ZeroAtoms,
+    /// What it leaves for a caller, from operands in the field.
+    pub zero_answers: ZeroAtoms,
+    /// Whether the stack walk inferred `shapes`, rather than the widest set
+    /// `field` admits; only an inferred set can refute a declaration.
+    pub shapes_inferred: bool,
     /// Sound upper bound on the word's space growth (Phase 2.2; `word_space`).
     pub space: SpaceClass,
     /// True when the bound is provably attained, licensing a declaration error.
@@ -97,6 +107,9 @@ impl WordContract {
             partiality: ContractPartiality::Projecting,
             field: FieldClosure::Leaving,
             field_exits: Vec::new(),
+            shapes: ZeroAtoms::ALL,
+            zero_answers: ZeroAtoms::ALL,
+            shapes_inferred: false,
             space: SpaceClass::Unbounded,
             space_exact: false,
             cost: CostBound::CONSERVATIVE,
@@ -119,6 +132,9 @@ impl WordContract {
             partiality: ContractPartiality::Total,
             field: FieldClosure::Closed,
             field_exits: Vec::new(),
+            shapes: ZeroAtoms::NONE,
+            zero_answers: ZeroAtoms::NONE,
+            shapes_inferred: true,
             space: SpaceClass::Const,
             space_exact: true,
             cost: CostBound::IDENTITY,
@@ -239,6 +255,7 @@ pub(crate) fn static_word_contract(name: &str, def: &WordDefinition) -> WordCont
     };
     let (space, space_exact) = super::word_space::builtin_space_for(name);
     let cost = super::word_cost::builtin_cost_for(name);
+    let shapes = core_word_shapes(name);
     WordContract {
         flow: meta.mass.into(),
         purity: meta.purity.into(),
@@ -247,6 +264,9 @@ pub(crate) fn static_word_contract(name: &str, def: &WordDefinition) -> WordCont
         partiality: meta.partiality.into(),
         field: meta.field,
         field_exits: Vec::new(),
+        shapes,
+        zero_answers: shapes,
+        shapes_inferred: true,
         space,
         space_exact,
         cost,
@@ -405,6 +425,8 @@ impl Interpreter {
             }
         }
 
+        let (shapes, zero_answers, shapes_inferred) =
+            self.settle_zero_shapes(&mut acc, &def.body, visiting);
         visiting.remove(resolved_name);
         let (inferred_flow, flow_unmodelled) = flow.finish();
         acc.flow = inferred_flow;
@@ -434,6 +456,9 @@ impl Interpreter {
             partiality: acc.partiality,
             field: acc.field,
             field_exits: acc.field_exits,
+            shapes,
+            zero_answers,
+            shapes_inferred,
             space,
             space_exact,
             cost,

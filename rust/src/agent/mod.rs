@@ -17,6 +17,8 @@ mod contract_decl_tests;
 mod contract_directive;
 pub(crate) mod contract_gap;
 pub(crate) mod contract_report;
+#[cfg(test)]
+mod contract_shapes_tests;
 pub(crate) mod contract_violation;
 mod error_stack;
 #[cfg(test)]

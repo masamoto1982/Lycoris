@@ -64,6 +64,10 @@ LANG.VALUES.EXACT と、`spec/words.json`・`spec/outcomes.json`・`spec/grammar
   のまま残る。平均 `MEAN` が `leaving` になるのはこの計算した除数のためで、
   空ベクトルを渡すと実際に `0/0` が返る。推論が指す場所と三点が生まれる場所が
   一致している。
+  このリテラル規則は、零形のスタック模擬（`docs/dev/zero-shape-arithmetic.md`）が
+  成り立つ本体では、その特別な場合として吸収された。除数がリテラルでなくても、
+  形が零でありえないと決まれば（`[ 2 SQRT DIV ]`、`[ LENGTH 1 ADD DIV ]`）`closed`
+  になる。リテラル規則は模擬が成り立たない本体での結合に残る。
 - `leaving` な本体の報告は、体を出る場所（呼んでいる Word と三点のリテラル）を
   本体に書かれた順に `fieldExits` として示す。`field=closed` の違反メッセージも
   その場所を示す。
@@ -80,7 +84,7 @@ UNKNOWN になること）も、`leaving` の Word かリテラルを経由し�
 全域除算を一致させる形である。
 
 実装: `rust/src/interpreter/word_contract_field.rs` の `pushes_point_over_zero`・
-`literal_operand_keeps_field`・`AccumulatedContract::widen_with_call`、`rust/src/agent/contract_decl.rs` の宣言
+`literal_operand_keeps_field`・`AccumulatedContract::widen_with_call`（模擬が成り立たない本体での結合）、`rust/src/interpreter/word_contract_shape.rs` の零形のスタック模擬、`rust/src/agent/contract_decl.rs` の宣言
 検査、`rust/src/field_closure_laws.rs` の法則テスト（`leaving` の各 Word の証人と、
 `closed` な算術 Word が有限の被演算子から体を出ないことの掃引）。
 

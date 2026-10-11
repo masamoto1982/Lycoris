@@ -22,7 +22,7 @@ use serde::Serialize;
 use std::collections::HashSet;
 
 pub use crate::kernel::generated::{
-    Determinism, FieldClosure, GeneratedWord, NilPolicy, Partiality, Purity,
+    Determinism, FieldClosure, GeneratedWord, NilPolicy, Partiality, Purity, ZeroShapeLaw,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]

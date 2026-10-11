@@ -459,14 +459,17 @@ Read the JSON in this order (contract: docs/dev/agent-cli-output-contract.md):
 One comment line per Word, written in the keys and values of a contract Record
 (the same vocabulary \`word_contract\` / \`CONTRACT\` answer in):
 
-\`#:contract NAME [inputs=N] [outputs=N] [purity=pure|effectful] [partiality=total|partial|projecting] [field=closed|leaving] [determinism=deterministic|stateRelative|hostRelative] [cost steps=C numeric=C collection=C]\`
+\`#:contract NAME [inputs=N] [outputs=N] [purity=pure|effectful] [partiality=total|partial|projecting] [field=closed|leaving] [shapes=zero,nonzero,infinite,nullity] [determinism=deterministic|stateRelative|hostRelative] [cost steps=C numeric=C collection=C]\`
 with each cost class \`C\` one of \`const\` \`linear\` \`superlinear\` \`unbounded\`.
 \`field=closed\` promises the Word never answers a point over zero (\`1/0\` \`-1/0\`
 \`0/0\`) from operands holding none — only \`DIV\`, \`POW\`, \`NUM\` and a literal over
-zero leave the field, and a \`DIV\` by a non-zero literal (\`2 DIV\`) or a \`POW\` to a
-non-negative literal (\`2 POW\`) does not. Inside \`closed\` code the field laws
-(distributivity, \`x x SUB\` = 0) hold; a \`leaving\` report's \`fieldExits\` names
-where the body leaves (LANG.CONTRACT.FIELD).
+zero leave the field, and a \`DIV\` by a divisor that cannot be zero (\`2 DIV\`,
+\`LENGTH 1 ADD DIV\`) or a \`POW\` to an exponent that cannot be negative (\`2 POW\`)
+does not. Inside \`closed\` code the field laws (distributivity, \`x x SUB\` = 0)
+hold; a \`leaving\` report's \`fieldExits\` names where the body leaves.
+\`shapes\` says which zero shapes its numbers may take — \`zero\`, \`nonzero\`,
+\`infinite\` (\`±1/0\`), \`nullity\` (\`0/0\`) — and declaring it bounds them:
+without \`nullity\` no comparison in the body can meet \`0/0\` (LANG.CONTRACT.FIELD).
 
 \`inputs\`/\`outputs\` must equal what the body does; every other key is an upper
 bound the body must not exceed; a key left out is not checked. The check is
