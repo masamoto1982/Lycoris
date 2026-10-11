@@ -92,8 +92,10 @@ fn dense_integer_sort(interp: &mut Interpreter, value: &Value) -> Result<Option<
     Ok(Some(()))
 }
 
-/// Bits per pass of `sort_integers`' radix sort: 2,048 buckets, whose counts
-/// stay in the first-level cache.
+/// The most bits a pass of `sort_integers`' radix sort takes: 2,048
+/// buckets, whose counts stay in the first-level cache. The span is split
+/// evenly over as few passes as that allows, so each pass scatters into as
+/// few buckets as it can.
 const RADIX_BITS: u32 = 11;
 
 /// `values` in ascending order, as `sort_unstable` leaves them.
@@ -109,24 +111,25 @@ pub(crate) fn sort_integers(values: &mut Vec<i64>) {
     let (Some(&least), Some(&most)) = (values.iter().min(), values.iter().max()) else {
         return;
     };
-    let span = most.abs_diff(least);
-    let passes = (u64::BITS - span.leading_zeros()).div_ceil(RADIX_BITS);
+    let bits = u64::BITS - most.abs_diff(least).leading_zeros();
+    let passes = bits.div_ceil(RADIX_BITS);
     if values.len() < 1024 || passes > 3 {
         values.sort_unstable();
         return;
     }
+    let width = bits.div_ceil(passes.max(1));
     let key = |v: i64| v.abs_diff(least);
     let mut counts = vec![[0usize; 1 << RADIX_BITS]; passes as usize];
-    let mask = (1u64 << RADIX_BITS) - 1;
+    let mask = (1u64 << width) - 1;
     for &v in values.iter() {
         let k = key(v);
         for (pass, count) in counts.iter_mut().enumerate() {
-            count[((k >> (pass as u32 * RADIX_BITS)) & mask) as usize] += 1;
+            count[((k >> (pass as u32 * width)) & mask) as usize] += 1;
         }
     }
     let mut scratch = vec![0i64; values.len()];
     for (pass, count) in counts.iter_mut().enumerate() {
-        let shift = pass as u32 * RADIX_BITS;
+        let shift = pass as u32 * width;
         let mut next = 0;
         for slot in count.iter_mut() {
             (*slot, next) = (next, next + *slot);

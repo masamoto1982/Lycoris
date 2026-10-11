@@ -427,7 +427,13 @@ fn one_lane(lane: Fraction) -> Option<Value> {
     let Some((n, d)) = lane.extract_i64_pair() else {
         return Some(Value::from_vector(vec![Value::from_fraction(lane)]));
     };
-    let data = crate::types::DenseTensor::from_columns([n], [d], [1], d == 1);
+    use crate::types::Column;
+    let data = crate::types::DenseTensor::from_columns(
+        Column::from_slice(&[n]),
+        Column::from_slice(&[d]),
+        [1],
+        d == 1,
+    );
     Some(Value::new(
         ValueData::Tensor {
             data: std::sync::Arc::new(data),
