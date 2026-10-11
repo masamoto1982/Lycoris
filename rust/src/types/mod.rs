@@ -204,7 +204,7 @@ impl std::hash::Hash for ValueData {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Value {
     pub data: ValueData,
     /// Why this value is absent, for a NIL. Boxed: three words on every value

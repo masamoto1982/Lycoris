@@ -16,7 +16,7 @@
 //! reads its reason (`data == data && nil_reason == nil_reason`), which no
 //! lane carries.
 
-use super::fraction::Fraction;
+use super::fraction::{Fraction, FractionRepr};
 use super::value_tensor::tensor_to_nested_values;
 use super::{DenseTensor, RecordData, Value, ValueData};
 use std::sync::Arc;
@@ -145,7 +145,38 @@ fn collect_dense_leaves(v: &[Value], out: &mut Vec<Fraction>) -> bool {
     true
 }
 
+/// A copy, field for field. Written out rather than derived for the one case
+/// the interpreter copies on nearly every read of a binding: a present
+/// machine-word rational, which is copied in a few moves here, where the
+/// derived copy was an out-of-line call that walked every variant of the
+/// data and of the absence.
+impl Clone for Value {
+    #[inline]
+    fn clone(&self) -> Self {
+        match (&self.data, &self.absence) {
+            (
+                ValueData::Scalar(Fraction {
+                    repr: FractionRepr::Small(n, d),
+                }),
+                None,
+            ) => Self::leaf(ValueData::Scalar(Fraction {
+                repr: FractionRepr::Small(*n, *d),
+            })),
+            _ => self.clone_fields(),
+        }
+    }
+}
+
 impl Value {
+    #[inline(never)]
+    fn clone_fields(&self) -> Self {
+        Self {
+            data: self.data.clone(),
+            absence: self.absence.clone(),
+            nesting: self.nesting,
+        }
+    }
+
     /// A present value that holds no other value — a number, a truth value,
     /// a String — whose nesting is therefore 0 without asking its data. The
     /// constructors of the scalar leaves the interpreter builds on every

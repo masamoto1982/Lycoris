@@ -170,7 +170,7 @@ impl Interpreter {
 // A `leaf` operand is read as one Scalar, String or Boolean, so a container
 // there means "apply the Word to each element". Every Word with a lifted
 // operand is lifted here, through `lift_lanes_dyn`, except the few whose
-// primitive already runs the same lift faster itself ([`LIFTS_NATIVELY`]);
+// primitive already runs the same lift faster itself ([`lifts_natively`]);
 // one rule decides how `[ 'a' 'b' ] UPPER`,
 // `[ 1 2 ] 10 ADD` and `R [ 'x' 'y' ] GET` combine their elements. Each
 // element runs through the full dispatcher, so the NIL roles, the declared
@@ -180,10 +180,32 @@ impl Interpreter {
 /// an implementation choice, not part of any contract — the specification says
 /// only which operands lift — and `rust/tests/lifting_laws.rs` holds these to
 /// the same answers the dispatcher's lift gives every other Word.
-const LIFTS_NATIVELY: &[&str] = &[
-    "ADD", "SUB", "MUL", "DIV", "FLOOR", "ROUND", "MIN", "MAX", "SQRT", "POW", "GCD", "RATIO",
-    "LT", "GT", "AND", "NOT", "SELECT",
-];
+///
+/// Asked of the Word's identity rather than its name: every Word that is not
+/// one of these asks on every call, and comparing its name against each of
+/// these was a string compare apiece.
+fn lifts_natively(word: &GeneratedWord) -> bool {
+    use crate::kernel::generated::WordId::*;
+    matches!(
+        word.id,
+        Add | Sub
+            | Mul
+            | Div
+            | Floor
+            | Round
+            | Min
+            | Max
+            | Sqrt
+            | Pow
+            | Gcd
+            | Ratio
+            | Lt
+            | Gt
+            | And
+            | Not
+            | Select
+    )
+}
 
 fn is_container(value: &Value) -> bool {
     value.is_vector() || value.as_record().is_some()
@@ -197,7 +219,7 @@ impl Interpreter {
         &mut self,
         word: &'static GeneratedWord,
     ) -> Option<Result<()>> {
-        if LIFTS_NATIVELY.contains(&word.name) {
+        if lifts_natively(word) {
             return None;
         }
         let Arity::Fixed(arity) = word.stack_inputs else {
@@ -207,19 +229,18 @@ impl Interpreter {
         if arity == 0 || self.stack.len() < arity {
             return None;
         }
-        let lifted: Vec<bool> = word
-            .operand_roles
-            .iter()
-            .map(|role| matches!(role, OperandRole::Leaf | OperandRole::Truth))
-            .collect();
+        let lifts = |role: &OperandRole| matches!(role, OperandRole::Leaf | OperandRole::Truth);
         let window = &self.stack.as_slice()[self.stack.len() - arity..];
+        // Decided from the declared roles in place: the per-operand flags
+        // are only built once there is something to lift.
         if !window
             .iter()
-            .zip(&lifted)
-            .any(|(operand, lifts)| *lifts && is_container(operand))
+            .zip(word.operand_roles)
+            .any(|(operand, role)| lifts(role) && is_container(operand))
         {
             return None;
         }
+        let lifted: Vec<bool> = word.operand_roles.iter().map(lifts).collect();
 
         // The lift loops over every lane in one step and builds a container
         // of the results: a copy of the widest lifted operand, charged before

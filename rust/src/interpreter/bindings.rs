@@ -186,6 +186,13 @@ pub(crate) fn op_bind(interp: &mut Interpreter) -> Result<()> {
     }
 
     let name_value = interp.stack.pop().ok_or(AjisaiError::stack_underflow())?;
+    // One String name — what nearly every `BIND` is given — is checked and
+    // bound from its own text: the list of owned copies the general route
+    // builds is two allocations made only to be read once and freed.
+    if let crate::types::ValueData::Text(text) = &name_value.data {
+        let text = Arc::clone(text);
+        return bind_one(interp, name_value, text);
+    }
     let names = match binding_names(&name_value).and_then(|names| {
         for name in &names {
             interp.check_bindable_name(name)?;
@@ -258,6 +265,30 @@ pub(crate) fn op_bind(interp: &mut Interpreter) -> Result<()> {
     Ok(())
 }
 
+/// `op_bind` for one String name: the same checks, in the same order, with
+/// the same operands restored on a refusal, as the general route makes for a
+/// one-name list.
+fn bind_one(interp: &mut Interpreter, name_value: Value, text: Arc<str>) -> Result<()> {
+    if let Err(error) = interp.check_bindable_name(&text) {
+        interp.stack.push(name_value);
+        return Err(error);
+    }
+    let subject = interp.stack.pop().ok_or(AjisaiError::stack_underflow())?;
+    if let Err(error) = check_binding_acyclic(interp, &[&*text], &subject) {
+        interp.stack.push(subject);
+        interp.stack.push(name_value);
+        return Err(error);
+    }
+    // The key shares the name's own `Arc<str>` when it needs no folding, so
+    // a `BIND` makes no copy of the name for the table.
+    let key: Arc<str> = match crate::word_name::canonical_word_name(&text) {
+        std::borrow::Cow::Owned(folded) => folded.into(),
+        std::borrow::Cow::Borrowed(_) => text,
+    };
+    interp.bind_local(key, subject);
+    Ok(())
+}
+
 /// Refuse a binding whose value reaches its own name.
 ///
 /// A binding is looked up before the dictionary, and a Symbol inside a bound
@@ -270,7 +301,11 @@ pub(crate) fn op_bind(interp: &mut Interpreter) -> Result<()> {
 /// (a User Word's body cannot see them, so the walk stops at the dictionary).
 /// The names being bound together count as bound already, so destructuring
 /// cannot close a cycle between its own parts either.
-fn check_binding_acyclic(interp: &Interpreter, names: &[String], subject: &Value) -> Result<()> {
+fn check_binding_acyclic<S: AsRef<str>>(
+    interp: &Interpreter,
+    names: &[S],
+    subject: &Value,
+) -> Result<()> {
     use super::body_symbols::value_symbol_names;
     use crate::types::ValueData;
     use std::collections::HashSet;
@@ -284,11 +319,13 @@ fn check_binding_acyclic(interp: &Interpreter, names: &[String], subject: &Value
         return Ok(());
     }
     let pending: Vec<(String, Value)> = match names {
-        [only] => vec![(only.to_uppercase(), subject.clone())],
+        [only] => vec![(only.as_ref().to_uppercase(), subject.clone())],
         several => several
             .iter()
             .enumerate()
-            .filter_map(|(position, name)| Some((name.to_uppercase(), subject.child(position)?)))
+            .filter_map(|(position, name)| {
+                Some((name.as_ref().to_uppercase(), subject.child(position)?))
+            })
             .collect(),
     };
     let bound_value = |name: &str| -> Option<Value> {

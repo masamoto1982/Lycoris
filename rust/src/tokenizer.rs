@@ -120,8 +120,7 @@ pub fn tokenize_with_spans(input: &str) -> Result<(Vec<Token>, Vec<SourceSpan>),
         // (`spec/grammar.json`, characterClasses.nameCharacter).
         let span = cursor.here;
         let start = cursor.pos;
-        cursor.skip_word();
-        let token_str = &input[start..cursor.pos];
+        let key = cursor.skip_word();
 
         // The two structural words of `spec/grammar.json`'s one delimiter
         // pair: like every other Ajisai word (and like Forth's own `[` and
@@ -131,7 +130,7 @@ pub fn tokenize_with_spans(input: &str) -> Result<(Vec<Token>, Vec<SourceSpan>),
         // meaningless) name containing a delimiter. This is a
         // whole-lexeme rule, not a per-character one: no character is checked
         // on the way in, and a lexeme either *is* one delimiter or holds none.
-        if let Some(token) = delimiter_token(token_str) {
+        if let Some(token) = delimiter_token(key) {
             if token == Token::VectorStart {
                 depth += 1;
             } else if let Some(outer) = depth.checked_sub(1) {
@@ -143,13 +142,19 @@ pub fn tokenize_with_spans(input: &str) -> Result<(Vec<Token>, Vec<SourceSpan>),
             spans.push(span);
             continue;
         }
-        let key = LexemeMemo::key(bytes, start, token_str.len());
-        if let Some(first) = seen.find(key, token_str) {
+        // A short lexeme seen before is answered by its key alone, without
+        // its text being sliced out or compared.
+        let first = match seen.recent(key) {
+            Some(first) => Some(first),
+            None => seen.find(key, &input[start..cursor.pos]),
+        };
+        if let Some(first) = first {
             let token = tokens[first].clone();
             tokens.push(token);
             spans.push(span);
             continue;
         }
+        let token_str = &input[start..cursor.pos];
         if token_str.contains(DELIMITERS) {
             return Err(format!(
                 "'{}' is not a valid token: '[' and ']' must stand alone, separated by whitespace, like every other Ajisai word (LANG.SOURCE.TEXT — whitespace is the sole token delimiter).",
@@ -192,11 +197,15 @@ pub fn tokenize_with_spans(input: &str) -> Result<(Vec<Token>, Vec<SourceSpan>),
 /// The delimiter characters: the one pair `spec/grammar.json` declares.
 const DELIMITERS: [char; 2] = ['[', ']'];
 
-/// The token a lexeme that is exactly one delimiter emits.
-fn delimiter_token(lexeme: &str) -> Option<Token> {
-    match lexeme {
-        "[" => Some(Token::VectorStart),
-        "]" => Some(Token::VectorEnd),
+/// The token a lexeme that is exactly one delimiter emits, from the lexeme's
+/// key (`LexemeMemo::key`), which is a delimiter's key only for that
+/// delimiter alone.
+fn delimiter_token(key: u64) -> Option<Token> {
+    const OPEN: u64 = LexemeMemo::key(b"[");
+    const CLOSE: u64 = LexemeMemo::key(b"]");
+    match key {
+        OPEN => Some(Token::VectorStart),
+        CLOSE => Some(Token::VectorEnd),
         _ => None,
     }
 }
