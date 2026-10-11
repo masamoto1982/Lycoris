@@ -58,7 +58,7 @@ fn compute_conjunction(a: &Value, b: &Value) -> Result<Value> {
 /// `AND` over whole operands: the scalar law above, applied lane by lane
 /// (LANG.COLLECTIONS.LIFT).
 fn lifted_conjunction(a: &Value, b: &Value) -> Result<Value> {
-    lift_lanes([a, b], &|[x, y]| compute_conjunction(x, y))
+    lift_lanes([a, b], |[x, y]| compute_conjunction(x, y))
 }
 
 /// `SELECT`'s scalar law: TRUE and FALSE choose one of the two values it was
@@ -145,7 +145,7 @@ pub fn op_reconcile(interp: &mut Interpreter) -> Result<()> {
 pub fn op_not(interp: &mut Interpreter) -> Result<()> {
     let val = interp.stack.pop().ok_or(AjisaiError::stack_underflow())?;
 
-    let result = match lift_lanes([&val], &|[x]| compute_inverted_value(x)) {
+    let result = match lift_lanes([&val], |[x]| compute_inverted_value(x)) {
         Ok(v) => v,
         Err(e) => {
             interp.stack.push(val);
@@ -199,7 +199,7 @@ pub fn op_select(interp: &mut Interpreter) -> Result<()> {
     let when_false = interp.stack.pop().ok_or(AjisaiError::stack_underflow())?;
     let when_true = interp.stack.pop().ok_or(AjisaiError::stack_underflow())?;
 
-    let result = match lift_lanes([&when_true, &when_false, &mask], &|[t, f, m]| {
+    let result = match lift_lanes([&when_true, &when_false, &mask], |[t, f, m]| {
         compute_selection(t, f, m)
     }) {
         Ok(v) => v,

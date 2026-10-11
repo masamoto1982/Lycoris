@@ -74,8 +74,11 @@ impl<'a> Lanes<'a> {
 /// clause requires, naming the first axis on which two operands disagree.
 pub(crate) fn lift_lanes<const N: usize>(
     operands: [&Value; N],
-    scalar: &dyn Fn([&Value; N]) -> Result<Value>,
+    scalar: impl Fn([&Value; N]) -> Result<Value>,
 ) -> Result<Value> {
+    if let Some(flat) = lift_flat(operands, &scalar) {
+        return flat;
+    }
     let mut adapter = |lanes: &[&Value]| -> Result<Value> {
         let lanes: [&Value; N] = lanes
             .try_into()
@@ -83,6 +86,57 @@ pub(crate) fn lift_lanes<const N: usize>(
         scalar(lanes)
     };
     lift_lanes_dyn(&operands, &[true; N], &mut adapter)
+}
+
+/// [`lift_lanes`] where every operand is a leaf or a Vector of leaves: one
+/// monomorphized loop over the lanes, the scalar law inlined. `None` when the
+/// operands need the general walk — a Record, a Tensor, a nested lane, or
+/// extents that disagree (whose `shapeMismatch` the walk words).
+#[inline]
+fn lift_flat<const N: usize>(
+    operands: [&Value; N],
+    scalar: &impl Fn([&Value; N]) -> Result<Value>,
+) -> Option<Result<Value>> {
+    // The extent the Vectors set: `None` before any, a length-1 Vector
+    // setting none of its own. An empty one is left to the general walk.
+    let mut seen = false;
+    let mut width = 1;
+    for value in operands {
+        match &value.data {
+            ValueData::Vector(items) => match items.len() {
+                0 => return None,
+                1 => seen = true,
+                len if !seen || width == 1 => (seen, width) = (true, len),
+                len if len == width => {}
+                _ => return None,
+            },
+            ValueData::Tensor { .. } | ValueData::Record(_) => return None,
+            _ => {}
+        }
+    }
+    if !seen {
+        return None;
+    }
+    fn lane(value: &Value, index: usize) -> Option<&Value> {
+        let lane = match &value.data {
+            ValueData::Vector(items) if items.len() == 1 => &items[0],
+            ValueData::Vector(items) => &items[index],
+            _ => return Some(value),
+        };
+        (!is_container(lane)).then_some(lane)
+    }
+    let mut result = Vec::with_capacity(width);
+    for index in 0..width {
+        let mut lanes = operands;
+        for slot in lanes.iter_mut() {
+            *slot = lane(slot, index)?;
+        }
+        match scalar(lanes) {
+            Ok(value) => result.push(value),
+            Err(e) => return Some(Err(e)),
+        }
+    }
+    Some(Ok(Value::from_vector(result)))
 }
 
 /// The lifting rule over any number of operands, of which only those marked
@@ -201,4 +255,60 @@ fn is_container(value: &Value) -> bool {
         value.data,
         ValueData::Vector(_) | ValueData::Tensor { .. } | ValueData::Record(_)
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The flat loop answers exactly what the general walk answers, error
+    /// included, wherever it answers at all.
+    #[test]
+    fn the_flat_loop_agrees_with_the_general_walk() {
+        let t = Value::from_bool(true);
+        let f = Value::from_bool(false);
+        let leaves = [
+            t.clone(),
+            f.clone(),
+            Value::both(),
+            Value::nil(),
+            Value::from_int(7),
+        ];
+        let vector = |items: &[Value]| Value::from_vector(items.to_vec());
+        let mut operands = leaves.to_vec();
+        operands.extend([
+            vector(&[]),
+            vector(&[t.clone()]),
+            vector(&[t.clone(), f.clone(), Value::both()]),
+            vector(&[Value::nil(), t.clone(), f.clone()]),
+            vector(&[t.clone(), f.clone()]),
+            vector(&[vector(&[t.clone()]), f.clone(), t.clone()]),
+            Value::from_int_tensor(vec![1, 2, 3]),
+        ]);
+        let law = |[a, b]: [&Value; 2]| -> Result<Value> {
+            match (&a.data, &b.data) {
+                (ValueData::Scalar(_), _) | (_, ValueData::Scalar(_)) => Err(
+                    AjisaiError::declared("nonTruthValue", "a number".to_string()),
+                ),
+                _ => Ok(Value::from_vector(vec![a.clone(), b.clone()])),
+            }
+        };
+        let mut checked = 0;
+        for a in &operands {
+            for b in &operands {
+                let general = lift_lanes_dyn(&[a, b], &[true; 2], &mut |lanes: &[&Value]| {
+                    law([lanes[0], lanes[1]])
+                });
+                if let Some(flat) = lift_flat([a, b], &law) {
+                    checked += 1;
+                    assert_eq!(
+                        format!("{flat:?}"),
+                        format!("{general:?}"),
+                        "{a:?} and {b:?}"
+                    );
+                }
+            }
+        }
+        assert!(checked > 20, "the flat loop answered only {checked} pairs");
+    }
 }
