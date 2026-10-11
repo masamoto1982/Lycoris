@@ -72,7 +72,11 @@ impl Fraction {
 
         // A `Big` half is borrowed, not cloned: the running total of a long
         // sum is the wide operand, and copying it each step is a copy of the
-        // whole accumulator.
+        // whole accumulator. A small term added to it skips Henrici's wide
+        // passes but one (`fraction_word_term`).
+        if let Some(sum) = self.add_word_term(other, false) {
+            return sum;
+        }
         let (an, ad) = self.bigint_pair_cow();
         let (bn, bd) = other.bigint_pair_cow();
 
@@ -121,6 +125,9 @@ impl Fraction {
             }
         }
 
+        if let Some(difference) = self.add_word_term(other, true) {
+            return difference;
+        }
         let (an, ad) = self.bigint_pair_cow();
         let (bn, bd) = other.bigint_pair_cow();
 
