@@ -204,3 +204,40 @@ async fn run_quiet(code: &str) -> Result<Vec<Value>, ()> {
     interp.execute(code).await.map_err(|_| ())?;
     Ok(interp.get_stack().to_vec())
 }
+
+/// Every Core Word carries the `zeroShapes` law `spec/words.json` declares,
+/// spelled as the registry spells it, and every law the schema admits is
+/// some Word's — so no variant of the generated vocabulary is dead.
+#[test]
+fn every_word_carries_the_zero_shape_law_the_registry_declares() {
+    use crate::kernel::generated::GENERATED_WORDS;
+    use std::collections::BTreeSet;
+
+    let registry: serde_json::Value =
+        serde_json::from_str(include_str!("../../spec/words.json")).expect("words.json parses");
+    let declared = registry["entries"].as_array().expect("entries");
+    let mut laws = BTreeSet::new();
+    for word in GENERATED_WORDS {
+        let entry = declared
+            .iter()
+            .find(|e| e["name"] == word.name)
+            .unwrap_or_else(|| panic!("{} is declared", word.name));
+        assert_eq!(
+            word.zero_shapes.as_spec_str(),
+            entry["zeroShapes"],
+            "{}: generated law and registry law",
+            word.name
+        );
+        laws.insert(word.zero_shapes.as_spec_str());
+    }
+    let schema: serde_json::Value =
+        serde_json::from_str(include_str!("../../spec/words.schema.json"))
+            .expect("words.schema.json parses");
+    let admitted: BTreeSet<&str> = schema["$defs"]["word"]["properties"]["zeroShapes"]["enum"]
+        .as_array()
+        .expect("zeroShapes enum")
+        .iter()
+        .filter_map(|v| v.as_str())
+        .collect();
+    assert_eq!(laws, admitted, "every admitted law is some Word's");
+}
