@@ -153,7 +153,12 @@ fn reduced_quotient(x: i64, y: i64, g: u64) -> Option<(i64, i64)> {
 /// [`binary_gcd_u64`] of four pairs at once, its steps interleaved. A pair
 /// that a zero operand or one division settles is answered before the walk
 /// and parked with `a = 0`; a parked lane steps along unchanged, every update
-/// a select rather than a branch, until the last lane is done.
+/// a mask rather than a branch, until the last lane is done.
+///
+/// Each step keeps `b` odd and shifts `a` odd at its top, so their difference
+/// is even; its trailing zeros are counted off the wrapping difference, which
+/// has the same low bits as the absolute one, so the count need not wait for
+/// the compare that picks which operand to keep.
 pub(crate) fn binary_gcd_x4(a: [u64; 4], b: [u64; 4]) -> [u64; 4] {
     let (mut a, mut b) = (a, b);
     let (mut shift, mut zeros) = ([0u32; 4], [0u32; 4]);
@@ -182,7 +187,8 @@ pub(crate) fn binary_gcd_x4(a: [u64; 4], b: [u64; 4]) -> [u64; 4] {
     }
     while a.iter().any(|&x| x != 0) {
         for k in 0..4 {
-            // A parked lane's `a` is 0, which any shift leaves 0.
+            // A parked lane's `a` is 0, which any shift leaves 0, and its
+            // mask keeps `a` at 0 and `b` at its answer.
             let x = a[k].wrapping_shr(zeros[k]);
             let live = 0u64.wrapping_sub(u64::from(x != 0));
             zeros[k] = x.wrapping_sub(b[k]).trailing_zeros();
