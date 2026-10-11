@@ -70,18 +70,23 @@ impl Fraction {
             }
         }
 
-        // A `Big` half is borrowed, not cloned: the running total of a long
-        // sum is the wide operand, and copying it each step is a copy of the
-        // whole accumulator. A small term added to it skips Henrici's wide
-        // passes but one (`fraction_word_term`).
-        if let Some(sum) = self.add_word_term(other, false) {
+        self.add_wide(other, false)
+    }
+
+    /// `self ± other` once a half is past a machine word. A `Big` half is
+    /// borrowed, not cloned: the running total of a long sum is the wide
+    /// operand, and copying it each step is a copy of the whole accumulator.
+    /// A small term added to it skips Henrici's wide passes but one
+    /// (`fraction_word_term`).
+    fn add_wide(&self, other: &Fraction, subtract: bool) -> Fraction {
+        if let Some(sum) = self.add_word_term(other, subtract) {
             return sum;
         }
         let (an, ad) = self.bigint_pair_cow();
         let (bn, bd) = other.bigint_pair_cow();
 
         if ad == bd {
-            let sum: BigInt = &*an + &*bn;
+            let sum: BigInt = if subtract { &*an - &*bn } else { &*an + &*bn };
             if sum.is_zero() {
                 return Fraction::from_repr(FractionRepr::Small(0, 1));
             }
@@ -92,7 +97,7 @@ impl Fraction {
             return Self::create_already_reduced(&sum / &g, &*ad / &g);
         }
 
-        Self::add_reduced_bigint(&an, &ad, &bn, &bd, false)
+        Self::add_reduced_bigint(&an, &ad, &bn, &bd, subtract)
     }
 
     pub fn sub(&self, other: &Fraction) -> Fraction {
@@ -125,25 +130,7 @@ impl Fraction {
             }
         }
 
-        if let Some(difference) = self.add_word_term(other, true) {
-            return difference;
-        }
-        let (an, ad) = self.bigint_pair_cow();
-        let (bn, bd) = other.bigint_pair_cow();
-
-        if ad == bd {
-            let diff: BigInt = &*an - &*bn;
-            if diff.is_zero() {
-                return Fraction::from_repr(FractionRepr::Small(0, 1));
-            }
-            let g: BigInt = balanced_bigint_gcd(&diff, &ad);
-            if g.is_one() {
-                return Self::create_already_reduced(diff, ad.into_owned());
-            }
-            return Self::create_already_reduced(&diff / &g, &*ad / &g);
-        }
-
-        Self::add_reduced_bigint(&an, &ad, &bn, &bd, true)
+        self.add_wide(other, true)
     }
 
     /// `a/b ± c/d` for two already-reduced fractions with positive

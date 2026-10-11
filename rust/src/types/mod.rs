@@ -33,6 +33,11 @@ mod value_tensor;
 #[cfg(test)]
 mod number_literal_tests;
 #[cfg(test)]
+mod tensor_lanes_tests;
+mod tensor_storage;
+#[cfg(test)]
+mod tensor_storage_tests;
+#[cfg(test)]
 mod value_hash_tests;
 #[cfg(test)]
 mod value_layout_tests;
@@ -43,12 +48,6 @@ mod value_persist_tests;
 pub(crate) mod value_protocol;
 #[cfg(test)]
 mod value_protocol_tests;
-
-#[cfg(test)]
-mod tensor_lanes_tests;
-mod tensor_storage;
-#[cfg(test)]
-mod tensor_storage_tests;
 
 use self::fraction::Fraction;
 pub use self::record::{RecordBuildError, RecordData};
