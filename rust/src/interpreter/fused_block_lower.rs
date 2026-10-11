@@ -186,7 +186,7 @@ impl Lowering<'_> {
                         None if sees_outer => {
                             self.reads_outer = true;
                             (
-                                Op::Push(Plain::of(&self.interp.lookup_binding(&name)?)?),
+                                Op::Push(Plain::of(&self.interp.lookup_binding(name.as_ref())?)?),
                                 0,
                                 1,
                             )

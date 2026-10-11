@@ -23,7 +23,7 @@
 //! name is text in the body like every other name.
 
 use crate::error::{AjisaiError, Result};
-use crate::types::Value;
+use crate::types::{Name, Value};
 use std::sync::Arc;
 
 use super::Interpreter;
@@ -38,7 +38,7 @@ use super::Interpreter;
 /// the blocks written beneath it and never into a Word called from it.
 #[derive(Debug, Default, Clone)]
 pub(crate) struct BindingScope {
-    names: crate::fast_hash::FastMap<Arc<str>, Value>,
+    names: super::binding_table::ScopeNames,
     barrier: bool,
 }
 
@@ -58,23 +58,43 @@ impl Interpreter {
     /// run itself. Returns nothing: the matching [`Interpreter::close_binding_scope`]
     /// pops whatever this pushed, and the two are always paired within one
     /// function so no depth token is needed.
+    #[inline]
     pub(crate) fn open_binding_scope(&mut self, barrier: bool) {
-        let names = self.spare_binding_maps.pop().unwrap_or_default();
-        self.binding_scopes.push(BindingScope { names, barrier });
+        match self.binding_scopes.get_mut(self.binding_depth) {
+            Some(scope) => scope.barrier = barrier,
+            None => self.binding_scopes.push(BindingScope {
+                names: Default::default(),
+                barrier,
+            }),
+        }
+        self.binding_depth += 1;
     }
 
-    /// Close the innermost scope. Its emptied table is kept for the next
-    /// scope to open: a block a higher-order Word applies opens and closes
-    /// one per element, and a `BIND` in it would otherwise allocate a fresh
-    /// table every time. Only small tables are kept, and only a few.
+    /// Close the innermost scope. Its emptied table stays where it was, for
+    /// the next scope opened at that depth: a block a higher-order Word
+    /// applies opens and closes one per element, and a Word body one per
+    /// call, and a `BIND` in either would otherwise allocate a fresh table
+    /// every time — or, as when emptied tables were kept aside, move one in
+    /// and out of a list of spares. Only small tables near the root are
+    /// kept; any other is let go of.
+    #[inline]
     pub(crate) fn close_binding_scope(&mut self) {
-        if let Some(mut scope) = self.binding_scopes.pop() {
-            let capacity = scope.names.capacity();
-            if capacity > 0 && capacity <= 64 && self.spare_binding_maps.len() < 8 {
-                scope.names.clear();
-                self.spare_binding_maps.push(scope.names);
-            }
+        let Some(depth) = self.binding_depth.checked_sub(1) else {
+            return;
+        };
+        self.binding_depth = depth;
+        let names = &mut self.binding_scopes[depth].names;
+        if depth < 16 && names.capacity() <= 64 {
+            names.clear();
+        } else {
+            *names = Default::default();
         }
+    }
+
+    /// The open scopes, outermost first.
+    #[inline]
+    fn open_scopes(&self) -> &[BindingScope] {
+        &self.binding_scopes[..self.binding_depth]
     }
 
     /// Discard every scope and open a fresh root. A run's bindings are the
@@ -84,11 +104,19 @@ impl Interpreter {
     pub(crate) fn reset_binding_scopes(&mut self) {
         self.binding_scopes.clear();
         self.binding_scopes.push(BindingScope::root());
+        self.binding_depth = 1;
     }
 
-    /// The value bound to `name` in the frames this one can see.
-    pub(crate) fn lookup_binding(&self, name: &str) -> Option<Value> {
-        for scope in self.binding_scopes.iter().rev() {
+    /// The value bound to `name` in the frames this one can see. `name` is a
+    /// canonical name's text, or the canonical [`Name`] itself, which the
+    /// token walk holds and which compares without reading it as text.
+    #[inline]
+    pub(crate) fn lookup_binding<Q>(&self, name: &Q) -> Option<Value>
+    where
+        Name: std::borrow::Borrow<Q>,
+        Q: std::hash::Hash + Eq + ?Sized,
+    {
+        for scope in self.open_scopes().iter().rev() {
             if let Some(bound) = scope.names.get(name) {
                 return Some(bound.clone());
             }
@@ -104,7 +132,7 @@ impl Interpreter {
     /// resolve where they used it, and by `DEF` to keep a Word from taking a
     /// name a caller's frame still holds.
     pub(crate) fn binding_exists_beyond_barrier(&self, name: &str) -> bool {
-        self.binding_scopes
+        self.open_scopes()
             .iter()
             .any(|scope| scope.names.contains_key(name))
     }
@@ -119,9 +147,9 @@ impl Interpreter {
     /// would buy nothing. This is a local, not a definition: the rule that
     /// protects a referenced Word from being redefined is about names other
     /// code can reach, and nothing outside this frame can reach this one.
-    pub(crate) fn bind_local(&mut self, name: Arc<str>, value: Value) {
-        if let Some(scope) = self.binding_scopes.last_mut() {
-            scope.names.insert(name, value);
+    pub(crate) fn bind_local(&mut self, name: Name, value: Value) {
+        if let Some(depth) = self.binding_depth.checked_sub(1) {
+            self.binding_scopes[depth].names.insert(name, value);
         }
     }
 
@@ -186,6 +214,13 @@ pub(crate) fn op_bind(interp: &mut Interpreter) -> Result<()> {
     }
 
     let name_value = interp.stack.pop().ok_or(AjisaiError::stack_underflow())?;
+    // One String name — what nearly every `BIND` is given — is checked and
+    // bound from its own text: the list of owned copies the general route
+    // builds is two allocations made only to be read once and freed.
+    if let crate::types::ValueData::Text(text) = &name_value.data {
+        let text = Arc::clone(text);
+        return bind_one(interp, name_value, text);
+    }
     let names = match binding_names(&name_value).and_then(|names| {
         for name in &names {
             interp.check_bindable_name(name)?;
@@ -221,7 +256,7 @@ pub(crate) fn op_bind(interp: &mut Interpreter) -> Result<()> {
                 std::borrow::Cow::Owned(folded) => folded.into(),
                 std::borrow::Cow::Borrowed(_) => text,
             };
-            interp.bind_local(key, subject);
+            interp.bind_local(key.into(), subject);
         }
         several => {
             // Destructuring is exact. A Vector longer than the name list would
@@ -258,6 +293,30 @@ pub(crate) fn op_bind(interp: &mut Interpreter) -> Result<()> {
     Ok(())
 }
 
+/// `op_bind` for one String name: the same checks, in the same order, with
+/// the same operands restored on a refusal, as the general route makes for a
+/// one-name list.
+fn bind_one(interp: &mut Interpreter, name_value: Value, text: Arc<str>) -> Result<()> {
+    if let Err(error) = interp.check_bindable_name(&text) {
+        interp.stack.push(name_value);
+        return Err(error);
+    }
+    let subject = interp.stack.pop().ok_or(AjisaiError::stack_underflow())?;
+    if let Err(error) = check_binding_acyclic(interp, &[&*text], &subject) {
+        interp.stack.push(subject);
+        interp.stack.push(name_value);
+        return Err(error);
+    }
+    // The key is the name uppercased: the text in hand already when it has
+    // no lowercase letter to fold.
+    let key = match crate::word_name::canonical_word_name(&text) {
+        std::borrow::Cow::Owned(folded) => Name::from(folded),
+        std::borrow::Cow::Borrowed(_) => Name::from(text),
+    };
+    interp.bind_local(key, subject);
+    Ok(())
+}
+
 /// Refuse a binding whose value reaches its own name.
 ///
 /// A binding is looked up before the dictionary, and a Symbol inside a bound
@@ -270,7 +329,11 @@ pub(crate) fn op_bind(interp: &mut Interpreter) -> Result<()> {
 /// (a User Word's body cannot see them, so the walk stops at the dictionary).
 /// The names being bound together count as bound already, so destructuring
 /// cannot close a cycle between its own parts either.
-fn check_binding_acyclic(interp: &Interpreter, names: &[String], subject: &Value) -> Result<()> {
+fn check_binding_acyclic<S: AsRef<str>>(
+    interp: &Interpreter,
+    names: &[S],
+    subject: &Value,
+) -> Result<()> {
     use super::body_symbols::value_symbol_names;
     use crate::types::ValueData;
     use std::collections::HashSet;
@@ -284,11 +347,13 @@ fn check_binding_acyclic(interp: &Interpreter, names: &[String], subject: &Value
         return Ok(());
     }
     let pending: Vec<(String, Value)> = match names {
-        [only] => vec![(only.to_uppercase(), subject.clone())],
+        [only] => vec![(only.as_ref().to_uppercase(), subject.clone())],
         several => several
             .iter()
             .enumerate()
-            .filter_map(|(position, name)| Some((name.to_uppercase(), subject.child(position)?)))
+            .filter_map(|(position, name)| {
+                Some((name.as_ref().to_uppercase(), subject.child(position)?))
+            })
             .collect(),
     };
     let bound_value = |name: &str| -> Option<Value> {

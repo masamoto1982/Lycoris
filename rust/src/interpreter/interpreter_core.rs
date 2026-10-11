@@ -121,12 +121,13 @@ pub struct Interpreter {
     /// boundary access through this trait object so conformance can inject a
     /// deterministic or restricted host.
     pub(crate) host_env: Arc<dyn super::HostEnv>,
-    /// Local name bindings, innermost frame last (`super::bindings`). Not a
-    /// second dictionary: each scope belongs to one frame of LANG.SOURCE.FRAME
-    /// and dies with it, so a name here is never reachable from another Word.
+    /// Local name bindings, innermost frame last (`super::bindings`): the
+    /// first `binding_depth` are the open frames, and the rest are emptied
+    /// tables kept for the next frames to open. Not a second dictionary:
+    /// each scope belongs to one frame of LANG.SOURCE.FRAME and dies with
+    /// it, so a name here is never reachable from another Word.
     pub(crate) binding_scopes: Vec<super::bindings::BindingScope>,
-    /// Emptied binding tables kept for reuse (`close_binding_scope`).
-    pub(crate) spare_binding_maps: Vec<crate::fast_hash::FastMap<std::sync::Arc<str>, Value>>,
+    pub(crate) binding_depth: usize,
     /// The dictionary changes this top-level `execute` has made so far, in
     /// order — `Defined word:` / `Deleted word:` without the prose.
     ///
@@ -243,6 +244,9 @@ pub struct Interpreter {
     pub(crate) segments_enabled: bool,
     /// Code operands compiled recently (`higher_order::BlockCache`).
     pub(crate) block_cache: super::higher_order::BlockCache,
+    /// What each name token recently dispatched dispatches to (`symbol_cache`).
+    pub(crate) symbol_cache: super::symbol_cache::SymbolCache,
+    pub(crate) segment_scratch: super::segment::SegmentScratch,
 }
 
 impl Default for Interpreter {
@@ -266,7 +270,7 @@ impl Interpreter {
             host_effects: Vec::new(),
             host_env,
             binding_scopes: vec![super::bindings::BindingScope::root()],
-            spare_binding_maps: Vec::new(),
+            binding_depth: 1,
             dictionary_changes_this_run: Vec::new(),
             disable_no_change_check: true,
             runtime_scratch: HashMap::new(),
@@ -299,6 +303,8 @@ impl Interpreter {
             quickening_enabled: std::env::var("AJISAI_NO_QUICKEN").is_err(),
             segments_enabled: std::env::var("AJISAI_NO_SEGMENTS").is_err(),
             block_cache: Default::default(),
+            symbol_cache: Default::default(),
+            segment_scratch: Default::default(),
         };
         crate::builtins::register_builtins(&mut interpreter.core_vocabulary);
         interpreter
@@ -353,6 +359,7 @@ impl Interpreter {
     /// two checks can grow deep enough to overflow a walk. Each value's
     /// nesting is kept on the value, and only the slots written since the last
     /// check are read, so the check costs what the Word wrote.
+    #[inline]
     pub(crate) fn check_fresh_nesting(&mut self) -> crate::error::Result<()> {
         let start = self.stack.take_fresh_start();
         let deepest = self.stack.as_slice()[start..]

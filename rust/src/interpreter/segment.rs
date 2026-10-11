@@ -96,7 +96,7 @@ pub(crate) struct Segment {
     /// Names the run's own frame binds, and the slot holding each one's
     /// last value. A called Word's frame ends with the call, so its names
     /// are not here.
-    pub(crate) binds: Vec<(Arc<str>, u32)>,
+    pub(crate) binds: Vec<(crate::types::Name, u32)>,
     /// Words dispatched, User Word calls included.
     pub(crate) steps: usize,
     /// Each User Word called, once, and how many calls in all.
@@ -107,6 +107,19 @@ pub(crate) struct Segment {
     /// The dictionary the run was lowered against: the Words it inlined and
     /// the names it found bindable.
     pub(crate) dictionary_epoch: u64,
+}
+
+/// A User Word whose plan a run built, and the plan.
+type PlanBuild<'a> = (&'a str, Arc<CompiledPlan>);
+
+/// The storage a run computes in — its operand stack and its slots — kept
+/// on the interpreter between runs. A run is short and frequent (a Word
+/// body's, once per call), and building small vectors for it each time was
+/// a measurable share of the run.
+#[derive(Debug, Default)]
+pub(crate) struct SegmentScratch {
+    stack: Vec<Slot>,
+    slots: Vec<Slot>,
 }
 
 /// Where a segment sits in a compiled line: `ops[start..end]`.
@@ -121,7 +134,9 @@ impl Segment {
     /// Run the segment against the top of the stack and commit it, or answer
     /// `false` having touched nothing.
     pub(crate) fn try_run(&self, interp: &mut Interpreter) -> bool {
-        let committed = self.run(interp).is_some();
+        let mut scratch = std::mem::take(&mut interp.segment_scratch);
+        let committed = self.run(interp, &mut scratch).is_some();
+        interp.segment_scratch = scratch;
         #[cfg(test)]
         if committed {
             SEGMENT_RUNS.with(|c| c.set(c.get() + 1));
@@ -129,7 +144,7 @@ impl Segment {
         committed
     }
 
-    fn run(&self, interp: &mut Interpreter) -> Option<()> {
+    fn run(&self, interp: &mut Interpreter, scratch: &mut SegmentScratch) -> Option<()> {
         if !interp.segments_enabled
             || !interp.scalar_fastpath_enabled
             || interp.runtime_limits.max_bigint_bits < 64
@@ -142,13 +157,15 @@ impl Segment {
 
         let values = interp.stack.as_slice();
         let base = values.len().checked_sub(self.inputs)?;
-        let mut stack: SmallVec<[Slot; 16]> = SmallVec::new();
+        let SegmentScratch { stack, slots } = scratch;
+        stack.clear();
         for value in &values[base..] {
             stack.push(Slot::of(value)?);
         }
-        let mut slots: SmallVec<[Slot; 8]> = SmallVec::from_elem(Slot::Bool(false), self.slots);
+        slots.clear();
+        slots.resize(self.slots, Slot::Bool(false));
         for (name, slot) in &self.reads {
-            slots[*slot as usize] = Slot::of(&interp.lookup_binding(name)?)?;
+            slots[*slot as usize] = Slot::of(&interp.lookup_binding(name.as_str())?)?;
         }
 
         let (mut work, mut fastpath) = (0u64, 0u64);
@@ -213,11 +230,13 @@ impl Segment {
 
         // Each call looks its Word's plan up; one with none current is built
         // by its first call.
-        let mut builds: SmallVec<[(&str, Arc<CompiledPlan>); 2]> = SmallVec::new();
+        // A run that calls no User Word has nothing to look up here.
+        let mut builds: Option<SmallVec<[PlanBuild; 2]>> = None;
         for name in &self.callees {
             let def = interp.user_words.get(name.as_str())?;
             if !matches!(&def.compiled_plan, Some(plan) if is_plan_valid(plan, interp)) {
-                builds.push((name, arc_plan(compile_word_definition(def, interp))));
+                let plan = arc_plan(compile_word_definition(def, interp));
+                builds.get_or_insert_with(SmallVec::new).push((name, plan));
             }
         }
 
@@ -225,22 +244,27 @@ impl Segment {
         interp.numeric_work_used += work;
         let metrics = &mut interp.runtime_metrics;
         metrics.scalar_fastpath_count = metrics.scalar_fastpath_count.saturating_add(fastpath);
-        let built = builds.len() as u64;
+        let built = builds.as_ref().map_or(0, |builds| builds.len()) as u64;
         metrics.compiled_plan_cache_miss_count += built;
         metrics.compiled_plan_build_count += built;
         metrics.compiled_plan_cache_hit_count += self.calls - built;
-        if built > 0 {
+        if let Some(builds) = builds {
             interp.global_epoch += built;
             interp.execution_epoch = interp.global_epoch;
-        }
-        for (name, plan) in builds {
-            interp.store_compiled_plan_for_word(name, plan);
+            for (name, plan) in builds {
+                interp.store_compiled_plan_for_word(name, plan);
+            }
         }
         for (name, slot) in &self.binds {
-            interp.bind_local(Arc::clone(name), slots[*slot as usize].into_value());
+            interp.bind_local(name.clone(), slots[*slot as usize].into_value());
         }
-        interp.stack.truncate(base);
-        for slot in stack {
+        // The operands the run took are plain slots (`Slot::of` read every
+        // one), which own nothing a destructor would free, so they are let
+        // go of rather than dropped.
+        while interp.stack.len() > base {
+            std::mem::forget(interp.stack.pop());
+        }
+        for &slot in stack.iter() {
             interp.stack.push(slot.into_value());
         }
         // Where the dispatch's last check left the mark. Only pushes follow

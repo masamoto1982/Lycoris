@@ -59,18 +59,53 @@ impl Interpreter {
             Some(_) => self.core_vocabulary.get(name).cloned(),
             None => None,
         };
+        self.execute_resolved_word(name, core)
+    }
+
+    /// A Core Word resolved to its registry entry, run as
+    /// `execute_word_core` runs it once the scalar route has declined: one
+    /// step, the Word, and the nesting check. `dispatch_core_word` asks the
+    /// scalar route first.
+    #[inline]
+    pub(crate) fn execute_core_word(
+        &mut self,
+        word: &'static crate::kernel::generated::GeneratedWord,
+    ) -> Result<()> {
+        self.charge_execution_step()?;
+        self.execute_generated_word(word)
+            .and_then(|()| self.check_fresh_nesting())
+    }
+
+    /// The rest of `execute_word_core` for the canonical `name`, once Core has
+    /// been probed: `core` is the Core definition the probe found, if any.
+    pub(crate) fn execute_resolved_word(
+        &mut self,
+        name: &str,
+        core: Option<std::sync::Arc<crate::types::WordDefinition>>,
+    ) -> Result<()> {
         if core.is_none() {
             if let Some(value) = self.lookup_binding(name) {
                 self.stack.push(value);
                 return Ok(());
             }
         }
+        self.execute_unbound_word(name, core)
+    }
+
+    /// [`Self::execute_resolved_word`] for a name no binding answered.
+    pub(crate) fn execute_unbound_word(
+        &mut self,
+        name: &str,
+        core: Option<std::sync::Arc<crate::types::WordDefinition>>,
+    ) -> Result<()> {
+        let core_found = core.is_some();
 
         // `name` is already canonical, and resolution answers under that same
         // name, so the dispatch asks only for the definition. Taking a name back
         // meant allocating a copy of the one in hand — a `String` from
         // `to_uppercase` and an `Arc<str>` built from it — on every dispatch.
-        let def = core.or_else(|| self.definition_of(name)).ok_or_else(|| {
+        // Core has been probed already, so what is left is the User tier.
+        let def = core.or_else(|| self.user_words.get(name).cloned()).ok_or_else(|| {
             // Both arms are the same resolution failure — the name did not
             // resolve to a usable Word — with a more specific message where
             // there is one. `UnknownWord` is the one structural category
@@ -98,7 +133,7 @@ impl Interpreter {
 
         // A definition the Core probe did not find gets the same scalar
         // route; one it found has already been asked.
-        if core_word.is_none() && def.body.is_empty() {
+        if !core_found && def.body.is_empty() {
             if let Some(word) = def.generated {
                 if super::quickened::try_scalar_call(self, word.id) {
                     return Ok(());

@@ -18,7 +18,7 @@ pub(crate) fn body_symbol_names(body: &[Token]) -> Vec<std::sync::Arc<str>> {
     let mut names = Vec::new();
     for token in body {
         match token {
-            Token::Symbol(name) => names.push(name.clone()),
+            Token::Symbol(name) => names.push(name.to_arc()),
             Token::Value(value) => value_symbol_names(value, &mut names),
             Token::Number(_) | Token::String(_) | Token::VectorStart | Token::VectorEnd => {}
         }

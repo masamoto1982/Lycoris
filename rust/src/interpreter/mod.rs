@@ -1,5 +1,6 @@
 pub mod arithmetic;
 pub(crate) mod arithmetic_meter;
+mod binding_table;
 pub(crate) mod bindings;
 mod body_symbols;
 pub(crate) mod broadcast_tree;
@@ -65,6 +66,7 @@ pub(crate) mod segment;
 mod segment_lower;
 #[cfg(test)]
 mod segment_tests;
+mod symbol_cache;
 pub mod trace_diagnosis;
 // The host-side Word lookup lives in `host.rs`; the module path it used to
 // have is kept for the hosts (`wasm_interpreter_bindings`, `rust/tests`) that

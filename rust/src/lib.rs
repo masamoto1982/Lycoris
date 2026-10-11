@@ -25,6 +25,7 @@ pub mod kernel;
 pub mod semantic;
 pub mod surface_forms;
 mod tokenizer;
+mod tokenizer_scan;
 pub mod types;
 
 // Host-neutral agent boundary (pure computation, no filesystem/terminal I/O):
