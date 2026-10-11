@@ -177,7 +177,7 @@ fn text_bytes(value: &Value) -> u64 {
         | ValueData::Tensor { .. }
         | ValueData::Boolean(_)
         | ValueData::Both
-        | ValueData::Nil => 0,
+        | ValueData::Nil(_) => 0,
     }
 }
 

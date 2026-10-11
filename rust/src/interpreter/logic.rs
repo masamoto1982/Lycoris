@@ -33,7 +33,7 @@ fn operand_truth(value: &Value) -> Result<Truth> {
         ValueData::Boolean(true) => Ok(Truth::True),
         ValueData::Boolean(false) => Ok(Truth::False),
         ValueData::Both => Ok(Truth::Both),
-        ValueData::Nil => Ok(Truth::Unknown),
+        ValueData::Nil(_) => Ok(Truth::Unknown),
         _ => Err(AjisaiError::declared(
             "nonTruthValue",
             format!("expected a truth value, got {}", value.domain_name()),
@@ -156,7 +156,7 @@ fn sole_truth_lanes(value: &mut Value) -> Option<&mut [Value]> {
     let truths = items.iter().all(|lane| {
         matches!(
             lane.data,
-            ValueData::Boolean(_) | ValueData::Both | ValueData::Nil
+            ValueData::Boolean(_) | ValueData::Both | ValueData::Nil(_)
         )
     });
     // A Vector something else still holds is copied once, here, and the copy
@@ -224,7 +224,7 @@ fn conjoin_in_place(interp: &mut Interpreter, b_val: &Value) -> Option<Result<()
     let is_truth = |v: &Value| {
         matches!(
             v.data,
-            ValueData::Boolean(_) | ValueData::Both | ValueData::Nil
+            ValueData::Boolean(_) | ValueData::Both | ValueData::Nil(_)
         )
     };
     let right: &[Value] = match &b_val.data {

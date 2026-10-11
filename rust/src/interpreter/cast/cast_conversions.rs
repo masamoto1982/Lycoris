@@ -61,7 +61,7 @@ pub(crate) fn format_value_to_string_repr(value: &Value) -> String {
 
     fn collect_fractions(val: &Value) -> Vec<String> {
         match &val.data {
-            ValueData::Nil => vec!["NIL".to_string()],
+            ValueData::Nil(_) => vec!["NIL".to_string()],
             ValueData::Boolean(b) => vec![if *b { "TRUE" } else { "FALSE" }.to_string()],
             ValueData::Both => vec!["BOTH".to_string()],
             ValueData::Scalar(f) => vec![format_fraction_to_string(f)],
@@ -111,7 +111,7 @@ fn has_no_exact_lexeme(value: &Value) -> bool {
         | ValueData::Text(_)
         | ValueData::Scalar(_)
         | ValueData::Tensor { .. }
-        | ValueData::Nil
+        | ValueData::Nil(_)
         | ValueData::Symbol(_) => false,
     }
 }

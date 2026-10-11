@@ -19,23 +19,21 @@ use crate::semantic::AbsenceMetadata;
 use crate::types::{Value, ValueData};
 use std::mem::size_of;
 
-/// The payload plus a pointer-sized envelope, rounded to
-/// alignment. Anything materially wider means something rare was inlined
-/// into every value again.
-///
-/// The envelope is one pointer — the boxed `AbsenceMetadata`, `None` on
-/// every present value — and the cached nesting depth.
-const ENVELOPE_BUDGET: usize = 16;
-
+/// The payload plus the cached nesting depth, rounded to alignment: four
+/// words. A NIL's reason is boxed inside `ValueData::Nil` and an irrational
+/// inside `ValueData::ExactScalar`, so neither widens a present number — a
+/// `Fraction` (three words with its tag's spare values naming the other
+/// variants) is the widest thing a value holds inline. Anything wider means
+/// something rare was inlined into every value again.
 #[test]
-fn a_value_is_its_payload_plus_a_pointer_sized_envelope() {
+fn a_value_is_four_words() {
     let payload = size_of::<ValueData>();
     let value = size_of::<Value>();
     assert!(
-        value <= payload + ENVELOPE_BUDGET,
-        "Value is {value} bytes around a {payload}-byte ValueData: the \
-         absence envelope must stay a pointer (boxed diagnosis), because \
-         this width multiplies every stack slot and every AoS lane"
+        payload <= 3 * size_of::<u64>() && value <= 4 * size_of::<u64>(),
+        "Value is {value} bytes around a {payload}-byte ValueData: a rare \
+         form (a NIL's reason, an irrational) must stay behind a pointer, \
+         because this width multiplies every stack slot and every AoS lane"
     );
 }
 
@@ -66,6 +64,6 @@ fn numbers_hold_their_rare_wide_forms_behind_a_pointer() {
     use crate::types::fraction::Fraction;
     assert!(size_of::<Fraction>() <= 3 * size_of::<u64>());
     assert!(size_of::<ExactReal>() <= 3 * size_of::<u64>());
-    assert!(size_of::<ValueData>() <= 4 * size_of::<u64>());
-    assert!(size_of::<Value>() <= 6 * size_of::<u64>());
+    assert!(size_of::<ValueData>() <= 3 * size_of::<u64>());
+    assert!(size_of::<Value>() <= 4 * size_of::<u64>());
 }

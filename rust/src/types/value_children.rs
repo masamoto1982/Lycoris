@@ -48,7 +48,7 @@ impl Value {
     #[inline]
     pub fn len(&self) -> usize {
         match &self.data {
-            ValueData::Nil => 0,
+            ValueData::Nil(_) => 0,
             // A String is one value, not a sequence of characters. Its
             // character count is reached through `CHARS`, which is what makes
             // the Vector domain explicit; LENGTH raises `nonVector` on it.
@@ -85,7 +85,7 @@ impl Value {
             | ValueData::Text(_)
             | ValueData::Scalar(_)
             | ValueData::ExactScalar(_)
-            | ValueData::Nil
+            | ValueData::Nil(_)
             | ValueData::Symbol(_)
             | ValueData::Record(_) => None,
         }
@@ -109,7 +109,7 @@ impl Value {
             | ValueData::Text(_)
             | ValueData::Scalar(_)
             | ValueData::ExactScalar(_)
-            | ValueData::Nil
+            | ValueData::Nil(_)
             | ValueData::Symbol(_)
             | ValueData::Record(_) => None,
         }
@@ -136,7 +136,7 @@ impl Value {
             ValueData::Vector(v) => v.last(),
             ValueData::Tensor { .. } => None,
             ValueData::Scalar(_) | ValueData::ExactScalar(_) => Some(self),
-            ValueData::Nil => None,
+            ValueData::Nil(_) => None,
             ValueData::Boolean(_)
             | ValueData::Both
             | ValueData::Text(_)
@@ -169,7 +169,7 @@ impl Value {
                 self.raise_nesting_to(with_child);
                 return;
             }
-            ValueData::Nil => {
+            ValueData::Nil(_) => {
                 self.data = ValueData::Vector(Arc::new(vec![child]));
             }
             ValueData::Scalar(f) => {
@@ -200,7 +200,7 @@ impl Value {
             | ValueData::ExactScalar(_)
             | ValueData::Vector(_)
             | ValueData::Tensor { .. }
-            | ValueData::Nil
+            | ValueData::Nil(_)
             | ValueData::Symbol(_)
             | ValueData::Record(_) => None,
         }
@@ -226,7 +226,7 @@ impl Value {
             | ValueData::Text(_)
             | ValueData::Scalar(_)
             | ValueData::ExactScalar(_)
-            | ValueData::Nil
+            | ValueData::Nil(_)
             | ValueData::Symbol(_)
             | ValueData::Record(_) => None,
         }
@@ -243,7 +243,7 @@ impl Value {
             // A NIL is not a number and has no lane; the flat route — which
             // never meets one, being steered off by `contains_absent_lane` —
             // sees a short buffer.
-            ValueData::Nil => {}
+            ValueData::Nil(_) => {}
             ValueData::Scalar(f) => buf.push(f.clone()),
             ValueData::ExactScalar(er) => {
                 // Use best rational approximation for ExactScalar in flat collection
@@ -273,7 +273,7 @@ impl Value {
 
     pub fn count_fractions(&self) -> usize {
         match &self.data {
-            ValueData::Nil => 1,
+            ValueData::Nil(_) => 1,
             ValueData::Scalar(_) | ValueData::ExactScalar(_) => 1,
             ValueData::Vector(v) => v.iter().map(|c| c.count_fractions()).sum(),
             ValueData::Tensor { data, .. } => data.len(),
@@ -290,7 +290,7 @@ impl Value {
     pub fn shape(&self) -> Vec<usize> {
         match &self.data {
             // U and NIL are both rank-0 (empty shape), like a Boolean/Scalar.
-            ValueData::Nil => vec![],
+            ValueData::Nil(_) => vec![],
             ValueData::Scalar(_) | ValueData::ExactScalar(_) => vec![],
             ValueData::Vector(v) => {
                 if v.is_empty() {

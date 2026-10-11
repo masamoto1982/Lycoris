@@ -62,13 +62,10 @@ impl ScalarColumns {
     /// Take `value` as the next lane, or answer `false` having taken nothing.
     #[inline]
     pub(crate) fn push(&mut self, value: &Value) -> bool {
-        match (&value.data, &value.absence) {
-            (
-                ValueData::Scalar(Fraction {
-                    repr: FractionRepr::Small(n, d),
-                }),
-                None,
-            ) => {
+        match &value.data {
+            ValueData::Scalar(Fraction {
+                repr: FractionRepr::Small(n, d),
+            }) => {
                 self.nums.push(*n);
                 self.dens.push(*d);
                 true
@@ -169,7 +166,7 @@ fn append_value(value: &Value, columns: &mut Columns) -> Option<Shape> {
         ValueData::Vector(children) => append_values(children, columns),
         // A NIL is not a number, so a Vector holding one keeps its nested
         // form, as it does for a String or a Boolean.
-        ValueData::Nil
+        ValueData::Nil(_)
         | ValueData::ExactScalar(_)
         | ValueData::Record(_)
         | ValueData::Boolean(_)

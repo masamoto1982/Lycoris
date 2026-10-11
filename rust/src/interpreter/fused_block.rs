@@ -65,7 +65,7 @@ pub(crate) enum Plain {
 
 impl Plain {
     pub(crate) fn of(value: &Value) -> Option<Self> {
-        if value.absence.is_some() {
+        if value.absence_metadata().is_some() {
             return None;
         }
         match &value.data {
@@ -404,7 +404,7 @@ fn one_lane_seed(interp: &Interpreter, seed: &Value) -> Option<Plain> {
 /// The lane of `value` when it is a one-lane Tensor, as `[ 0 ]` is; a lane
 /// over zero (`[ 1/0 ]`) is a lane like any other.
 pub(crate) fn one_lane_of(value: &Value) -> Option<Plain> {
-    if value.absence.is_some() {
+    if value.absence_metadata().is_some() {
         return None;
     }
     let ValueData::Tensor { data, shape } = &value.data else {

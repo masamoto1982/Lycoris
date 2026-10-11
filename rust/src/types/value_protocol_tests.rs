@@ -6,7 +6,7 @@
 // Trace: docs/quality/TRACEABILITY_MATRIX.md, requirement AQ-REQ-003.
 
 use crate::types::fraction::Fraction;
-use crate::types::value_protocol::{value_to_protocol, ProtocolNode, ProtocolValue};
+use crate::types::value_protocol::{exact_terms, value_to_protocol, ProtocolNode, ProtocolValue};
 use crate::types::{DenseTensor, Value, ValueData};
 use std::sync::Arc;
 
@@ -102,6 +102,20 @@ fn exact_scalar_carries_exact_source_in_semantics() {
     );
 }
 
+/// Only an irrational has a normal form to send. A restored session can hold
+/// an `ExactScalar` that is rational (the wire's `ExactRat`), and a plain
+/// number is not an `ExactScalar` at all; neither has exact terms.
+#[test]
+fn only_an_irrational_has_exact_terms() {
+    let rational = Value::new(
+        ValueData::ExactScalar(Box::new(crate::types::exact::ExactReal::Rational(frac(3)))),
+        None,
+    );
+    assert!(exact_terms(&rational).is_none());
+    assert!(exact_terms(&scalar(3)).is_none());
+    assert!(exact_terms(&sqrt2()).is_some());
+}
+
 #[test]
 fn algebraic_exact_terms_are_lossless_decimal_strings() {
     use crate::types::value_protocol::exact_terms;
@@ -139,7 +153,10 @@ fn algebraic_stack_display_writes_the_normal_form_short() {
     // rendering. `2*sqrt(2)` would be the only place in the language where a
     // number is written without its denominator.
     let two_sqrt2 = match sqrt2().data {
-        ValueData::ExactScalar(ExactReal::Algebraic(algebraic)) => {
+        ValueData::ExactScalar(exact) if matches!(*exact, ExactReal::Algebraic(_)) => {
+            let ExactReal::Algebraic(algebraic) = *exact else {
+                unreachable!()
+            };
             match algebraic.mul_fraction(&Fraction::new(2.into(), 1.into())) {
                 crate::types::exact::AlgebraicResult::Irrational(scaled) => {
                     Value::from_exact_real(ExactReal::Algebraic(Box::new(scaled)))

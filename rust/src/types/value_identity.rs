@@ -62,7 +62,7 @@ fn element_rect_shape(value: &Value) -> Option<Vec<usize>> {
         ValueData::Scalar(_) | ValueData::ExactScalar(_) => Some(Vec::new()),
         // A NIL is not a numeric leaf: a Vector holding one has no dense
         // counterpart to equal.
-        ValueData::Nil => None,
+        ValueData::Nil(_) => None,
         // A String is not a numeric leaf, so it has no rectangular element
         // shape and forces the structural (non-dense) path, like a Boolean.
         ValueData::Text(_) => None,
@@ -85,7 +85,7 @@ fn nested_flatten_matches(v: &[Value], data: &DenseTensor, idx: &mut usize) -> b
             }
             // A NIL is not a number, so no lane equals it; an ExactScalar is
             // irrational, so no lane equals it either.
-            ValueData::Nil | ValueData::ExactScalar(_) => return false,
+            ValueData::Nil(_) | ValueData::ExactScalar(_) => return false,
             ValueData::Vector(inner) => {
                 if !nested_flatten_matches(inner, data, idx) {
                     return false;
@@ -258,7 +258,7 @@ impl Value {
         if let Some(f) = er.as_rational() {
             return Self::from_fraction(f.clone());
         }
-        Self::new(ValueData::ExactScalar(er), None)
+        Self::new(ValueData::ExactScalar(Box::new(er)), None)
     }
 
     #[inline]
@@ -267,16 +267,16 @@ impl Value {
     }
 
     /// NIL test: `true` only for the operational absence node
-    /// ([`ValueData::Nil`]).
+    /// ([`ValueData::Nil(_)`]).
     #[inline]
     pub fn is_nil(&self) -> bool {
-        matches!(self.data, ValueData::Nil)
+        matches!(self.data, ValueData::Nil(_))
     }
 
     /// As [`is_nil`]: operational-absence test.
     #[inline]
     pub fn is_absent(&self) -> bool {
-        matches!(self.data, ValueData::Nil)
+        matches!(self.data, ValueData::Nil(_))
     }
 
     /// As [`is_nil`]: operational-absence test, and deliberately *not*
@@ -287,7 +287,7 @@ impl Value {
     /// `NIL-REASON` reports the reason it arrived with.
     #[inline]
     pub fn is_operational_nil(&self) -> bool {
-        matches!(self.data, ValueData::Nil)
+        matches!(self.data, ValueData::Nil(_))
     }
 
     /// The value's domain, spelled as LANG.VALUES.DISJOINT spells it. Every
@@ -300,7 +300,7 @@ impl Value {
             ValueData::Text(_) => "String",
             ValueData::Vector(_) | ValueData::Tensor { .. } => "Vector",
             ValueData::Record(_) => "Record",
-            ValueData::Nil => "NIL",
+            ValueData::Nil(_) => "NIL",
             ValueData::Symbol(_) => "Symbol",
         }
     }
@@ -359,7 +359,7 @@ impl Value {
             | ValueData::Text(_)
             | ValueData::Scalar(_)
             | ValueData::ExactScalar(_)
-            | ValueData::Nil
+            | ValueData::Nil(_)
             | ValueData::Symbol(_)
             | ValueData::Record(_) => None,
         }
@@ -367,7 +367,7 @@ impl Value {
 
     /// Return a `Cow<Value>` that is guaranteed to use a non-`Tensor`
     /// representation. `Tensor` values are converted into a nested
-    /// `ValueData::Vector` (preserving `absence`); every other
+    /// `ValueData::Vector`; every other
     /// variant is borrowed in place.
     ///
     /// Useful at user-visible boundaries (PRINT, JSON-EXPORT, GUI hand-off,
@@ -378,10 +378,7 @@ impl Value {
         match &self.data {
             ValueData::Tensor { data, shape } => {
                 let children = tensor_to_nested_values(data, shape);
-                std::borrow::Cow::Owned(Value::new(
-                    ValueData::Vector(Arc::new(children)),
-                    self.absence.as_deref().cloned(),
-                ))
+                std::borrow::Cow::Owned(Value::new(ValueData::Vector(Arc::new(children)), None))
             }
             _ => std::borrow::Cow::Borrowed(self),
         }
@@ -398,7 +395,7 @@ impl Value {
             // truth position — collapses to `false`. Words that must honour
             // the third value read it before asking for a definite truth
             // (`SELECT`, `AND`/`NOT`), never here.
-            ValueData::Nil => false,
+            ValueData::Nil(_) => false,
             // A String is not a truth value. LANG.VALUES.TRUTH is two-valued
             // over Booleans, and the logic Words reject anything else outright
             // (`nonTruthValue`); this total coercion survives only for legacy

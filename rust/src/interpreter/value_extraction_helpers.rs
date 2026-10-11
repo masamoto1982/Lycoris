@@ -9,7 +9,7 @@ pub(crate) fn value_as_string(val: &Value) -> Option<String> {
     fn collect_chars(val: &Value) -> Vec<char> {
         match &val.data {
             ValueData::Text(s) => s.chars().collect(),
-            ValueData::Nil => vec![],
+            ValueData::Nil(_) => vec![],
             ValueData::Scalar(f) => f
                 .to_i64()
                 .and_then(|n| {
@@ -158,7 +158,7 @@ pub(crate) fn extract_operands(interp: &mut Interpreter, count: usize) -> Result
 pub(crate) fn exact_real_of(value: &Value) -> Option<ExactReal> {
     match &value.data {
         ValueData::Scalar(f) => Some(ExactReal::from_fraction(f.clone())),
-        ValueData::ExactScalar(er) => Some(er.clone()),
+        ValueData::ExactScalar(er) => Some((**er).clone()),
         _ => None,
     }
 }
