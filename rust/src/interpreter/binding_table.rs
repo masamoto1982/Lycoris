@@ -30,7 +30,7 @@ pub(crate) struct ScopeNames {
 
 impl ScopeNames {
     /// The position of `name` in `entries`.
-    #[inline]
+    #[inline(always)]
     fn position<Q>(&self, name: &Q) -> Option<usize>
     where
         Name: Borrow<Q>,

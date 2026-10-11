@@ -121,12 +121,13 @@ pub struct Interpreter {
     /// boundary access through this trait object so conformance can inject a
     /// deterministic or restricted host.
     pub(crate) host_env: Arc<dyn super::HostEnv>,
-    /// Local name bindings, innermost frame last (`super::bindings`). Not a
-    /// second dictionary: each scope belongs to one frame of LANG.SOURCE.FRAME
-    /// and dies with it, so a name here is never reachable from another Word.
+    /// Local name bindings, innermost frame last (`super::bindings`): the
+    /// first `binding_depth` are the open frames, and the rest are emptied
+    /// tables kept for the next frames to open. Not a second dictionary:
+    /// each scope belongs to one frame of LANG.SOURCE.FRAME and dies with
+    /// it, so a name here is never reachable from another Word.
     pub(crate) binding_scopes: Vec<super::bindings::BindingScope>,
-    /// Emptied binding tables kept for reuse (`close_binding_scope`).
-    pub(crate) spare_binding_maps: Vec<super::binding_table::ScopeNames>,
+    pub(crate) binding_depth: usize,
     /// The dictionary changes this top-level `execute` has made so far, in
     /// order — `Defined word:` / `Deleted word:` without the prose.
     ///
@@ -268,7 +269,7 @@ impl Interpreter {
             host_effects: Vec::new(),
             host_env,
             binding_scopes: vec![super::bindings::BindingScope::root()],
-            spare_binding_maps: Vec::new(),
+            binding_depth: 1,
             dictionary_changes_this_run: Vec::new(),
             disable_no_change_check: true,
             runtime_scratch: HashMap::new(),

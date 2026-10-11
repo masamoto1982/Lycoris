@@ -58,23 +58,43 @@ impl Interpreter {
     /// run itself. Returns nothing: the matching [`Interpreter::close_binding_scope`]
     /// pops whatever this pushed, and the two are always paired within one
     /// function so no depth token is needed.
+    #[inline]
     pub(crate) fn open_binding_scope(&mut self, barrier: bool) {
-        let names = self.spare_binding_maps.pop().unwrap_or_default();
-        self.binding_scopes.push(BindingScope { names, barrier });
+        match self.binding_scopes.get_mut(self.binding_depth) {
+            Some(scope) => scope.barrier = barrier,
+            None => self.binding_scopes.push(BindingScope {
+                names: Default::default(),
+                barrier,
+            }),
+        }
+        self.binding_depth += 1;
     }
 
-    /// Close the innermost scope. Its emptied table is kept for the next
-    /// scope to open: a block a higher-order Word applies opens and closes
-    /// one per element, and a `BIND` in it would otherwise allocate a fresh
-    /// table every time. Only small tables are kept, and only a few.
+    /// Close the innermost scope. Its emptied table stays where it was, for
+    /// the next scope opened at that depth: a block a higher-order Word
+    /// applies opens and closes one per element, and a Word body one per
+    /// call, and a `BIND` in either would otherwise allocate a fresh table
+    /// every time — or, as when emptied tables were kept aside, move one in
+    /// and out of a list of spares. Only small tables near the root are
+    /// kept; any other is let go of.
+    #[inline]
     pub(crate) fn close_binding_scope(&mut self) {
-        if let Some(mut scope) = self.binding_scopes.pop() {
-            let capacity = scope.names.capacity();
-            if capacity > 0 && capacity <= 64 && self.spare_binding_maps.len() < 8 {
-                scope.names.clear();
-                self.spare_binding_maps.push(scope.names);
-            }
+        let Some(depth) = self.binding_depth.checked_sub(1) else {
+            return;
+        };
+        self.binding_depth = depth;
+        let names = &mut self.binding_scopes[depth].names;
+        if depth < 16 && names.capacity() <= 64 {
+            names.clear();
+        } else {
+            *names = Default::default();
         }
+    }
+
+    /// The open scopes, outermost first.
+    #[inline]
+    fn open_scopes(&self) -> &[BindingScope] {
+        &self.binding_scopes[..self.binding_depth]
     }
 
     /// Discard every scope and open a fresh root. A run's bindings are the
@@ -84,6 +104,7 @@ impl Interpreter {
     pub(crate) fn reset_binding_scopes(&mut self) {
         self.binding_scopes.clear();
         self.binding_scopes.push(BindingScope::root());
+        self.binding_depth = 1;
     }
 
     /// The value bound to `name` in the frames this one can see. `name` is a
@@ -95,7 +116,7 @@ impl Interpreter {
         Name: std::borrow::Borrow<Q>,
         Q: std::hash::Hash + Eq + ?Sized,
     {
-        for scope in self.binding_scopes.iter().rev() {
+        for scope in self.open_scopes().iter().rev() {
             if let Some(bound) = scope.names.get(name) {
                 return Some(bound.clone());
             }
@@ -111,7 +132,7 @@ impl Interpreter {
     /// resolve where they used it, and by `DEF` to keep a Word from taking a
     /// name a caller's frame still holds.
     pub(crate) fn binding_exists_beyond_barrier(&self, name: &str) -> bool {
-        self.binding_scopes
+        self.open_scopes()
             .iter()
             .any(|scope| scope.names.contains_key(name))
     }
@@ -127,8 +148,8 @@ impl Interpreter {
     /// protects a referenced Word from being redefined is about names other
     /// code can reach, and nothing outside this frame can reach this one.
     pub(crate) fn bind_local(&mut self, name: Name, value: Value) {
-        if let Some(scope) = self.binding_scopes.last_mut() {
-            scope.names.insert(name, value);
+        if let Some(depth) = self.binding_depth.checked_sub(1) {
+            self.binding_scopes[depth].names.insert(name, value);
         }
     }
 
