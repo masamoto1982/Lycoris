@@ -278,11 +278,11 @@ mod tests {
         let mut operands = leaves.to_vec();
         operands.extend([
             vector(&[]),
-            vector(&[t.clone()]),
+            vector(std::slice::from_ref(&t)),
             vector(&[t.clone(), f.clone(), Value::both()]),
             vector(&[Value::nil(), t.clone(), f.clone()]),
             vector(&[t.clone(), f.clone()]),
-            vector(&[vector(&[t.clone()]), f.clone(), t.clone()]),
+            vector(&[vector(std::slice::from_ref(&t)), f.clone(), t.clone()]),
             Value::from_int_tensor(vec![1, 2, 3]),
         ]);
         let law = |[a, b]: [&Value; 2]| -> Result<Value> {
