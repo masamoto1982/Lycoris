@@ -21,6 +21,8 @@ pub(crate) mod dense_kernels;
 #[cfg(test)]
 mod dense_kernels_tests;
 #[cfg(test)]
+mod dense_quotient_tests;
+#[cfg(test)]
 mod dense_slice_route_tests;
 pub mod error_flow_trace;
 #[cfg(test)]
@@ -37,6 +39,7 @@ pub(crate) mod fused_block;
 mod fused_block_cache_tests;
 mod fused_block_general;
 mod fused_block_int;
+mod fused_block_lane;
 #[cfg(test)]
 mod fused_block_lane_call_tests;
 pub(crate) mod fused_block_lower;

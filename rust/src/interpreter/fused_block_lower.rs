@@ -209,7 +209,7 @@ impl Lowering<'_> {
                             if call.word.is_some_and(|word| word.id == WordId::Length)
                     ) =>
                 {
-                    if value.absence.is_some() || !value.is_vector() || value.is_nil() {
+                    if value.absence_metadata().is_some() || !value.is_vector() || value.is_nil() {
                         return None;
                     }
                     let len = crate::types::fraction::Fraction::from(value.len() as i64);

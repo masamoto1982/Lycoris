@@ -198,7 +198,7 @@ pub fn op_eq(interp: &mut Interpreter) -> Result<()> {
 ///
 /// Two NILs are the same value exactly when their reasons agree
 /// (LANG.VALUES.NIL: "the reason is the entire observable content of a NIL").
-/// The `ValueData` comparison below cannot see a reason — `ValueData::Nil`
+/// The `ValueData` comparison below cannot see a reason — `ValueData::Nil(_)`
 /// carries none — so NIL pairs are decided before it, on the reason itself.
 fn pairwise_eq(a_val: &Value, b_val: &Value) -> bool {
     if a_val.is_nil() || b_val.is_nil() {
@@ -357,7 +357,7 @@ pub(crate) fn three_way_compare(
 /// kinds error.
 pub(crate) fn extract_exact_real_for_comparison(val: &Value) -> ScalarResult<ExactReal> {
     if let ValueData::ExactScalar(er) = &val.data {
-        return Ok(er.clone());
+        return Ok((**er).clone());
     }
     let f = extract_scalar_for_comparison(val)?;
     Ok(ExactReal::from_fraction(f))

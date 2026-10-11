@@ -52,10 +52,9 @@ fn deferred(
         reason: *reason,
         stack_len_before: 2,
         stack_len_after: 1,
-        message: format!("NIL produced by {word} reason={}", reason.as_protocol_str()),
         user_word: NilProduction::user_word_of(word, |name| vocabulary.contains(&name)),
         resource_limit,
-        enclosing: Vec::new(),
+        enclosing: Default::default(),
     })
 }
 

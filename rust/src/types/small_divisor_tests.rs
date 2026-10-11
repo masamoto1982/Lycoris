@@ -4,6 +4,7 @@
 //! and of zeros, a negative dividend, a quotient of zero.
 
 use super::*;
+use num_bigint::Sign;
 use num_integer::Integer;
 use num_traits::Signed;
 use proptest::prelude::*;

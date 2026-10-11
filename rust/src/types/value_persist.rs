@@ -122,7 +122,7 @@ fn encode_data(data: &ValueData) -> PersistData {
             let (n, d) = frac_to_parts(f);
             PersistData::Scalar { n, d }
         }
-        ValueData::ExactScalar(er) => match er {
+        ValueData::ExactScalar(er) => match &**er {
             ExactReal::Rational(f) => {
                 let (n, d) = frac_to_parts(f);
                 PersistData::ExactRat { n, d }
@@ -156,7 +156,7 @@ fn encode_data(data: &ValueData) -> PersistData {
             pure_int: data.is_pure_integer,
             shape: (**shape).clone(),
         },
-        ValueData::Nil => PersistData::Nil { r: None, ud: None },
+        ValueData::Nil(_) => PersistData::Nil { r: None, ud: None },
         ValueData::Record(record) => PersistData::Record {
             keys: record.keys().iter().map(encode_value).collect(),
             values: record.values().iter().map(encode_value).collect(),
@@ -173,7 +173,7 @@ fn decode_data(data: &PersistData) -> Result<ValueData, String> {
         PersistData::Both => ValueData::Both,
         PersistData::Scalar { n, d } => ValueData::Scalar(frac_from_parts(n, d)?),
         PersistData::ExactRat { n, d } => {
-            ValueData::ExactScalar(ExactReal::Rational(frac_from_parts(n, d)?))
+            ValueData::ExactScalar(Box::new(ExactReal::Rational(frac_from_parts(n, d)?)))
         }
         PersistData::ExactAlg { terms } => {
             // Replay ∑ cₘ·√m through the public exact arithmetic. The
@@ -188,7 +188,7 @@ fn decode_data(data: &PersistData) -> Result<ValueData, String> {
                     .ok_or_else(|| "invalid monomial for √".to_string())?;
                 acc = acc.add(&root.mul(&ExactReal::from_fraction(coeff)));
             }
-            ValueData::ExactScalar(acc)
+            ValueData::ExactScalar(Box::new(acc))
         }
         PersistData::Text { s } => ValueData::Text(Arc::from(s.as_str())),
         PersistData::Vector { items } => ValueData::Vector(Arc::new(
@@ -231,7 +231,7 @@ fn decode_data(data: &PersistData) -> Result<ValueData, String> {
                 shape: Arc::new(shape.clone()),
             }
         }
-        PersistData::Nil { .. } => ValueData::Nil,
+        PersistData::Nil { .. } => ValueData::Nil(None),
         PersistData::Record { keys, values } => {
             let keys = keys
                 .iter()
@@ -251,8 +251,9 @@ fn decode_data(data: &PersistData) -> Result<ValueData, String> {
 
 fn encode_value(value: &Value) -> PersistData {
     let mut d = encode_data(&value.data);
-    // The reason lives on `Value`, not in `ValueData`, so it is attached here
-    // rather than inside `encode_data`.
+    // The wire form names the reason in its own fields, read through the
+    // value's accessors, so it is attached here rather than inside
+    // `encode_data`.
     if let PersistData::Nil { r, ud } = &mut d {
         *r = value
             .nil_reason()

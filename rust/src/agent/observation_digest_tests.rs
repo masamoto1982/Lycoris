@@ -286,9 +286,10 @@ fn many_term_algebraic_digest_stays_fast() {
         value = exact_mul(&value, &factor);
     }
     let terms = match &value.data {
-        crate::types::ValueData::ExactScalar(ExactReal::Algebraic(alg)) => {
-            alg.normal_form_terms().len()
-        }
+        crate::types::ValueData::ExactScalar(exact) => match &**exact {
+            ExactReal::Algebraic(alg) => alg.normal_form_terms().len(),
+            other => panic!("expected an algebraic scalar: {other:?}"),
+        },
         other => panic!("expected an algebraic scalar: {other:?}"),
     };
     assert!(terms > 100, "expected a many-term value, got {terms} terms");

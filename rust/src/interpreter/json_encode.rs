@@ -110,13 +110,17 @@ fn write_rational(out: &mut String, f: &Fraction) {
 /// Append `value`'s JSON image, or answer `None` when it has none.
 fn encode(out: &mut String, value: &Value) -> Option<()> {
     match &value.data {
-        ValueData::Nil => out.push_str("null"),
+        ValueData::Nil(_) => out.push_str("null"),
         ValueData::Boolean(b) => out.push_str(if *b { "true" } else { "false" }),
         ValueData::Text(s) => write_string(out, s),
         ValueData::Scalar(f) => write_rational(out, f),
-        ValueData::ExactScalar(ExactReal::Rational(f)) => write_rational(out, f),
-        // JSON has two truth values; BOTH, like an irrational, has no image.
-        ValueData::ExactScalar(_) | ValueData::Symbol(_) | ValueData::Both => return None,
+        ValueData::ExactScalar(exact) => match &**exact {
+            ExactReal::Rational(f) => write_rational(out, f),
+            // An irrational has no JSON image.
+            ExactReal::Algebraic(_) => return None,
+        },
+        // JSON has two truth values; BOTH has no image.
+        ValueData::Symbol(_) | ValueData::Both => return None,
         ValueData::Vector(_) | ValueData::Tensor { .. } => {
             out.push('[');
             for i in 0..value.len() {

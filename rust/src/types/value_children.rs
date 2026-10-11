@@ -4,7 +4,7 @@
 //! callers observe one sequence API regardless of the internal representation.
 
 use super::fraction::Fraction;
-use super::value_tensor::{tensor_child, tensor_to_nested_values};
+use super::value_tensor::{tensor_child, tensor_child_sharing, tensor_to_nested_values};
 use super::{Value, ValueData};
 use std::sync::Arc;
 
@@ -48,7 +48,7 @@ impl Value {
     #[inline]
     pub fn len(&self) -> usize {
         match &self.data {
-            ValueData::Nil => 0,
+            ValueData::Nil(_) => 0,
             // A String is one value, not a sequence of characters. Its
             // character count is reached through `CHARS`, which is what makes
             // the Vector domain explicit; LENGTH raises `nonVector` on it.
@@ -85,7 +85,7 @@ impl Value {
             | ValueData::Text(_)
             | ValueData::Scalar(_)
             | ValueData::ExactScalar(_)
-            | ValueData::Nil
+            | ValueData::Nil(_)
             | ValueData::Symbol(_)
             | ValueData::Record(_) => None,
         }
@@ -109,9 +109,19 @@ impl Value {
             | ValueData::Text(_)
             | ValueData::Scalar(_)
             | ValueData::ExactScalar(_)
-            | ValueData::Nil
+            | ValueData::Nil(_)
             | ValueData::Symbol(_)
             | ValueData::Record(_) => None,
+        }
+    }
+
+    /// A reader of this value's children by index, each as `child` answers
+    /// it, for a walk that reads many (`Children`).
+    #[inline]
+    pub fn children_reader(&self) -> Children<'_> {
+        Children {
+            value: self,
+            row_shape: None,
         }
     }
 
@@ -126,7 +136,7 @@ impl Value {
             ValueData::Vector(v) => v.last(),
             ValueData::Tensor { .. } => None,
             ValueData::Scalar(_) | ValueData::ExactScalar(_) => Some(self),
-            ValueData::Nil => None,
+            ValueData::Nil(_) => None,
             ValueData::Boolean(_)
             | ValueData::Both
             | ValueData::Text(_)
@@ -159,7 +169,7 @@ impl Value {
                 self.raise_nesting_to(with_child);
                 return;
             }
-            ValueData::Nil => {
+            ValueData::Nil(_) => {
                 self.data = ValueData::Vector(Arc::new(vec![child]));
             }
             ValueData::Scalar(f) => {
@@ -190,7 +200,7 @@ impl Value {
             | ValueData::ExactScalar(_)
             | ValueData::Vector(_)
             | ValueData::Tensor { .. }
-            | ValueData::Nil
+            | ValueData::Nil(_)
             | ValueData::Symbol(_)
             | ValueData::Record(_) => None,
         }
@@ -216,7 +226,7 @@ impl Value {
             | ValueData::Text(_)
             | ValueData::Scalar(_)
             | ValueData::ExactScalar(_)
-            | ValueData::Nil
+            | ValueData::Nil(_)
             | ValueData::Symbol(_)
             | ValueData::Record(_) => None,
         }
@@ -233,7 +243,7 @@ impl Value {
             // A NIL is not a number and has no lane; the flat route — which
             // never meets one, being steered off by `contains_absent_lane` —
             // sees a short buffer.
-            ValueData::Nil => {}
+            ValueData::Nil(_) => {}
             ValueData::Scalar(f) => buf.push(f.clone()),
             ValueData::ExactScalar(er) => {
                 // Use best rational approximation for ExactScalar in flat collection
@@ -263,7 +273,7 @@ impl Value {
 
     pub fn count_fractions(&self) -> usize {
         match &self.data {
-            ValueData::Nil => 1,
+            ValueData::Nil(_) => 1,
             ValueData::Scalar(_) | ValueData::ExactScalar(_) => 1,
             ValueData::Vector(v) => v.iter().map(|c| c.count_fractions()).sum(),
             ValueData::Tensor { data, .. } => data.len(),
@@ -280,7 +290,7 @@ impl Value {
     pub fn shape(&self) -> Vec<usize> {
         match &self.data {
             // U and NIL are both rank-0 (empty shape), like a Boolean/Scalar.
-            ValueData::Nil => vec![],
+            ValueData::Nil(_) => vec![],
             ValueData::Scalar(_) | ValueData::ExactScalar(_) => vec![],
             ValueData::Vector(v) => {
                 if v.is_empty() {
@@ -311,4 +321,25 @@ impl Value {
     // sites now use as_vector()/as_vector_view() (Tensor-aware) plus the
     // value-to-tokens bridge in interpreter/value_as_code.rs for "is this
     // executable" and "run it" respectively.
+}
+
+/// `Value::child`, for a walk that reads child after child of one value: the
+/// rows of a dense Tensor of rank two or more share one shape allocation
+/// instead of each building its own (`tensor_child_sharing`).
+pub struct Children<'a> {
+    value: &'a Value,
+    row_shape: Option<Arc<Vec<usize>>>,
+}
+
+impl Children<'_> {
+    /// The child at `index`, exactly as `Value::child` answers it.
+    #[inline]
+    pub fn get(&mut self, index: usize) -> Option<Value> {
+        match &self.value.data {
+            ValueData::Tensor { data, shape } => {
+                tensor_child_sharing(data, shape, index, &mut self.row_shape)
+            }
+            _ => self.value.child(index),
+        }
+    }
 }

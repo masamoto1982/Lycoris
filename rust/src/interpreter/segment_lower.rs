@@ -75,7 +75,7 @@ fn op_item(interp: &Interpreter, ops: &[CompiledOp], i: usize) -> Option<(Item, 
         CompiledOp::PushVectorLiteral(value) => match ops.get(i + 1) {
             Some(CompiledOp::CallBuiltin(call))
                 if call.word.map(|w| w.id) == Some(crate::kernel::generated::WordId::Length)
-                    && value.absence.is_none()
+                    && value.absence_metadata().is_none()
                     && value.is_vector()
                     && !value.is_nil() =>
             {

@@ -19,7 +19,7 @@ impl FlatTensor {
     /// is remapped directly here, not at each caller.
     pub(crate) fn from_value(value: &Value) -> Result<Self> {
         match &value.data {
-            ValueData::Nil => Err(AjisaiError::declared(
+            ValueData::Nil(_) => Err(AjisaiError::declared(
                 "nonNumeric",
                 "expected a Scalar or a Vector, got NIL",
             )),
@@ -244,7 +244,7 @@ pub(crate) fn rectangular_shape(value: &Value) -> Option<Vec<usize>> {
     rectangular_shape_by(value, |leaf| {
         matches!(
             leaf.data,
-            ValueData::Scalar(_) | ValueData::ExactScalar(_) | ValueData::Nil
+            ValueData::Scalar(_) | ValueData::ExactScalar(_) | ValueData::Nil(_)
         )
     })
 }

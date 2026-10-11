@@ -337,7 +337,12 @@ fn plain(ty: Ty, (n, d): Pair) -> Plain {
 /// of numbers, `from_fractions` of these pairs is exactly these columns.
 fn promote_columns(ty: Ty, columns: Columns) -> Value {
     let Columns { nums, dens } = columns;
-    if ty == Ty::Bool || nums.is_empty() {
+    // Booleans are never promoted: a Vector of them is what `from_truths`
+    // builds, without a `Plain` and a pass over the children per lane.
+    if ty == Ty::Bool {
+        return Value::from_truths(nums.into_iter().map(|n| n != 0));
+    }
+    if nums.is_empty() {
         return promote(nums.into_iter().zip(dens).map(|p| plain(ty, p)).collect());
     }
     let shape = vec![nums.len()];
@@ -390,7 +395,19 @@ pub(crate) fn run(
         FusedWalk::Fold => 0,
         _ => elements.len(),
     });
-    for i in 0..elements.len() {
+    // `MAP` over a Tensor's columns, the commonest walk, has a loop of its
+    // own with nothing in it but the run and the result.
+    let (columns_map, rest) = match (walk, &elements) {
+        (FusedWalk::Map, Elements::Columns(nums, dens)) => (Some((nums, dens)), 0),
+        _ => (None, elements.len()),
+    };
+    if let Some((nums, dens)) = columns_map {
+        for (&n, &d) in nums.iter().zip(dens.iter()) {
+            regs[0] = (n, d);
+            results.push(program.run(&mut regs)?);
+        }
+    }
+    for i in 0..rest {
         let x = elements.at(i);
         match accumulator {
             Some(acc) => {

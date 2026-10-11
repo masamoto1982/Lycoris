@@ -37,7 +37,7 @@ use crate::types::{Value, ValueData};
 /// one linear scan against a value the flat path would have walked anyway.
 pub(crate) fn contains_absent_lane(value: &Value) -> bool {
     match &value.data {
-        ValueData::Nil => true,
+        ValueData::Nil(_) => true,
         ValueData::Vector(items) => items.iter().any(contains_absent_lane),
         ValueData::Record(record) => record.values().iter().any(contains_absent_lane),
         ValueData::Tensor { .. }

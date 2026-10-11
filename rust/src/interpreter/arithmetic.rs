@@ -326,7 +326,7 @@ fn extract_scalar_from_value(val: &Value) -> Option<Fraction> {
         ValueData::Text(_) => None,
         ValueData::Tensor { data, .. } if data.len() == 1 => Some(data.fraction_at(0)),
         ValueData::Tensor { .. } => None,
-        ValueData::Nil => None,
+        ValueData::Nil(_) => None,
         ValueData::Boolean(_) | ValueData::Both | ValueData::Symbol(_) | ValueData::Record(_) => {
             None
         }
@@ -400,7 +400,7 @@ fn exact_real_lane(a: &Value, b: &Value, schema: ExactArithmeticSchema) -> Resul
 fn exact_broadcast_leaf(value: &Value) -> Option<ExactReal> {
     match &value.data {
         ValueData::Scalar(f) => Some(ExactReal::from_fraction(f.clone())),
-        ValueData::ExactScalar(er) => Some(er.clone()),
+        ValueData::ExactScalar(er) => Some((**er).clone()),
         _ => None,
     }
 }

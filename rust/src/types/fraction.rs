@@ -13,8 +13,15 @@ use std::str::FromStr;
 #[inline]
 pub(crate) fn binary_gcd_u64(a: u64, b: u64) -> u64 {
     let (mut a, mut b) = if a >= b { (a, b) } else { (b, a) };
-    if b == 0 {
-        return a;
+    // A unit — an integer's denominator, the commonest operand a reduction
+    // meets — divides everything, and 0 is divided by everything.
+    if b <= 1 {
+        return if b == 0 { a } else { 1 };
+    }
+    // A power of two — a literal `2`, a binary denominator — shares with the
+    // other operand exactly the twos both have.
+    if a & (a - 1) == 0 || b & (b - 1) == 0 {
+        return 1 << a.trailing_zeros().min(b.trailing_zeros());
     }
     // Stein's halves the larger operand at least every other step, so a
     // lopsided pair — a large value against a small denominator, the common

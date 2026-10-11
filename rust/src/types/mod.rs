@@ -18,6 +18,7 @@ mod fraction_lowest_terms_tests;
 #[cfg(test)]
 mod fraction_mcdc_tests;
 mod fraction_order;
+mod fraction_word_term;
 pub mod record;
 pub(crate) mod small_rational;
 pub mod stack;
@@ -32,6 +33,11 @@ mod value_tensor;
 #[cfg(test)]
 mod number_literal_tests;
 #[cfg(test)]
+mod tensor_lanes_tests;
+mod tensor_storage;
+#[cfg(test)]
+mod tensor_storage_tests;
+#[cfg(test)]
 mod value_hash_tests;
 #[cfg(test)]
 mod value_layout_tests;
@@ -42,12 +48,6 @@ mod value_persist_tests;
 pub(crate) mod value_protocol;
 #[cfg(test)]
 mod value_protocol_tests;
-
-#[cfg(test)]
-mod tensor_lanes_tests;
-mod tensor_storage;
-#[cfg(test)]
-mod tensor_storage_tests;
 
 use self::fraction::Fraction;
 pub use self::record::{RecordBuildError, RecordData};
@@ -73,15 +73,18 @@ pub enum ValueData {
     /// An exact real value outside the rationals: an algebraic normal form
     /// over `SQRT` (`Σ cᵢ√mᵢ`). Constructed only by
     /// `Value::from_exact_real`; use `as_scalar()` for the rational fast path.
-    ExactScalar(ExactReal),
+    /// Boxed: it is the rare value, and inline it would widen every one
+    /// (`value_layout_tests`).
+    ExactScalar(Box<ExactReal>),
     Vector(Arc<Vec<Value>>),
     Tensor {
         data: Arc<DenseTensor>,
         shape: Arc<Vec<usize>>,
     },
-    /// An absent value; why lives in `Value::absence` (LANG.VALUES.NIL). A
-    /// quotient by zero is not one: it is a Scalar over zero.
-    Nil,
+    /// An absent value, with why (LANG.VALUES.NIL), boxed here on the one
+    /// variant that has a reason rather than beside every value
+    /// (`value_layout_tests`). A quotient by zero is a Scalar over zero.
+    Nil(Option<Box<AbsenceMetadata>>),
     /// A bare name in code position — a Word reference that is data until
     /// something executes it, a value in its own right (LANG.VALUES.DISJOINT).
     Symbol(Arc<str>),
@@ -118,7 +121,7 @@ impl PartialEq for ValueData {
             | (ValueData::Tensor { data, shape }, ValueData::Vector(v)) => {
                 tensor_eq_vector(data, shape, v)
             }
-            (ValueData::Nil, ValueData::Nil) => true,
+            (ValueData::Nil(_), ValueData::Nil(_)) => true,
             // A Symbol equals a Symbol with the same name, and nothing else —
             // in particular not a Text of the same spelling: `[ FOO ] { FOO }
             // EQ` and `[ FOO ] [ 'FOO' ] EQ` are both false (LANG.VALUES.
@@ -187,7 +190,7 @@ impl std::hash::Hash for ValueData {
                 let leaves: Vec<Fraction> = data.to_fractions();
                 leaves.hash(state);
             }
-            ValueData::Nil => state.write_u8(HASH_TAG_NIL),
+            ValueData::Nil(_) => state.write_u8(HASH_TAG_NIL),
             ValueData::Symbol(name) => {
                 state.write_u8(HASH_TAG_SYMBOL);
                 name.hash(state);
@@ -207,10 +210,6 @@ impl std::hash::Hash for ValueData {
 #[derive(Debug, Clone)]
 pub struct Value {
     pub data: ValueData,
-    /// Why this value is absent, for a NIL. Boxed: three words on every value
-    /// for the rare one that carries them would widen every stack slot and
-    /// every Vector lane (`value_layout_tests`).
-    pub absence: Option<Box<AbsenceMetadata>>,
     /// How many containers deep this value nests, computed once when the
     /// value is built (`Value::new`). Private so that no value can be built
     /// around it: every construction goes through `Value::new` (or
@@ -225,12 +224,15 @@ impl Value {
     /// the one its data has.
     #[inline]
     pub fn new(data: ValueData, absence: Option<AbsenceMetadata>) -> Self {
+        let data = match (data, absence) {
+            (ValueData::Nil(_), Some(absence)) => ValueData::Nil(Some(Box::new(absence))),
+            (data, absence) => {
+                debug_assert!(absence.is_none(), "only a NIL carries an absence");
+                data
+            }
+        };
         let nesting = data.nesting();
-        Self {
-            data,
-            absence: absence.map(Box::new),
-            nesting,
-        }
+        Self { data, nesting }
     }
 
     /// How many containers deep this value nests: 0 for anything that is not
@@ -255,13 +257,11 @@ impl Value {
         let children = truths
             .map(|truth| Self {
                 data: ValueData::Boolean(truth),
-                absence: None,
                 nesting: 0,
             })
             .collect();
         Self {
             data: ValueData::Vector(Arc::new(children)),
-            absence: None,
             nesting: 1,
         }
     }
@@ -295,7 +295,7 @@ impl ValueData {
             | ValueData::Both
             | ValueData::Scalar(_)
             | ValueData::ExactScalar(_)
-            | ValueData::Nil
+            | ValueData::Nil(_)
             | ValueData::Symbol(_)
             | ValueData::Text(_) => 0,
         }
@@ -309,9 +309,9 @@ impl PartialEq for Value {
     ///
     /// The NIL reason is part of it. LANG.VALUES.NIL makes the reason "the
     /// entire observable content of a NIL", so two NILs are the same value
-    /// exactly when their reasons agree. `ValueData::Nil` carries no reason —
-    /// it lives in `absence` — so comparing `data` alone decided every pair of
-    /// NILs equal, and `[ NIL ] [ 'x' ] [ NUM ] MAP EQ` answered TRUE for a
+    /// exactly when their reasons agree. `ValueData`'s own equality ignores
+    /// the reason a `Nil` holds, so comparing `data` alone decides every pair
+    /// of NILs equal — it once did here, and `[ NIL ] [ 'x' ] [ NUM ] MAP EQ` answered TRUE for a
     /// `literal` absence against an `invalidEncoding` one.
     ///
     /// Nothing else is: a value carries no record of how it was made

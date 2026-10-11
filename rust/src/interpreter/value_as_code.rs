@@ -54,7 +54,7 @@ fn push_value_as_tokens(value: &Value, out: &mut Vec<Token>) -> Result<()> {
         // A value no source text denotes is carried across whole: a NIL
         // keeps its reason (the `NIL` name would denote a literal NIL, a
         // different value), and a Record has no literal of its own.
-        ValueData::Nil | ValueData::Record(_) => out.push(Token::Value(Box::new(value.clone()))),
+        ValueData::Nil(_) | ValueData::Record(_) => out.push(Token::Value(Box::new(value.clone()))),
         ValueData::Vector(children) => {
             out.push(Token::VectorStart);
             for child in children.iter() {
@@ -123,8 +123,8 @@ fn writes_as_literal(value: &Value) -> bool {
             true
         }
         ValueData::Text(text) => crate::tokenizer::is_string_token_content(text),
-        ValueData::ExactScalar(exact) => matches!(exact, ExactReal::Rational(_)),
-        ValueData::Nil => value
+        ValueData::ExactScalar(exact) => matches!(**exact, ExactReal::Rational(_)),
+        ValueData::Nil(_) => value
             .nil_reason()
             .is_none_or(|reason| matches!(reason, crate::error::NilReason::Literal)),
         ValueData::Record(_) => false,
@@ -141,13 +141,14 @@ fn push_literal(value: &Value, out: &mut Vec<Token>) {
         ValueData::Symbol(name) => out.push(Token::Symbol(name.clone())),
         ValueData::Text(s) => out.push(Token::String(s.clone())),
         ValueData::Scalar(f) => out.push(Token::number_from_value(f.clone())),
-        ValueData::ExactScalar(ExactReal::Rational(f)) => {
-            out.push(Token::number_from_value(f.clone()))
-        }
+        ValueData::ExactScalar(exact) => match &**exact {
+            ExactReal::Rational(f) => out.push(Token::number_from_value(f.clone())),
+            ExactReal::Algebraic(_) => unreachable!("writes_as_literal admits no irrational"),
+        },
         ValueData::Boolean(true) => out.push(Token::Symbol("TRUE".into())),
         ValueData::Boolean(false) => out.push(Token::Symbol("FALSE".into())),
         ValueData::Both => out.push(Token::Symbol("BOTH".into())),
-        ValueData::Nil => out.push(Token::Symbol("NIL".into())),
+        ValueData::Nil(_) => out.push(Token::Symbol("NIL".into())),
         ValueData::Vector(_) | ValueData::Tensor { .. } => {
             out.push(Token::VectorStart);
             if let Some(children) = value.as_vector_view() {
@@ -157,9 +158,7 @@ fn push_literal(value: &Value, out: &mut Vec<Token>) {
             }
             out.push(Token::VectorEnd);
         }
-        ValueData::ExactScalar(ExactReal::Algebraic(_)) | ValueData::Record(_) => {
-            unreachable!("writes_as_literal admits no Record or irrational")
-        }
+        ValueData::Record(_) => unreachable!("writes_as_literal admits no Record"),
     }
 }
 
@@ -198,7 +197,7 @@ fn push_source_expression(value: &Value, out: &mut Vec<Token>) -> Result<()> {
             out.push(Token::Symbol("JOIN".into()));
             Ok(())
         }
-        ValueData::Nil if !writes_as_literal(value) => {
+        ValueData::Nil(_) if !writes_as_literal(value) => {
             let reason = value
                 .nil_reason()
                 .map(|reason| reason.as_protocol_str().to_string())
@@ -245,7 +244,7 @@ fn push_source_expression(value: &Value, out: &mut Vec<Token>) -> Result<()> {
                 .expect("a Vector or Tensor has a Vector view");
             push_vector_expression(&children, out)
         }
-        ValueData::Nil
+        ValueData::Nil(_)
         | ValueData::Text(_)
         | ValueData::Scalar(_)
         | ValueData::Boolean(_)
@@ -284,7 +283,7 @@ pub(crate) fn algebraic_radicands(elements: &[Value], out: &mut Vec<BigInt>) {
             | ValueData::Both
             | ValueData::Text(_)
             | ValueData::Symbol(_)
-            | ValueData::Nil => {}
+            | ValueData::Nil(_) => {}
         }
     }
 }

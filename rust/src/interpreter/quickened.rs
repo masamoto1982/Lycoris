@@ -55,15 +55,12 @@ impl Slot {
     /// The slot a stack value is, when it is a plain one.
     #[inline]
     pub(crate) fn of(value: &Value) -> Option<Self> {
-        match (&value.data, &value.absence) {
+        match &value.data {
             // A zero denominator is an absent number, not a number.
-            (
-                ValueData::Scalar(Fraction {
-                    repr: FractionRepr::Small(n, d),
-                }),
-                None,
-            ) if *d != 0 => Some(Slot::Num((*n, *d))),
-            (ValueData::Boolean(b), None) => Some(Slot::Bool(*b)),
+            ValueData::Scalar(Fraction {
+                repr: FractionRepr::Small(n, d),
+            }) if *d != 0 => Some(Slot::Num((*n, *d))),
+            ValueData::Boolean(b) => Some(Slot::Bool(*b)),
             _ => None,
         }
     }
@@ -307,7 +304,7 @@ fn try_length_call(interp: &mut Interpreter) -> bool {
     let Some(target) = interp.stack.as_slice().last() else {
         return false;
     };
-    if target.absence.is_some() || !target.is_vector() || target.is_nil() {
+    if target.absence_metadata().is_some() || !target.is_vector() || target.is_nil() {
         return false;
     }
     let value = Value::from_fraction(Fraction::from(target.len() as i64));

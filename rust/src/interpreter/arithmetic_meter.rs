@@ -69,7 +69,7 @@ pub(crate) fn measure_operand(value: &Value) -> OperandWork {
         // not work.
         ValueData::Boolean(_)
         | ValueData::Both
-        | ValueData::Nil
+        | ValueData::Nil(_)
         | ValueData::Text(_)
         | ValueData::Symbol(_) => OperandWork::leaf(1),
     }
@@ -149,7 +149,7 @@ fn measure_result(value: &Value) -> (u64, usize) {
         }),
         ValueData::Boolean(_)
         | ValueData::Both
-        | ValueData::Nil
+        | ValueData::Nil(_)
         | ValueData::Text(_)
         | ValueData::Symbol(_) => (0, 0),
     }

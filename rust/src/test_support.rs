@@ -182,7 +182,7 @@ pub(crate) fn sqrt_of(n: i64) -> Value {
 /// A numeric scalar as an exact real, whichever tier holds it.
 pub(crate) fn as_exact(value: &Value) -> ExactReal {
     match &value.data {
-        ValueData::ExactScalar(e) => e.clone(),
+        ValueData::ExactScalar(e) => (**e).clone(),
         ValueData::Scalar(f) => ExactReal::from_fraction(f.clone()),
         other => panic!("not an exact scalar: {other:?}"),
     }

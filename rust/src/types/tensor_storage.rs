@@ -9,9 +9,10 @@ mod lanes;
 
 use super::fraction::Fraction;
 
-/// A column of lanes, inline for one lane (`[ 0 ]`), so building one costs
+/// A column of lanes, inline for up to four lanes, so building a short one
+/// — a seed `[ 0 ]`, a row a nested walk reads out of a matrix — costs
 /// nothing beyond the tensor; and a shape, inline for one axis.
-pub type Column = smallvec::SmallVec<[i64; 1]>;
+pub type Column = smallvec::SmallVec<[i64; 4]>;
 pub type Dims = smallvec::SmallVec<[usize; 1]>;
 
 /// A dense numeric tensor in struct-of-arrays form.

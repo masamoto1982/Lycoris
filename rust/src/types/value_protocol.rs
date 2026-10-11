@@ -77,8 +77,10 @@ pub(crate) fn exact_terms(value: &Value) -> Option<Vec<ProtocolExactTerm>> {
 /// same terms (`display::render_algebraic_terms`), so the rendering a reader
 /// sees and the terms a consumer computes with are one extraction.
 fn algebraic_normal_form(value: &Value) -> Option<Vec<(Fraction, BigInt)>> {
-    let ValueData::ExactScalar(crate::types::exact::ExactReal::Algebraic(algebraic)) = &value.data
-    else {
+    let ValueData::ExactScalar(exact) = &value.data else {
+        return None;
+    };
+    let crate::types::exact::ExactReal::Algebraic(algebraic) = &**exact else {
         return None;
     };
     Some(algebraic.normal_form_terms())
@@ -166,7 +168,7 @@ fn tensor_to_protocol(data: &DenseTensor, offset: usize, shape: &[usize]) -> Vec
 /// (LANG.VALUES.DISJOINT); nothing about how the value was produced reaches it.
 pub(crate) fn value_to_protocol(value: &Value) -> ProtocolNode {
     let (type_str, protocol_value) = match &value.data {
-        ValueData::Nil => ("nil", ProtocolValue::Null),
+        ValueData::Nil(_) => ("nil", ProtocolValue::Null),
         ValueData::Boolean(b) => ("boolean", ProtocolValue::Bool(*b)),
         // BOTH is a Boolean with no two-valued image: `value` is null and
         // `semantics.truthValue` says "both".

@@ -42,13 +42,13 @@ impl Value {
 
     #[inline]
     pub fn nil_literal() -> Self {
-        Self::new(ValueData::Nil, Some(AbsenceMetadata::literal()))
+        Self::new(ValueData::Nil(None), Some(AbsenceMetadata::literal()))
     }
 
     /// An absence, with `absence` for why.
     #[inline]
     pub fn nil_with_absence(absence: AbsenceMetadata) -> Self {
-        Self::new(ValueData::Nil, Some(absence))
+        Self::new(ValueData::Nil(None), Some(absence))
     }
 
     #[inline]
@@ -107,14 +107,16 @@ impl Value {
 
     #[inline]
     pub fn absence_metadata(&self) -> Option<&AbsenceMetadata> {
-        self.absence.as_deref()
+        match &self.data {
+            ValueData::Nil(absence) => absence.as_deref(),
+            _ => None,
+        }
     }
 
     /// The text a `userDeclared` absence carries beside its reason.
     #[inline]
     pub fn absence_detail(&self) -> Option<&str> {
-        self.absence
-            .as_deref()
+        self.absence_metadata()
             .and_then(AbsenceMetadata::detail_text)
     }
 
@@ -124,8 +126,7 @@ impl Value {
             return None;
         }
         Some(
-            self.absence
-                .as_deref()
+            self.absence_metadata()
                 .cloned()
                 .unwrap_or_else(AbsenceMetadata::with_reasonless_unknown),
         )
@@ -133,8 +134,7 @@ impl Value {
 
     #[inline]
     pub fn nil_reason(&self) -> Option<&NilReason> {
-        self.absence
-            .as_ref()
+        self.absence_metadata()
             .and_then(|absence| absence.reason.as_ref())
     }
 }
@@ -196,7 +196,7 @@ fn append_dense_value(value: &Value, data: &mut Vec<Fraction>) -> Option<Vec<usi
         }
         ValueData::Vector(children) => append_dense_values(children, data),
         // A NIL is not a numeric lane, and nor is anything below.
-        ValueData::Nil
+        ValueData::Nil(_)
         | ValueData::ExactScalar(_)
         | ValueData::Record(_)
         | ValueData::Boolean(_)
