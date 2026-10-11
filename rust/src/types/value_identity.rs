@@ -146,21 +146,35 @@ fn collect_dense_leaves(v: &[Value], out: &mut Vec<Fraction>) -> bool {
 }
 
 impl Value {
+    /// A present value that holds no other value — a number, a truth value,
+    /// a String — whose nesting is therefore 0 without asking its data. The
+    /// constructors of the scalar leaves the interpreter builds on every
+    /// step come here, so building one is three stores.
+    #[inline]
+    pub(crate) fn leaf(data: ValueData) -> Self {
+        debug_assert_eq!(data.nesting(), 0, "a leaf holds no other value");
+        Self {
+            data,
+            absence: None,
+            nesting: 0,
+        }
+    }
+
     #[inline]
     /// A numeric leaf from a `Fraction`: a rational, or one of the three
     /// points over zero, which is a Scalar like any other.
     pub fn from_fraction(f: Fraction) -> Self {
-        Self::new(ValueData::Scalar(f), None)
+        Self::leaf(ValueData::Scalar(f))
     }
 
     #[inline]
     pub fn from_int(n: i64) -> Self {
-        Self::new(ValueData::Scalar(Fraction::from(n)), None)
+        Self::leaf(ValueData::Scalar(Fraction::from(n)))
     }
 
     #[inline]
     pub fn from_bool(b: bool) -> Self {
-        Self::new(ValueData::Boolean(b), None)
+        Self::leaf(ValueData::Boolean(b))
     }
 
     /// The truth value BOTH (LANG.VALUES.TRUTH).
@@ -197,7 +211,15 @@ impl Value {
     /// `TOKENIZE`. NIL means "no value here", and `''` is a perfectly good
     /// value with no characters in it.
     pub fn from_string(s: &str) -> Self {
-        Self::new(ValueData::Text(Arc::from(s)), None)
+        Self::leaf(ValueData::Text(Arc::from(s)))
+    }
+
+    /// [`Self::from_string`] sharing text already held in an `Arc`: a String
+    /// literal's token pushes its own text rather than a fresh copy of it,
+    /// which was an allocation and a free on every push of one.
+    #[inline]
+    pub(crate) fn from_text(text: &Arc<str>) -> Self {
+        Self::leaf(ValueData::Text(Arc::clone(text)))
     }
 
     /// The characters of a String value, or `None` for any other domain.

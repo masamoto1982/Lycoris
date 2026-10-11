@@ -36,10 +36,16 @@ impl Hasher for FxHasher {
         for word in words {
             self.add(u64::from_le_bytes(*word));
         }
+        // The tail as the little-endian word it would read as zero-padded,
+        // built a byte at a time: copying it into a padded buffer instead
+        // was a `memcpy` call on every hash of a short name, which is most
+        // of the names a dispatch hashes.
         if !rest.is_empty() {
-            let mut word = [0u8; 8];
-            word[..rest.len()].copy_from_slice(rest);
-            self.add(u64::from_le_bytes(word));
+            let word = rest
+                .iter()
+                .rev()
+                .fold(0u64, |word, &byte| (word << 8) | u64::from(byte));
+            self.add(word);
         }
     }
 

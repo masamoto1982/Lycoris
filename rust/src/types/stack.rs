@@ -60,21 +60,25 @@ impl Stack {
     }
 
     /// [`Self::fresh_start`], and forget it.
+    #[inline]
     pub fn take_fresh_start(&mut self) -> usize {
         let start = self.fresh_from.min(self.values.len());
         self.fresh_from = self.values.len();
         start
     }
 
+    #[inline]
     pub fn push(&mut self, value: Value) {
         self.mark_fresh(self.values.len());
         self.values.push(value);
     }
 
+    #[inline]
     pub fn pop(&mut self) -> Option<Value> {
         self.values.pop()
     }
 
+    #[inline]
     pub fn truncate(&mut self, len: usize) {
         self.values.truncate(len);
     }
@@ -126,6 +130,7 @@ impl Stack {
     /// The values as a slice. Equivalent to dereferencing to `&[Value]`, but
     /// spelled out for range-indexing call sites (`stack.as_slice()[a..b]`),
     /// which the inherent `Index<usize>` would otherwise shadow.
+    #[inline]
     pub fn as_slice(&self) -> &[Value] {
         &self.values
     }

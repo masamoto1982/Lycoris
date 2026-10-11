@@ -243,6 +243,8 @@ pub struct Interpreter {
     pub(crate) segments_enabled: bool,
     /// Code operands compiled recently (`higher_order::BlockCache`).
     pub(crate) block_cache: super::higher_order::BlockCache,
+    /// What each name token recently dispatched dispatches to (`symbol_cache`).
+    pub(crate) symbol_cache: super::symbol_cache::SymbolCache,
 }
 
 impl Default for Interpreter {
@@ -299,6 +301,7 @@ impl Interpreter {
             quickening_enabled: std::env::var("AJISAI_NO_QUICKEN").is_err(),
             segments_enabled: std::env::var("AJISAI_NO_SEGMENTS").is_err(),
             block_cache: Default::default(),
+            symbol_cache: Default::default(),
         };
         crate::builtins::register_builtins(&mut interpreter.core_vocabulary);
         interpreter
@@ -353,6 +356,7 @@ impl Interpreter {
     /// two checks can grow deep enough to overflow a walk. Each value's
     /// nesting is kept on the value, and only the slots written since the last
     /// check are read, so the check costs what the Word wrote.
+    #[inline]
     pub(crate) fn check_fresh_nesting(&mut self) -> crate::error::Result<()> {
         let start = self.stack.take_fresh_start();
         let deepest = self.stack.as_slice()[start..]

@@ -90,7 +90,7 @@ impl Interpreter {
                     self.stack.push(Value::from_fraction(frac));
                 }
                 Token::String(s) => {
-                    self.stack.push(Value::from_string(s));
+                    self.stack.push(Value::from_text(s));
                 }
                 Token::VectorStart => {
                     // `[ ]` is the sole bracket, built through
@@ -119,10 +119,9 @@ impl Interpreter {
                     i += consumed;
                     continue;
                 }
-                Token::Symbol(s) => {
-                    let canonical = crate::word_name::canonical_word_name(s);
-                    self.dispatch_word(canonical.as_ref())?;
-                }
+                // `dispatch_word` on the canonical name, with what the name's
+                // text alone decides remembered per token (`symbol_cache`).
+                Token::Symbol(s) => self.dispatch_symbol(s)?,
                 Token::Value(value) => {
                     // A value the Vector-as-code bridge carried in whole: it
                     // is pushed as it is, like a literal. It is never a `DEF`
@@ -274,7 +273,7 @@ impl Interpreter {
                     i += 1;
                 }
                 Token::String(s) => {
-                    values.push(Value::from_string(s));
+                    values.push(Value::from_text(s));
                     i += 1;
                 }
                 Token::Symbol(s) => {

@@ -118,7 +118,7 @@ fn try_collect_literal_vector(
                 i += 1;
             }
             Token::String(s) => {
-                values.push(Value::from_string(s));
+                values.push(Value::from_text(s));
                 i += 1;
             }
             Token::Symbol(s) => {
@@ -156,7 +156,7 @@ pub(crate) fn lower_tokens_to_ops(tokens: &[Token], interp: &Interpreter) -> Vec
                 Some(frac) => CompiledOp::PushLiteral(Value::from_number(frac)),
                 None => CompiledOp::FallbackToken(token.clone()),
             },
-            Token::String(s) => CompiledOp::PushLiteral(Value::from_string(s)),
+            Token::String(s) => CompiledOp::PushLiteral(Value::from_text(s)),
             Token::VectorStart => match try_collect_literal_vector(
                 tokens,
                 i,
@@ -358,10 +358,7 @@ fn execute_compiled_line(interp: &mut Interpreter, line: &CompiledLine) -> Resul
             CompiledOp::CallUserWord(name) => interp.dispatch_word(name)?,
             // A name dispatched where it stands, as the token walk's Symbol
             // arm dispatches it.
-            CompiledOp::FallbackToken(Token::Symbol(symbol)) => {
-                let name = crate::word_name::canonical_word_name(symbol);
-                interp.dispatch_word(name.as_ref())?;
-            }
+            CompiledOp::FallbackToken(Token::Symbol(symbol)) => interp.dispatch_symbol(symbol)?,
             // Unreachable: a line holding any other fallback token is
             // re-interpreted whole, above.
             CompiledOp::FallbackToken(_) => {}

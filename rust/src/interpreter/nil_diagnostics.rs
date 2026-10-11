@@ -191,7 +191,47 @@ impl Interpreter {
     /// a diagnosis is observable.
     pub(crate) fn dispatch_word(&mut self, name: &str) -> crate::error::Result<()> {
         let witness = self.begin_dispatch();
-        match self.execute_word_core(name) {
+        let outcome = self.execute_word_core(name);
+        self.end_dispatch(name, witness, outcome)
+    }
+
+    /// [`Self::dispatch_word`] for a canonical name already known to name no
+    /// Core Word (`symbol_cache`): the same dispatch without probing Core.
+    pub(crate) fn dispatch_word_beyond_core(&mut self, name: &str) -> crate::error::Result<()> {
+        let witness = self.begin_dispatch();
+        let outcome = self.execute_resolved_word(name, None);
+        self.end_dispatch(name, witness, outcome)
+    }
+
+    /// [`Self::dispatch_word`] for a Core Word already resolved to its
+    /// registry entry (`symbol_cache`), whose canonical name is `word.name`.
+    ///
+    /// The scalar route is asked before the witness is taken: when it
+    /// answers, no absence was minted and no trace event recorded, so the
+    /// record `trace_nil_outcome` would make is nothing, and taking the
+    /// witness only to find that out was most of the cost of the call.
+    #[inline]
+    pub(crate) fn dispatch_core_word(
+        &mut self,
+        word: &'static crate::kernel::generated::GeneratedWord,
+    ) -> crate::error::Result<()> {
+        if super::quickened::try_scalar_call(self, word.id) {
+            return Ok(());
+        }
+        let witness = self.begin_dispatch();
+        let outcome = self.execute_core_word(word);
+        self.end_dispatch(word.name, witness, outcome)
+    }
+
+    /// The records a dispatch owes once its Word has run.
+    #[inline]
+    fn end_dispatch(
+        &mut self,
+        name: &str,
+        witness: DispatchWitness,
+        outcome: crate::error::Result<()>,
+    ) -> crate::error::Result<()> {
+        match outcome {
             Ok(()) => {
                 self.trace_nil_outcome(name, &witness);
                 Ok(())
@@ -217,7 +257,15 @@ impl Interpreter {
     ///   carries arrived in an operand, and passing it on is not producing it
     ///   (LANG.FAILURE.PASSTHROUGH). Nothing is recorded.
     /// - Otherwise the reasoned NIL on top is its own, and is recorded.
+    #[inline]
     pub(crate) fn trace_nil_outcome(&mut self, word: &str, witness: &DispatchWitness) {
+        // The common call minted nothing and recorded nothing: answered
+        // without walking the trace or reading the stack.
+        if self.error_flow_trace_log.len() == witness.trace_len_before
+            && crate::semantic::minted_absence_count() == witness.minted_before
+        {
+            return;
+        }
         if self.enclose_nil_productions_since(witness.trace_len_before, word) {
             return;
         }
