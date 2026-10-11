@@ -27,15 +27,19 @@ pub(crate) fn binary_gcd_u64(a: u64, b: u64) -> u64 {
         }
     }
     let shift = (a | b).trailing_zeros();
-    a >>= a.trailing_zeros();
+    // Both operands are odd at the top of each step, so their difference is
+    // even. Its trailing zeros are counted off the wrapping difference, which
+    // has the same low bits as the absolute one, so the count need not wait
+    // for the compare that picks which operand to keep — and that pick is a
+    // `min` rather than a branch on what is, step to step, a coin flip.
+    b >>= b.trailing_zeros();
+    let mut zeros = a.trailing_zeros();
     loop {
-        b >>= b.trailing_zeros();
-        if a > b {
-            std::mem::swap(&mut a, &mut b);
-        }
-        b -= a;
-        if b == 0 {
-            return a << shift;
+        a >>= zeros;
+        zeros = a.wrapping_sub(b).trailing_zeros();
+        (a, b) = (a.abs_diff(b), a.min(b));
+        if a == 0 {
+            return b << shift;
         }
     }
 }

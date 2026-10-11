@@ -29,12 +29,16 @@
 //! holds `6/1` and `1/0`, and keeps its columns.
 
 mod lanes;
+mod quotients;
 
 use crate::interpreter::arithmetic::ExactArithmeticSchema;
 use crate::interpreter::comparison::OrderingKind;
 use crate::types::small_rational;
 use crate::types::Value;
 use lanes::{paired, Lanes, Out};
+#[cfg(test)]
+pub(crate) use quotients::binary_gcd_x4;
+use quotients::{integer_quotients, scaled_by_integer};
 
 #[cfg(test)]
 thread_local! {
@@ -92,95 +96,6 @@ fn integer_lanes(
         (Lanes::Splat(..), Lanes::Splat(..)) => return None,
     }
     (!bad).then_some(out)
-}
-
-/// The largest scalar divisor whose residue gcds `integer_quotients` tables:
-/// a gcd of it fits a `u16`, and the table is a few kilobytes at most.
-const GCD_TABLE_MAX: u64 = 4096;
-
-/// `a / b` on integer lanes: each quotient reduced by one gcd, with the sign
-/// carried by the numerator; a zero divisor answers the dividend's sign over
-/// zero. `None` for the one quotient a machine word cannot hold,
-/// `i64::MIN / -1`.
-fn integer_quotients(a: Lanes, b: Lanes, n: usize) -> Option<Value> {
-    use crate::types::fraction::binary_gcd_u64;
-    // A Tensor divided by one small integer (`7 DIV`, the common case) meets
-    // only `|y|` residues, so everything a lane needs is read from a table
-    // built once.
-    if let (Lanes::Columns { nums, .. }, Lanes::Splat(y, _)) = (a, b) {
-        let m = y.unsigned_abs();
-        if (1..=GCD_TABLE_MAX).contains(&m) && m as usize <= n {
-            return quotients_by_small_integer(nums, y);
-        }
-    }
-    let mut out = Out::with_capacity(n);
-    for i in 0..n {
-        let (x, y) = (a.num(i), b.num(i));
-        if y == 0 {
-            out.push(x.signum(), 0);
-            continue;
-        }
-        // gcd(x, y) = gcd(y, x mod y): one division brings both operands
-        // below the divisor, where Stein's loop takes a few steps rather than
-        // one per bit of `x`. Most quotients are already in lowest terms, and
-        // those need no further division.
-        let m = y.unsigned_abs();
-        let r = x.unsigned_abs() % m;
-        let g = binary_gcd_u64(m, r);
-        let (q, d) = if g == 1 {
-            (x, y)
-        } else {
-            let g = i64::try_from(g).ok()?;
-            (x / g, y / g)
-        };
-        let (q, d) = if d < 0 {
-            (q.checked_neg()?, d.checked_neg()?)
-        } else {
-            (q, d)
-        };
-        out.push(q, d);
-    }
-    Some(out.into_value())
-}
-
-/// `x / y` for every lane `x` and one integer `y` with `1 <= |y| <=
-/// GCD_TABLE_MAX`: [`integer_quotients`]'s answer, with no hardware division
-/// per lane.
-///
-/// `x = q·m + r` with `m = |y|` and `0 <= r < m` ([`floor_divmod`]), and
-/// `g = gcd(m, r) = gcd(x, y)`, which divides both `m` and `r`, so the reduced
-/// numerator `x / g` is `q·(m/g) + r/g` — two table reads and a multiply.
-/// `None` for the one quotient a machine word cannot hold, `i64::MIN / -1`.
-fn quotients_by_small_integer(nums: &[i64], y: i64) -> Option<Value> {
-    use crate::types::fraction::binary_gcd_u64;
-    let m = y.unsigned_abs();
-    // Per residue: `m / g` and `r / g`.
-    let table: Vec<(u16, u16)> = (0..m)
-        .map(|r| {
-            let g = binary_gcd_u64(m, r);
-            ((m / g) as u16, (r / g) as u16)
-        })
-        .collect();
-    let (signed_m, inv) = (m as i64, 1.0 / m as f64);
-    let negative = y < 0;
-    let mut out = Out::with_capacity(nums.len());
-    for &x in nums {
-        let (q, r) = floor_divmod(x, signed_m, inv);
-        let (m_over_g, r_over_g) = table[r as usize];
-        let (m_over_g, r_over_g) = (i64::from(m_over_g), i64::from(r_over_g));
-        // `x / g` exactly: `q·m + r` divided through by `g`.
-        let numerator = if m_over_g == signed_m {
-            x
-        } else {
-            q.checked_mul(m_over_g)?.checked_add(r_over_g)?
-        };
-        if negative {
-            out.push(numerator.checked_neg()?, m_over_g);
-        } else {
-            out.push(numerator, m_over_g);
-        }
-    }
-    Some(out.into_value())
 }
 
 /// The floor quotient and remainder of `x` by `m >= 1`: `x = q·m + r` with
@@ -270,6 +185,9 @@ fn arithmetic_lanes(schema: ExactArithmeticSchema, a: &Value, b: &Value) -> Opti
     }
     if let Some(shifted) = shifted_by_integer(schema, a, b) {
         return Some(shifted);
+    }
+    if let Some(scaled) = scaled_by_integer(schema, a, b) {
+        return Some(scaled);
     }
     let mut out = Out::with_capacity(n);
     for i in 0..n {
