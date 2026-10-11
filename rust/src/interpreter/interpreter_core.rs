@@ -246,6 +246,7 @@ pub struct Interpreter {
     pub(crate) block_cache: super::higher_order::BlockCache,
     /// What each name token recently dispatched dispatches to (`symbol_cache`).
     pub(crate) symbol_cache: super::symbol_cache::SymbolCache,
+    pub(crate) segment_scratch: super::segment::SegmentScratch,
 }
 
 impl Default for Interpreter {
@@ -303,6 +304,7 @@ impl Interpreter {
             segments_enabled: std::env::var("AJISAI_NO_SEGMENTS").is_err(),
             block_cache: Default::default(),
             symbol_cache: Default::default(),
+            segment_scratch: Default::default(),
         };
         crate::builtins::register_builtins(&mut interpreter.core_vocabulary);
         interpreter

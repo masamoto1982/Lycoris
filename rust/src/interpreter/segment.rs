@@ -109,6 +109,16 @@ pub(crate) struct Segment {
     pub(crate) dictionary_epoch: u64,
 }
 
+/// The storage a run computes in — its operand stack and its slots — kept
+/// on the interpreter between runs. A run is short and frequent (a Word
+/// body's, once per call), and building small vectors for it each time was
+/// a measurable share of the run.
+#[derive(Debug, Default)]
+pub(crate) struct SegmentScratch {
+    stack: Vec<Slot>,
+    slots: Vec<Slot>,
+}
+
 /// Where a segment sits in a compiled line: `ops[start..end]`.
 #[derive(Debug, Clone)]
 pub(crate) struct LineSegment {
@@ -121,7 +131,9 @@ impl Segment {
     /// Run the segment against the top of the stack and commit it, or answer
     /// `false` having touched nothing.
     pub(crate) fn try_run(&self, interp: &mut Interpreter) -> bool {
-        let committed = self.run(interp).is_some();
+        let mut scratch = std::mem::take(&mut interp.segment_scratch);
+        let committed = self.run(interp, &mut scratch).is_some();
+        interp.segment_scratch = scratch;
         #[cfg(test)]
         if committed {
             SEGMENT_RUNS.with(|c| c.set(c.get() + 1));
@@ -129,7 +141,7 @@ impl Segment {
         committed
     }
 
-    fn run(&self, interp: &mut Interpreter) -> Option<()> {
+    fn run(&self, interp: &mut Interpreter, scratch: &mut SegmentScratch) -> Option<()> {
         if !interp.segments_enabled
             || !interp.scalar_fastpath_enabled
             || interp.runtime_limits.max_bigint_bits < 64
@@ -142,11 +154,13 @@ impl Segment {
 
         let values = interp.stack.as_slice();
         let base = values.len().checked_sub(self.inputs)?;
-        let mut stack: SmallVec<[Slot; 16]> = SmallVec::new();
+        let SegmentScratch { stack, slots } = scratch;
+        stack.clear();
         for value in &values[base..] {
             stack.push(Slot::of(value)?);
         }
-        let mut slots: SmallVec<[Slot; 8]> = SmallVec::from_elem(Slot::Bool(false), self.slots);
+        slots.clear();
+        slots.resize(self.slots, Slot::Bool(false));
         for (name, slot) in &self.reads {
             slots[*slot as usize] = Slot::of(&interp.lookup_binding(name.as_str())?)?;
         }
@@ -240,7 +254,7 @@ impl Segment {
             interp.bind_local(name.clone(), slots[*slot as usize].into_value());
         }
         interp.stack.truncate(base);
-        for &slot in &stack {
+        for &slot in stack.iter() {
             interp.stack.push(slot.into_value());
         }
         // Where the dispatch's last check left the mark. Only pushes follow
