@@ -20,7 +20,7 @@
 use std::borrow::Cow;
 
 use crate::error::{AjisaiError, Result};
-use crate::types::{RecordData, Value};
+use crate::types::{RecordData, Value, ValueData};
 
 /// How one operand supplies its lanes at the current axis.
 ///
@@ -163,9 +163,23 @@ pub(crate) fn lift_lanes_dyn(
         return scalar(operands);
     };
 
+    // One buffer serves every lane. Where no lifted lane is a container the
+    // recursion would only hand the lane straight to `scalar`, so that step is
+    // taken here — the common flat case then allocates nothing per lane.
     let mut result = Vec::with_capacity(width);
+    let mut next: Vec<&Value> = Vec::with_capacity(lanes.len());
     for index in 0..width {
-        result.push(descend(&lanes, index, lifted, scalar)?);
+        next.clear();
+        next.extend(lanes.iter().map(|lane| lane.lane(index)));
+        let leaf = next
+            .iter()
+            .zip(lifted)
+            .all(|(v, l)| !*l || !is_container(v));
+        result.push(if leaf {
+            scalar(&next)?
+        } else {
+            lift_lanes_dyn(&next, lifted, scalar)?
+        });
     }
     Ok(Value::from_vector(result))
 }
@@ -178,4 +192,13 @@ fn descend(
 ) -> Result<Value> {
     let next: Vec<&Value> = lanes.iter().map(|lane| lane.lane(index)).collect();
     lift_lanes_dyn(&next, lifted, scalar)
+}
+
+/// Whether the lifting rule would enter `value` rather than hand it to the
+/// scalar law: a Vector, a Tensor or a Record.
+fn is_container(value: &Value) -> bool {
+    matches!(
+        value.data,
+        ValueData::Vector(_) | ValueData::Tensor { .. } | ValueData::Record(_)
+    )
 }
