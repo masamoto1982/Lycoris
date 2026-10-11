@@ -5,7 +5,7 @@
 //! every element of a vector, however that vector is nested … Paired axes
 //! combine when their lengths are equal, and when one of them is 1 that
 //! operand's single lane is reused across the other's length." Arithmetic
-//! reaches that rule through the tensor path; `booleanLogic` and `comparison`
+//! reaches that rule through the tensor path; the truth-order connectives and comparisons
 //! reach it through here, so the one-lane broadcast means the same thing in
 //! all three families instead of being spelled once per family — the
 //! comparison Words used to accept `[ 1 2 3 ] [ 2 2 2 ] GT` and refuse

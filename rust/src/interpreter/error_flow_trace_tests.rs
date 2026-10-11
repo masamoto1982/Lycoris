@@ -113,7 +113,7 @@ async fn nil_produced_event_exposes_ai_structured_diagnosis_payload() {
     assert_eq!(payload.category, None);
     assert_eq!(payload.repair, None);
     assert_eq!(payload.word.as_deref(), Some("SQRT"));
-    assert_eq!(payload.family.as_deref(), Some("exactArithmetic"));
+    assert_eq!(payload.family.as_deref(), Some("knowledgeOrder"));
     // The NIL's reason is the event's absence, where every host reads it.
     assert_eq!(
         event

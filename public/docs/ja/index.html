@@ -1310,9 +1310,8 @@ FILTER</code></td>
 <table class="ref-table">
 <thead><tr><th>族</th><th>ワード</th><th>解説の頁</th></tr></thead>
 <tbody>
-<tr><td class="notes">論理</td><td><a href="#word-TRUE"><code>TRUE</code></a> <a href="#word-FALSE"><code>FALSE</code></a> <a href="#word-BOTH"><code>BOTH</code></a> <a href="#word-AND"><code>AND</code></a> <a href="#word-NOT"><code>NOT</code></a> <a href="#word-SELECT"><code>SELECT</code></a> <a href="#word-RECONCILE"><code>RECONCILE</code></a></td><td class="notes"><a href="#operators">2.4.2.1 論理・比較・算術</a></td></tr>
-<tr><td class="notes">比較</td><td><a href="#word-EQ"><code>EQ</code></a> <a href="#word-LT"><code>LT</code></a> <a href="#word-GT"><code>GT</code></a></td><td class="notes"><a href="#operators">2.4.2.1 論理・比較・算術</a></td></tr>
-<tr><td class="notes">厳密な算術</td><td><a href="#word-ADD"><code>ADD</code></a> <a href="#word-SUB"><code>SUB</code></a> <a href="#word-MUL"><code>MUL</code></a> <a href="#word-DIV"><code>DIV</code></a> <a href="#word-FLOOR"><code>FLOOR</code></a> <a href="#word-ROUND"><code>ROUND</code></a> <a href="#word-MIN"><code>MIN</code></a> <a href="#word-MAX"><code>MAX</code></a> <a href="#word-SQRT"><code>SQRT</code></a> <a href="#word-POW"><code>POW</code></a> <a href="#word-GCD"><code>GCD</code></a> <a href="#word-RATIO"><code>RATIO</code></a></td><td class="notes"><a href="#operators">2.4.2.1 論理・比較・算術</a></td></tr>
+<tr><td class="notes">論理と順序(真理順序)</td><td><a href="#word-TRUE"><code>TRUE</code></a> <a href="#word-FALSE"><code>FALSE</code></a> <a href="#word-BOTH"><code>BOTH</code></a> <a href="#word-AND"><code>AND</code></a> <a href="#word-NOT"><code>NOT</code></a> <a href="#word-SELECT"><code>SELECT</code></a> <a href="#word-EQ"><code>EQ</code></a> <a href="#word-LT"><code>LT</code></a> <a href="#word-GT"><code>GT</code></a> <a href="#word-MIN"><code>MIN</code></a> <a href="#word-MAX"><code>MAX</code></a></td><td class="notes"><a href="#operators">2.4.2.1 論理・比較・算術</a></td></tr>
+<tr><td class="notes">厳密な算術(知識順序)</td><td><a href="#word-RECONCILE"><code>RECONCILE</code></a> <a href="#word-ADD"><code>ADD</code></a> <a href="#word-SUB"><code>SUB</code></a> <a href="#word-MUL"><code>MUL</code></a> <a href="#word-DIV"><code>DIV</code></a> <a href="#word-FLOOR"><code>FLOOR</code></a> <a href="#word-ROUND"><code>ROUND</code></a> <a href="#word-SQRT"><code>SQRT</code></a> <a href="#word-POW"><code>POW</code></a> <a href="#word-GCD"><code>GCD</code></a> <a href="#word-RATIO"><code>RATIO</code></a></td><td class="notes"><a href="#operators">2.4.2.1 論理・比較・算術</a></td></tr>
 <tr><td class="notes">ベクトル</td><td><a href="#word-GET"><code>GET</code></a> <a href="#word-LENGTH"><code>LENGTH</code></a> <a href="#word-TAKE"><code>TAKE</code></a> <a href="#word-DROP"><code>DROP</code></a> <a href="#word-CONCAT"><code>CONCAT</code></a> <a href="#word-REVERSE"><code>REVERSE</code></a> <a href="#word-COLLECT"><code>COLLECT</code></a> <a href="#word-RANGE"><code>RANGE</code></a> <a href="#word-FILL"><code>FILL</code></a> <a href="#word-SHAPE"><code>SHAPE</code></a> <a href="#word-RESHAPE"><code>RESHAPE</code></a> <a href="#word-FLATTEN"><code>FLATTEN</code></a> <a href="#word-DEPTH"><code>DEPTH</code></a> <a href="#word-SORT"><code>SORT</code></a> <a href="#word-ORDER"><code>ORDER</code></a> <a href="#word-UNIQUE"><code>UNIQUE</code></a> <a href="#word-ZIP"><code>ZIP</code></a> <a href="#word-PUT"><code>PUT</code></a> <a href="#word-BSEARCH"><code>BSEARCH</code></a></td><td class="notes"><a href="#vector-ops">2.4.2.2 ベクトル操作</a></td></tr>
 <tr><td class="notes">Record</td><td><a href="#word-TALLY"><code>TALLY</code></a> <a href="#word-GROUP"><code>GROUP</code></a> <a href="#word-RECORD"><code>RECORD</code></a> <a href="#word-KEYS"><code>KEYS</code></a> <a href="#word-VALUES"><code>VALUES</code></a> <a href="#word-WITHOUT"><code>WITHOUT</code></a> <a href="#word-HAS_3f"><code>HAS?</code></a> <a href="#word-MERGE"><code>MERGE</code></a></td><td class="notes"><a href="#records">2.4.2.3 キーによる対応</a></td></tr>
 <tr><td class="notes">反復</td><td><a href="#word-MAP"><code>MAP</code></a> <a href="#word-FILTER"><code>FILTER</code></a> <a href="#word-FOLD"><code>FOLD</code></a> <a href="#word-SCAN"><code>SCAN</code></a></td><td class="notes"><a href="#control">2.4.2.5 選択と反復</a></td></tr>
@@ -1782,7 +1781,7 @@ FILTER</code></td>
                     </div>
                 
                 <!-- BEGIN generated word contracts: operators -->
-<h3 id="family-booleanLogic">契約: 論理</h3>
+<h3 id="family-truthOrder">契約: 論理と順序(真理順序)</h3>
 <div class="word-entry" id="word-TRUE">
 <h4><code>TRUE</code> <span class="word-tier">Semantic Kernel</span></h4>
 <p>真偽値のTRUE。<code>TRUE</code>は<code>1 1 EQ</code>である。これは真偽値であって数の1ではない(LANG.VALUES.DISJOINT)ので、<code>TRUE 1 EQ</code>は<code>FALSE</code>になる。</p>
@@ -1879,23 +1878,6 @@ FILTER</code></td>
 <dt>条項</dt><dd><code>LANG.VALUES.TRUTH</code>, <code>LANG.COLLECTIONS.LIFT</code></dd>
 </dl>
 </div>
-<div class="word-entry" id="word-RECONCILE">
-<h4><code>RECONCILE</code> <span class="word-tier">Semantic Kernel</span></h4>
-<p>2つの情報源が一致するもの(LANG.VALUES.TRUTH)。<code>1 1 RECONCILE</code>は<code>1</code>で、不在はもう一方の情報源が持つ値に譲る(<code>NIL 5 RECONCILE</code>は<code>5</code>)。数の間では<code>0/0</code>がもっとも知らない値で、相手の数に譲る(LANG.VALUES.SHAPE)。<code>0/0 5 RECONCILE</code>は<code>5</code>だが、<code>0/0 TRUE RECONCILE</code>は食い違いになる。異なる2つの真偽値はBOTHになり(<code>TRUE FALSE RECONCILE</code>は<code>BOTH</code>)、それ以外の異なる2つの値は一致するものを持たず、NIL(conflict)を投影する(<code>'Tokyo' 'Osaka' RECONCILE NIL-REASON</code>は<code>'conflict'</code>)。食い違いは3つ目の情報源では解消しないので、この語は結合的・可換・冪等であり、多数の情報源にFOLDしても順序に依存しない。EQと同じくオペランドを丸ごと比べる。<code>[ 1 2 ] [ 1 3 ] RECONCILE</code>は食い違いで、レーンごとに突き合わせるプログラムはZIPとMAPを使う。</p>
-<dl class="word-contract">
-<dt>構文</dt><dd><code>TRUE FALSE RECONCILE</code></dd>
-<dt>スタック効果</dt><dd><span class="notation">[ a ] [ b ] -&gt; [ agreed ]</span></dd>
-<dt>スタック</dt><dd>入力 2 → 出力 1</dd>
-<dt>オペランド</dt><dd><code>element</code>, <code>element</code> (LANG.FAILURE.PASSTHROUGH)</dd>
-<dt>NIL方針</dt><dd><code>consumeNil</code>; 投影: <code>sourcesDisagree</code> → <code>conflict</code></dd>
-<dt>部分性</dt><dd><code>projecting</code></dd>
-<dt>体</dt><dd><code>closed</code> (LANG.CONTRACT.FIELD)</dd>
-<dt>純粋性 / 決定性</dt><dd><code>pure</code> / <code>deterministic</code></dd>
-<dt>作用</dt><dd>なし</dd>
-<dt>条項</dt><dd><code>LANG.VALUES.TRUTH</code>, <code>LANG.VALUES.DENOTATION</code>, <code>LANG.FAILURE.PROJECT</code></dd>
-</dl>
-</div>
-<h3 id="family-comparison">契約: 比較</h3>
 <div class="word-entry" id="word-EQ">
 <h4><code>EQ</code> <span class="word-tier">Semantic Kernel</span></h4>
 <p>2つの値が同じ1つの値かどうか(LANG.VALUES.DENOTATION)。どう組み立てたかは問わない。<code>1 1/1 EQ</code>は<code>TRUE</code>、<code>2 SQRT 2 SQRT MUL 2 EQ</code>は<code>TRUE</code>、<code>100 0 DIV 1/0 EQ</code>は<code>TRUE</code>、<code>0/0 0/0 EQ</code>は<code>TRUE</code>、<code>[ 1 2 ] [ 1 2 ] EQ</code>は<code>TRUE</code>。EQはオペランドを丸ごと比較し、要素ごとには持ち上がらない。両オペランドを読むので、他のデータオペランドと同じく、不在のオペランドがそのまま答えになる(LANG.FAILURE.PASSTHROUGH)。<code>-1 SQRT 1 EQ</code>は、比較するものがないので、その不在がすでにそうであったUNKNOWNになる。ベクトルの中のNILは他と同じ1つの要素で、理由によって比較されるので、<code>[ NIL ] [ NIL ] EQ</code>は<code>TRUE</code>。これはUNIQUEとRECONCILEが使う等価性でもある。不在かもしれない2つの値を素通しではなく比較したいときは、それぞれを先に<code>1 COLLECT</code>で包む。</p>
@@ -1946,109 +1928,6 @@ FILTER</code></td>
 <dt>条項</dt><dd><code>LANG.VALUES.TRUTH</code>, <code>LANG.VALUES.EXACT</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.FAILURE.PROJECT</code></dd>
 </dl>
 </div>
-<h3 id="family-exactArithmetic">契約: 厳密な算術</h3>
-<div class="word-entry" id="word-ADD">
-<h4><code>ADD</code> <span class="word-tier">Semantic Kernel</span></h4>
-<p>厳密な和。<code>1/3 1/6 ADD</code>は<code>1/2</code>で、ベクトルにはブロードキャスト付きで要素ごとに働き(LANG.COLLECTIONS.LIFT)、<code>[ 1 2 ] 10 ADD</code>は<code>[ 11 12 ]</code>。何も丸められない。<code>2 SQRT 2 SQRT ADD</code>は<code>8 SQRT</code>。0の上の3つの点も同じ分数の公式で決まる。<code>1/0 5 ADD</code>は<code>1/0</code>、<code>1/0 1/0 ADD</code>は<code>0/0</code>(LANG.VALUES.EXACT)。数でないものは<code>nonNumeric</code>。</p>
-<dl class="word-contract">
-<dt>構文</dt><dd><code>1 2 ADD</code></dd>
-<dt>スタック効果</dt><dd><span class="notation">[ a ] [ b ] -&gt; [ a + b ]</span></dd>
-<dt>スタック</dt><dd>入力 2 → 出力 1</dd>
-<dt>オペランド</dt><dd><code>leaf</code>, <code>leaf</code> (LANG.FAILURE.PASSTHROUGH)</dd>
-<dt>NIL方針</dt><dd><code>passthrough</code>; 投影: なし</dd>
-<dt>部分性</dt><dd><code>total</code></dd>
-<dt>体</dt><dd><code>closed</code> (LANG.CONTRACT.FIELD)</dd>
-<dt>純粋性 / 決定性</dt><dd><code>pure</code> / <code>deterministic</code></dd>
-<dt>作用</dt><dd>なし</dd>
-<dt>ERROR条件</dt><dd><code>nonNumeric</code>, <code>shapeMismatch</code></dd>
-<dt>条項</dt><dd><code>LANG.VALUES.EXACT</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.FAILURE.TRICHOTOMY</code></dd>
-</dl>
-</div>
-<div class="word-entry" id="word-SUB">
-<h4><code>SUB</code> <span class="word-tier">Standard · shorthand</span></h4>
-<p>厳密な差(左から右を引く)。<code>5 3 SUB</code>は<code>2</code>で、ベクトルにはブロードキャスト付きで要素ごとに働き(LANG.COLLECTIONS.LIFT)、<code>2 [ 1 2 3 ] SUB</code>は<code>[ 1 0 -1 ]</code>。数でないものは<code>nonNumeric</code>。</p>
-<dl class="word-contract">
-<dt>構文</dt><dd><code>5 3 SUB</code></dd>
-<dt>スタック効果</dt><dd><span class="notation">[ a ] [ b ] -&gt; [ a - b ]</span></dd>
-<dt>スタック</dt><dd>入力 2 → 出力 1</dd>
-<dt>オペランド</dt><dd><code>leaf</code>, <code>leaf</code> (LANG.FAILURE.PASSTHROUGH)</dd>
-<dt>NIL方針</dt><dd><code>passthrough</code>; 投影: なし</dd>
-<dt>部分性</dt><dd><code>total</code></dd>
-<dt>体</dt><dd><code>closed</code> (LANG.CONTRACT.FIELD)</dd>
-<dt>純粋性 / 決定性</dt><dd><code>pure</code> / <code>deterministic</code></dd>
-<dt>作用</dt><dd>なし</dd>
-<dt>ERROR条件</dt><dd><code>nonNumeric</code>, <code>shapeMismatch</code></dd>
-<dt>条項</dt><dd><code>LANG.VALUES.EXACT</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.FAILURE.TRICHOTOMY</code></dd>
-</dl>
-</div>
-<div class="word-entry" id="word-MUL">
-<h4><code>MUL</code> <span class="word-tier">Semantic Kernel</span></h4>
-<p>厳密な積。<code>2/3 3/4 MUL</code>は<code>1/2</code>で、ベクトルにはブロードキャスト付きで要素ごとに働き(LANG.COLLECTIONS.LIFT)、<code>[ 1 2 3 ] [ 10 ] MUL</code>は<code>[ 10 20 30 ]</code>。0の上の3つの点も同じ分数の公式で決まる。<code>1/0 -2 MUL</code>は<code>-1/0</code>、<code>1/0 0 MUL</code>は<code>0/0</code>(LANG.VALUES.EXACT)。数でないものは<code>nonNumeric</code>。</p>
-<dl class="word-contract">
-<dt>構文</dt><dd><code>2 4 MUL</code></dd>
-<dt>スタック効果</dt><dd><span class="notation">[ a ] [ b ] -&gt; [ a * b ]</span></dd>
-<dt>スタック</dt><dd>入力 2 → 出力 1</dd>
-<dt>オペランド</dt><dd><code>leaf</code>, <code>leaf</code> (LANG.FAILURE.PASSTHROUGH)</dd>
-<dt>NIL方針</dt><dd><code>passthrough</code>; 投影: なし</dd>
-<dt>部分性</dt><dd><code>total</code></dd>
-<dt>体</dt><dd><code>closed</code> (LANG.CONTRACT.FIELD)</dd>
-<dt>純粋性 / 決定性</dt><dd><code>pure</code> / <code>deterministic</code></dd>
-<dt>作用</dt><dd>なし</dd>
-<dt>ERROR条件</dt><dd><code>nonNumeric</code>, <code>shapeMismatch</code></dd>
-<dt>条項</dt><dd><code>LANG.VALUES.EXACT</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.FAILURE.TRICHOTOMY</code></dd>
-</dl>
-</div>
-<div class="word-entry" id="word-DIV">
-<h4><code>DIV</code> <span class="word-tier">Semantic Kernel</span></h4>
-<p>厳密な商(左を右で割る)。<code>1 3 DIV</code>は厳密に<code>1/3</code>。ベクトルにはブロードキャスト付きで要素ごとに働き(LANG.COLLECTIONS.LIFT)、<code>[ 2 4 ] 2 DIV</code>は<code>[ 1 2 ]</code>。除算は全域的である(LANG.VALUES.EXACT)。逆数との積であり、すべての数は逆数を持つ。除数が0なら、被除数の符号を0の上に置いた点を自分のレーンだけに答え、他のレーンには触れない。<code>[ 1 -2 0 ] 0 DIV</code>は<code>[ 1/0 -1/0 0/0 ]</code>、<code>1 1/0 DIV</code>は<code>0</code>。隣のレーンは商のままであり、後続のワードはその点を同じ分数の公式で計算するので、<code>1 0 DIV 2 MUL</code>は<code>1/0</code>、<code>1 0 DIV 0 MUL</code>は<code>0/0</code>。数でないものは<code>nonNumeric</code>。</p>
-<dl class="word-contract">
-<dt>構文</dt><dd><code>10 2 DIV</code></dd>
-<dt>スタック効果</dt><dd><span class="notation">[ a ] [ b ] -&gt; [ a / b ]</span></dd>
-<dt>スタック</dt><dd>入力 2 → 出力 1</dd>
-<dt>オペランド</dt><dd><code>leaf</code>, <code>leaf</code> (LANG.FAILURE.PASSTHROUGH)</dd>
-<dt>NIL方針</dt><dd><code>passthrough</code>; 投影: なし</dd>
-<dt>部分性</dt><dd><code>total</code></dd>
-<dt>体</dt><dd><code>leaving</code> (LANG.CONTRACT.FIELD)</dd>
-<dt>純粋性 / 決定性</dt><dd><code>pure</code> / <code>deterministic</code></dd>
-<dt>作用</dt><dd>なし</dd>
-<dt>ERROR条件</dt><dd><code>nonNumeric</code>, <code>shapeMismatch</code></dd>
-<dt>条項</dt><dd><code>LANG.VALUES.EXACT</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.FAILURE.TRICHOTOMY</code>, <code>LANG.CONTRACT.FIELD</code></dd>
-</dl>
-</div>
-<div class="word-entry" id="word-FLOOR">
-<h4><code>FLOOR</code> <span class="word-tier">Semantic Kernel</span></h4>
-<p>その数を超えない最大の整数。<code>7/3 FLOOR</code>は<code>2</code>、<code>-7/3 FLOOR</code>は<code>-3</code>で、ベクトルには要素ごとに働く。無理数も厳密に切り捨てられる。<code>2 SQRT FLOOR</code>は<code>1</code>。0の上の3つの点には、その位置やその先に整数がないので、それぞれが自分自身の床である。<code>1/0 FLOOR</code>は<code>1/0</code>。数でないものは<code>nonNumeric</code>。</p>
-<dl class="word-contract">
-<dt>構文</dt><dd><code>7/3 FLOOR</code></dd>
-<dt>スタック効果</dt><dd><span class="notation">[ x ] -&gt; [ floor x ]</span></dd>
-<dt>スタック</dt><dd>入力 1 → 出力 1</dd>
-<dt>オペランド</dt><dd><code>leaf</code> (LANG.FAILURE.PASSTHROUGH)</dd>
-<dt>NIL方針</dt><dd><code>passthrough</code>; 投影: なし</dd>
-<dt>部分性</dt><dd><code>total</code></dd>
-<dt>体</dt><dd><code>closed</code> (LANG.CONTRACT.FIELD)</dd>
-<dt>純粋性 / 決定性</dt><dd><code>pure</code> / <code>deterministic</code></dd>
-<dt>作用</dt><dd>なし</dd>
-<dt>ERROR条件</dt><dd><code>nonNumeric</code></dd>
-<dt>条項</dt><dd><code>LANG.VALUES.EXACT</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.FAILURE.TRICHOTOMY</code></dd>
-</dl>
-</div>
-<div class="word-entry" id="word-ROUND">
-<h4><code>ROUND</code> <span class="word-tier">Standard · algorithm</span></h4>
-<p>最も近い整数。ちょうど半分は0から遠い側へ。<code>5/2 ROUND</code>は<code>3</code>、<code>-5/2 ROUND</code>は<code>-3</code>で、ベクトルには要素ごとに働く。FORMATも最終桁を同じ規則で丸める。0の上の3つの点は、それぞれが自分自身の床であるのと同じく、それぞれが自分自身の丸めである。数でないものは<code>nonNumeric</code>。</p>
-<dl class="word-contract">
-<dt>構文</dt><dd><code>5/2 ROUND</code></dd>
-<dt>スタック効果</dt><dd><span class="notation">[ x ] -&gt; [ round x ]</span></dd>
-<dt>スタック</dt><dd>入力 1 → 出力 1</dd>
-<dt>オペランド</dt><dd><code>leaf</code> (LANG.FAILURE.PASSTHROUGH)</dd>
-<dt>NIL方針</dt><dd><code>passthrough</code>; 投影: なし</dd>
-<dt>部分性</dt><dd><code>total</code></dd>
-<dt>体</dt><dd><code>closed</code> (LANG.CONTRACT.FIELD)</dd>
-<dt>純粋性 / 決定性</dt><dd><code>pure</code> / <code>deterministic</code></dd>
-<dt>作用</dt><dd>なし</dd>
-<dt>ERROR条件</dt><dd><code>nonNumeric</code></dd>
-<dt>条項</dt><dd><code>LANG.VALUES.EXACT</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.FAILURE.TRICHOTOMY</code></dd>
-</dl>
-</div>
 <div class="word-entry" id="word-MIN">
 <h4><code>MIN</code> <span class="word-tier">Standard · namedPattern</span></h4>
 <p>2つの数の小さい方。<code>1 2 MIN</code>は<code>1</code>で、ベクトルにはブロードキャスト付きで要素ごとに働き、<code>[ 3 1 ] 2 MIN</code>は<code>[ 2 1 ]</code>。順序は厳密な定義域のもの(LANG.VALUES.EXACT)。<code>-1/0 5 MIN</code>は<code>-1/0</code>で、順序を持たない<code>0/0</code>はLTと同じくNIL(domainMiss)を投影する。数でないものは<code>nonNumeric</code>。</p>
@@ -2063,7 +1942,7 @@ FILTER</code></td>
 <dt>純粋性 / 決定性</dt><dd><code>pure</code> / <code>deterministic</code></dd>
 <dt>作用</dt><dd>なし</dd>
 <dt>ERROR条件</dt><dd><code>nonNumeric</code>, <code>shapeMismatch</code></dd>
-<dt>条項</dt><dd><code>LANG.VALUES.EXACT</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.FAILURE.TRICHOTOMY</code>, <code>LANG.FAILURE.PROJECT</code></dd>
+<dt>条項</dt><dd><code>LANG.VALUES.TRUTH</code>, <code>LANG.VALUES.EXACT</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.FAILURE.TRICHOTOMY</code>, <code>LANG.FAILURE.PROJECT</code></dd>
 </dl>
 </div>
 <div class="word-entry" id="word-MAX">
@@ -2080,7 +1959,126 @@ FILTER</code></td>
 <dt>純粋性 / 決定性</dt><dd><code>pure</code> / <code>deterministic</code></dd>
 <dt>作用</dt><dd>なし</dd>
 <dt>ERROR条件</dt><dd><code>nonNumeric</code>, <code>shapeMismatch</code></dd>
-<dt>条項</dt><dd><code>LANG.VALUES.EXACT</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.FAILURE.TRICHOTOMY</code>, <code>LANG.FAILURE.PROJECT</code></dd>
+<dt>条項</dt><dd><code>LANG.VALUES.TRUTH</code>, <code>LANG.VALUES.EXACT</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.FAILURE.TRICHOTOMY</code>, <code>LANG.FAILURE.PROJECT</code></dd>
+</dl>
+</div>
+<h3 id="family-knowledgeOrder">契約: 厳密な算術(知識順序)</h3>
+<div class="word-entry" id="word-RECONCILE">
+<h4><code>RECONCILE</code> <span class="word-tier">Semantic Kernel</span></h4>
+<p>2つの情報源が一致するもの(LANG.VALUES.TRUTH)。<code>1 1 RECONCILE</code>は<code>1</code>で、不在はもう一方の情報源が持つ値に譲る(<code>NIL 5 RECONCILE</code>は<code>5</code>)。数の間では<code>0/0</code>がもっとも知らない値で、相手の数に譲る(LANG.VALUES.SHAPE)。<code>0/0 5 RECONCILE</code>は<code>5</code>だが、<code>0/0 TRUE RECONCILE</code>は食い違いになる。異なる2つの真偽値はBOTHになり(<code>TRUE FALSE RECONCILE</code>は<code>BOTH</code>)、それ以外の異なる2つの値は一致するものを持たず、NIL(conflict)を投影する(<code>'Tokyo' 'Osaka' RECONCILE NIL-REASON</code>は<code>'conflict'</code>)。食い違いは3つ目の情報源では解消しないので、この語は結合的・可換・冪等であり、多数の情報源にFOLDしても順序に依存しない。EQと同じくオペランドを丸ごと比べる。<code>[ 1 2 ] [ 1 3 ] RECONCILE</code>は食い違いで、レーンごとに突き合わせるプログラムはZIPとMAPを使う。</p>
+<dl class="word-contract">
+<dt>構文</dt><dd><code>TRUE FALSE RECONCILE</code></dd>
+<dt>スタック効果</dt><dd><span class="notation">[ a ] [ b ] -&gt; [ agreed ]</span></dd>
+<dt>スタック</dt><dd>入力 2 → 出力 1</dd>
+<dt>オペランド</dt><dd><code>element</code>, <code>element</code> (LANG.FAILURE.PASSTHROUGH)</dd>
+<dt>NIL方針</dt><dd><code>consumeNil</code>; 投影: <code>sourcesDisagree</code> → <code>conflict</code></dd>
+<dt>部分性</dt><dd><code>projecting</code></dd>
+<dt>体</dt><dd><code>closed</code> (LANG.CONTRACT.FIELD)</dd>
+<dt>純粋性 / 決定性</dt><dd><code>pure</code> / <code>deterministic</code></dd>
+<dt>作用</dt><dd>なし</dd>
+<dt>条項</dt><dd><code>LANG.VALUES.SHAPE</code>, <code>LANG.VALUES.TRUTH</code>, <code>LANG.VALUES.DENOTATION</code>, <code>LANG.FAILURE.PROJECT</code></dd>
+</dl>
+</div>
+<div class="word-entry" id="word-ADD">
+<h4><code>ADD</code> <span class="word-tier">Semantic Kernel</span></h4>
+<p>厳密な和。<code>1/3 1/6 ADD</code>は<code>1/2</code>で、ベクトルにはブロードキャスト付きで要素ごとに働き(LANG.COLLECTIONS.LIFT)、<code>[ 1 2 ] 10 ADD</code>は<code>[ 11 12 ]</code>。何も丸められない。<code>2 SQRT 2 SQRT ADD</code>は<code>8 SQRT</code>。0の上の3つの点も同じ分数の公式で決まる。<code>1/0 5 ADD</code>は<code>1/0</code>、<code>1/0 1/0 ADD</code>は<code>0/0</code>(LANG.VALUES.EXACT)。数でないものは<code>nonNumeric</code>。</p>
+<dl class="word-contract">
+<dt>構文</dt><dd><code>1 2 ADD</code></dd>
+<dt>スタック効果</dt><dd><span class="notation">[ a ] [ b ] -&gt; [ a + b ]</span></dd>
+<dt>スタック</dt><dd>入力 2 → 出力 1</dd>
+<dt>オペランド</dt><dd><code>leaf</code>, <code>leaf</code> (LANG.FAILURE.PASSTHROUGH)</dd>
+<dt>NIL方針</dt><dd><code>passthrough</code>; 投影: なし</dd>
+<dt>部分性</dt><dd><code>total</code></dd>
+<dt>体</dt><dd><code>closed</code> (LANG.CONTRACT.FIELD)</dd>
+<dt>純粋性 / 決定性</dt><dd><code>pure</code> / <code>deterministic</code></dd>
+<dt>作用</dt><dd>なし</dd>
+<dt>ERROR条件</dt><dd><code>nonNumeric</code>, <code>shapeMismatch</code></dd>
+<dt>条項</dt><dd><code>LANG.VALUES.SHAPE</code>, <code>LANG.VALUES.EXACT</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.FAILURE.TRICHOTOMY</code></dd>
+</dl>
+</div>
+<div class="word-entry" id="word-SUB">
+<h4><code>SUB</code> <span class="word-tier">Standard · shorthand</span></h4>
+<p>厳密な差(左から右を引く)。<code>5 3 SUB</code>は<code>2</code>で、ベクトルにはブロードキャスト付きで要素ごとに働き(LANG.COLLECTIONS.LIFT)、<code>2 [ 1 2 3 ] SUB</code>は<code>[ 1 0 -1 ]</code>。数でないものは<code>nonNumeric</code>。</p>
+<dl class="word-contract">
+<dt>構文</dt><dd><code>5 3 SUB</code></dd>
+<dt>スタック効果</dt><dd><span class="notation">[ a ] [ b ] -&gt; [ a - b ]</span></dd>
+<dt>スタック</dt><dd>入力 2 → 出力 1</dd>
+<dt>オペランド</dt><dd><code>leaf</code>, <code>leaf</code> (LANG.FAILURE.PASSTHROUGH)</dd>
+<dt>NIL方針</dt><dd><code>passthrough</code>; 投影: なし</dd>
+<dt>部分性</dt><dd><code>total</code></dd>
+<dt>体</dt><dd><code>closed</code> (LANG.CONTRACT.FIELD)</dd>
+<dt>純粋性 / 決定性</dt><dd><code>pure</code> / <code>deterministic</code></dd>
+<dt>作用</dt><dd>なし</dd>
+<dt>ERROR条件</dt><dd><code>nonNumeric</code>, <code>shapeMismatch</code></dd>
+<dt>条項</dt><dd><code>LANG.VALUES.SHAPE</code>, <code>LANG.VALUES.EXACT</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.FAILURE.TRICHOTOMY</code></dd>
+</dl>
+</div>
+<div class="word-entry" id="word-MUL">
+<h4><code>MUL</code> <span class="word-tier">Semantic Kernel</span></h4>
+<p>厳密な積。<code>2/3 3/4 MUL</code>は<code>1/2</code>で、ベクトルにはブロードキャスト付きで要素ごとに働き(LANG.COLLECTIONS.LIFT)、<code>[ 1 2 3 ] [ 10 ] MUL</code>は<code>[ 10 20 30 ]</code>。0の上の3つの点も同じ分数の公式で決まる。<code>1/0 -2 MUL</code>は<code>-1/0</code>、<code>1/0 0 MUL</code>は<code>0/0</code>(LANG.VALUES.EXACT)。数でないものは<code>nonNumeric</code>。</p>
+<dl class="word-contract">
+<dt>構文</dt><dd><code>2 4 MUL</code></dd>
+<dt>スタック効果</dt><dd><span class="notation">[ a ] [ b ] -&gt; [ a * b ]</span></dd>
+<dt>スタック</dt><dd>入力 2 → 出力 1</dd>
+<dt>オペランド</dt><dd><code>leaf</code>, <code>leaf</code> (LANG.FAILURE.PASSTHROUGH)</dd>
+<dt>NIL方針</dt><dd><code>passthrough</code>; 投影: なし</dd>
+<dt>部分性</dt><dd><code>total</code></dd>
+<dt>体</dt><dd><code>closed</code> (LANG.CONTRACT.FIELD)</dd>
+<dt>純粋性 / 決定性</dt><dd><code>pure</code> / <code>deterministic</code></dd>
+<dt>作用</dt><dd>なし</dd>
+<dt>ERROR条件</dt><dd><code>nonNumeric</code>, <code>shapeMismatch</code></dd>
+<dt>条項</dt><dd><code>LANG.VALUES.SHAPE</code>, <code>LANG.VALUES.EXACT</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.FAILURE.TRICHOTOMY</code></dd>
+</dl>
+</div>
+<div class="word-entry" id="word-DIV">
+<h4><code>DIV</code> <span class="word-tier">Semantic Kernel</span></h4>
+<p>厳密な商(左を右で割る)。<code>1 3 DIV</code>は厳密に<code>1/3</code>。ベクトルにはブロードキャスト付きで要素ごとに働き(LANG.COLLECTIONS.LIFT)、<code>[ 2 4 ] 2 DIV</code>は<code>[ 1 2 ]</code>。除算は全域的である(LANG.VALUES.EXACT)。逆数との積であり、すべての数は逆数を持つ。除数が0なら、被除数の符号を0の上に置いた点を自分のレーンだけに答え、他のレーンには触れない。<code>[ 1 -2 0 ] 0 DIV</code>は<code>[ 1/0 -1/0 0/0 ]</code>、<code>1 1/0 DIV</code>は<code>0</code>。隣のレーンは商のままであり、後続のワードはその点を同じ分数の公式で計算するので、<code>1 0 DIV 2 MUL</code>は<code>1/0</code>、<code>1 0 DIV 0 MUL</code>は<code>0/0</code>。数でないものは<code>nonNumeric</code>。</p>
+<dl class="word-contract">
+<dt>構文</dt><dd><code>10 2 DIV</code></dd>
+<dt>スタック効果</dt><dd><span class="notation">[ a ] [ b ] -&gt; [ a / b ]</span></dd>
+<dt>スタック</dt><dd>入力 2 → 出力 1</dd>
+<dt>オペランド</dt><dd><code>leaf</code>, <code>leaf</code> (LANG.FAILURE.PASSTHROUGH)</dd>
+<dt>NIL方針</dt><dd><code>passthrough</code>; 投影: なし</dd>
+<dt>部分性</dt><dd><code>total</code></dd>
+<dt>体</dt><dd><code>leaving</code> (LANG.CONTRACT.FIELD)</dd>
+<dt>純粋性 / 決定性</dt><dd><code>pure</code> / <code>deterministic</code></dd>
+<dt>作用</dt><dd>なし</dd>
+<dt>ERROR条件</dt><dd><code>nonNumeric</code>, <code>shapeMismatch</code></dd>
+<dt>条項</dt><dd><code>LANG.VALUES.SHAPE</code>, <code>LANG.VALUES.EXACT</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.FAILURE.TRICHOTOMY</code>, <code>LANG.CONTRACT.FIELD</code></dd>
+</dl>
+</div>
+<div class="word-entry" id="word-FLOOR">
+<h4><code>FLOOR</code> <span class="word-tier">Semantic Kernel</span></h4>
+<p>その数を超えない最大の整数。<code>7/3 FLOOR</code>は<code>2</code>、<code>-7/3 FLOOR</code>は<code>-3</code>で、ベクトルには要素ごとに働く。無理数も厳密に切り捨てられる。<code>2 SQRT FLOOR</code>は<code>1</code>。0の上の3つの点には、その位置やその先に整数がないので、それぞれが自分自身の床である。<code>1/0 FLOOR</code>は<code>1/0</code>。数でないものは<code>nonNumeric</code>。</p>
+<dl class="word-contract">
+<dt>構文</dt><dd><code>7/3 FLOOR</code></dd>
+<dt>スタック効果</dt><dd><span class="notation">[ x ] -&gt; [ floor x ]</span></dd>
+<dt>スタック</dt><dd>入力 1 → 出力 1</dd>
+<dt>オペランド</dt><dd><code>leaf</code> (LANG.FAILURE.PASSTHROUGH)</dd>
+<dt>NIL方針</dt><dd><code>passthrough</code>; 投影: なし</dd>
+<dt>部分性</dt><dd><code>total</code></dd>
+<dt>体</dt><dd><code>closed</code> (LANG.CONTRACT.FIELD)</dd>
+<dt>純粋性 / 決定性</dt><dd><code>pure</code> / <code>deterministic</code></dd>
+<dt>作用</dt><dd>なし</dd>
+<dt>ERROR条件</dt><dd><code>nonNumeric</code></dd>
+<dt>条項</dt><dd><code>LANG.VALUES.SHAPE</code>, <code>LANG.VALUES.EXACT</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.FAILURE.TRICHOTOMY</code></dd>
+</dl>
+</div>
+<div class="word-entry" id="word-ROUND">
+<h4><code>ROUND</code> <span class="word-tier">Standard · algorithm</span></h4>
+<p>最も近い整数。ちょうど半分は0から遠い側へ。<code>5/2 ROUND</code>は<code>3</code>、<code>-5/2 ROUND</code>は<code>-3</code>で、ベクトルには要素ごとに働く。FORMATも最終桁を同じ規則で丸める。0の上の3つの点は、それぞれが自分自身の床であるのと同じく、それぞれが自分自身の丸めである。数でないものは<code>nonNumeric</code>。</p>
+<dl class="word-contract">
+<dt>構文</dt><dd><code>5/2 ROUND</code></dd>
+<dt>スタック効果</dt><dd><span class="notation">[ x ] -&gt; [ round x ]</span></dd>
+<dt>スタック</dt><dd>入力 1 → 出力 1</dd>
+<dt>オペランド</dt><dd><code>leaf</code> (LANG.FAILURE.PASSTHROUGH)</dd>
+<dt>NIL方針</dt><dd><code>passthrough</code>; 投影: なし</dd>
+<dt>部分性</dt><dd><code>total</code></dd>
+<dt>体</dt><dd><code>closed</code> (LANG.CONTRACT.FIELD)</dd>
+<dt>純粋性 / 決定性</dt><dd><code>pure</code> / <code>deterministic</code></dd>
+<dt>作用</dt><dd>なし</dd>
+<dt>ERROR条件</dt><dd><code>nonNumeric</code></dd>
+<dt>条項</dt><dd><code>LANG.VALUES.SHAPE</code>, <code>LANG.VALUES.EXACT</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.FAILURE.TRICHOTOMY</code></dd>
 </dl>
 </div>
 <div class="word-entry" id="word-SQRT">
@@ -2097,7 +2095,7 @@ FILTER</code></td>
 <dt>純粋性 / 決定性</dt><dd><code>pure</code> / <code>deterministic</code></dd>
 <dt>作用</dt><dd>なし</dd>
 <dt>ERROR条件</dt><dd><code>nonNumeric</code></dd>
-<dt>条項</dt><dd><code>LANG.VALUES.EXACT</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.FAILURE.TRICHOTOMY</code>, <code>LANG.FAILURE.PROJECT</code></dd>
+<dt>条項</dt><dd><code>LANG.VALUES.SHAPE</code>, <code>LANG.VALUES.EXACT</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.FAILURE.TRICHOTOMY</code>, <code>LANG.FAILURE.PROJECT</code></dd>
 </dl>
 </div>
 <div class="word-entry" id="word-POW">
@@ -2114,7 +2112,7 @@ FILTER</code></td>
 <dt>純粋性 / 決定性</dt><dd><code>pure</code> / <code>deterministic</code></dd>
 <dt>作用</dt><dd>なし</dd>
 <dt>ERROR条件</dt><dd><code>nonNumeric</code>, <code>shapeMismatch</code></dd>
-<dt>条項</dt><dd><code>LANG.VALUES.EXACT</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.FAILURE.TRICHOTOMY</code>, <code>LANG.FAILURE.PROJECT</code>, <code>LANG.CONTRACT.FIELD</code>, <code>LANG.MACHINE.LIMITS</code></dd>
+<dt>条項</dt><dd><code>LANG.VALUES.SHAPE</code>, <code>LANG.VALUES.EXACT</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.FAILURE.TRICHOTOMY</code>, <code>LANG.FAILURE.PROJECT</code>, <code>LANG.CONTRACT.FIELD</code>, <code>LANG.MACHINE.LIMITS</code></dd>
 </dl>
 </div>
 <div class="word-entry" id="word-GCD">
@@ -2131,7 +2129,7 @@ FILTER</code></td>
 <dt>純粋性 / 決定性</dt><dd><code>pure</code> / <code>deterministic</code></dd>
 <dt>作用</dt><dd>なし</dd>
 <dt>ERROR条件</dt><dd><code>nonNumeric</code>, <code>shapeMismatch</code></dd>
-<dt>条項</dt><dd><code>LANG.VALUES.EXACT</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.FAILURE.TRICHOTOMY</code>, <code>LANG.FAILURE.PROJECT</code></dd>
+<dt>条項</dt><dd><code>LANG.VALUES.SHAPE</code>, <code>LANG.VALUES.EXACT</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.FAILURE.TRICHOTOMY</code>, <code>LANG.FAILURE.PROJECT</code></dd>
 </dl>
 </div>
 <div class="word-entry" id="word-RATIO">
@@ -2148,7 +2146,7 @@ FILTER</code></td>
 <dt>純粋性 / 決定性</dt><dd><code>pure</code> / <code>deterministic</code></dd>
 <dt>作用</dt><dd>なし</dd>
 <dt>ERROR条件</dt><dd><code>nonNumeric</code></dd>
-<dt>条項</dt><dd><code>LANG.VALUES.EXACT</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.FAILURE.TRICHOTOMY</code>, <code>LANG.FAILURE.PROJECT</code></dd>
+<dt>条項</dt><dd><code>LANG.VALUES.SHAPE</code>, <code>LANG.VALUES.EXACT</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.FAILURE.TRICHOTOMY</code>, <code>LANG.FAILURE.PROJECT</code></dd>
 </dl>
 </div>
 <!-- END generated word contracts: operators -->

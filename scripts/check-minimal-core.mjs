@@ -42,13 +42,19 @@ const OPERATIONAL = new Set('FILTER SCAN FILL SORT ORDER UNIQUE TALLY ZIP GROUP 
 // non-recursive language), so retiring one would cut capability rather than
 // spelling, and a Kernel Word is not on the table.
 //
-// The order is use, least first, as counted in the lexicon pilot's programs
-// (tools/lexicon-emergence/runs/pilot-2026-09-23): REVERSE 6,
+// SUB heads the list on the zero-shape reading (LANG.VALUES.SHAPE): it is the
+// one derivable Word with no law of its own — its `zeroShapes` law
+// `difference` is the sum table over a negated operand, as `x y -1 MUL ADD`
+// is — and a wheel has no subtraction among its operations, only addition and
+// the reciprocal. It is also the most used, so the move was the owner's call
+// (2026-10): the next Word admitted takes SUB's slot first.
+// The rest stay in order of use, least first, as counted in the lexicon
+// pilot's programs (tools/lexicon-emergence/runs/pilot-2026-09-23): REVERSE 6,
 // TRIM 10, TOKENIZE 12, MAX 13, MIN 14, TAKE 16, DROP 32, SUB 54 (written `-`).
 // `ROUND` is deliberately absent though it is derivable: its Kernel phrase
 // branches on the sign of its operand, which is the one of these a reader is
 // likely to write wrongly by hand.
-const RETIREMENT_QUEUE = 'REVERSE TRIM TOKENIZE MAX MIN TAKE DROP SUB'.split(/\s+/);
+const RETIREMENT_QUEUE = 'SUB REVERSE TRIM TOKENIZE MAX MIN TAKE DROP'.split(/\s+/);
 
 const words = wordsDocument().entries;
 const coverage = readJson('docs/formalization-coverage.json');

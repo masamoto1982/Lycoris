@@ -179,10 +179,10 @@
      "pattern": "^(?:[A-Z][A-Z0-9@?-]*(?:@[A-Z][A-Z0-9@?-]*)?|>[A-Z][A-Z0-9@?-]*)$"
     },
     "family": {
+     "description": "The semantic family the Word selects its shared laws from. The Words that act on numbers and on what two sources agree on divide along Belnap's two orders (LANG.VALUES.SHAPE): `knowledgeOrder` is the arithmetic and RECONCILE, every member citing LANG.VALUES.SHAPE; `truthOrder` is the truth values, their connectives and the Words that ask an order, every member citing LANG.VALUES.TRUTH.",
      "enum": [
-      "booleanLogic",
-      "comparison",
-      "exactArithmetic",
+      "knowledgeOrder",
+      "truthOrder",
       "collection",
       "higherOrder",
       "text",

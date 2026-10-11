@@ -1313,9 +1313,8 @@ FILTER</code></td>
 <table class="ref-table">
 <thead><tr><th>Family</th><th>Words</th><th>Explained in</th></tr></thead>
 <tbody>
-<tr><td class="notes">Logic</td><td><a href="#word-TRUE"><code>TRUE</code></a> <a href="#word-FALSE"><code>FALSE</code></a> <a href="#word-BOTH"><code>BOTH</code></a> <a href="#word-AND"><code>AND</code></a> <a href="#word-NOT"><code>NOT</code></a> <a href="#word-SELECT"><code>SELECT</code></a> <a href="#word-RECONCILE"><code>RECONCILE</code></a></td><td class="notes"><a href="#operators">2.4.2.1 Logic, comparison, arithmetic</a></td></tr>
-<tr><td class="notes">Comparison</td><td><a href="#word-EQ"><code>EQ</code></a> <a href="#word-LT"><code>LT</code></a> <a href="#word-GT"><code>GT</code></a></td><td class="notes"><a href="#operators">2.4.2.1 Logic, comparison, arithmetic</a></td></tr>
-<tr><td class="notes">Exact arithmetic</td><td><a href="#word-ADD"><code>ADD</code></a> <a href="#word-SUB"><code>SUB</code></a> <a href="#word-MUL"><code>MUL</code></a> <a href="#word-DIV"><code>DIV</code></a> <a href="#word-FLOOR"><code>FLOOR</code></a> <a href="#word-ROUND"><code>ROUND</code></a> <a href="#word-MIN"><code>MIN</code></a> <a href="#word-MAX"><code>MAX</code></a> <a href="#word-SQRT"><code>SQRT</code></a> <a href="#word-POW"><code>POW</code></a> <a href="#word-GCD"><code>GCD</code></a> <a href="#word-RATIO"><code>RATIO</code></a></td><td class="notes"><a href="#operators">2.4.2.1 Logic, comparison, arithmetic</a></td></tr>
+<tr><td class="notes">Logic and order (the truth order)</td><td><a href="#word-TRUE"><code>TRUE</code></a> <a href="#word-FALSE"><code>FALSE</code></a> <a href="#word-BOTH"><code>BOTH</code></a> <a href="#word-AND"><code>AND</code></a> <a href="#word-NOT"><code>NOT</code></a> <a href="#word-SELECT"><code>SELECT</code></a> <a href="#word-EQ"><code>EQ</code></a> <a href="#word-LT"><code>LT</code></a> <a href="#word-GT"><code>GT</code></a> <a href="#word-MIN"><code>MIN</code></a> <a href="#word-MAX"><code>MAX</code></a></td><td class="notes"><a href="#operators">2.4.2.1 Logic, comparison, arithmetic</a></td></tr>
+<tr><td class="notes">Exact arithmetic (the knowledge order)</td><td><a href="#word-RECONCILE"><code>RECONCILE</code></a> <a href="#word-ADD"><code>ADD</code></a> <a href="#word-SUB"><code>SUB</code></a> <a href="#word-MUL"><code>MUL</code></a> <a href="#word-DIV"><code>DIV</code></a> <a href="#word-FLOOR"><code>FLOOR</code></a> <a href="#word-ROUND"><code>ROUND</code></a> <a href="#word-SQRT"><code>SQRT</code></a> <a href="#word-POW"><code>POW</code></a> <a href="#word-GCD"><code>GCD</code></a> <a href="#word-RATIO"><code>RATIO</code></a></td><td class="notes"><a href="#operators">2.4.2.1 Logic, comparison, arithmetic</a></td></tr>
 <tr><td class="notes">Vectors</td><td><a href="#word-GET"><code>GET</code></a> <a href="#word-LENGTH"><code>LENGTH</code></a> <a href="#word-TAKE"><code>TAKE</code></a> <a href="#word-DROP"><code>DROP</code></a> <a href="#word-CONCAT"><code>CONCAT</code></a> <a href="#word-REVERSE"><code>REVERSE</code></a> <a href="#word-COLLECT"><code>COLLECT</code></a> <a href="#word-RANGE"><code>RANGE</code></a> <a href="#word-FILL"><code>FILL</code></a> <a href="#word-SHAPE"><code>SHAPE</code></a> <a href="#word-RESHAPE"><code>RESHAPE</code></a> <a href="#word-FLATTEN"><code>FLATTEN</code></a> <a href="#word-DEPTH"><code>DEPTH</code></a> <a href="#word-SORT"><code>SORT</code></a> <a href="#word-ORDER"><code>ORDER</code></a> <a href="#word-UNIQUE"><code>UNIQUE</code></a> <a href="#word-ZIP"><code>ZIP</code></a> <a href="#word-PUT"><code>PUT</code></a> <a href="#word-BSEARCH"><code>BSEARCH</code></a></td><td class="notes"><a href="#vector-ops">2.4.2.2 Vector operations</a></td></tr>
 <tr><td class="notes">Records</td><td><a href="#word-TALLY"><code>TALLY</code></a> <a href="#word-GROUP"><code>GROUP</code></a> <a href="#word-RECORD"><code>RECORD</code></a> <a href="#word-KEYS"><code>KEYS</code></a> <a href="#word-VALUES"><code>VALUES</code></a> <a href="#word-WITHOUT"><code>WITHOUT</code></a> <a href="#word-HAS_3f"><code>HAS?</code></a> <a href="#word-MERGE"><code>MERGE</code></a></td><td class="notes"><a href="#records">2.4.2.3 Keyed data</a></td></tr>
 <tr><td class="notes">Iteration</td><td><a href="#word-MAP"><code>MAP</code></a> <a href="#word-FILTER"><code>FILTER</code></a> <a href="#word-FOLD"><code>FOLD</code></a> <a href="#word-SCAN"><code>SCAN</code></a></td><td class="notes"><a href="#control">2.4.2.5 Choice and iteration</a></td></tr>
@@ -1785,7 +1784,7 @@ FILTER</code></td>
                     </div>
                 
                 <!-- BEGIN generated word contracts: operators -->
-<h3 id="family-booleanLogic">Contracts: Logic</h3>
+<h3 id="family-truthOrder">Contracts: Logic and order (the truth order)</h3>
 <div class="word-entry" id="word-TRUE">
 <h4><code>TRUE</code> <span class="word-tier">Semantic Kernel</span></h4>
 <p>The truth value TRUE: <code>TRUE</code> is <code>1 1 EQ</code>. It is a Boolean, not the number one (LANG.VALUES.DISJOINT), so <code>TRUE 1 EQ</code> is <code>FALSE</code>.</p>
@@ -1882,23 +1881,6 @@ FILTER</code></td>
 <dt>Clauses</dt><dd><code>LANG.VALUES.TRUTH</code>, <code>LANG.COLLECTIONS.LIFT</code></dd>
 </dl>
 </div>
-<div class="word-entry" id="word-RECONCILE">
-<h4><code>RECONCILE</code> <span class="word-tier">Semantic Kernel</span></h4>
-<p>What two sources agree on (LANG.VALUES.TRUTH): <code>1 1 RECONCILE</code> is <code>1</code>, and an absence yields to what the other source holds, <code>NIL 5 RECONCILE</code> is <code>5</code>. Among numbers <code>0/0</code> knows least and yields to the other number (LANG.VALUES.SHAPE): <code>0/0 5 RECONCILE</code> is <code>5</code>, while <code>0/0 TRUE RECONCILE</code> is a conflict. Two different truth values are BOTH, <code>TRUE FALSE RECONCILE</code> is <code>BOTH</code>; any other two different values have nothing they agree on and project NIL(conflict), <code>'Tokyo' 'Osaka' RECONCILE NIL-REASON</code> is <code>'conflict'</code>. A conflict is not settled by a third source, so the Word is associative, commutative and idempotent, and a FOLD of it over many sources does not depend on their order. Like EQ it compares its operands whole: <code>[ 1 2 ] [ 1 3 ] RECONCILE</code> is a conflict, and a program that reconciles lane by lane ZIPs and MAPs.</p>
-<dl class="word-contract">
-<dt>Syntax</dt><dd><code>TRUE FALSE RECONCILE</code></dd>
-<dt>Stack effect</dt><dd><span class="notation">[ a ] [ b ] -&gt; [ agreed ]</span></dd>
-<dt>Stack</dt><dd>2 input(s) → 1 output(s)</dd>
-<dt>Operands</dt><dd><code>element</code>, <code>element</code> (LANG.FAILURE.PASSTHROUGH)</dd>
-<dt>NIL policy</dt><dd><code>consumeNil</code>; projection: <code>sourcesDisagree</code> → <code>conflict</code></dd>
-<dt>Partiality</dt><dd><code>projecting</code></dd>
-<dt>Field</dt><dd><code>closed</code> (LANG.CONTRACT.FIELD)</dd>
-<dt>Purity / determinism</dt><dd><code>pure</code> / <code>deterministic</code></dd>
-<dt>Effects</dt><dd>none</dd>
-<dt>Clauses</dt><dd><code>LANG.VALUES.TRUTH</code>, <code>LANG.VALUES.DENOTATION</code>, <code>LANG.FAILURE.PROJECT</code></dd>
-</dl>
-</div>
-<h3 id="family-comparison">Contracts: Comparison</h3>
 <div class="word-entry" id="word-EQ">
 <h4><code>EQ</code> <span class="word-tier">Semantic Kernel</span></h4>
 <p>Whether two values are one value (LANG.VALUES.DENOTATION), whatever built each: <code>1 1/1 EQ</code> is <code>TRUE</code>, <code>2 SQRT 2 SQRT MUL 2 EQ</code> is <code>TRUE</code>, <code>100 0 DIV 1/0 EQ</code> is <code>TRUE</code>, <code>0/0 0/0 EQ</code> is <code>TRUE</code>, and <code>[ 1 2 ] [ 1 2 ] EQ</code> is <code>TRUE</code> — EQ compares its operands whole and does not lift. It reads both operands, so an absent one is the answer, as it is for every data operand (LANG.FAILURE.PASSTHROUGH): <code>-1 SQRT 1 EQ</code> is the UNKNOWN that absence already was, since there is nothing to compare. Inside a Vector a NIL is an element like any other and is compared by its reason, so <code>[ NIL ] [ NIL ] EQ</code> is <code>TRUE</code>; that is the equality UNIQUE and RECONCILE use, and a program that wants two possibly absent values compared rather than passed through wraps each in <code>1 COLLECT</code> first.</p>
@@ -1949,109 +1931,6 @@ FILTER</code></td>
 <dt>Clauses</dt><dd><code>LANG.VALUES.TRUTH</code>, <code>LANG.VALUES.EXACT</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.FAILURE.PROJECT</code></dd>
 </dl>
 </div>
-<h3 id="family-exactArithmetic">Contracts: Exact arithmetic</h3>
-<div class="word-entry" id="word-ADD">
-<h4><code>ADD</code> <span class="word-tier">Semantic Kernel</span></h4>
-<p>The exact sum: <code>1/3 1/6 ADD</code> is <code>1/2</code>, and element-wise over Vectors with broadcasting (LANG.COLLECTIONS.LIFT), <code>[ 1 2 ] 10 ADD</code> is <code>[ 11 12 ]</code>. Nothing is rounded: <code>2 SQRT 2 SQRT ADD</code> is <code>8 SQRT</code>. The pair formula decides the three points over zero too: <code>1/0 5 ADD</code> is <code>1/0</code> and <code>1/0 1/0 ADD</code> is <code>0/0</code> (LANG.VALUES.EXACT). A non-number is <code>nonNumeric</code>.</p>
-<dl class="word-contract">
-<dt>Syntax</dt><dd><code>1 2 ADD</code></dd>
-<dt>Stack effect</dt><dd><span class="notation">[ a ] [ b ] -&gt; [ a + b ]</span></dd>
-<dt>Stack</dt><dd>2 input(s) → 1 output(s)</dd>
-<dt>Operands</dt><dd><code>leaf</code>, <code>leaf</code> (LANG.FAILURE.PASSTHROUGH)</dd>
-<dt>NIL policy</dt><dd><code>passthrough</code>; projection: none</dd>
-<dt>Partiality</dt><dd><code>total</code></dd>
-<dt>Field</dt><dd><code>closed</code> (LANG.CONTRACT.FIELD)</dd>
-<dt>Purity / determinism</dt><dd><code>pure</code> / <code>deterministic</code></dd>
-<dt>Effects</dt><dd>none</dd>
-<dt>ERROR conditions</dt><dd><code>nonNumeric</code>, <code>shapeMismatch</code></dd>
-<dt>Clauses</dt><dd><code>LANG.VALUES.EXACT</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.FAILURE.TRICHOTOMY</code></dd>
-</dl>
-</div>
-<div class="word-entry" id="word-SUB">
-<h4><code>SUB</code> <span class="word-tier">Standard · shorthand</span></h4>
-<p>The exact difference, left minus right: <code>5 3 SUB</code> is <code>2</code>, and element-wise over Vectors with broadcasting (LANG.COLLECTIONS.LIFT), <code>2 [ 1 2 3 ] SUB</code> is <code>[ 1 0 -1 ]</code>. A non-number is <code>nonNumeric</code>.</p>
-<dl class="word-contract">
-<dt>Syntax</dt><dd><code>5 3 SUB</code></dd>
-<dt>Stack effect</dt><dd><span class="notation">[ a ] [ b ] -&gt; [ a - b ]</span></dd>
-<dt>Stack</dt><dd>2 input(s) → 1 output(s)</dd>
-<dt>Operands</dt><dd><code>leaf</code>, <code>leaf</code> (LANG.FAILURE.PASSTHROUGH)</dd>
-<dt>NIL policy</dt><dd><code>passthrough</code>; projection: none</dd>
-<dt>Partiality</dt><dd><code>total</code></dd>
-<dt>Field</dt><dd><code>closed</code> (LANG.CONTRACT.FIELD)</dd>
-<dt>Purity / determinism</dt><dd><code>pure</code> / <code>deterministic</code></dd>
-<dt>Effects</dt><dd>none</dd>
-<dt>ERROR conditions</dt><dd><code>nonNumeric</code>, <code>shapeMismatch</code></dd>
-<dt>Clauses</dt><dd><code>LANG.VALUES.EXACT</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.FAILURE.TRICHOTOMY</code></dd>
-</dl>
-</div>
-<div class="word-entry" id="word-MUL">
-<h4><code>MUL</code> <span class="word-tier">Semantic Kernel</span></h4>
-<p>The exact product: <code>2/3 3/4 MUL</code> is <code>1/2</code>, and element-wise over Vectors with broadcasting (LANG.COLLECTIONS.LIFT), <code>[ 1 2 3 ] [ 10 ] MUL</code> is <code>[ 10 20 30 ]</code>. The pair formula decides the three points over zero too: <code>1/0 -2 MUL</code> is <code>-1/0</code> and <code>1/0 0 MUL</code> is <code>0/0</code> (LANG.VALUES.EXACT). A non-number is <code>nonNumeric</code>.</p>
-<dl class="word-contract">
-<dt>Syntax</dt><dd><code>2 4 MUL</code></dd>
-<dt>Stack effect</dt><dd><span class="notation">[ a ] [ b ] -&gt; [ a * b ]</span></dd>
-<dt>Stack</dt><dd>2 input(s) → 1 output(s)</dd>
-<dt>Operands</dt><dd><code>leaf</code>, <code>leaf</code> (LANG.FAILURE.PASSTHROUGH)</dd>
-<dt>NIL policy</dt><dd><code>passthrough</code>; projection: none</dd>
-<dt>Partiality</dt><dd><code>total</code></dd>
-<dt>Field</dt><dd><code>closed</code> (LANG.CONTRACT.FIELD)</dd>
-<dt>Purity / determinism</dt><dd><code>pure</code> / <code>deterministic</code></dd>
-<dt>Effects</dt><dd>none</dd>
-<dt>ERROR conditions</dt><dd><code>nonNumeric</code>, <code>shapeMismatch</code></dd>
-<dt>Clauses</dt><dd><code>LANG.VALUES.EXACT</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.FAILURE.TRICHOTOMY</code></dd>
-</dl>
-</div>
-<div class="word-entry" id="word-DIV">
-<h4><code>DIV</code> <span class="word-tier">Semantic Kernel</span></h4>
-<p>The exact quotient, left over right: <code>1 3 DIV</code> is exactly <code>1/3</code>, and element-wise over Vectors with broadcasting (LANG.COLLECTIONS.LIFT), <code>[ 2 4 ] 2 DIV</code> is <code>[ 1 2 ]</code>. Division is total (LANG.VALUES.EXACT): it is multiplication by the reciprocal, and every number has one. A zero divisor answers the dividend's sign over zero in its own lane and no other — <code>[ 1 -2 0 ] 0 DIV</code> is <code>[ 1/0 -1/0 0/0 ]</code>, and <code>1 1/0 DIV</code> is <code>0</code> — the lanes beside it are quotients, and a Word after it computes with the point by the same pair formulas, so <code>1 0 DIV 2 MUL</code> is <code>1/0</code> and <code>1 0 DIV 0 MUL</code> is <code>0/0</code>. A non-number is <code>nonNumeric</code>.</p>
-<dl class="word-contract">
-<dt>Syntax</dt><dd><code>10 2 DIV</code></dd>
-<dt>Stack effect</dt><dd><span class="notation">[ a ] [ b ] -&gt; [ a / b ]</span></dd>
-<dt>Stack</dt><dd>2 input(s) → 1 output(s)</dd>
-<dt>Operands</dt><dd><code>leaf</code>, <code>leaf</code> (LANG.FAILURE.PASSTHROUGH)</dd>
-<dt>NIL policy</dt><dd><code>passthrough</code>; projection: none</dd>
-<dt>Partiality</dt><dd><code>total</code></dd>
-<dt>Field</dt><dd><code>leaving</code> (LANG.CONTRACT.FIELD)</dd>
-<dt>Purity / determinism</dt><dd><code>pure</code> / <code>deterministic</code></dd>
-<dt>Effects</dt><dd>none</dd>
-<dt>ERROR conditions</dt><dd><code>nonNumeric</code>, <code>shapeMismatch</code></dd>
-<dt>Clauses</dt><dd><code>LANG.VALUES.EXACT</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.FAILURE.TRICHOTOMY</code>, <code>LANG.CONTRACT.FIELD</code></dd>
-</dl>
-</div>
-<div class="word-entry" id="word-FLOOR">
-<h4><code>FLOOR</code> <span class="word-tier">Semantic Kernel</span></h4>
-<p>The greatest integer not above the number: <code>7/3 FLOOR</code> is <code>2</code> and <code>-7/3 FLOOR</code> is <code>-3</code>, element-wise over Vectors. Irrationals floor exactly: <code>2 SQRT FLOOR</code> is <code>1</code>. No integer lies at or beyond the three points over zero, so each is its own floor: <code>1/0 FLOOR</code> is <code>1/0</code>. A non-number is <code>nonNumeric</code>.</p>
-<dl class="word-contract">
-<dt>Syntax</dt><dd><code>7/3 FLOOR</code></dd>
-<dt>Stack effect</dt><dd><span class="notation">[ x ] -&gt; [ floor x ]</span></dd>
-<dt>Stack</dt><dd>1 input(s) → 1 output(s)</dd>
-<dt>Operands</dt><dd><code>leaf</code> (LANG.FAILURE.PASSTHROUGH)</dd>
-<dt>NIL policy</dt><dd><code>passthrough</code>; projection: none</dd>
-<dt>Partiality</dt><dd><code>total</code></dd>
-<dt>Field</dt><dd><code>closed</code> (LANG.CONTRACT.FIELD)</dd>
-<dt>Purity / determinism</dt><dd><code>pure</code> / <code>deterministic</code></dd>
-<dt>Effects</dt><dd>none</dd>
-<dt>ERROR conditions</dt><dd><code>nonNumeric</code></dd>
-<dt>Clauses</dt><dd><code>LANG.VALUES.EXACT</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.FAILURE.TRICHOTOMY</code></dd>
-</dl>
-</div>
-<div class="word-entry" id="word-ROUND">
-<h4><code>ROUND</code> <span class="word-tier">Standard · algorithm</span></h4>
-<p>The nearest integer, a tie going away from zero: <code>5/2 ROUND</code> is <code>3</code> and <code>-5/2 ROUND</code> is <code>-3</code>, element-wise over Vectors. FORMAT rounds its last digit the same way. Each of the three points over zero is its own rounding, as it is its own floor. A non-number is <code>nonNumeric</code>.</p>
-<dl class="word-contract">
-<dt>Syntax</dt><dd><code>5/2 ROUND</code></dd>
-<dt>Stack effect</dt><dd><span class="notation">[ x ] -&gt; [ round x ]</span></dd>
-<dt>Stack</dt><dd>1 input(s) → 1 output(s)</dd>
-<dt>Operands</dt><dd><code>leaf</code> (LANG.FAILURE.PASSTHROUGH)</dd>
-<dt>NIL policy</dt><dd><code>passthrough</code>; projection: none</dd>
-<dt>Partiality</dt><dd><code>total</code></dd>
-<dt>Field</dt><dd><code>closed</code> (LANG.CONTRACT.FIELD)</dd>
-<dt>Purity / determinism</dt><dd><code>pure</code> / <code>deterministic</code></dd>
-<dt>Effects</dt><dd>none</dd>
-<dt>ERROR conditions</dt><dd><code>nonNumeric</code></dd>
-<dt>Clauses</dt><dd><code>LANG.VALUES.EXACT</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.FAILURE.TRICHOTOMY</code></dd>
-</dl>
-</div>
 <div class="word-entry" id="word-MIN">
 <h4><code>MIN</code> <span class="word-tier">Standard · namedPattern</span></h4>
 <p>The smaller of two numbers: <code>1 2 MIN</code> is <code>1</code>, and element-wise over Vectors with broadcasting, <code>[ 3 1 ] 2 MIN</code> is <code>[ 2 1 ]</code>. The order is the exact domain's (LANG.VALUES.EXACT): <code>-1/0 5 MIN</code> is <code>-1/0</code>, and <code>0/0</code>, which has no order, projects NIL(domainMiss) as LT does. A non-number is <code>nonNumeric</code>.</p>
@@ -2066,7 +1945,7 @@ FILTER</code></td>
 <dt>Purity / determinism</dt><dd><code>pure</code> / <code>deterministic</code></dd>
 <dt>Effects</dt><dd>none</dd>
 <dt>ERROR conditions</dt><dd><code>nonNumeric</code>, <code>shapeMismatch</code></dd>
-<dt>Clauses</dt><dd><code>LANG.VALUES.EXACT</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.FAILURE.TRICHOTOMY</code>, <code>LANG.FAILURE.PROJECT</code></dd>
+<dt>Clauses</dt><dd><code>LANG.VALUES.TRUTH</code>, <code>LANG.VALUES.EXACT</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.FAILURE.TRICHOTOMY</code>, <code>LANG.FAILURE.PROJECT</code></dd>
 </dl>
 </div>
 <div class="word-entry" id="word-MAX">
@@ -2083,7 +1962,126 @@ FILTER</code></td>
 <dt>Purity / determinism</dt><dd><code>pure</code> / <code>deterministic</code></dd>
 <dt>Effects</dt><dd>none</dd>
 <dt>ERROR conditions</dt><dd><code>nonNumeric</code>, <code>shapeMismatch</code></dd>
-<dt>Clauses</dt><dd><code>LANG.VALUES.EXACT</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.FAILURE.TRICHOTOMY</code>, <code>LANG.FAILURE.PROJECT</code></dd>
+<dt>Clauses</dt><dd><code>LANG.VALUES.TRUTH</code>, <code>LANG.VALUES.EXACT</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.FAILURE.TRICHOTOMY</code>, <code>LANG.FAILURE.PROJECT</code></dd>
+</dl>
+</div>
+<h3 id="family-knowledgeOrder">Contracts: Exact arithmetic (the knowledge order)</h3>
+<div class="word-entry" id="word-RECONCILE">
+<h4><code>RECONCILE</code> <span class="word-tier">Semantic Kernel</span></h4>
+<p>What two sources agree on (LANG.VALUES.TRUTH): <code>1 1 RECONCILE</code> is <code>1</code>, and an absence yields to what the other source holds, <code>NIL 5 RECONCILE</code> is <code>5</code>. Among numbers <code>0/0</code> knows least and yields to the other number (LANG.VALUES.SHAPE): <code>0/0 5 RECONCILE</code> is <code>5</code>, while <code>0/0 TRUE RECONCILE</code> is a conflict. Two different truth values are BOTH, <code>TRUE FALSE RECONCILE</code> is <code>BOTH</code>; any other two different values have nothing they agree on and project NIL(conflict), <code>'Tokyo' 'Osaka' RECONCILE NIL-REASON</code> is <code>'conflict'</code>. A conflict is not settled by a third source, so the Word is associative, commutative and idempotent, and a FOLD of it over many sources does not depend on their order. Like EQ it compares its operands whole: <code>[ 1 2 ] [ 1 3 ] RECONCILE</code> is a conflict, and a program that reconciles lane by lane ZIPs and MAPs.</p>
+<dl class="word-contract">
+<dt>Syntax</dt><dd><code>TRUE FALSE RECONCILE</code></dd>
+<dt>Stack effect</dt><dd><span class="notation">[ a ] [ b ] -&gt; [ agreed ]</span></dd>
+<dt>Stack</dt><dd>2 input(s) → 1 output(s)</dd>
+<dt>Operands</dt><dd><code>element</code>, <code>element</code> (LANG.FAILURE.PASSTHROUGH)</dd>
+<dt>NIL policy</dt><dd><code>consumeNil</code>; projection: <code>sourcesDisagree</code> → <code>conflict</code></dd>
+<dt>Partiality</dt><dd><code>projecting</code></dd>
+<dt>Field</dt><dd><code>closed</code> (LANG.CONTRACT.FIELD)</dd>
+<dt>Purity / determinism</dt><dd><code>pure</code> / <code>deterministic</code></dd>
+<dt>Effects</dt><dd>none</dd>
+<dt>Clauses</dt><dd><code>LANG.VALUES.SHAPE</code>, <code>LANG.VALUES.TRUTH</code>, <code>LANG.VALUES.DENOTATION</code>, <code>LANG.FAILURE.PROJECT</code></dd>
+</dl>
+</div>
+<div class="word-entry" id="word-ADD">
+<h4><code>ADD</code> <span class="word-tier">Semantic Kernel</span></h4>
+<p>The exact sum: <code>1/3 1/6 ADD</code> is <code>1/2</code>, and element-wise over Vectors with broadcasting (LANG.COLLECTIONS.LIFT), <code>[ 1 2 ] 10 ADD</code> is <code>[ 11 12 ]</code>. Nothing is rounded: <code>2 SQRT 2 SQRT ADD</code> is <code>8 SQRT</code>. The pair formula decides the three points over zero too: <code>1/0 5 ADD</code> is <code>1/0</code> and <code>1/0 1/0 ADD</code> is <code>0/0</code> (LANG.VALUES.EXACT). A non-number is <code>nonNumeric</code>.</p>
+<dl class="word-contract">
+<dt>Syntax</dt><dd><code>1 2 ADD</code></dd>
+<dt>Stack effect</dt><dd><span class="notation">[ a ] [ b ] -&gt; [ a + b ]</span></dd>
+<dt>Stack</dt><dd>2 input(s) → 1 output(s)</dd>
+<dt>Operands</dt><dd><code>leaf</code>, <code>leaf</code> (LANG.FAILURE.PASSTHROUGH)</dd>
+<dt>NIL policy</dt><dd><code>passthrough</code>; projection: none</dd>
+<dt>Partiality</dt><dd><code>total</code></dd>
+<dt>Field</dt><dd><code>closed</code> (LANG.CONTRACT.FIELD)</dd>
+<dt>Purity / determinism</dt><dd><code>pure</code> / <code>deterministic</code></dd>
+<dt>Effects</dt><dd>none</dd>
+<dt>ERROR conditions</dt><dd><code>nonNumeric</code>, <code>shapeMismatch</code></dd>
+<dt>Clauses</dt><dd><code>LANG.VALUES.SHAPE</code>, <code>LANG.VALUES.EXACT</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.FAILURE.TRICHOTOMY</code></dd>
+</dl>
+</div>
+<div class="word-entry" id="word-SUB">
+<h4><code>SUB</code> <span class="word-tier">Standard · shorthand</span></h4>
+<p>The exact difference, left minus right: <code>5 3 SUB</code> is <code>2</code>, and element-wise over Vectors with broadcasting (LANG.COLLECTIONS.LIFT), <code>2 [ 1 2 3 ] SUB</code> is <code>[ 1 0 -1 ]</code>. A non-number is <code>nonNumeric</code>.</p>
+<dl class="word-contract">
+<dt>Syntax</dt><dd><code>5 3 SUB</code></dd>
+<dt>Stack effect</dt><dd><span class="notation">[ a ] [ b ] -&gt; [ a - b ]</span></dd>
+<dt>Stack</dt><dd>2 input(s) → 1 output(s)</dd>
+<dt>Operands</dt><dd><code>leaf</code>, <code>leaf</code> (LANG.FAILURE.PASSTHROUGH)</dd>
+<dt>NIL policy</dt><dd><code>passthrough</code>; projection: none</dd>
+<dt>Partiality</dt><dd><code>total</code></dd>
+<dt>Field</dt><dd><code>closed</code> (LANG.CONTRACT.FIELD)</dd>
+<dt>Purity / determinism</dt><dd><code>pure</code> / <code>deterministic</code></dd>
+<dt>Effects</dt><dd>none</dd>
+<dt>ERROR conditions</dt><dd><code>nonNumeric</code>, <code>shapeMismatch</code></dd>
+<dt>Clauses</dt><dd><code>LANG.VALUES.SHAPE</code>, <code>LANG.VALUES.EXACT</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.FAILURE.TRICHOTOMY</code></dd>
+</dl>
+</div>
+<div class="word-entry" id="word-MUL">
+<h4><code>MUL</code> <span class="word-tier">Semantic Kernel</span></h4>
+<p>The exact product: <code>2/3 3/4 MUL</code> is <code>1/2</code>, and element-wise over Vectors with broadcasting (LANG.COLLECTIONS.LIFT), <code>[ 1 2 3 ] [ 10 ] MUL</code> is <code>[ 10 20 30 ]</code>. The pair formula decides the three points over zero too: <code>1/0 -2 MUL</code> is <code>-1/0</code> and <code>1/0 0 MUL</code> is <code>0/0</code> (LANG.VALUES.EXACT). A non-number is <code>nonNumeric</code>.</p>
+<dl class="word-contract">
+<dt>Syntax</dt><dd><code>2 4 MUL</code></dd>
+<dt>Stack effect</dt><dd><span class="notation">[ a ] [ b ] -&gt; [ a * b ]</span></dd>
+<dt>Stack</dt><dd>2 input(s) → 1 output(s)</dd>
+<dt>Operands</dt><dd><code>leaf</code>, <code>leaf</code> (LANG.FAILURE.PASSTHROUGH)</dd>
+<dt>NIL policy</dt><dd><code>passthrough</code>; projection: none</dd>
+<dt>Partiality</dt><dd><code>total</code></dd>
+<dt>Field</dt><dd><code>closed</code> (LANG.CONTRACT.FIELD)</dd>
+<dt>Purity / determinism</dt><dd><code>pure</code> / <code>deterministic</code></dd>
+<dt>Effects</dt><dd>none</dd>
+<dt>ERROR conditions</dt><dd><code>nonNumeric</code>, <code>shapeMismatch</code></dd>
+<dt>Clauses</dt><dd><code>LANG.VALUES.SHAPE</code>, <code>LANG.VALUES.EXACT</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.FAILURE.TRICHOTOMY</code></dd>
+</dl>
+</div>
+<div class="word-entry" id="word-DIV">
+<h4><code>DIV</code> <span class="word-tier">Semantic Kernel</span></h4>
+<p>The exact quotient, left over right: <code>1 3 DIV</code> is exactly <code>1/3</code>, and element-wise over Vectors with broadcasting (LANG.COLLECTIONS.LIFT), <code>[ 2 4 ] 2 DIV</code> is <code>[ 1 2 ]</code>. Division is total (LANG.VALUES.EXACT): it is multiplication by the reciprocal, and every number has one. A zero divisor answers the dividend's sign over zero in its own lane and no other — <code>[ 1 -2 0 ] 0 DIV</code> is <code>[ 1/0 -1/0 0/0 ]</code>, and <code>1 1/0 DIV</code> is <code>0</code> — the lanes beside it are quotients, and a Word after it computes with the point by the same pair formulas, so <code>1 0 DIV 2 MUL</code> is <code>1/0</code> and <code>1 0 DIV 0 MUL</code> is <code>0/0</code>. A non-number is <code>nonNumeric</code>.</p>
+<dl class="word-contract">
+<dt>Syntax</dt><dd><code>10 2 DIV</code></dd>
+<dt>Stack effect</dt><dd><span class="notation">[ a ] [ b ] -&gt; [ a / b ]</span></dd>
+<dt>Stack</dt><dd>2 input(s) → 1 output(s)</dd>
+<dt>Operands</dt><dd><code>leaf</code>, <code>leaf</code> (LANG.FAILURE.PASSTHROUGH)</dd>
+<dt>NIL policy</dt><dd><code>passthrough</code>; projection: none</dd>
+<dt>Partiality</dt><dd><code>total</code></dd>
+<dt>Field</dt><dd><code>leaving</code> (LANG.CONTRACT.FIELD)</dd>
+<dt>Purity / determinism</dt><dd><code>pure</code> / <code>deterministic</code></dd>
+<dt>Effects</dt><dd>none</dd>
+<dt>ERROR conditions</dt><dd><code>nonNumeric</code>, <code>shapeMismatch</code></dd>
+<dt>Clauses</dt><dd><code>LANG.VALUES.SHAPE</code>, <code>LANG.VALUES.EXACT</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.FAILURE.TRICHOTOMY</code>, <code>LANG.CONTRACT.FIELD</code></dd>
+</dl>
+</div>
+<div class="word-entry" id="word-FLOOR">
+<h4><code>FLOOR</code> <span class="word-tier">Semantic Kernel</span></h4>
+<p>The greatest integer not above the number: <code>7/3 FLOOR</code> is <code>2</code> and <code>-7/3 FLOOR</code> is <code>-3</code>, element-wise over Vectors. Irrationals floor exactly: <code>2 SQRT FLOOR</code> is <code>1</code>. No integer lies at or beyond the three points over zero, so each is its own floor: <code>1/0 FLOOR</code> is <code>1/0</code>. A non-number is <code>nonNumeric</code>.</p>
+<dl class="word-contract">
+<dt>Syntax</dt><dd><code>7/3 FLOOR</code></dd>
+<dt>Stack effect</dt><dd><span class="notation">[ x ] -&gt; [ floor x ]</span></dd>
+<dt>Stack</dt><dd>1 input(s) → 1 output(s)</dd>
+<dt>Operands</dt><dd><code>leaf</code> (LANG.FAILURE.PASSTHROUGH)</dd>
+<dt>NIL policy</dt><dd><code>passthrough</code>; projection: none</dd>
+<dt>Partiality</dt><dd><code>total</code></dd>
+<dt>Field</dt><dd><code>closed</code> (LANG.CONTRACT.FIELD)</dd>
+<dt>Purity / determinism</dt><dd><code>pure</code> / <code>deterministic</code></dd>
+<dt>Effects</dt><dd>none</dd>
+<dt>ERROR conditions</dt><dd><code>nonNumeric</code></dd>
+<dt>Clauses</dt><dd><code>LANG.VALUES.SHAPE</code>, <code>LANG.VALUES.EXACT</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.FAILURE.TRICHOTOMY</code></dd>
+</dl>
+</div>
+<div class="word-entry" id="word-ROUND">
+<h4><code>ROUND</code> <span class="word-tier">Standard · algorithm</span></h4>
+<p>The nearest integer, a tie going away from zero: <code>5/2 ROUND</code> is <code>3</code> and <code>-5/2 ROUND</code> is <code>-3</code>, element-wise over Vectors. FORMAT rounds its last digit the same way. Each of the three points over zero is its own rounding, as it is its own floor. A non-number is <code>nonNumeric</code>.</p>
+<dl class="word-contract">
+<dt>Syntax</dt><dd><code>5/2 ROUND</code></dd>
+<dt>Stack effect</dt><dd><span class="notation">[ x ] -&gt; [ round x ]</span></dd>
+<dt>Stack</dt><dd>1 input(s) → 1 output(s)</dd>
+<dt>Operands</dt><dd><code>leaf</code> (LANG.FAILURE.PASSTHROUGH)</dd>
+<dt>NIL policy</dt><dd><code>passthrough</code>; projection: none</dd>
+<dt>Partiality</dt><dd><code>total</code></dd>
+<dt>Field</dt><dd><code>closed</code> (LANG.CONTRACT.FIELD)</dd>
+<dt>Purity / determinism</dt><dd><code>pure</code> / <code>deterministic</code></dd>
+<dt>Effects</dt><dd>none</dd>
+<dt>ERROR conditions</dt><dd><code>nonNumeric</code></dd>
+<dt>Clauses</dt><dd><code>LANG.VALUES.SHAPE</code>, <code>LANG.VALUES.EXACT</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.FAILURE.TRICHOTOMY</code></dd>
 </dl>
 </div>
 <div class="word-entry" id="word-SQRT">
@@ -2100,7 +2098,7 @@ FILTER</code></td>
 <dt>Purity / determinism</dt><dd><code>pure</code> / <code>deterministic</code></dd>
 <dt>Effects</dt><dd>none</dd>
 <dt>ERROR conditions</dt><dd><code>nonNumeric</code></dd>
-<dt>Clauses</dt><dd><code>LANG.VALUES.EXACT</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.FAILURE.TRICHOTOMY</code>, <code>LANG.FAILURE.PROJECT</code></dd>
+<dt>Clauses</dt><dd><code>LANG.VALUES.SHAPE</code>, <code>LANG.VALUES.EXACT</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.FAILURE.TRICHOTOMY</code>, <code>LANG.FAILURE.PROJECT</code></dd>
 </dl>
 </div>
 <div class="word-entry" id="word-POW">
@@ -2117,7 +2115,7 @@ FILTER</code></td>
 <dt>Purity / determinism</dt><dd><code>pure</code> / <code>deterministic</code></dd>
 <dt>Effects</dt><dd>none</dd>
 <dt>ERROR conditions</dt><dd><code>nonNumeric</code>, <code>shapeMismatch</code></dd>
-<dt>Clauses</dt><dd><code>LANG.VALUES.EXACT</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.FAILURE.TRICHOTOMY</code>, <code>LANG.FAILURE.PROJECT</code>, <code>LANG.CONTRACT.FIELD</code>, <code>LANG.MACHINE.LIMITS</code></dd>
+<dt>Clauses</dt><dd><code>LANG.VALUES.SHAPE</code>, <code>LANG.VALUES.EXACT</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.FAILURE.TRICHOTOMY</code>, <code>LANG.FAILURE.PROJECT</code>, <code>LANG.CONTRACT.FIELD</code>, <code>LANG.MACHINE.LIMITS</code></dd>
 </dl>
 </div>
 <div class="word-entry" id="word-GCD">
@@ -2134,7 +2132,7 @@ FILTER</code></td>
 <dt>Purity / determinism</dt><dd><code>pure</code> / <code>deterministic</code></dd>
 <dt>Effects</dt><dd>none</dd>
 <dt>ERROR conditions</dt><dd><code>nonNumeric</code>, <code>shapeMismatch</code></dd>
-<dt>Clauses</dt><dd><code>LANG.VALUES.EXACT</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.FAILURE.TRICHOTOMY</code>, <code>LANG.FAILURE.PROJECT</code></dd>
+<dt>Clauses</dt><dd><code>LANG.VALUES.SHAPE</code>, <code>LANG.VALUES.EXACT</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.FAILURE.TRICHOTOMY</code>, <code>LANG.FAILURE.PROJECT</code></dd>
 </dl>
 </div>
 <div class="word-entry" id="word-RATIO">
@@ -2151,7 +2149,7 @@ FILTER</code></td>
 <dt>Purity / determinism</dt><dd><code>pure</code> / <code>deterministic</code></dd>
 <dt>Effects</dt><dd>none</dd>
 <dt>ERROR conditions</dt><dd><code>nonNumeric</code></dd>
-<dt>Clauses</dt><dd><code>LANG.VALUES.EXACT</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.FAILURE.TRICHOTOMY</code>, <code>LANG.FAILURE.PROJECT</code></dd>
+<dt>Clauses</dt><dd><code>LANG.VALUES.SHAPE</code>, <code>LANG.VALUES.EXACT</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.FAILURE.TRICHOTOMY</code>, <code>LANG.FAILURE.PROJECT</code></dd>
 </dl>
 </div>
 <!-- END generated word contracts: operators -->

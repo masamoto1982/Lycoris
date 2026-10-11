@@ -10,7 +10,7 @@ Canonical inventory: **78 Words**, of which **50** form the Semantic Kernel and 
 The truth value TRUE: `TRUE` is `1 1 EQ`. It is a Boolean, not the number one (LANG.VALUES.DISJOINT), so `TRUE 1 EQ` is `FALSE`.
 
 - **Vocabulary tier:** Semantic Kernel
-- **Family:** `booleanLogic`
+- **Family:** `truthOrder`
 - **Stack:** 0 input(s) → 1 output(s)
 - **NIL policy:** `preserveReason`; projection: none
 - **Purity / determinism:** `pure` / `deterministic`
@@ -23,7 +23,7 @@ The truth value TRUE: `TRUE` is `1 1 EQ`. It is a Boolean, not the number one (L
 The truth value FALSE: `FALSE` is `1 2 EQ`. It is a Boolean, not the number zero (LANG.VALUES.DISJOINT), so `FALSE 0 EQ` is `FALSE`.
 
 - **Vocabulary tier:** Semantic Kernel
-- **Family:** `booleanLogic`
+- **Family:** `truthOrder`
 - **Stack:** 0 input(s) → 1 output(s)
 - **NIL policy:** `preserveReason`; projection: none
 - **Purity / determinism:** `pure` / `deterministic`
@@ -36,7 +36,7 @@ The truth value FALSE: `FALSE` is `1 2 EQ`. It is a Boolean, not the number zero
 The truth value BOTH: a truth told TRUE and told FALSE at once (LANG.VALUES.TRUTH), as `TRUE FALSE RECONCILE` answers. It is a Boolean, so `BOTH NIL?` is `FALSE`; `BOTH NOT` is `BOTH`, `BOTH TRUE AND` is `BOTH`, `BOTH FALSE AND` is `FALSE`, and `BOTH NIL AND` is `FALSE`. `SELECT` given BOTH answers its two candidates reconciled.
 
 - **Vocabulary tier:** Semantic Kernel
-- **Family:** `booleanLogic`
+- **Family:** `truthOrder`
 - **Stack:** 0 input(s) → 1 output(s)
 - **NIL policy:** `preserveReason`; projection: none
 - **Purity / determinism:** `pure` / `deterministic`
@@ -49,7 +49,7 @@ The truth value BOTH: a truth told TRUE and told FALSE at once (LANG.VALUES.TRUT
 Conjunction under Belnap's four-valued table (LANG.VALUES.TRUTH): `TRUE FALSE AND` is `FALSE`, and element-wise over Vectors, `[ TRUE TRUE ] [ TRUE FALSE ] AND` is `[ TRUE FALSE ]`. A NIL read here is UNKNOWN: FALSE settles the answer against it, `NIL FALSE AND` is `FALSE`, BOTH meets it at FALSE, `BOTH NIL AND` is `FALSE`, and TRUE leaves it UNKNOWN with its reason kept. A disjunction is `a NOT b NOT AND NOT`. An operand that is neither a truth value nor a NIL is `nonTruthValue`.
 
 - **Vocabulary tier:** Semantic Kernel
-- **Family:** `booleanLogic`
+- **Family:** `truthOrder`
 - **Stack:** 2 input(s) → 1 output(s)
 - **Operands:** `truth`, `truth` (LANG.FAILURE.PASSTHROUGH)
 - **NIL policy:** `kleeneAbsorbing`; projection: none
@@ -64,7 +64,7 @@ Conjunction under Belnap's four-valued table (LANG.VALUES.TRUTH): `TRUE FALSE AN
 Negation under Belnap's four-valued table (LANG.VALUES.TRUTH): `TRUE NOT` is `FALSE`, and element-wise over Vectors, `[ TRUE FALSE ] NOT` is `[ FALSE TRUE ]`. BOTH stays BOTH, `BOTH NOT` is `BOTH`, and UNKNOWN — a NIL read here — stays UNKNOWN with its reason kept. An operand that is neither a truth value nor a NIL is `nonTruthValue`.
 
 - **Vocabulary tier:** Semantic Kernel
-- **Family:** `booleanLogic`
+- **Family:** `truthOrder`
 - **Stack:** 1 input(s) → 1 output(s)
 - **Operands:** `truth` (LANG.FAILURE.PASSTHROUGH)
 - **NIL policy:** `kleeneAbsorbing`; projection: none
@@ -79,7 +79,7 @@ Negation under Belnap's four-valued table (LANG.VALUES.TRUTH): `TRUE NOT` is `FA
 Choose between two already-computed values by a truth value: `'yes' 'no' TRUE SELECT` is `'yes'` and `'yes' 'no' FALSE SELECT` is `'no'`. The choice is element-wise (LANG.COLLECTIONS.LIFT), so a Vector of truths weaves two Vectors lane by lane and a one-lane operand is reused across the other's length. An UNKNOWN lane — a NIL read in truth position, whatever its reason — chooses neither and answers that same absence, so the reason survives the choice. A BOTH lane chooses both, answering the two candidates reconciled (RECONCILE): `1 1 BOTH SELECT` is `1`, and two different candidates are a conflict. Both operands are values the program already built: SELECT evaluates nothing, and whatever computed them ran before it, exactly once.
 
 - **Vocabulary tier:** Semantic Kernel
-- **Family:** `booleanLogic`
+- **Family:** `truthOrder`
 - **Stack:** 3 input(s) → 1 output(s)
 - **Operands:** `element`, `element`, `truth` (LANG.FAILURE.PASSTHROUGH)
 - **NIL policy:** `kleeneAbsorbing`; projection: none
@@ -94,13 +94,13 @@ Choose between two already-computed values by a truth value: `'yes' 'no' TRUE SE
 What two sources agree on (LANG.VALUES.TRUTH): `1 1 RECONCILE` is `1`, and an absence yields to what the other source holds, `NIL 5 RECONCILE` is `5`. Among numbers `0/0` knows least and yields to the other number (LANG.VALUES.SHAPE): `0/0 5 RECONCILE` is `5`, while `0/0 TRUE RECONCILE` is a conflict. Two different truth values are BOTH, `TRUE FALSE RECONCILE` is `BOTH`; any other two different values have nothing they agree on and project NIL(conflict), `'Tokyo' 'Osaka' RECONCILE NIL-REASON` is `'conflict'`. A conflict is not settled by a third source, so the Word is associative, commutative and idempotent, and a FOLD of it over many sources does not depend on their order. Like EQ it compares its operands whole: `[ 1 2 ] [ 1 3 ] RECONCILE` is a conflict, and a program that reconciles lane by lane ZIPs and MAPs.
 
 - **Vocabulary tier:** Semantic Kernel
-- **Family:** `booleanLogic`
+- **Family:** `knowledgeOrder`
 - **Stack:** 2 input(s) → 1 output(s)
 - **Operands:** `element`, `element` (LANG.FAILURE.PASSTHROUGH)
 - **NIL policy:** `consumeNil`; projection: sourcesDisagree → conflict
 - **Purity / determinism:** `pure` / `deterministic`
 - **Effects:** none
-- **Clauses:** `LANG.VALUES.TRUTH`, `LANG.VALUES.DENOTATION`, `LANG.FAILURE.PROJECT`
+- **Clauses:** `LANG.VALUES.SHAPE`, `LANG.VALUES.TRUTH`, `LANG.VALUES.DENOTATION`, `LANG.FAILURE.PROJECT`
 - **Syntax:** `TRUE FALSE RECONCILE`
 
 ## `EQ`
@@ -108,7 +108,7 @@ What two sources agree on (LANG.VALUES.TRUTH): `1 1 RECONCILE` is `1`, and an ab
 Whether two values are one value (LANG.VALUES.DENOTATION), whatever built each: `1 1/1 EQ` is `TRUE`, `2 SQRT 2 SQRT MUL 2 EQ` is `TRUE`, `100 0 DIV 1/0 EQ` is `TRUE`, `0/0 0/0 EQ` is `TRUE`, and `[ 1 2 ] [ 1 2 ] EQ` is `TRUE` — EQ compares its operands whole and does not lift. It reads both operands, so an absent one is the answer, as it is for every data operand (LANG.FAILURE.PASSTHROUGH): `-1 SQRT 1 EQ` is the UNKNOWN that absence already was, since there is nothing to compare. Inside a Vector a NIL is an element like any other and is compared by its reason, so `[ NIL ] [ NIL ] EQ` is `TRUE`; that is the equality UNIQUE and RECONCILE use, and a program that wants two possibly absent values compared rather than passed through wraps each in `1 COLLECT` first.
 
 - **Vocabulary tier:** Semantic Kernel
-- **Family:** `comparison`
+- **Family:** `truthOrder`
 - **Stack:** 2 input(s) → 1 output(s)
 - **Operands:** `data`, `data` (LANG.FAILURE.PASSTHROUGH)
 - **NIL policy:** `passthrough`; projection: none
@@ -122,7 +122,7 @@ Whether two values are one value (LANG.VALUES.DENOTATION), whatever built each: 
 Whether the left number is less than the right: `1 2 LT` is `TRUE`, element-wise over Vectors, `[ 1 5 ] 3 LT` is `[ TRUE FALSE ]`. Order over the exact domain decides (LANG.VALUES.EXACT), irrationals included — `2 SQRT 3/2 LT` is `TRUE` — and `-1/0` lies below every other number and `1/0` above. `0/0` alone has no order, so a comparison asking it projects NIL(domainMiss): `0/0 1 LT` is the UNKNOWN that absence reads as in truth position (LANG.VALUES.TRUTH). Only numbers are ordered; anything else is `nonNumeric`.
 
 - **Vocabulary tier:** Semantic Kernel
-- **Family:** `comparison`
+- **Family:** `truthOrder`
 - **Stack:** 2 input(s) → 1 output(s)
 - **Operands:** `leaf`, `leaf` (LANG.FAILURE.PASSTHROUGH)
 - **NIL policy:** `passthroughThenProject`; projection: unorderedOperand → domainMiss
@@ -137,7 +137,7 @@ Whether the left number is less than the right: `1 2 LT` is `TRUE`, element-wise
 Whether the left number is greater than the right: `2 1 GT` is `TRUE`, element-wise over Vectors, `[ 1 5 ] 3 GT` is `[ FALSE TRUE ]`. Order over the exact domain decides (LANG.VALUES.EXACT), irrationals included — `2 SQRT 3/2 LT` is `TRUE` — and `-1/0` lies below every other number and `1/0` above. `0/0` alone has no order, so a comparison asking it projects NIL(domainMiss): `0/0 1 GT` is the UNKNOWN that absence reads as in truth position (LANG.VALUES.TRUTH). Only numbers are ordered; anything else is `nonNumeric`.
 
 - **Vocabulary tier:** Semantic Kernel
-- **Family:** `comparison`
+- **Family:** `truthOrder`
 - **Stack:** 2 input(s) → 1 output(s)
 - **Operands:** `leaf`, `leaf` (LANG.FAILURE.PASSTHROUGH)
 - **NIL policy:** `passthroughThenProject`; projection: unorderedOperand → domainMiss
@@ -152,13 +152,13 @@ Whether the left number is greater than the right: `2 1 GT` is `TRUE`, element-w
 The exact sum: `1/3 1/6 ADD` is `1/2`, and element-wise over Vectors with broadcasting (LANG.COLLECTIONS.LIFT), `[ 1 2 ] 10 ADD` is `[ 11 12 ]`. Nothing is rounded: `2 SQRT 2 SQRT ADD` is `8 SQRT`. The pair formula decides the three points over zero too: `1/0 5 ADD` is `1/0` and `1/0 1/0 ADD` is `0/0` (LANG.VALUES.EXACT). A non-number is `nonNumeric`.
 
 - **Vocabulary tier:** Semantic Kernel
-- **Family:** `exactArithmetic`
+- **Family:** `knowledgeOrder`
 - **Stack:** 2 input(s) → 1 output(s)
 - **Operands:** `leaf`, `leaf` (LANG.FAILURE.PASSTHROUGH)
 - **NIL policy:** `passthrough`; projection: none
 - **Purity / determinism:** `pure` / `deterministic`
 - **Effects:** none
-- **Clauses:** `LANG.VALUES.EXACT`, `LANG.COLLECTIONS.LIFT`, `LANG.FAILURE.TRICHOTOMY`
+- **Clauses:** `LANG.VALUES.SHAPE`, `LANG.VALUES.EXACT`, `LANG.COLLECTIONS.LIFT`, `LANG.FAILURE.TRICHOTOMY`
 - **Syntax:** `1 2 ADD`
 - **ERROR conditions:** `nonNumeric`, `shapeMismatch`
 
@@ -167,13 +167,13 @@ The exact sum: `1/3 1/6 ADD` is `1/2`, and element-wise over Vectors with broadc
 The exact difference, left minus right: `5 3 SUB` is `2`, and element-wise over Vectors with broadcasting (LANG.COLLECTIONS.LIFT), `2 [ 1 2 3 ] SUB` is `[ 1 0 -1 ]`. A non-number is `nonNumeric`.
 
 - **Vocabulary tier:** Standard (`shorthand`)
-- **Family:** `exactArithmetic`
+- **Family:** `knowledgeOrder`
 - **Stack:** 2 input(s) → 1 output(s)
 - **Operands:** `leaf`, `leaf` (LANG.FAILURE.PASSTHROUGH)
 - **NIL policy:** `passthrough`; projection: none
 - **Purity / determinism:** `pure` / `deterministic`
 - **Effects:** none
-- **Clauses:** `LANG.VALUES.EXACT`, `LANG.COLLECTIONS.LIFT`, `LANG.FAILURE.TRICHOTOMY`
+- **Clauses:** `LANG.VALUES.SHAPE`, `LANG.VALUES.EXACT`, `LANG.COLLECTIONS.LIFT`, `LANG.FAILURE.TRICHOTOMY`
 - **Syntax:** `5 3 SUB`
 - **ERROR conditions:** `nonNumeric`, `shapeMismatch`
 
@@ -182,13 +182,13 @@ The exact difference, left minus right: `5 3 SUB` is `2`, and element-wise over 
 The exact product: `2/3 3/4 MUL` is `1/2`, and element-wise over Vectors with broadcasting (LANG.COLLECTIONS.LIFT), `[ 1 2 3 ] [ 10 ] MUL` is `[ 10 20 30 ]`. The pair formula decides the three points over zero too: `1/0 -2 MUL` is `-1/0` and `1/0 0 MUL` is `0/0` (LANG.VALUES.EXACT). A non-number is `nonNumeric`.
 
 - **Vocabulary tier:** Semantic Kernel
-- **Family:** `exactArithmetic`
+- **Family:** `knowledgeOrder`
 - **Stack:** 2 input(s) → 1 output(s)
 - **Operands:** `leaf`, `leaf` (LANG.FAILURE.PASSTHROUGH)
 - **NIL policy:** `passthrough`; projection: none
 - **Purity / determinism:** `pure` / `deterministic`
 - **Effects:** none
-- **Clauses:** `LANG.VALUES.EXACT`, `LANG.COLLECTIONS.LIFT`, `LANG.FAILURE.TRICHOTOMY`
+- **Clauses:** `LANG.VALUES.SHAPE`, `LANG.VALUES.EXACT`, `LANG.COLLECTIONS.LIFT`, `LANG.FAILURE.TRICHOTOMY`
 - **Syntax:** `2 4 MUL`
 - **ERROR conditions:** `nonNumeric`, `shapeMismatch`
 
@@ -197,13 +197,13 @@ The exact product: `2/3 3/4 MUL` is `1/2`, and element-wise over Vectors with br
 The exact quotient, left over right: `1 3 DIV` is exactly `1/3`, and element-wise over Vectors with broadcasting (LANG.COLLECTIONS.LIFT), `[ 2 4 ] 2 DIV` is `[ 1 2 ]`. Division is total (LANG.VALUES.EXACT): it is multiplication by the reciprocal, and every number has one. A zero divisor answers the dividend's sign over zero in its own lane and no other — `[ 1 -2 0 ] 0 DIV` is `[ 1/0 -1/0 0/0 ]`, and `1 1/0 DIV` is `0` — the lanes beside it are quotients, and a Word after it computes with the point by the same pair formulas, so `1 0 DIV 2 MUL` is `1/0` and `1 0 DIV 0 MUL` is `0/0`. A non-number is `nonNumeric`.
 
 - **Vocabulary tier:** Semantic Kernel
-- **Family:** `exactArithmetic`
+- **Family:** `knowledgeOrder`
 - **Stack:** 2 input(s) → 1 output(s)
 - **Operands:** `leaf`, `leaf` (LANG.FAILURE.PASSTHROUGH)
 - **NIL policy:** `passthrough`; projection: none
 - **Purity / determinism:** `pure` / `deterministic`
 - **Effects:** none
-- **Clauses:** `LANG.VALUES.EXACT`, `LANG.COLLECTIONS.LIFT`, `LANG.FAILURE.TRICHOTOMY`, `LANG.CONTRACT.FIELD`
+- **Clauses:** `LANG.VALUES.SHAPE`, `LANG.VALUES.EXACT`, `LANG.COLLECTIONS.LIFT`, `LANG.FAILURE.TRICHOTOMY`, `LANG.CONTRACT.FIELD`
 - **Syntax:** `10 2 DIV`
 - **ERROR conditions:** `nonNumeric`, `shapeMismatch`
 
@@ -212,13 +212,13 @@ The exact quotient, left over right: `1 3 DIV` is exactly `1/3`, and element-wis
 The greatest integer not above the number: `7/3 FLOOR` is `2` and `-7/3 FLOOR` is `-3`, element-wise over Vectors. Irrationals floor exactly: `2 SQRT FLOOR` is `1`. No integer lies at or beyond the three points over zero, so each is its own floor: `1/0 FLOOR` is `1/0`. A non-number is `nonNumeric`.
 
 - **Vocabulary tier:** Semantic Kernel
-- **Family:** `exactArithmetic`
+- **Family:** `knowledgeOrder`
 - **Stack:** 1 input(s) → 1 output(s)
 - **Operands:** `leaf` (LANG.FAILURE.PASSTHROUGH)
 - **NIL policy:** `passthrough`; projection: none
 - **Purity / determinism:** `pure` / `deterministic`
 - **Effects:** none
-- **Clauses:** `LANG.VALUES.EXACT`, `LANG.COLLECTIONS.LIFT`, `LANG.FAILURE.TRICHOTOMY`
+- **Clauses:** `LANG.VALUES.SHAPE`, `LANG.VALUES.EXACT`, `LANG.COLLECTIONS.LIFT`, `LANG.FAILURE.TRICHOTOMY`
 - **Syntax:** `7/3 FLOOR`
 - **ERROR conditions:** `nonNumeric`
 
@@ -227,13 +227,13 @@ The greatest integer not above the number: `7/3 FLOOR` is `2` and `-7/3 FLOOR` i
 The nearest integer, a tie going away from zero: `5/2 ROUND` is `3` and `-5/2 ROUND` is `-3`, element-wise over Vectors. FORMAT rounds its last digit the same way. Each of the three points over zero is its own rounding, as it is its own floor. A non-number is `nonNumeric`.
 
 - **Vocabulary tier:** Standard (`algorithm`)
-- **Family:** `exactArithmetic`
+- **Family:** `knowledgeOrder`
 - **Stack:** 1 input(s) → 1 output(s)
 - **Operands:** `leaf` (LANG.FAILURE.PASSTHROUGH)
 - **NIL policy:** `passthrough`; projection: none
 - **Purity / determinism:** `pure` / `deterministic`
 - **Effects:** none
-- **Clauses:** `LANG.VALUES.EXACT`, `LANG.COLLECTIONS.LIFT`, `LANG.FAILURE.TRICHOTOMY`
+- **Clauses:** `LANG.VALUES.SHAPE`, `LANG.VALUES.EXACT`, `LANG.COLLECTIONS.LIFT`, `LANG.FAILURE.TRICHOTOMY`
 - **Syntax:** `5/2 ROUND`
 - **ERROR conditions:** `nonNumeric`
 
@@ -242,13 +242,13 @@ The nearest integer, a tie going away from zero: `5/2 ROUND` is `3` and `-5/2 RO
 The smaller of two numbers: `1 2 MIN` is `1`, and element-wise over Vectors with broadcasting, `[ 3 1 ] 2 MIN` is `[ 2 1 ]`. The order is the exact domain's (LANG.VALUES.EXACT): `-1/0 5 MIN` is `-1/0`, and `0/0`, which has no order, projects NIL(domainMiss) as LT does. A non-number is `nonNumeric`.
 
 - **Vocabulary tier:** Standard (`namedPattern`)
-- **Family:** `exactArithmetic`
+- **Family:** `truthOrder`
 - **Stack:** 2 input(s) → 1 output(s)
 - **Operands:** `leaf`, `leaf` (LANG.FAILURE.PASSTHROUGH)
 - **NIL policy:** `passthroughThenProject`; projection: unorderedOperand → domainMiss
 - **Purity / determinism:** `pure` / `deterministic`
 - **Effects:** none
-- **Clauses:** `LANG.VALUES.EXACT`, `LANG.COLLECTIONS.LIFT`, `LANG.FAILURE.TRICHOTOMY`, `LANG.FAILURE.PROJECT`
+- **Clauses:** `LANG.VALUES.TRUTH`, `LANG.VALUES.EXACT`, `LANG.COLLECTIONS.LIFT`, `LANG.FAILURE.TRICHOTOMY`, `LANG.FAILURE.PROJECT`
 - **Syntax:** `1 2 MIN`
 - **ERROR conditions:** `nonNumeric`, `shapeMismatch`
 
@@ -257,13 +257,13 @@ The smaller of two numbers: `1 2 MIN` is `1`, and element-wise over Vectors with
 The larger of two numbers: `1 2 MAX` is `2`, and element-wise over Vectors with broadcasting, `[ -1 2 -3 ] 0 MAX` is `[ 0 2 0 ]`. The order is the exact domain's (LANG.VALUES.EXACT): `1/0 5 MAX` is `1/0`, and `0/0`, which has no order, projects NIL(domainMiss) as GT does. A non-number is `nonNumeric`.
 
 - **Vocabulary tier:** Standard (`namedPattern`)
-- **Family:** `exactArithmetic`
+- **Family:** `truthOrder`
 - **Stack:** 2 input(s) → 1 output(s)
 - **Operands:** `leaf`, `leaf` (LANG.FAILURE.PASSTHROUGH)
 - **NIL policy:** `passthroughThenProject`; projection: unorderedOperand → domainMiss
 - **Purity / determinism:** `pure` / `deterministic`
 - **Effects:** none
-- **Clauses:** `LANG.VALUES.EXACT`, `LANG.COLLECTIONS.LIFT`, `LANG.FAILURE.TRICHOTOMY`, `LANG.FAILURE.PROJECT`
+- **Clauses:** `LANG.VALUES.TRUTH`, `LANG.VALUES.EXACT`, `LANG.COLLECTIONS.LIFT`, `LANG.FAILURE.TRICHOTOMY`, `LANG.FAILURE.PROJECT`
 - **Syntax:** `1 2 MAX`
 - **ERROR conditions:** `nonNumeric`, `shapeMismatch`
 
@@ -272,13 +272,13 @@ The larger of two numbers: `1 2 MAX` is `2`, and element-wise over Vectors with 
 The exact square root of a non-negative number: `4 SQRT` is `2`, and `2 SQRT` is the irrational itself, carried in multiquadratic normal form and compared with no rounding (LANG.VALUES.EXACT), so `2 SQRT 2 SQRT MUL` is `2`. The radicand is reduced to its square-free part, so one number has one form however it was built: `8 SQRT` is `2 SQRT 2 MUL`. That reduction factors the radicand and is charged to the run's numeric work; a radicand the remaining work cannot factor is `resourceLimitExceeded`. `1/0` and `0/0` are their own roots. Element-wise over Vectors, and a negative radicand, `-1/0` included, projects NIL(domainMiss): `[ 4 -1 ] SQRT` is `[ 2 NIL ]` with the second lane absent for that reason. A non-number is `nonNumeric`.
 
 - **Vocabulary tier:** Semantic Kernel
-- **Family:** `exactArithmetic`
+- **Family:** `knowledgeOrder`
 - **Stack:** 1 input(s) → 1 output(s)
 - **Operands:** `leaf` (LANG.FAILURE.PASSTHROUGH)
 - **NIL policy:** `passthroughThenProject`; projection: negativeScalar → domainMiss
 - **Purity / determinism:** `pure` / `deterministic`
 - **Effects:** none
-- **Clauses:** `LANG.VALUES.EXACT`, `LANG.COLLECTIONS.LIFT`, `LANG.FAILURE.TRICHOTOMY`, `LANG.FAILURE.PROJECT`
+- **Clauses:** `LANG.VALUES.SHAPE`, `LANG.VALUES.EXACT`, `LANG.COLLECTIONS.LIFT`, `LANG.FAILURE.TRICHOTOMY`, `LANG.FAILURE.PROJECT`
 - **Syntax:** `2 SQRT`
 - **ERROR conditions:** `nonNumeric`
 
@@ -287,13 +287,13 @@ The exact square root of a non-negative number: `4 SQRT` is `2`, and `2 SQRT` is
 Exact power `x y POW`, element-wise over Vectors, answered inside the exact domain. An integer exponent keeps the result in the base's own tier: `2 10 POW` is `1024`, `2 SQRT 2 POW` is `2`, `2 -1 POW` is `1/2`, `7 0 POW` is `1`, the empty product, and since division is total `0 -1 POW` is `1/0` and `1/0 -1 POW` is `0` (LANG.VALUES.EXACT). `0/0` absorbs POW as it absorbs every operation, in either operand: `0/0 0 POW` and `2 0/0 POW` are `0/0`. An exponent `p/2` over a non-negative rational base stays in the field too — `2 1/2 POW` is exactly what `2 SQRT` answers, and `2 3/2 POW` is `2 2 SQRT MUL`. A negative base under `p/2` has no real value and projects `domainMiss`; every other exponent — a denominator other than 1 or 2, `p/2` over an irrational base, an irrational exponent, `1/0` or `-1/0` — leaves the field and projects `domainMiss` as well (`8 1/3 POW`, `2 2 SQRT POW`, `2 1/0 POW`). A result wider than `bigintBits` or of more terms than `algebraicTerms` is refused as ERROR(`resourceLimitExceeded`) by the ceiling's name before it is computed, exactly as `MUL` refuses the same width (LANG.MACHINE.LIMITS). `SQRT` remains the Word that builds the field; `POW` is not its sugar.
 
 - **Vocabulary tier:** Semantic Kernel
-- **Family:** `exactArithmetic`
+- **Family:** `knowledgeOrder`
 - **Stack:** 2 input(s) → 1 output(s)
 - **Operands:** `leaf`, `leaf` (LANG.FAILURE.PASSTHROUGH)
 - **NIL policy:** `passthroughThenProject`; projection: negativeBaseFractionalExponent,exponentOutsideTheField → domainMiss
 - **Purity / determinism:** `pure` / `deterministic`
 - **Effects:** none
-- **Clauses:** `LANG.VALUES.EXACT`, `LANG.COLLECTIONS.LIFT`, `LANG.FAILURE.TRICHOTOMY`, `LANG.FAILURE.PROJECT`, `LANG.CONTRACT.FIELD`, `LANG.MACHINE.LIMITS`
+- **Clauses:** `LANG.VALUES.SHAPE`, `LANG.VALUES.EXACT`, `LANG.COLLECTIONS.LIFT`, `LANG.FAILURE.TRICHOTOMY`, `LANG.FAILURE.PROJECT`, `LANG.CONTRACT.FIELD`, `LANG.MACHINE.LIMITS`
 - **Syntax:** `2 10 POW`
 - **ERROR conditions:** `nonNumeric`, `shapeMismatch`
 
@@ -302,13 +302,13 @@ Exact power `x y POW`, element-wise over Vectors, answered inside the exact doma
 The greatest common divisor of two integers, non-negative, element-wise over Vectors: `12 18 GCD` is `6`, `0 0 GCD` is `0`. Euclid's algorithm is input-dependent repetition, which a definition cannot write in a language that repeats only over a Vector that already exists; the machine already runs it to keep every number reduced, so the Word only exposes it. A non-integer operand — a fraction, an irrational, or a point over zero — projects `domainMiss`.
 
 - **Vocabulary tier:** Standard (`operational`)
-- **Family:** `exactArithmetic`
+- **Family:** `knowledgeOrder`
 - **Stack:** 2 input(s) → 1 output(s)
 - **Operands:** `leaf`, `leaf` (LANG.FAILURE.PASSTHROUGH)
 - **NIL policy:** `passthroughThenProject`; projection: nonIntegerOperand → domainMiss
 - **Purity / determinism:** `pure` / `deterministic`
 - **Effects:** none
-- **Clauses:** `LANG.VALUES.EXACT`, `LANG.COLLECTIONS.LIFT`, `LANG.FAILURE.TRICHOTOMY`, `LANG.FAILURE.PROJECT`
+- **Clauses:** `LANG.VALUES.SHAPE`, `LANG.VALUES.EXACT`, `LANG.COLLECTIONS.LIFT`, `LANG.FAILURE.TRICHOTOMY`, `LANG.FAILURE.PROJECT`
 - **Syntax:** `12 18 GCD`
 - **ERROR conditions:** `nonNumeric`, `shapeMismatch`
 
@@ -317,13 +317,13 @@ The greatest common divisor of two integers, non-negative, element-wise over Vec
 A number opened into its reduced numerator and denominator, as a two-element Vector with the denominator non-negative: `6/4 RATIO` is `[ 3 2 ]`, `-3 RATIO` is `[ -3 1 ]`, and `100 0 DIV RATIO` is `[ 1 0 ]`, since every pair over zero reduces to its sign over zero (LANG.VALUES.EXACT); element-wise over Vectors. The language advertises exact fractions; this is the Word that reads their two parts back, and because the answer is a Vector, arithmetic lifts over it as it does over any other. An irrational (`2 SQRT`) has no numerator and projects `domainMiss`.
 
 - **Vocabulary tier:** Standard (`operational`)
-- **Family:** `exactArithmetic`
+- **Family:** `knowledgeOrder`
 - **Stack:** 1 input(s) → 1 output(s)
 - **Operands:** `leaf` (LANG.FAILURE.PASSTHROUGH)
 - **NIL policy:** `passthroughThenProject`; projection: irrationalOperand → domainMiss
 - **Purity / determinism:** `pure` / `deterministic`
 - **Effects:** none
-- **Clauses:** `LANG.VALUES.EXACT`, `LANG.COLLECTIONS.LIFT`, `LANG.FAILURE.TRICHOTOMY`, `LANG.FAILURE.PROJECT`
+- **Clauses:** `LANG.VALUES.SHAPE`, `LANG.VALUES.EXACT`, `LANG.COLLECTIONS.LIFT`, `LANG.FAILURE.TRICHOTOMY`, `LANG.FAILURE.PROJECT`
 - **Syntax:** `6/4 RATIO`
 - **ERROR conditions:** `nonNumeric`
 
