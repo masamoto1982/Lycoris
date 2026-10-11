@@ -3,6 +3,7 @@ use crate::interpreter::lane_lift::lift_lanes;
 use crate::interpreter::Interpreter;
 use crate::semantic::Recoverability;
 use crate::types::{Value, ValueData};
+use std::sync::Arc;
 
 /// One of the four truth values of LANG.VALUES.TRUTH, read from a lane in
 /// truth position.
@@ -142,7 +143,42 @@ pub fn op_reconcile(interp: &mut Interpreter) -> Result<()> {
     Ok(())
 }
 
+/// The lanes of a flat Vector of truth values, open for rewriting where they
+/// lie: the answer of a connective whose operand is such a Vector is that
+/// Vector with its lanes replaced, so when nothing else holds it the answer
+/// needs no new Vector and frees no old one. `None` for anything else — a
+/// lane that is not a truth value, whose ERROR the lifted path words — and
+/// nothing has been touched.
+fn sole_truth_lanes(value: &mut Value) -> Option<&mut [Value]> {
+    let ValueData::Vector(items) = &mut value.data else {
+        return None;
+    };
+    let truths = items.iter().all(|lane| {
+        matches!(
+            lane.data,
+            ValueData::Boolean(_) | ValueData::Both | ValueData::Nil
+        )
+    });
+    // A Vector something else still holds is copied once, here, and the copy
+    // rewritten: cheaper than building the answer lane by lane.
+    truths.then(|| Arc::make_mut(items).as_mut_slice())
+}
+
+/// The top of the stack, open for rewriting in place.
+fn top_mut(interp: &mut Interpreter) -> Option<&mut Value> {
+    let top = interp.stack.len().checked_sub(1)?;
+    Some(&mut interp.stack[top])
+}
+
 pub fn op_not(interp: &mut Interpreter) -> Result<()> {
+    if let Some(lanes) = top_mut(interp).and_then(sole_truth_lanes) {
+        for lane in lanes {
+            if let ValueData::Boolean(b) = &mut lane.data {
+                *b = !*b;
+            }
+        }
+        return Ok(());
+    }
     let val = interp.stack.pop().ok_or(AjisaiError::stack_underflow())?;
 
     let result = match lift_lanes([&val], |[x]| compute_inverted_value(x)) {
@@ -163,6 +199,9 @@ pub fn op_and(interp: &mut Interpreter) -> Result<()> {
     }
 
     let b_val = interp.stack.pop().ok_or(AjisaiError::stack_underflow())?;
+    if let Some(answer) = conjoin_in_place(interp, &b_val) {
+        return answer;
+    }
     let a_val = interp.stack.pop().ok_or(AjisaiError::stack_underflow())?;
 
     let result = match lifted_conjunction(&a_val, &b_val) {
@@ -175,6 +214,36 @@ pub fn op_and(interp: &mut Interpreter) -> Result<()> {
     };
     interp.stack.push(result);
     Ok(())
+}
+
+/// `AND` written into its left operand when that is a flat Vector of truth
+/// values and the right one is a truth value or a Vector of them of the same
+/// length: each lane becomes the conjunction it would have been in a new
+/// Vector. `None` leaves both operands as they were.
+fn conjoin_in_place(interp: &mut Interpreter, b_val: &Value) -> Option<Result<()>> {
+    let is_truth = |v: &Value| {
+        matches!(
+            v.data,
+            ValueData::Boolean(_) | ValueData::Both | ValueData::Nil
+        )
+    };
+    let right: &[Value] = match &b_val.data {
+        ValueData::Vector(items) if items.iter().all(is_truth) => items,
+        _ if is_truth(b_val) => std::slice::from_ref(b_val),
+        _ => return None,
+    };
+    let width = interp.stack.last()?.as_vector_view()?.len();
+    if right.len() != 1 && right.len() != width {
+        return None;
+    }
+    let lanes = top_mut(interp).and_then(sole_truth_lanes)?;
+    let reused = right.len() == 1;
+    for (index, lane) in lanes.iter_mut().enumerate() {
+        let other = &right[if reused { 0 } else { index }];
+        // Every lane is a truth value, so the law cannot refuse one.
+        *lane = compute_conjunction(lane, other).expect("both lanes are truth values");
+    }
+    Some(Ok(()))
 }
 
 /// `SELECT` — the conditional.
@@ -213,4 +282,59 @@ pub fn op_select(interp: &mut Interpreter) -> Result<()> {
 
     interp.stack.push(result);
     Ok(())
+}
+
+#[cfg(test)]
+mod in_place_tests {
+    use super::*;
+    use crate::error::NilReason;
+
+    fn lanes() -> Vec<Value> {
+        let unknown = |reason| Value::nil_with_reason(reason, Recoverability::Recoverable);
+        vec![
+            Value::from_bool(true),
+            Value::from_bool(false),
+            Value::both(),
+            unknown(NilReason::NotFound),
+            unknown(NilReason::DomainMiss),
+        ]
+    }
+
+    fn run(stack: Vec<Value>, op: fn(&mut Interpreter) -> Result<()>) -> Vec<Value> {
+        let mut interp = Interpreter::new();
+        interp.stack.extend(stack);
+        op(&mut interp).expect("truth operands");
+        interp.stack.into_values()
+    }
+
+    /// The rewritten lanes are the ones the lifted law builds, reasons
+    /// included, whether or not anything else holds the operand.
+    #[test]
+    fn rewriting_in_place_answers_what_the_lifted_law_builds() {
+        let all = lanes();
+        let left: Vec<Value> = all
+            .iter()
+            .flat_map(|a| all.iter().map(move |_| a.clone()))
+            .collect();
+        let right: Vec<Value> = all.iter().flat_map(|_| all.iter().cloned()).collect();
+        let (left, right) = (Value::from_vector(left), Value::from_vector(right));
+        let expected = lifted_conjunction(&left, &right).unwrap();
+        for shared in [false, true] {
+            let keep = shared.then(|| left.clone());
+            assert_eq!(
+                run(vec![left.clone(), right.clone()], op_and),
+                vec![expected.clone()]
+            );
+            drop(keep);
+        }
+        for scalar in all.iter() {
+            let expected = lifted_conjunction(&left, scalar).unwrap();
+            assert_eq!(
+                run(vec![left.clone(), scalar.clone()], op_and),
+                vec![expected]
+            );
+        }
+        let expected = lift_lanes([&left], |[x]| compute_inverted_value(x)).unwrap();
+        assert_eq!(run(vec![left.clone()], op_not), vec![expected]);
+    }
 }
