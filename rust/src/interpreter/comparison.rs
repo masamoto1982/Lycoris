@@ -95,7 +95,7 @@ fn push_equality_scalar_fastpath(interp: &mut Interpreter, invert: bool) -> bool
 /// distinction — and a `0/0` lane projects `domainMiss`, as the scalar law
 /// does for `0/0 3 LT`.
 fn lift_comparison(a_val: &Value, b_val: &Value, kind: OrderingKind) -> Result<Value> {
-    lift_lanes([a_val, b_val], &|[a, b]| compare_lane(a, b, kind))
+    lift_lanes([a_val, b_val], |[a, b]| compare_lane(a, b, kind))
 }
 
 /// One lane of an ordering comparison: both operands are past the alignment,
