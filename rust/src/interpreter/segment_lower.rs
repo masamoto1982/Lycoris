@@ -96,7 +96,7 @@ struct Builder<'a> {
     lowest: isize,
     top: HashMap<String, u32>,
     reads: Vec<(String, u32)>,
-    binds: Vec<(Arc<str>, u32)>,
+    binds: Vec<(crate::types::Name, u32)>,
     steps: usize,
     callees: Vec<String>,
     calls: u64,

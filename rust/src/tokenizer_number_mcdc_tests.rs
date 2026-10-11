@@ -183,6 +183,30 @@ mod structure_and_string_boundaries {
         assert!(tokenize("'[' # ]").is_ok());
     }
 
+    /// The same gate over tokens a program built as code data rather than
+    /// wrote as source (`EXEC`, `DEF`): `tokenize` holds it inside its scan,
+    /// so this is the gate's own entry, with the same messages.
+    #[test]
+    fn aq_ver_002_h_code_data_brackets_must_balance_in_order() {
+        use crate::tokenizer::validate_code_tokens;
+        let (open, close) = (Token::VectorStart, Token::VectorEnd);
+        assert!(validate_code_tokens(&[open.clone(), close.clone()]).is_ok());
+        let stray = validate_code_tokens(&[close.clone(), open.clone()]).unwrap_err();
+        assert!(stray.contains("Unexpected ']'"), "U = T: {stray}");
+        let unclosed = validate_code_tokens(&[open.clone(), open, close]).unwrap_err();
+        assert!(unclosed.contains("Unclosed '['"), "O = T: {unclosed}");
+    }
+
+    /// A position reads as the line and column a reader counts.
+    #[test]
+    fn aq_ver_002_h_a_span_displays_its_line_and_column() {
+        let span = crate::tokenizer::SourceSpan {
+            line: 3,
+            column: 14,
+        };
+        assert_eq!(span.to_string(), "line 3, column 14");
+    }
+
     #[test]
     fn aq_ver_002_h_end_of_input_closes_a_string() {
         assert_eq!(

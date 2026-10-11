@@ -197,6 +197,18 @@ pub(crate) fn apply(kind: Kind, operands: &[Slot]) -> Option<Answer> {
     match kind {
         Kind::Add | Kind::Sub | Kind::Mul | Kind::Div => {
             let (a, b) = (x(0).num()?, x(1).num()?);
+            // Two integers: their sum, difference or product is an integer,
+            // and fits a machine word exactly when the checked operation
+            // does — which is what `add` and `mul` answer for denominators
+            // of 1, there after a call and a test of each denominator.
+            if a.1 == 1 && b.1 == 1 && kind != Kind::Div {
+                let n = match kind {
+                    Kind::Add => a.0.checked_add(b.0),
+                    Kind::Sub => a.0.checked_sub(b.0),
+                    _ => a.0.checked_mul(b.0),
+                }?;
+                return answered(Slot::Num((n, 1)), 1, 1);
+            }
             let r = match kind {
                 Kind::Add => add(a, b, false),
                 Kind::Sub => add(a, b, true),
@@ -370,10 +382,12 @@ pub(crate) fn try_scalar_call(interp: &mut Interpreter, word: WordId) -> bool {
     if !interp.quickening_enabled || !interp.scalar_fastpath_enabled {
         return false;
     }
-    if word == WordId::Length {
-        return try_length_call(interp);
-    }
+    // `LENGTH` has no `Kind`, so asking for one first leaves the common
+    // call one test shorter.
     let Some(kind) = Kind::of(word) else {
+        if word == WordId::Length {
+            return try_length_call(interp);
+        }
         return try_kernel_call(interp, word);
     };
     let pops = kind.arity();
@@ -411,13 +425,35 @@ pub(crate) fn try_scalar_call(interp: &mut Interpreter, word: WordId) -> bool {
         .runtime_metrics
         .scalar_fastpath_count
         .saturating_add(fastpath);
-    interp.stack.truncate(base);
-    interp.stack.push(value.into_value());
-    // A plain scalar or truth value nests nothing, so this cannot fail; it
-    // is made for the fresh mark it resets, which the dispatch resets too.
-    interp
-        .check_fresh_nesting()
-        .expect("a plain result is within any nesting ceiling");
+    // The operands are plain slots — machine-word rationals and truth
+    // values with no absence — so they own nothing a destructor would free,
+    // and they are let go of rather than dropped: running the drop glue of
+    // each was a fifth of this call. The deepest one's slot takes the
+    // result, which marks the stack fresh from there as the push did.
+    for _ in 1..pops {
+        std::mem::forget(interp.stack.pop());
+    }
+    std::mem::forget(std::mem::replace(
+        &mut interp.stack[base],
+        value.into_value(),
+    ));
+    // The dispatch's nesting check (`check_fresh_nesting`), made for the
+    // fresh mark it resets, which the dispatch resets too. A plain scalar or
+    // truth value nests nothing, so of the values the check reads — every
+    // one written since the last — only those below the result could fail
+    // it, and there are nearly always none to read.
+    let fresh = interp.stack.take_fresh_start();
+    if fresh < base {
+        let deepest = interp.stack.as_slice()[fresh..base]
+            .iter()
+            .map(Value::nesting)
+            .max()
+            .unwrap_or(0);
+        interp
+            .runtime_limits
+            .check_nesting_depth(deepest as usize)
+            .expect("a plain result is within any nesting ceiling");
+    }
     #[cfg(test)]
     QUICKENED.with(|c| c.set(c.get() + 1));
     true

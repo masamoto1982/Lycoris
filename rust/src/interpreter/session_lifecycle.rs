@@ -118,6 +118,7 @@ impl Interpreter {
         self.next_registration_order = 1;
         self.runtime_metrics = RuntimeMetrics::default();
         self.error_flow_trace_log.clear();
+        self.symbol_cache.clear();
         crate::builtins::register_builtins(&mut self.core_vocabulary);
     }
 

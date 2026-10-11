@@ -1,3 +1,4 @@
+use crate::tokenizer_scan::{ascii_word_count, Cursor, LexemeMemo};
 use crate::types::Token;
 
 /// Where a token was written, as a 1-based line and column in characters.
@@ -30,64 +31,102 @@ pub fn tokenize(input: &str) -> Result<Vec<Token>, String> {
 /// from `REFLECT` data were never written anywhere, and inventing a position
 /// for them would be worse than having none.
 pub fn tokenize_with_spans(input: &str) -> Result<(Vec<Token>, Vec<SourceSpan>), String> {
+    tokenize_source(input).map(|source| (source.tokens, source.spans))
+}
+
+/// A program's text, read: its tokens, where each was written, and which of
+/// them are the first spelling of a numeric lexeme.
+pub(crate) struct SourceTokens {
+    pub(crate) tokens: Vec<Token>,
+    pub(crate) spans: Vec<SourceSpan>,
+    /// The index of each Number token whose lexeme no earlier token spelled.
+    /// Every other Number token is a copy of one of these, so a check that
+    /// depends on the lexeme alone — the numeric-literal ceiling — finds its
+    /// first failure among them, at the same token, by reading only these.
+    pub(crate) first_numbers: Vec<usize>,
+}
+
+/// [`tokenize_with_spans`], and the first spelling of each numeric lexeme.
+pub(crate) fn tokenize_source(input: &str) -> Result<SourceTokens, String> {
     // Sized once from a count of the words: growing a Vec of 40-byte tokens
     // by doubling copied every token about twice more.
     let words = ascii_word_count(input);
-    let mut tokens = Vec::with_capacity(words);
+    let mut tokens: Vec<Token> = Vec::with_capacity(words);
     let mut spans: Vec<SourceSpan> = Vec::with_capacity(words);
     // A lexeme written again is the token its first spelling read as: a
     // program writes a few Words, bindings and numbers many times, and each
     // fresh reading parsed the number again and allocated its text, which
     // was then freed when the tokens were dropped. What a lexeme reads as
     // depends on nothing but the lexeme, so the copy is the token.
-    let mut seen: crate::fast_hash::FastMap<&str, Token> = Default::default();
+    let mut seen = LexemeMemo::default();
+    // The structural gate (`validate_code_tokens`), kept on the way rather
+    // than in a second pass over the tokens: the depth so far, and whether a
+    // `]` ever closed nothing. Both are read only once the whole text has
+    // been read, so a lexical error later in the text still wins, as it did
+    // when the gate ran after tokenizing.
+    let mut depth: usize = 0;
+    let mut stray_close = false;
+    let mut first_numbers = Vec::new();
 
-    // One pass over the text, by character: `pos` is the byte offset of the
-    // next character and `here` its line and column, so a token's span is the
-    // cursor's position where it starts. Lexemes are slices of `input`, not
-    // copies, until a token keeps one.
+    // One pass over the text: `pos` is the byte offset of the next character
+    // and `here` its line and column, so a token's span is the cursor's
+    // position where it starts. Lexemes are slices of `input`, not copies,
+    // until a token keeps one.
     let mut cursor = Cursor {
         input,
         pos: 0,
         here: SourceSpan { line: 1, column: 1 },
     };
+    let bytes = input.as_bytes();
 
-    while let Some(c) = cursor.peek() {
-        if c.is_whitespace() {
-            cursor.bump();
-            continue;
-        }
-
-        // SourceDirective: `#` -> COMMENT-LINE (see surface_forms.rs). Not a
-        // runtime word; consumed here at the lexical level to end of line.
-        // Recognized only at a fresh word position (we only ever reach this
-        // branch right after whitespace or a completed token), exactly like
-        // Forth's own comment word — `#` glued to a preceding name is just
-        // part of that name, not a comment start.
-        if c == '#' {
-            while cursor.peek().is_some_and(|c| c != '\n') {
-                cursor.bump();
+    while let Some(&byte) = bytes.get(cursor.pos) {
+        match byte {
+            // `char::is_whitespace` on ASCII, vertical tab included. Source is
+            // nearly all ASCII, so the separators are taken a byte at a time;
+            // decoding a character for each was most of this loop.
+            b' ' | b'\t' | b'\x0B' | b'\x0C' | b'\r' => {
+                cursor.pos += 1;
+                cursor.here.column += 1;
+                continue;
             }
-            continue;
-        }
-
-        // LiteralSugar: `'` -> STRING-QUOTE (see surface_forms.rs). A string
-        // can hold whitespace of its own (`'hello world'`), so it is not
-        // bounded by the ordinary word-delimiter rule below — it is its own
-        // sub-grammar, delimited by the closing quote rather than by space.
-        if c == '\'' {
-            let span = cursor.here;
-            let Some(content) = string_literal_content(&input[cursor.pos..]) else {
-                return Err(format!("Unclosed literal starting with {}", c));
-            };
-            // The opening quote, the content and the closing quote.
-            let end = cursor.pos + content.len() + 2;
-            while cursor.pos < end {
-                cursor.bump();
+            b'\n' => {
+                cursor.pos += 1;
+                cursor.here.line += 1;
+                cursor.here.column = 1;
+                continue;
             }
-            tokens.push(Token::String(content.into()));
-            spans.push(span);
-            continue;
+            // SourceDirective: `#` -> COMMENT-LINE (see surface_forms.rs). Not a
+            // runtime word; consumed here at the lexical level to end of line.
+            // Recognized only at a fresh word position (we only ever reach this
+            // branch right after whitespace or a completed token), exactly like
+            // Forth's own comment word — `#` glued to a preceding name is just
+            // part of that name, not a comment start.
+            b'#' => {
+                let rest = &bytes[cursor.pos..];
+                let length = rest.iter().position(|&b| b == b'\n');
+                cursor.advance_to(cursor.pos + length.unwrap_or(rest.len()));
+                continue;
+            }
+            // LiteralSugar: `'` -> STRING-QUOTE (see surface_forms.rs). A string
+            // can hold whitespace of its own (`'hello world'`), so it is not
+            // bounded by the ordinary word-delimiter rule below — it is its own
+            // sub-grammar, delimited by the closing quote rather than by space.
+            b'\'' => {
+                let span = cursor.here;
+                let Some(content) = string_literal_content(&input[cursor.pos..]) else {
+                    return Err("Unclosed literal starting with '".to_string());
+                };
+                // The opening quote, the content and the closing quote.
+                cursor.advance_to(cursor.pos + content.len() + 2);
+                tokens.push(Token::String(content.into()));
+                spans.push(span);
+                continue;
+            }
+            0x80.. if cursor.peek().is_some_and(char::is_whitespace) => {
+                cursor.bump();
+                continue;
+            }
+            _ => {}
         }
 
         // Whitespace is the sole word delimiter (LANG.SOURCE.TEXT): a token
@@ -99,13 +138,7 @@ pub fn tokenize_with_spans(input: &str) -> Result<(Vec<Token>, Vec<SourceSpan>),
         // (`spec/grammar.json`, characterClasses.nameCharacter).
         let span = cursor.here;
         let start = cursor.pos;
-        cursor.skip_word();
-        let token_str = &input[start..cursor.pos];
-        if let Some(token) = seen.get(token_str) {
-            tokens.push(token.clone());
-            spans.push(span);
-            continue;
-        }
+        let key = cursor.skip_word();
 
         // The two structural words of `spec/grammar.json`'s one delimiter
         // pair: like every other Ajisai word (and like Forth's own `[` and
@@ -115,11 +148,31 @@ pub fn tokenize_with_spans(input: &str) -> Result<(Vec<Token>, Vec<SourceSpan>),
         // meaningless) name containing a delimiter. This is a
         // whole-lexeme rule, not a per-character one: no character is checked
         // on the way in, and a lexeme either *is* one delimiter or holds none.
-        if let Some(token) = delimiter_token(token_str) {
+        if let Some(token) = delimiter_token(key) {
+            if token == Token::VectorStart {
+                depth += 1;
+            } else if let Some(outer) = depth.checked_sub(1) {
+                depth = outer;
+            } else {
+                stray_close = true;
+            }
             tokens.push(token);
             spans.push(span);
             continue;
         }
+        // A short lexeme seen before is answered by its key alone, without
+        // its text being sliced out or compared.
+        let first = match seen.recent(key) {
+            Some(first) => Some(first),
+            None => seen.find(key, &input[start..cursor.pos]),
+        };
+        if let Some(first) = first {
+            let token = tokens[first].clone();
+            tokens.push(token);
+            spans.push(span);
+            continue;
+        }
+        let token_str = &input[start..cursor.pos];
         if token_str.contains(DELIMITERS) {
             return Err(format!(
                 "'{}' is not a valid token: '[' and ']' must stand alone, separated by whitespace, like every other Ajisai word (LANG.SOURCE.TEXT — whitespace is the sole token delimiter).",
@@ -131,107 +184,55 @@ pub fn tokenize_with_spans(input: &str) -> Result<(Vec<Token>, Vec<SourceSpan>),
         // grammar accepts the entire lexeme, otherwise a name. This is why no
         // character needs special treatment — `1/2` is a number because the
         // whole token parses as one, and `/` is a name for the same reason.
-        let token =
-            parse_number_from_string(token_str).unwrap_or_else(|| Token::Symbol(token_str.into()));
-        seen.insert(token_str, token.clone());
+        let token = match parse_number_from_string(token_str) {
+            Some(number) => {
+                first_numbers.push(tokens.len());
+                number
+            }
+            None => Token::Symbol(token_str.into()),
+        };
+        seen.remember(key, token_str, tokens.len());
         tokens.push(token);
         spans.push(span);
     }
 
-    // The one structural gate, over the real tokens, shared with the entry
-    // point that reads a stored Vector as code. A second pass over the raw
-    // text used to run first for a nicer message, but it tracked `#` and `'`
-    // by character rather than by word position, so `[ C# ]` — a name glued
-    // to `#` — read to it as a comment swallowing the `]`, and it reported an
-    // imbalance the program did not have.
-    validate_code_tokens(&tokens)?;
+    // The one structural gate, with `validate_code_tokens`'s messages, which
+    // the entry point that reads a stored Vector as code runs over its
+    // tokens. A second pass over the raw text used to run first for a nicer
+    // message, but it tracked `#` and `'` by character rather than by word
+    // position, so `[ C# ]` — a name glued to `#` — read to it as a comment
+    // swallowing the `]`, and it reported an imbalance the program did not
+    // have.
+    if stray_close {
+        return Err("Unexpected ']' without matching '['".to_string());
+    }
+    if depth != 0 {
+        return Err("Unclosed '[': expected ']'".into());
+    }
     debug_assert_eq!(
         tokens.len(),
         spans.len(),
         "every token must carry the position it was written at"
     );
-    Ok((tokens, spans))
-}
-
-/// How many runs of non-whitespace bytes `input` holds, ASCII whitespace
-/// only: about the number of tokens it reads as. Only a capacity — a string
-/// or comment holding spaces makes it more, other whitespace makes it fewer,
-/// and neither changes what is read.
-fn ascii_word_count(input: &str) -> usize {
-    let mut count = 0;
-    let mut in_word = false;
-    for &byte in input.as_bytes() {
-        let space = byte.is_ascii_whitespace();
-        count += usize::from(!space && !in_word);
-        in_word = !space;
-    }
-    count
-}
-
-/// A position in the source being tokenized, advanced one character at a
-/// time so that its line and column stay those of the next character.
-struct Cursor<'a> {
-    input: &'a str,
-    pos: usize,
-    here: SourceSpan,
-}
-
-impl Cursor<'_> {
-    #[inline]
-    fn peek(&self) -> Option<char> {
-        // Source is nearly all ASCII, which is its own character; decoding
-        // UTF-8 from a fresh slice per character was most of this loop.
-        match *self.input.as_bytes().get(self.pos)? {
-            byte if byte.is_ascii() => Some(char::from(byte)),
-            _ => self.input[self.pos..].chars().next(),
-        }
-    }
-
-    /// Advance to the next whitespace character or the end of input. A word
-    /// holds no newline, so only the column moves; its ASCII bytes are taken
-    /// a byte at a time, and anything else falls back to `peek`/`bump`.
-    #[inline]
-    fn skip_word(&mut self) {
-        let bytes = self.input.as_bytes();
-        while let Some(&byte) = bytes.get(self.pos) {
-            if byte.is_ascii() {
-                // `char::is_whitespace` on ASCII, vertical tab included.
-                if matches!(byte, b' ' | b'\t' | b'\n' | b'\x0B' | b'\x0C' | b'\r') {
-                    return;
-                }
-                self.pos += 1;
-                self.here.column += 1;
-            } else {
-                match self.peek() {
-                    Some(c) if !c.is_whitespace() => self.bump(),
-                    _ => return,
-                }
-            }
-        }
-    }
-
-    #[inline]
-    fn bump(&mut self) {
-        if let Some(c) = self.peek() {
-            self.pos += c.len_utf8();
-            if c == '\n' {
-                self.here.line += 1;
-                self.here.column = 1;
-            } else {
-                self.here.column += 1;
-            }
-        }
-    }
+    Ok(SourceTokens {
+        tokens,
+        spans,
+        first_numbers,
+    })
 }
 
 /// The delimiter characters: the one pair `spec/grammar.json` declares.
 const DELIMITERS: [char; 2] = ['[', ']'];
 
-/// The token a lexeme that is exactly one delimiter emits.
-fn delimiter_token(lexeme: &str) -> Option<Token> {
-    match lexeme {
-        "[" => Some(Token::VectorStart),
-        "]" => Some(Token::VectorEnd),
+/// The token a lexeme that is exactly one delimiter emits, from the lexeme's
+/// key (`LexemeMemo::key`), which is a delimiter's key only for that
+/// delimiter alone.
+fn delimiter_token(key: u64) -> Option<Token> {
+    const OPEN: u64 = LexemeMemo::key(b"[");
+    const CLOSE: u64 = LexemeMemo::key(b"]");
+    match key {
+        OPEN => Some(Token::VectorStart),
+        CLOSE => Some(Token::VectorEnd),
         _ => None,
     }
 }
