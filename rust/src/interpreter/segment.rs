@@ -109,6 +109,9 @@ pub(crate) struct Segment {
     pub(crate) dictionary_epoch: u64,
 }
 
+/// A User Word whose plan a run built, and the plan.
+type PlanBuild<'a> = (&'a str, Arc<CompiledPlan>);
+
 /// The storage a run computes in — its operand stack and its slots — kept
 /// on the interpreter between runs. A run is short and frequent (a Word
 /// body's, once per call), and building small vectors for it each time was
@@ -227,11 +230,13 @@ impl Segment {
 
         // Each call looks its Word's plan up; one with none current is built
         // by its first call.
-        let mut builds: SmallVec<[(&str, Arc<CompiledPlan>); 2]> = SmallVec::new();
+        // A run that calls no User Word has nothing to look up here.
+        let mut builds: Option<SmallVec<[PlanBuild; 2]>> = None;
         for name in &self.callees {
             let def = interp.user_words.get(name.as_str())?;
             if !matches!(&def.compiled_plan, Some(plan) if is_plan_valid(plan, interp)) {
-                builds.push((name, arc_plan(compile_word_definition(def, interp))));
+                let plan = arc_plan(compile_word_definition(def, interp));
+                builds.get_or_insert_with(SmallVec::new).push((name, plan));
             }
         }
 
@@ -239,11 +244,11 @@ impl Segment {
         interp.numeric_work_used += work;
         let metrics = &mut interp.runtime_metrics;
         metrics.scalar_fastpath_count = metrics.scalar_fastpath_count.saturating_add(fastpath);
-        let built = builds.len() as u64;
+        let built = builds.as_ref().map_or(0, |builds| builds.len()) as u64;
         metrics.compiled_plan_cache_miss_count += built;
         metrics.compiled_plan_build_count += built;
         metrics.compiled_plan_cache_hit_count += self.calls - built;
-        if built > 0 {
+        if let Some(builds) = builds {
             interp.global_epoch += built;
             interp.execution_epoch = interp.global_epoch;
             for (name, plan) in builds {
@@ -253,7 +258,12 @@ impl Segment {
         for (name, slot) in &self.binds {
             interp.bind_local(name.clone(), slots[*slot as usize].into_value());
         }
-        interp.stack.truncate(base);
+        // The operands the run took are plain slots (`Slot::of` read every
+        // one), which own nothing a destructor would free, so they are let
+        // go of rather than dropped.
+        while interp.stack.len() > base {
+            std::mem::forget(interp.stack.pop());
+        }
         for &slot in stack.iter() {
             interp.stack.push(slot.into_value());
         }
