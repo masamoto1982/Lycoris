@@ -302,6 +302,14 @@ fn cmd_contract(path: &str) -> i32 {
             if !r.effects.is_empty() {
                 println!("    effects: {}", r.effects.join(", "));
             }
+            println!(
+                "    shapes: {}",
+                if r.shapes.is_empty() {
+                    "none".to_string()
+                } else {
+                    r.shapes.join(", ")
+                }
+            );
             if !r.field_exits.is_empty() {
                 println!("    leaves the field at: {}", r.field_exits.join(", "));
             }

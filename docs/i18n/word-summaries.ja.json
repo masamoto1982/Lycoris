@@ -26,8 +26,8 @@
       "summary": "すでに計算済みの2つの値から、真偽値で一方を選ぶ。`'yes' 'no' TRUE SELECT`は`'yes'`、`'yes' 'no' FALSE SELECT`は`'no'`。選択は要素ごとに行われる(LANG.COLLECTIONS.LIFT)ので、真偽値のベクトルは2つのベクトルをレーンごとに編み合わせ、1レーンのオペランドは相手の長さに合わせて繰り返し使われる。UNKNOWNのレーン(真偽の位置で読まれたNIL。理由は問わない)はどちらも選ばず、その不在をそのまま答えるので、理由は選択を越えて残る。BOTHのレーンは両方を選び、2つの候補を突き合わせた結果(RECONCILE)を答える。`1 1 BOTH SELECT`は`1`で、異なる2つの候補は食い違いになる。どちらのオペランドもプログラムがすでに組み立てた値であり、SELECTは何も評価しない。それらを計算したものはSELECTより前に、ちょうど1回実行されている。"
     },
     "RECONCILE": {
-      "source": "c197519036b53bce",
-      "summary": "2つの情報源が一致するもの(LANG.VALUES.TRUTH)。`1 1 RECONCILE`は`1`で、不在はもう一方の情報源が持つ値に譲る(`NIL 5 RECONCILE`は`5`)。異なる2つの真偽値はBOTHになり(`TRUE FALSE RECONCILE`は`BOTH`)、それ以外の異なる2つの値は一致するものを持たず、NIL(conflict)を投影する(`'Tokyo' 'Osaka' RECONCILE NIL-REASON`は`'conflict'`)。食い違いは3つ目の情報源では解消しないので、この語は結合的・可換・冪等であり、多数の情報源にFOLDしても順序に依存しない。EQと同じくオペランドを丸ごと比べる。`[ 1 2 ] [ 1 3 ] RECONCILE`は食い違いで、レーンごとに突き合わせるプログラムはZIPとMAPを使う。"
+      "source": "c8a1fb2db0aae8f0",
+      "summary": "2つの情報源が一致するもの(LANG.VALUES.TRUTH)。`1 1 RECONCILE`は`1`で、不在はもう一方の情報源が持つ値に譲る(`NIL 5 RECONCILE`は`5`)。数の間では`0/0`がもっとも知らない値で、相手の数に譲る(LANG.VALUES.SHAPE)。`0/0 5 RECONCILE`は`5`だが、`0/0 TRUE RECONCILE`は食い違いになる。異なる2つの真偽値はBOTHになり(`TRUE FALSE RECONCILE`は`BOTH`)、それ以外の異なる2つの値は一致するものを持たず、NIL(conflict)を投影する(`'Tokyo' 'Osaka' RECONCILE NIL-REASON`は`'conflict'`)。食い違いは3つ目の情報源では解消しないので、この語は結合的・可換・冪等であり、多数の情報源にFOLDしても順序に依存しない。EQと同じくオペランドを丸ごと比べる。`[ 1 2 ] [ 1 3 ] RECONCILE`は食い違いで、レーンごとに突き合わせるプログラムはZIPとMAPを使う。"
     },
     "EQ": {
       "source": "258c833b77c50775",
@@ -270,8 +270,8 @@
       "summary": "ブロックをその場で実行し、結果をスタックに残す。`[ 1 2 ADD ] EXEC`は`3`。他のコードと同じくスタックを読み書きするので、`2 [ 3 MUL ] EXEC`は`6`。ブロックでないものは`notExecutable`。"
     },
     "CONTRACT": {
-      "source": "e0d2736444197e90",
-      "summary": "ワードまたはブロックの契約をRecordで答える。`[ SQRT ] 0 GET CONTRACT 'partiality' GET`は`'projecting'`。CoreワードをSymbolで名指せば、`spec/words.json`に登録された記録で(LANG.CONTRACT.REGISTRY)、キーはレジストリ自身のフィールド名`name` `vocabularyTier` `inputs` `outputs` `nilPolicy` `projection` `errorWhen` `partiality` `field` `purity` `determinism` `cost` `effects`。だから`[ DIV ] 0 GET CONTRACT 'cost' GET`は実行する前にワードの費用級を問い、`[ 0 DIV ] CONTRACT 'field' GET`は`'leaving'`になる。三点を含まない被演算子から0の上の点を答えうるかどうかは、実行する前に読める(LANG.CONTRACT.FIELD)。UserワードをSymbolで名指すか、コードのブロックを渡せば、何も実行せずに推論した契約で(言語の外から`ajisai check --contract`が行うのと同じ推論)、キーは`inputs` `outputs` `partiality` `field` `purity` `determinism` `cost` `effects`(同じキーで同じ語彙なので両者を直接比べられる)と`confidence` `gaps`。`confidence`と`gaps`は検査自身の三分法(LANG.CONTRACT.CHECK)をデータとして運ぶので、解決できない依存はERRORではなく答えの中の欠落になる。ブロックは決して評価されないので、`[ 42 PRINT ] CONTRACT`は出力せずに`effects`の下に`consoleWrite`を報告する。どのワードも名指さないSymbolは`notFound`を投影し、SymbolでもブロックでもないオペランドはERROR(`notASymbol`)。"
+      "source": "6d2779132129e917",
+      "summary": "ワードまたはブロックの契約をRecordで答える。`[ SQRT ] 0 GET CONTRACT 'partiality' GET`は`'projecting'`。CoreワードをSymbolで名指せば、`spec/words.json`に登録された記録で(LANG.CONTRACT.REGISTRY)、キーはレジストリ自身のフィールド名`name` `vocabularyTier` `inputs` `outputs` `nilPolicy` `projection` `errorWhen` `partiality` `field` `zeroShapes` `shapes` `purity` `determinism` `cost` `effects`。だから`[ DIV ] 0 GET CONTRACT 'cost' GET`は実行する前にワードの費用級を問い、`[ 0 DIV ] CONTRACT 'field' GET`は`'leaving'`になる。三点を含まない被演算子から0の上の点を答えうるかどうかは、実行する前に読める。`[ 0 MUL 0 DIV ] CONTRACT 'shapes' GET`は`[ 'zero' 'nullity' ]`で、数がとりうる零形を答えるので、`0/0`を持たない本体はその順序を問わない(LANG.CONTRACT.FIELD)。UserワードをSymbolで名指すか、コードのブロックを渡せば、何も実行せずに推論した契約で(言語の外から`ajisai check --contract`が行うのと同じ推論)、キーは`inputs` `outputs` `partiality` `field` `shapes` `purity` `determinism` `cost` `effects`(同じキーで同じ語彙なので両者を直接比べられる)と`confidence` `gaps`。`confidence`と`gaps`は検査自身の三分法(LANG.CONTRACT.CHECK)をデータとして運ぶので、解決できない依存はERRORではなく答えの中の欠落になる。ブロックは決して評価されないので、`[ 42 PRINT ] CONTRACT`は出力せずに`effects`の下に`consoleWrite`を報告する。どのワードも名指さないSymbolは`notFound`を投影し、SymbolでもブロックでもないオペランドはERROR(`notASymbol`)。"
     },
     "FAIL": {
       "source": "a5802c10ab833aaf",

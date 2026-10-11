@@ -84,6 +84,11 @@ async fn reconcile_agrees_yields_and_conflicts() {
         ("TRUE TRUE RECONCILE", "TRUE"),
         ("NIL FALSE RECONCILE", "FALSE"),
         ("[ 1 2 ] [ 1 2 ] RECONCILE", "[ 1/1 2/1 ]"),
+        ("0/0 5 RECONCILE", "5/1"),
+        ("-1/0 0/0 RECONCILE", "-1/0"),
+        ("0/0 0/0 RECONCILE", "0/0"),
+        ("NIL 0/0 RECONCILE", "0/0"),
+        ("0/0 NIL RECONCILE", "0/0"),
     ] {
         assert_eq!(one(code).await.to_string(), expected, "`{code}`");
     }
@@ -96,6 +101,9 @@ async fn reconcile_agrees_yields_and_conflicts() {
         "1 2 RECONCILE 1 RECONCILE",
         "1 2 RECONCILE NIL RECONCILE",
         "NIL 1 2 RECONCILE RECONCILE",
+        "0/0 TRUE RECONCILE",
+        "'a' 0/0 RECONCILE",
+        "0/0 1 2 RECONCILE RECONCILE",
     ] {
         assert_eq!(
             one(code).await.nil_reason(),
@@ -131,6 +139,9 @@ async fn reconcile_is_a_semilattice() {
         "2",
         "'a'",
         "1 2 RECONCILE",
+        "0/0",
+        "1/0",
+        "2 SQRT",
     ];
     let present = |v: &Value| (v.is_nil(), v.nil_reason().copied(), v.to_string());
     let absent_reason = |v: &Value| v.is_nil() && v.nil_reason() != Some(&NilReason::Conflict);

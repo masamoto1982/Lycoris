@@ -252,11 +252,15 @@ async fn the_mediant_is_the_join_on_shapes_for_operands_of_one_sign() {
             }
         }
     }
-    // 0/0 is the unit, as UNKNOWN is RECONCILE's.
+    // 0/0 is the unit, of the mediant and of RECONCILE among numbers.
     for x in RATIONAL_SAMPLE {
         assert!(
             holds(&format!("{MEDIANT}0/0 {x} MEDIANT {x} EQ")).await,
             "0/0 ⊕ {x} = {x}"
+        );
+        assert!(
+            holds(&format!("0/0 {x} RECONCILE {x} EQ")).await,
+            "0/0 RECONCILE {x} = {x}"
         );
     }
     // FALSE ⊕ TRUE is BOTH, and the number it is is 1.

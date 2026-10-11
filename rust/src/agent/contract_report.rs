@@ -28,6 +28,8 @@ pub(crate) struct WordReport {
     pub field: &'static str,
     /// The Words and literals that make the word `leaving`, in body order.
     pub field_exits: Vec<String>,
+    /// The zero shapes its numbers may take from operands in the field.
+    pub shapes: Vec<&'static str>,
     pub purity: &'static str,
     pub determinism: &'static str,
     /// The inferred charged-cost class on each of the three axes
@@ -63,6 +65,10 @@ fn suggested_directive(name: &str, contract: &WordContract) -> String {
     parts.push(format!("purity={}", contract.purity.as_spec_str()));
     parts.push(format!("partiality={}", contract.partiality.as_spec_str()));
     parts.push(format!("field={}", contract.field.as_spec_str()));
+    // Only a set the stack walk inferred is one the checker can verify.
+    if contract.shapes_inferred {
+        parts.push(format!("shapes={}", contract.shapes.declared_spelling()));
+    }
     parts.push(format!(
         "determinism={}",
         contract.determinism.as_spec_str()
@@ -119,6 +125,7 @@ pub(crate) fn report_contracts(source: &str) -> Vec<WordReport> {
             partiality: contract.partiality.as_spec_str(),
             field: contract.field.as_spec_str(),
             field_exits: contract.field_exits.clone(),
+            shapes: contract.shapes.shape_names(),
             purity: contract.purity.as_spec_str(),
             determinism: contract.determinism.as_spec_str(),
             cost_steps: CostClass::as_spec_str(contract.cost.steps.0),
@@ -151,6 +158,7 @@ pub(crate) fn reports_json(reports: &[WordReport]) -> serde_json::Value {
                     "partiality": r.partiality,
                     "field": r.field,
                     "fieldExits": r.field_exits,
+                    "shapes": r.shapes,
                     "purity": r.purity,
                     "determinism": r.determinism,
                     "cost": {

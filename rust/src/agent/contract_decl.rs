@@ -39,6 +39,7 @@ use crate::coreword_registry::FieldClosure;
 use crate::interpreter::word_contract::{
     ContractConfidence, ContractDeterminism, ContractFlow, ContractPartiality, ContractPurity,
 };
+use crate::interpreter::zero_shape::ZeroAtoms;
 use crate::interpreter::Interpreter;
 use crate::types::Token;
 
@@ -57,6 +58,10 @@ pub(crate) struct ContractDecl {
     /// A declared `closed` promises the Word never answers a point over zero
     /// from operands that hold none (LANG.CONTRACT.FIELD).
     pub field: Option<FieldClosure>,
+    /// A declared `shapes` bounds the zero shapes the Word's numbers may take
+    /// from operands in the field (LANG.CONTRACT.FIELD): the inferred set
+    /// must lie within it.
+    pub shapes: Option<ZeroAtoms>,
     pub determinism: Option<ContractDeterminism>,
     /// Declared cost-class bounds, one per axis; each `None` axis is not
     /// checked (Phase 5).
@@ -424,6 +429,20 @@ fn check_one(interp: &mut Interpreter, decl: &ContractDecl, findings: &mut Vec<D
             &inferred,
             conservative,
             code,
+        ));
+    }
+    if let Some(declared) = decl
+        .shapes
+        .filter(|d| !contract.shapes.whole_shapes().is_subset(*d))
+    {
+        // Only a set the stack walk inferred can refute the declaration; the
+        // widest set `field` admits, where the walk gave up, cannot.
+        findings.push(bound_finding(
+            &decl.name,
+            &format!("shapes={}", declared.declared_spelling()),
+            &format!("shapes={}", contract.shapes.declared_spelling()),
+            conservative || !contract.shapes_inferred,
+            code.or(Some(GapCode::UnmodelledControlFlow.as_str())),
         ));
     }
     if let Some(declared) = decl.determinism.filter(|d| contract.determinism > *d) {

@@ -18,7 +18,9 @@
 //! 5. a `DIV` by a finite non-zero literal and a `POW` to a finite
 //!    non-negative literal exponent are inferred `closed`, and running every
 //!    such call over finite operands confirms it never leaves the field;
-//! 6. a `leaving` body names where it leaves.
+//! 6. a `leaving` body names where it leaves;
+//! 7. an operand the body computes, whose zero shapes cannot reach past the
+//!    field, keeps the call `closed` as a literal does.
 
 use crate::agent::api::check;
 use crate::agent::contract_report::report_contracts;
@@ -247,7 +249,7 @@ async fn a_literal_operand_that_cannot_leave_the_field_keeps_the_call_closed() {
         "[ -1 POW ]",
         "[ 1/0 DIV ]",
         "[ [ 1 ] LENGTH DIV ]",
-        "[ 2 SQRT DIV ]",
+        "[ LENGTH 1 SUB DIV ]",
     ] {
         let stack = stack_of(&format!("{block} CONTRACT 'field' GET"))
             .await
@@ -256,6 +258,40 @@ async fn a_literal_operand_that_cannot_leave_the_field_keeps_the_call_closed() {
             matches!(&stack[0].data, ValueData::Text(t) if &**t == "leaving"),
             "{block} must stay leaving: its operand is not a literal that decides it"
         );
+    }
+}
+
+/// The zero shapes decide an operand the body computes as well as one it
+/// writes: a positive root and a length plus one are never zero, and a sum of
+/// two positive numbers is never negative, so dividing by the first two and
+/// raising to the third stay in the field — and running each over finite
+/// operands confirms it.
+#[tokio::test]
+async fn a_computed_operand_whose_shapes_cannot_leave_keeps_the_call_closed() {
+    for (block, operands) in [
+        ("[ 2 SQRT DIV ]", FINITE_OPERANDS),
+        ("[ 1 1 ADD POW ]", FINITE_OPERANDS),
+        (
+            "[ LENGTH 1 ADD DIV ]",
+            &["5 [ ]", "-2 [ 1 2 ]", "0 [ 0 ]"][..],
+        ),
+    ] {
+        let stack = stack_of(&format!("{block} CONTRACT 'field' GET"))
+            .await
+            .expect("CONTRACT runs");
+        assert!(
+            matches!(&stack[0].data, ValueData::Text(t) if &**t == "closed"),
+            "{block} must infer closed"
+        );
+        for operand in operands {
+            let code = format!("{operand} {block} EXEC");
+            if let Some(stack) = stack_of(&code).await {
+                assert!(
+                    !stack.iter().any(holds_point_over_zero),
+                    "`{code}` left the field although {block} is inferred closed"
+                );
+            }
+        }
     }
 }
 

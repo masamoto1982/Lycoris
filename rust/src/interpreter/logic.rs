@@ -100,12 +100,26 @@ fn compute_inverted_value(val: &Value) -> Result<Value> {
 /// rather than one more absence that yields is what keeps the Word
 /// associative: `1 2 RECONCILE 3 RECONCILE` and `1 2 3 RECONCILE RECONCILE`
 /// are both the conflict.
+///
+/// Among numbers `0/0` knows least, as UNKNOWN does among truth values: its
+/// zero shape is FOUR's bottom (LANG.VALUES.SHAPE), so it yields to the
+/// other number as an absence yields to any source. It yields only to a
+/// number — a String or a truth value tells nothing about which number is
+/// meant — so the order stays a join semilattice and the Word associative.
 pub(crate) fn reconcile(a: &Value, b: &Value) -> Value {
     let is_conflict = |v: &Value| v.nil_reason() == Some(&NilReason::Conflict);
     if is_conflict(a) || b.is_nil() && !is_conflict(b) {
         return a.clone();
     }
     if is_conflict(b) || a.is_nil() || a == b {
+        return b.clone();
+    }
+    let is_number = |v: &Value| matches!(v.data, ValueData::Scalar(_) | ValueData::ExactScalar(_));
+    let is_nullity = |v: &Value| matches!(&v.data, ValueData::Scalar(f) if f.is_nullity());
+    if is_nullity(b) && is_number(a) {
+        return a.clone();
+    }
+    if is_nullity(a) && is_number(b) {
         return b.clone();
     }
     let is_truth = |v: &Value| matches!(v.data, ValueData::Boolean(_) | ValueData::Both);

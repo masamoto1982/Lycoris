@@ -70,6 +70,11 @@ const CONTRACT_ENUMS = [
       + '/// order a contract widens along (`closed` < `leaving`): one `leaving` Word in a\n'
       + '/// body makes the body `leaving`, which is what the derived `Ord` means here.',
   },
+  {
+    rustName: 'ZeroShapeLaw',
+    field: 'zeroShapes',
+    doc: 'What the Word does to the zero shapes of numbers (LANG.VALUES.SHAPE, LANG.CONTRACT.FIELD).',
+  },
   { rustName: 'Purity', field: 'purity', doc: 'Observational purity class (LANG.CONTRACT.REGISTRY).' },
   { rustName: 'Determinism', field: 'determinism', doc: 'What the Word\'s result may depend on beyond its operands.' },
   { rustName: 'VocabularyTier', field: 'vocabularyTier', doc: 'Where the Word sits in the public Core: the Semantic Kernel or the Standard vocabulary.' },
@@ -233,6 +238,7 @@ const rows = entries
         projection_reasons: ${projectionReasons(word.projection.reason)},
         partiality: ${enumRef('Partiality', word.partiality)},
         field: ${enumRef('FieldClosure', word.field)},
+        zero_shapes: ${enumRef('ZeroShapeLaw', word.zeroShapes)},
         purity: ${enumRef('Purity', word.purity)},
         determinism: ${enumRef('Determinism', word.determinism)},
         cost: ${cost(word.cost)},
@@ -391,6 +397,10 @@ pub struct GeneratedWord {
     /// none (LANG.CONTRACT.FIELD). Read by \`interpreter::word_contract\`,
     /// which joins it along a body as it joins partiality.
     pub field: FieldClosure,
+    /// What the Word does to the zero shapes of numbers (LANG.VALUES.SHAPE).
+    /// Read by \`interpreter::word_contract_shape\`, which carries the shapes
+    /// a body's stack may hold through each call; \`field\` is its projection.
+    pub zero_shapes: ZeroShapeLaw,
     pub purity: Purity,
     pub determinism: Determinism,
     /// What the Word charges on each metered resource. Read by

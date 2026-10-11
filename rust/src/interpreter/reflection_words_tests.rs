@@ -89,7 +89,7 @@ async fn contract_answers_the_registered_record_of_a_core_word() {
     assert_eq!(top("[ MAP ] 0 GET CONTRACT 'inputs' GET").await, "2/1");
     assert_eq!(
         top("[ SORT ] 0 GET CONTRACT KEYS").await,
-        "[ 'name' 'vocabularyTier' 'inputs' 'outputs' 'nilPolicy' 'projection' 'errorWhen' 'partiality' 'field' 'purity' 'determinism' 'cost' 'effects' ]"
+        "[ 'name' 'vocabularyTier' 'inputs' 'outputs' 'nilPolicy' 'projection' 'errorWhen' 'partiality' 'field' 'zeroShapes' 'shapes' 'purity' 'determinism' 'cost' 'effects' ]"
     );
     assert_eq!(
         top("[ SORT ] 0 GET CONTRACT 'vocabularyTier' GET").await,
@@ -109,8 +109,24 @@ async fn contract_infers_a_user_word_and_a_block_in_one_shape() {
     );
     assert_eq!(
         top("[ 42 PRINT ] CONTRACT KEYS").await,
-        "[ 'inputs' 'outputs' 'partiality' 'field' 'purity' 'determinism' 'cost' 'effects' 'confidence' 'gaps' ]"
+        "[ 'inputs' 'outputs' 'partiality' 'field' 'shapes' 'purity' 'determinism' 'cost' 'effects' 'confidence' 'gaps' ]"
     );
+    // The zero shapes a body's numbers may take, read off the stack it builds
+    // (LANG.CONTRACT.FIELD): a product of zeros stays zero, a quotient of it
+    // by zero is `0/0` and never a signed point.
+    assert_eq!(
+        top("[ 0 MUL 0 DIV ] CONTRACT 'shapes' GET").await,
+        "[ 'zero' 'nullity' ]"
+    );
+    assert_eq!(
+        top("[ DIV ] 0 GET CONTRACT 'shapes' GET").await,
+        "[ 'zero' 'nonzero' 'infinite' 'nullity' ]"
+    );
+    assert_eq!(
+        top("[ POW ] 0 GET CONTRACT 'shapes' GET").await,
+        "[ 'zero' 'nonzero' 'infinite' ]"
+    );
+    assert_eq!(top("[ STR ] CONTRACT 'shapes' GET").await, "[ ]");
     assert_eq!(top("[ 1 2 ADD ] CONTRACT 'purity' GET").await, "'pure'");
     // A key both shapes carry is answered in one vocabulary, so a block
     // compares directly with the Core Word it calls.

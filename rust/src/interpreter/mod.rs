@@ -112,6 +112,7 @@ mod word_candidates;
 pub mod word_contract;
 mod word_contract_field;
 mod word_contract_flow;
+mod word_contract_shape;
 #[cfg(test)]
 mod word_contract_tests;
 mod word_contract_widen;
@@ -119,6 +120,7 @@ pub(crate) mod word_cost;
 #[cfg(test)]
 mod word_cost_tests;
 pub(crate) mod word_outcome_vocabulary;
+pub(crate) mod zero_shape;
 // `pub(crate)`, not private: `agent::observation_digest` calls
 // `word_identity::content_digest` and `word_identity::encode_token` directly,
 // so the crate-wide agent boundary needs to name this module.

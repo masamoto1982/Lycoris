@@ -1923,7 +1923,7 @@ W</pre>
 <section class="ajisai-case" id="core-contract-block-pure" data-category="core">
   <h3>CONTRACT infers a pure block as pure, with no gaps, as a contract Record</h3>
   <pre class="ajisai-source">[ 1 2 ADD ] CONTRACT</pre>
-  <pre class="ajisai-expect-result">[ 'inputs' 'outputs' 'partiality' 'field' 'purity' 'determinism' 'cost' 'effects' 'confidence' 'gaps' ] 0/1 1/1 'total' 'closed' 'pure' 'deterministic' [ 'steps' 'numeric' 'collection' ] [ 'const' 'const' 'const' ] RECORD [ ] 'complete' [ ] 10 COLLECT RECORD</pre>
+  <pre class="ajisai-expect-result">[ 'inputs' 'outputs' 'partiality' 'field' 'shapes' 'purity' 'determinism' 'cost' 'effects' 'confidence' 'gaps' ] 0/1 1/1 'total' 'closed' [ 'nonzero' ] 'pure' 'deterministic' [ 'steps' 'numeric' 'collection' ] [ 'const' 'const' 'const' ] RECORD [ ] 'complete' [ ] 11 COLLECT RECORD</pre>
   <div class="ajisai-expect-effects"></div>
 </section>
 
@@ -1962,6 +1962,31 @@ W</pre>
   <h3>The registered field of DIV and of ADD</h3>
   <pre class="ajisai-source">[ DIV ] 0 GET CONTRACT 'field' GET [ ADD ] 0 GET CONTRACT 'field' GET</pre>
   <pre class="ajisai-expect-result">'leaving' 'closed'</pre>
+  <div class="ajisai-expect-effects"></div>
+</section>
+
+<!-- LANG.CONTRACT.FIELD, read per zero shape: the stack walk carries the
+     shapes each value may take, so a divisor the body computes is decided
+     as a literal one is, and the set says which points a body can reach. -->
+
+<section class="ajisai-case" id="core-contract-shapes-computed-divisor" data-category="core">
+  <h3>A computed divisor that cannot be zero keeps the division closed</h3>
+  <pre class="ajisai-source">[ LENGTH 1 ADD DIV ] CONTRACT 'field' GET [ 2 SQRT DIV ] CONTRACT 'field' GET [ LENGTH DIV ] CONTRACT 'field' GET</pre>
+  <pre class="ajisai-expect-result">'closed' 'closed' 'leaving'</pre>
+  <div class="ajisai-expect-effects"></div>
+</section>
+
+<section class="ajisai-case" id="core-contract-shapes-which-points" data-category="core">
+  <h3>The shapes say which points over zero a body can reach</h3>
+  <pre class="ajisai-source">[ 0 MUL 0 DIV ] CONTRACT 'shapes' GET [ 'x' BIND 1 x DIV ] CONTRACT 'shapes' GET</pre>
+  <pre class="ajisai-expect-result">[ 'zero' 'nullity' ] [ 'nonzero' 'infinite' ]</pre>
+  <div class="ajisai-expect-effects"></div>
+</section>
+
+<section class="ajisai-case" id="core-contract-shapes-registered" data-category="core">
+  <h3>A Core Word's shapes are its zero-shape law read over finite operands</h3>
+  <pre class="ajisai-source">[ POW ] 0 GET CONTRACT 'shapes' GET [ LENGTH ] 0 GET CONTRACT 'zeroShapes' GET</pre>
+  <pre class="ajisai-expect-result">[ 'zero' 'nonzero' 'infinite' ] 'count'</pre>
   <div class="ajisai-expect-effects"></div>
 </section>
 
