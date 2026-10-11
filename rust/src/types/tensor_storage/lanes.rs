@@ -11,18 +11,15 @@ impl DenseTensor {
     /// one: the pairs as stored, purity recomputed over the slice.
     pub fn lanes(&self, start: usize, len: usize, shape: &[usize]) -> Self {
         let end = start + len;
-        let mut numerators = Column::with_capacity(len);
-        let mut denominators = Column::with_capacity(len);
-        let mut is_pure_integer = true;
-        for (&n, &d) in self.numerators[start..end]
-            .iter()
-            .zip(&self.denominators[start..end])
-        {
-            numerators.push(n);
-            denominators.push(d);
-            is_pure_integer &= d == 1;
-        }
-        Self::from_columns(numerators, denominators, shape, is_pure_integer)
+        let denominators = &self.denominators[start..end];
+        // A slice of a pure tensor is pure, so the scan is only for the rest.
+        let is_pure_integer = self.is_pure_integer || denominators.iter().all(|&d| d == 1);
+        Self::from_columns(
+            Column::from_slice(&self.numerators[start..end]),
+            Column::from_slice(denominators),
+            shape,
+            is_pure_integer,
+        )
     }
 
     /// `self`'s lanes followed by `other`'s, as a tensor of `shape` — `CONCAT`

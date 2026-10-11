@@ -39,6 +39,7 @@ pub(crate) mod fused_block;
 mod fused_block_cache_tests;
 mod fused_block_general;
 mod fused_block_int;
+mod fused_block_lane;
 #[cfg(test)]
 mod fused_block_lane_call_tests;
 pub(crate) mod fused_block_lower;

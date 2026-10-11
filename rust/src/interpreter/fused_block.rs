@@ -283,7 +283,7 @@ impl FusedBlock {
                 .checked_sub(mixed.checked_mul(charges.runs)?)?;
         }
         if lane_answer {
-            value = rewrap_one_lane(walk, &value)?;
+            value = crate::interpreter::fused_block_lane::rewrap_one_lane(walk, &value)?;
         }
 
         let builds = self.builds.len() as u64;
@@ -414,77 +414,6 @@ pub(crate) fn one_lane_of(value: &Value) -> Option<Plain> {
         return None;
     }
     Some(Plain::Num(data.fraction_at(0)))
-}
-
-/// The one-lane value the interpreted walk holds for `lane`: a one-lane
-/// Tensor while both halves fit a machine word, as the column kernel and the
-/// scalar fast path build it (`DenseTensor::from_fractions`) — the lane's pair
-/// as its two columns, pure when its denominator is 1, no absences — and, once
-/// either half outgrows one, the lift's Vector of that one scalar. The form is
-/// a function of the value alone: a lane that grows past a word and shrinks
-/// back is a Tensor again.
-fn one_lane(lane: Fraction) -> Option<Value> {
-    let Some((n, d)) = lane.extract_i64_pair() else {
-        return Some(Value::from_vector(vec![Value::from_fraction(lane)]));
-    };
-    let data = crate::types::DenseTensor::from_columns([n], [d], [1], d == 1);
-    Some(Value::new(
-        ValueData::Tensor {
-            data: std::sync::Arc::new(data),
-            shape: std::sync::Arc::new(vec![1]),
-        },
-        None,
-    ))
-}
-
-/// The answer of a lane walk, as the interpreted walk gives it: `FOLD`'s
-/// last accumulator a one-lane Tensor; `SCAN`'s every accumulator one, in a
-/// Vector built as `higher_order_fold` builds it; `MAP`'s every result one,
-/// promoted as `op_map` promotes a list of answers that are not all scalars.
-fn rewrap_one_lane(walk: FusedWalk, value: &Value) -> Option<Value> {
-    let lane = |v: &Value| match Plain::of(v)? {
-        Plain::Num(f) => one_lane(f),
-        Plain::Bool(_) => None,
-    };
-    match walk {
-        FusedWalk::Fold => lane(value),
-        FusedWalk::Scan => {
-            let lanes = (0..value.len())
-                .map(|i| lane(&value.child(i)?))
-                .collect::<Option<Vec<_>>>()?;
-            Some(Value::from_vector(lanes))
-        }
-        FusedWalk::Map => {
-            // Every result a lane of two machine words, as the tiers hold
-            // them: `from_vector_promoted` stacks such one-lane Tensors into
-            // their columns under the shape `[n, 1]`, so those columns are
-            // the tiers' own.
-            if let ValueData::Tensor { data, shape } = &value.data {
-                if shape.len() == 1 {
-                    let dims = vec![shape[0], 1];
-                    let integer = data.denominators.iter().all(|&d| d == 1);
-                    let tensor = crate::types::DenseTensor::from_columns(
-                        data.numerators.clone(),
-                        data.denominators.clone(),
-                        dims.clone(),
-                        integer,
-                    );
-                    return Some(Value::new(
-                        ValueData::Tensor {
-                            data: std::sync::Arc::new(tensor),
-                            shape: std::sync::Arc::new(dims),
-                        },
-                        None,
-                    ));
-                }
-            }
-            let lanes = (0..value.len())
-                .map(|i| lane(&value.child(i)?))
-                .collect::<Option<Vec<_>>>()?;
-            Some(Value::from_vector_promoted(lanes))
-        }
-        FusedWalk::Filter => None,
-    }
 }
 
 #[cfg(test)]

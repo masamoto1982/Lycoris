@@ -44,3 +44,28 @@ fn points_over_zero_stay_on_the_rational_tier() {
     assert_eq!(rat_runs("[ 1/0 0/0 2 ] [ 1/2 GT ] FILTER"), 0);
     assert_eq!(rat_runs("[ 0/0 1 ] [ 3 MIN ] MAP"), 0);
 }
+
+/// The shortcuts each tier takes on the way — a division by a power of two
+/// as a shift on the integer tier, an integer beside a fraction and a
+/// power-of-two factor without their gcd on the rational tier — answer what
+/// the interpreted walk does: negative and odd lanes, the extremes of a
+/// machine word, and quotients that are not exact among them.
+#[test]
+fn shortcut_arithmetic_agrees_with_the_interpreted_walk() {
+    for source in [
+        "-20 20 RANGE [ 2 DIV ] MAP",
+        "-20 20 RANGE [ 4 DIV FLOOR ] MAP",
+        "-20 20 RANGE [ 1 DIV FLOOR ] MAP",
+        "-20 20 RANGE [ 'N' BIND N 2 DIV N 3 MUL 1 ADD N 2 DIV FLOOR 2 MUL N EQ SELECT ] MAP",
+        "[ -9223372036854775808 9223372036854775807 -1 ] [ 8 DIV FLOOR ] MAP",
+        "[ -9223372036854775808 9223372036854775807 -8 ] [ 'N' BIND N 8 DIV N 8 DIV FLOOR N 0 LT SELECT ] MAP",
+        "-20 20 RANGE [ 1/3 ADD 2 MUL ] MAP",
+        "-20 20 RANGE [ 5/8 SUB 4 MUL ] MAP",
+        "1 1 20 RANGE DIV [ 3 ADD 6 MUL ] MAP",
+        "1 1 20 RANGE DIV [ 'X' BIND 3 X SUB 8 MUL ] MAP",
+        "[ 9223372036854775807 -9223372036854775808 ] [ 1/2 ADD ] MAP",
+        "1 1 20 RANGE DIV 0 [ ADD ] FOLD",
+    ] {
+        super::fused_block_tests::assert_same(source, Default::default());
+    }
+}

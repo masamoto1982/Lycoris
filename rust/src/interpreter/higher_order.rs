@@ -397,9 +397,10 @@ fn run_element_walk<W: ElementWalk>(
     interp.disable_no_change_check = true;
 
     let mut error: Option<AjisaiError> = None;
+    let mut children = target_val.children_reader();
     for i in 0..n_elements {
-        let elem: Value = target_val
-            .child(i)
+        let elem: Value = children
+            .get(i)
             .unwrap_or_else(|| panic!("{word}: child index in 0..len must be valid"));
         interp.stack.clear();
         interp.stack.push(elem);

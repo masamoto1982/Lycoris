@@ -93,6 +93,19 @@ impl Value {
 /// shape `[n]` the child is a Scalar; for higher rank the child is itself a
 /// dense Tensor with the trailing dimensions.
 pub(super) fn tensor_child(data: &DenseTensor, shape: &[usize], index: usize) -> Option<Value> {
+    tensor_child_sharing(data, shape, index, &mut None)
+}
+
+/// `tensor_child`, a row's shape taken from `row_shape` when it holds one and
+/// left there when it did not. Every row of a Tensor has the same shape, so a
+/// walk that reads row after row (`Children`) allocates it once; a shape is
+/// compared by content wherever it is read, so sharing one is unobservable.
+pub(super) fn tensor_child_sharing(
+    data: &DenseTensor,
+    shape: &[usize],
+    index: usize,
+    row_shape: &mut Option<Arc<Vec<usize>>>,
+) -> Option<Value> {
     if shape.is_empty() {
         return None;
     }
@@ -106,10 +119,11 @@ pub(super) fn tensor_child(data: &DenseTensor, shape: &[usize], index: usize) ->
     let rest = &shape[1..];
     let stride: usize = rest.iter().product();
     let tensor = data.lanes(index * stride, stride, rest);
+    let shape = row_shape.get_or_insert_with(|| Arc::new(rest.to_vec()));
     Some(Value::new(
         ValueData::Tensor {
             data: Arc::new(tensor),
-            shape: Arc::new(rest.to_vec()),
+            shape: Arc::clone(shape),
         },
         None,
     ))

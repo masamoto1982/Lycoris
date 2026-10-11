@@ -33,7 +33,7 @@ pub(crate) fn single_word(d: &BigInt) -> Option<u64> {
 /// The `(quotient, remainder)` of `(u1, u0) / d` for a normalized `d` (top bit
 /// set), its reciprocal `v` and `u1 < d`.
 #[inline(always)]
-fn div_two_by_one(u1: u64, u0: u64, d: u64, v: u64) -> (u64, u64) {
+pub(crate) fn div_two_by_one(u1: u64, u0: u64, d: u64, v: u64) -> (u64, u64) {
     let product = u128::from(v) * u128::from(u1);
     let sum = product.wrapping_add(((u128::from(u1) + 1) << 64) | u128::from(u0));
     let (mut quotient, low) = ((sum >> 64) as u64, sum as u64);
@@ -58,26 +58,31 @@ fn walk(magnitude: &BigUint, d: u64, mut step: impl FnMut(u64, u64) -> u64) -> u
     let shift = d.leading_zeros();
     let normalized = d << shift;
     let reciprocal = ((u128::MAX - (u128::from(normalized) << 64)) / u128::from(normalized)) as u64;
-    let mut digits = magnitude.iter_u64_digits().rev().peekable();
+    let mut digits = magnitude.iter_u64_digits().rev();
     let mut remainder = 0u64;
     let mut take = |x: u64, remainder: u64| -> u64 {
         let (quotient, next) = div_two_by_one(remainder, x, normalized, reciprocal);
         step(quotient, next)
     };
-    if shift > 0 {
-        if let Some(&top) = digits.peek() {
-            remainder = take(top >> (64 - shift), remainder);
+    if shift == 0 {
+        for digit in digits {
+            remainder = take(digit, remainder);
         }
+        return remainder;
     }
-    while let Some(digit) = digits.next() {
-        let lower = digits.peek().copied().unwrap_or(0);
-        let x = if shift > 0 {
-            (digit << shift) | (lower >> (64 - shift))
-        } else {
-            digit
-        };
-        remainder = take(x, remainder);
+    // Each shifted digit is a digit's low bits over the next one's high
+    // bits: the bits the top digit carries above itself first, then one per
+    // digit, the last over nothing.
+    let Some(top) = digits.next() else {
+        return 0;
+    };
+    remainder = take(top >> (64 - shift), remainder);
+    let mut high = top;
+    for digit in digits {
+        remainder = take((high << shift) | (digit >> (64 - shift)), remainder);
+        high = digit;
     }
+    remainder = take(high << shift, remainder);
     remainder >> shift
 }
 
@@ -87,17 +92,22 @@ pub(crate) fn rem_word(a: &BigInt, d: u64) -> u64 {
 }
 
 /// `a / d`, truncated toward zero, as the `/` operator answers it.
+///
+/// The quotient's digits come most significant first, so each is written
+/// straight into its place among the halves `BigUint::new` takes: the walk
+/// makes one per digit of `a`, and one more for the top bits a normalizing
+/// shift carries above them.
 pub(crate) fn div_word(a: &BigInt, d: u64) -> BigInt {
-    let mut quotient: Vec<u64> = Vec::with_capacity(a.magnitude().iter_u64_digits().len() + 1);
+    let digits = a.magnitude().iter_u64_digits().len();
+    let words = digits + usize::from(d.leading_zeros() > 0 && digits > 0);
+    let mut halves: Vec<u32> = vec![0; 2 * words];
+    let mut at = words;
     walk(a.magnitude(), d, |q, remainder| {
-        quotient.push(q);
+        at -= 1;
+        halves[2 * at] = q as u32;
+        halves[2 * at + 1] = (q >> 32) as u32;
         remainder
     });
-    let mut halves: Vec<u32> = Vec::with_capacity(quotient.len() * 2);
-    for digit in quotient.iter().rev() {
-        halves.push(*digit as u32);
-        halves.push((*digit >> 32) as u32);
-    }
     BigInt::from_biguint(a.sign(), BigUint::new(halves))
 }
 
