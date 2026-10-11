@@ -91,7 +91,7 @@ Choose between two already-computed values by a truth value: `'yes' 'no' TRUE SE
 
 ## `RECONCILE`
 
-What two sources agree on (LANG.VALUES.TRUTH): `1 1 RECONCILE` is `1`, and an absence yields to what the other source holds, `NIL 5 RECONCILE` is `5`. Two different truth values are BOTH, `TRUE FALSE RECONCILE` is `BOTH`; any other two different values have nothing they agree on and project NIL(conflict), `'Tokyo' 'Osaka' RECONCILE NIL-REASON` is `'conflict'`. A conflict is not settled by a third source, so the Word is associative, commutative and idempotent, and a FOLD of it over many sources does not depend on their order. Like EQ it compares its operands whole: `[ 1 2 ] [ 1 3 ] RECONCILE` is a conflict, and a program that reconciles lane by lane ZIPs and MAPs.
+What two sources agree on (LANG.VALUES.TRUTH): `1 1 RECONCILE` is `1`, and an absence yields to what the other source holds, `NIL 5 RECONCILE` is `5`. Among numbers `0/0` knows least and yields to the other number (LANG.VALUES.SHAPE): `0/0 5 RECONCILE` is `5`, while `0/0 TRUE RECONCILE` is a conflict. Two different truth values are BOTH, `TRUE FALSE RECONCILE` is `BOTH`; any other two different values have nothing they agree on and project NIL(conflict), `'Tokyo' 'Osaka' RECONCILE NIL-REASON` is `'conflict'`. A conflict is not settled by a third source, so the Word is associative, commutative and idempotent, and a FOLD of it over many sources does not depend on their order. Like EQ it compares its operands whole: `[ 1 2 ] [ 1 3 ] RECONCILE` is a conflict, and a program that reconciles lane by lane ZIPs and MAPs.
 
 - **Vocabulary tier:** Semantic Kernel
 - **Family:** `booleanLogic`
