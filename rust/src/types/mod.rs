@@ -59,7 +59,7 @@ pub use self::record::{RecordBuildError, RecordData};
 pub use self::stack::Stack;
 pub use self::tensor_storage::{Column, DenseTensor, Dims, SparseTensor};
 use self::value_identity::{dense_flatten, tensor_eq_vector};
-use crate::semantic::AbsenceMetadata;
+use crate::semantic::{AbsenceMetadata, NilAbsence};
 use crate::types::exact::ExactReal;
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -83,10 +83,10 @@ pub enum ValueData {
         data: Arc<DenseTensor>,
         shape: Arc<Vec<usize>>,
     },
-    /// An absent value, with why (LANG.VALUES.NIL), boxed here on the one
-    /// variant that has a reason rather than beside every value
-    /// (`value_layout_tests`). A quotient by zero is a Scalar over zero.
-    Nil(Option<Box<AbsenceMetadata>>),
+    /// An absent value, with why (LANG.VALUES.NIL), held on the one variant
+    /// that has a reason rather than beside every value (`value_layout_tests`).
+    /// A quotient by zero is a Scalar over zero.
+    Nil(NilAbsence),
     /// A bare name in code position — a Word reference that is data until
     /// something executes it, a value in its own right (LANG.VALUES.DISJOINT).
     Symbol(Arc<str>),
@@ -233,7 +233,7 @@ impl Value {
     #[inline]
     pub fn new(data: ValueData, absence: Option<AbsenceMetadata>) -> Self {
         let data = match (data, absence) {
-            (ValueData::Nil(_), Some(absence)) => ValueData::Nil(Some(Box::new(absence))),
+            (ValueData::Nil(_), Some(absence)) => ValueData::Nil(NilAbsence::of(absence)),
             (data, absence) => {
                 debug_assert!(absence.is_none(), "only a NIL carries an absence");
                 data
