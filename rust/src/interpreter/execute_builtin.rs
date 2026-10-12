@@ -378,12 +378,9 @@ impl Interpreter {
 
         if let Some(existing) = def.compiled_plan.as_ref() {
             if is_plan_valid(existing, self) {
-                self.runtime_metrics.compiled_plan_cache_hit_count += 1;
                 return Some(existing.clone());
             }
         }
-
-        self.runtime_metrics.compiled_plan_cache_miss_count += 1;
 
         let plan = self.build_compiled_plan(def);
         self.store_compiled_plan_for_word(resolved_name, plan.clone());

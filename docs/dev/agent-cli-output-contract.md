@@ -75,7 +75,6 @@ Both operations emit schema version 3:
   "diagnosis": null,
   "errorFlowTrace": [],
   "aiDiagnostic": null,
-  "runtimeMetrics": {},
   "resourceUsage": {},
   "contractDecls": null,
   "stackElided": null,
@@ -296,14 +295,10 @@ checked per result and never accumulated, so there is no peak to report, and
 none is invented: a field carrying a number nothing measured is exactly the
 defect this object exists to fix.
 
-`runtimeMetrics` is **how the runtime went about it** — which cache answered,
-which fast path fired, how often a plan was rebuilt. Optimizer observations,
-useful for understanding a slowdown and useless for planning against a limit.
-
-`executionSteps` is a budget, so it is reported in `resourceUsage` alone.
-Schema version 1 also carried it in `runtimeMetrics`, where it went unnoticed
-for a long time that nothing ever wrote it — two counters for one fact, and the
-reported one was always zero — so version 2 removed that copy.
+How the runtime went about the work — which cache answered, which fast path
+fired — is not reported. Those optimizer counters (`runtimeMetrics`) were
+removed in 2026-10: they described no fact about the program, and keeping every
+fast path's count equal to the plain route's cost code and time on each one.
 
 ### `observationDigest`
 
@@ -317,7 +312,7 @@ against a recorded expectation, without transferring or diffing the values
 themselves.
 
 It does **not** include `stackDisplay`, `message`, `diagnosis`,
-`aiDiagnostic`, `errorFlowTrace`, `runtimeMetrics`, `resourceUsage`, or
+`aiDiagnostic`, `errorFlowTrace`, `resourceUsage`, or
 `contractDecls` — none of those are the observation; several of them
 (`stackDisplay` in particular) are renderings of a value rather than the value
 itself. A value's
@@ -371,9 +366,8 @@ execute and so have nothing to receipt.
 
 Two runs of the same `source` under the same profile receipt identically; a
 one-character change to either the source or the profile changes `digest`.
-`runtimeMetrics` is deliberately absent from the bundle for the same reason it
-is absent from `observationDigest`: it is optimizer state, not a fact about
-what the program does (`LANG.AUTHORITY.FREEDOM` — which path ran is
+Nothing about which route ran is in the bundle: that is optimizer state, not a
+fact about what the program does (`LANG.AUTHORITY.FREEDOM` — which path ran is
 unobservable). The byte grammar carries its own schema tag (`AJISAI-RECEIPT-2`,
 `rust/src/agent/execution_receipt.rs`), distinct from `observationDigest`'s,
 since a receipt is a superset of a digest and the two must be free to version
@@ -436,7 +430,7 @@ Four rules make this safe to rely on.
   budget; `valueStackBudget` is the agent profile's success budget, and a host
   that sets none never sees it.
 - **Values are dropped, never reasons.** `diagnosis`, `aiDiagnostic`,
-  `errorFlowTrace`, `message`, `output` and `runtimeMetrics` are never elided
+  `errorFlowTrace`, `message` and `output` are never elided
   by the stack budget. (`errorFlowTrace` has a budget of its own, below.)
 - **Slots keep their index.** A dropped slot is replaced, never removed, so
   `stack` and `stackDisplay` stay the same length as the real stack and a

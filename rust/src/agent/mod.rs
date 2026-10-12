@@ -129,7 +129,6 @@ pub(crate) fn error_report(
         diagnosis: Some(diagnosis),
         ai_diagnostic: Some(ai),
         error_flow_trace: trace,
-        runtime_metrics: interp.runtime_metrics(),
         resource_usage,
         contract_decls: None,
         stack_elided: residue.elided,

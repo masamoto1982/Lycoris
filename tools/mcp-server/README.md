@@ -187,16 +187,14 @@ What was removed is everything constant. `1 2 ADD` answered 3,732 bytes, of
 which the answer — `stack` and `stackDisplay` — was 85: the rest was the
 twelve-entry limit table on every result (`mcp.limits`), the same table again
 inside the engine's `receipt.limitProfile`, the receipt's copies of
-`observationDigest` and `resourceUsage`, and eight optimizer counters
-(`runtimeMetrics`) that describe how the engine went about its work and tell a
-caller nothing. Five calls in one turn cost 5,000 tokens of that. Now:
+`observationDigest` and `resourceUsage`. Five calls in one turn cost 5,000 tokens of that. Now:
 
 - `mcp.limitProfile` names the profile (`mcp-local-stdio`); the ceilings are
   the `ajisai://limits` resource, read once. A ceiling that fires still names
   itself and its value in `diagnosis.resourceLimit`, and a host failure about
   one in `error.limit`, so no result needs the table to be acted on.
-- `runtimeMetrics` is not sent. `resourceUsage` — the budget side, what the
-  run spent against each ceiling — is.
+- `resourceUsage` — what the run spent against each ceiling — is sent; the
+  engine reports no optimizer counters at all.
 - `receipt` keeps `digest`, `sourceDigest` and `registryDigest`, the three
   things nothing else in the envelope carries; a verifier takes `status`,
   `observationDigest`, `resourceUsage` and `mcp.engineVersion` from beside

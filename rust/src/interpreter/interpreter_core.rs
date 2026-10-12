@@ -3,14 +3,12 @@ use crate::types::{Stack, Value, WordDefinition};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-/// The three epoch counters at one instant: what a compiled plan or a resolve
-/// cache entry records so it can tell later whether the dictionary it was
-/// built against is still the one in force.
+/// The dictionary epoch at one instant: what a compiled plan records so it
+/// can tell later whether the dictionary it was built against is still the one
+/// in force.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct EpochSnapshot {
-    pub global_epoch: u64,
     pub dictionary_epoch: u64,
-    pub execution_epoch: u64,
 }
 
 /// Re-exports `runtime_limits::DEFAULT_MAX_EXECUTION_STEPS` (see its doc
@@ -51,36 +49,6 @@ pub const MAX_USER_WORD_DEPTH: usize = 256;
 /// [`super::runtime_limits::DEFAULT_MAX_MATERIALIZED_ELEMENTS`].
 pub const MAX_MATERIALIZED_ELEMENTS: usize =
     super::runtime_limits::DEFAULT_MAX_MATERIALIZED_ELEMENTS;
-
-/// Counters describing how the runtime went about its work: which cache
-/// answered, which fast path fired, how often a plan was rebuilt.
-///
-/// These are optimizer observations and nothing else. What a *ceiling* measures
-/// does not live here — it lives on the interpreter, where the ceiling reads
-/// it, and reaches an observer through `Interpreter::resource_usage`. That
-/// separation is the point: this struct used to carry an `execution_steps`
-/// field that no code ever wrote, sitting beside the real
-/// `Interpreter::execution_step_count` that every limit check increments. Two
-/// counters for one fact, and the one that got reported was the one that was
-/// always zero — so a 21,000-step fold and an empty program described their
-/// work identically.
-#[derive(Debug, Clone, Copy, Default)]
-pub struct RuntimeMetrics {
-    pub compiled_plan_build_count: u64,
-    pub compiled_plan_cache_hit_count: u64,
-    pub compiled_plan_cache_miss_count: u64,
-    pub scalar_fastpath_count: u64,
-    pub resolve_cache_hit_count: u64,
-    pub resolve_cache_miss_count: u64,
-    pub resolve_cache_invalidation_count: u64,
-    /// No longer produced: it counted a guarded tail self-call's backward
-    /// jump, and LANG.DICTIONARY.ACYCLIC's acyclicity check now makes a self-call
-    /// impossible to define. Retained at a constant 0 rather than removed —
-    /// removing a field is what a schema version is for
-    /// (`runtime_metrics_json`), and `tailCallJumpCount` is a published
-    /// report key a host may already read.
-    pub tail_call_jump_count: u64,
-}
 
 /// What this run spent of the budgets that can refuse it.
 ///
@@ -169,9 +137,7 @@ pub struct Interpreter {
 
     pub(crate) global_epoch: u64,
     pub(crate) dictionary_epoch: u64,
-    pub(crate) execution_epoch: u64,
 
-    pub(crate) runtime_metrics: RuntimeMetrics,
     pub(crate) error_flow_trace_log: Vec<super::error_flow_trace::ErrorFlowEvent>,
 
     /// Content identity of each user word, keyed by name. Derived state:
@@ -285,8 +251,6 @@ impl Interpreter {
             next_registration_order: 1,
             global_epoch: 0,
             dictionary_epoch: 0,
-            execution_epoch: 0,
-            runtime_metrics: RuntimeMetrics::default(),
             error_flow_trace_log: Vec::new(),
 
             // Elastic Engine
@@ -325,10 +289,6 @@ impl Interpreter {
     pub(crate) fn bump_dictionary_epoch(&mut self) {
         self.dictionary_epoch = self.next_epoch();
         self.invalidate_execution_artifacts();
-    }
-
-    pub(crate) fn bump_execution_epoch(&mut self) {
-        self.execution_epoch = self.next_epoch();
     }
 
     /// One Word dispatch against the execution-step ceiling.
@@ -371,10 +331,6 @@ impl Interpreter {
             .max()
             .unwrap_or(0);
         self.runtime_limits.check_nesting_depth(deepest as usize)
-    }
-
-    pub fn runtime_metrics(&self) -> RuntimeMetrics {
-        self.runtime_metrics
     }
 
     pub fn push_error_flow_trace(&mut self, event: super::error_flow_trace::ErrorFlowEvent) {
@@ -421,9 +377,7 @@ impl Interpreter {
 
     pub fn current_epoch_snapshot(&self) -> EpochSnapshot {
         EpochSnapshot {
-            global_epoch: self.global_epoch,
             dictionary_epoch: self.dictionary_epoch,
-            execution_epoch: self.execution_epoch,
         }
     }
     pub(crate) fn normalize_symbol<'a>(symbol: &'a str) -> std::borrow::Cow<'a, str> {

@@ -323,31 +323,3 @@ async fn a_session_reset_leaves_no_resolution_behind() {
         "Core must resolve against the vocabulary the reset re-registered"
     );
 }
-
-/// The three `resolveCache*` counters outlive the cache they described.
-///
-/// Removing a published report key is what a schema version is for, and
-/// `tail_call_jump_count` set the precedent: a counter whose mechanism is
-/// gone is retained at a constant 0 rather than dropped, because a host may
-/// already read it. This pins that they are still there and still 0, so
-/// neither half of that promise can be broken by accident — a later change
-/// that starts writing one, or one that deletes them, fails here.
-#[tokio::test]
-async fn the_retired_resolve_cache_counters_stay_and_stay_zero() {
-    let mut interp = Interpreter::new();
-    define(&mut interp, "INC", "1 ADD");
-    // Resolve plenty, through Core, through User, and across a redefinition,
-    // which is every path that used to move one of these.
-    interp
-        .execute("0 200 RANGE [ INC ] MAP")
-        .await
-        .expect("runs");
-    interp.update_stack(Vec::new());
-    define(&mut interp, "INC", "2 ADD");
-    interp.execute("5 INC").await.expect("runs");
-
-    let metrics = interp.runtime_metrics();
-    assert_eq!(metrics.resolve_cache_hit_count, 0);
-    assert_eq!(metrics.resolve_cache_miss_count, 0);
-    assert_eq!(metrics.resolve_cache_invalidation_count, 0);
-}

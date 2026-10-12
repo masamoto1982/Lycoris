@@ -45,9 +45,19 @@ fn rendered_stack(interp: &Interpreter) -> Vec<String> {
         .collect()
 }
 
-fn assert_on_equals_off(src: &str) -> (Interpreter, Interpreter) {
-    let on = run(src, true);
-    let off = run(src, false);
+/// `f`'s result and how many scalar fast-path answers it gave.
+fn counting<T>(f: impl FnOnce() -> T) -> (T, u64) {
+    let before = super::arithmetic::scalar_fastpath_hits_on_this_thread();
+    let value = f();
+    (
+        value,
+        super::arithmetic::scalar_fastpath_hits_on_this_thread() - before,
+    )
+}
+
+fn assert_on_equals_off(src: &str) -> (Interpreter, Interpreter, u64, u64) {
+    let (on, on_hits) = counting(|| run(src, true));
+    let (off, off_hits) = counting(|| run(src, false));
     assert_eq!(
         format!("{:?}", on.get_stack()),
         format!("{:?}", off.get_stack()),
@@ -58,15 +68,15 @@ fn assert_on_equals_off(src: &str) -> (Interpreter, Interpreter) {
         rendered_stack(&off),
         "fast path ON vs OFF render diverged for: {src}"
     );
-    (on, off)
+    (on, off, on_hits, off_hits)
 }
 
 fn assert_direct_on_equals_off(
     stack: Vec<Value>,
     op: fn(&mut Interpreter) -> crate::error::Result<()>,
-) -> (Interpreter, Interpreter) {
-    let on = run_direct(stack.clone(), true, op);
-    let off = run_direct(stack, false, op);
+) -> (Interpreter, Interpreter, u64, u64) {
+    let (on, on_hits) = counting(|| run_direct(stack.clone(), true, op));
+    let (off, off_hits) = counting(|| run_direct(stack, false, op));
     assert_eq!(
         format!("{:?}", on.get_stack()),
         format!("{:?}", off.get_stack()),
@@ -77,7 +87,7 @@ fn assert_direct_on_equals_off(
         rendered_stack(&off),
         "direct fast path ON vs OFF render diverged"
     );
-    (on, off)
+    (on, off, on_hits, off_hits)
 }
 
 #[test]
@@ -92,14 +102,10 @@ fn arithmetic_fast_path_matches_baseline_for_bare_scalars_and_singleton_tensors(
         "[ 6 ] [ 5 ] MUL",
         "[ 6 ] [ 4 ] DIV",
     ] {
-        let (on, off) = assert_on_equals_off(src);
-        assert!(
-            on.runtime_metrics().scalar_fastpath_count >= 1,
-            "expected scalar fast path to fire for: {src}"
-        );
+        let (_on, _off, on_hits, off_hits) = assert_on_equals_off(src);
+        assert!(on_hits >= 1, "expected scalar fast path to fire for: {src}");
         assert_eq!(
-            off.runtime_metrics().scalar_fastpath_count,
-            0,
+            off_hits, 0,
             "disabled scalar fast path should not count for: {src}"
         );
     }
@@ -107,7 +113,7 @@ fn arithmetic_fast_path_matches_baseline_for_bare_scalars_and_singleton_tensors(
 
 #[test]
 fn fast_path_preserves_tensor_wrapping() {
-    let (on, _) = assert_on_equals_off("[ 1 ] [ 2 ] ADD");
+    let (on, _, _, _) = assert_on_equals_off("[ 1 ] [ 2 ] ADD");
     let rendered = rendered_stack(&on);
     assert_eq!(rendered, vec!["[ 3/1 ]"]);
 }
@@ -115,13 +121,9 @@ fn fast_path_preserves_tensor_wrapping() {
 #[test]
 fn unsupported_or_semantically_sensitive_shapes_fall_back() {
     for src in ["2 [ 3 ] ADD", "[ 2 ] 3 ADD", "NIL 3 ADD", "3 NIL GT"] {
-        let (on, off) = assert_on_equals_off(src);
-        assert_eq!(
-            on.runtime_metrics().scalar_fastpath_count,
-            0,
-            "fast path should fall back for: {src}"
-        );
-        assert_eq!(off.runtime_metrics().scalar_fastpath_count, 0);
+        let (_on, _off, on_hits, off_hits) = assert_on_equals_off(src);
+        assert_eq!(on_hits, 0, "fast path should fall back for: {src}");
+        assert_eq!(off_hits, 0);
     }
 }
 
@@ -137,13 +139,10 @@ fn direct_singleton_vector_fast_path_matches_baseline() {
         arithmetic::op_mul,
         arithmetic::op_div,
     ] {
-        let (on, off) =
+        let (_on, _off, on_hits, off_hits) =
             assert_direct_on_equals_off(vec![singleton_vector(6), singleton_vector(3)], op);
-        assert!(
-            on.runtime_metrics().scalar_fastpath_count >= 1,
-            "expected singleton Vector fast path to fire"
-        );
-        assert_eq!(off.runtime_metrics().scalar_fastpath_count, 0);
+        assert!(on_hits >= 1, "expected singleton Vector fast path to fire");
+        assert_eq!(off_hits, 0);
     }
 }
 
@@ -157,13 +156,13 @@ fn string_operand_stays_on_baseline_path() {
         let mut interp = Interpreter::new();
         interp.set_scalar_fastpath_enabled(enabled);
         interp.update_stack(vec![one_char_string(65), one_char_string(66)]);
+        let (rejected, hits) = counting(|| arithmetic::op_add(&mut interp).is_err());
         assert!(
-            arithmetic::op_add(&mut interp).is_err(),
+            rejected,
             "ADD must reject String operands (fast path {enabled})"
         );
         assert_eq!(
-            interp.runtime_metrics().scalar_fastpath_count,
-            0,
+            hits, 0,
             "a String must not take the numeric scalar fast path"
         );
     }
@@ -171,9 +170,9 @@ fn string_operand_stays_on_baseline_path() {
 
 #[test]
 fn division_by_zero_matches_baseline() {
-    let (on, _) = assert_on_equals_off("6 0 DIV");
+    let (_, _, on_hits, _) = assert_on_equals_off("6 0 DIV");
     assert!(
-        on.runtime_metrics().scalar_fastpath_count >= 1,
+        on_hits >= 1,
         "division by zero still uses the scalar fast path to produce the same projected NIL"
     );
 }
@@ -188,10 +187,10 @@ fn comparison_on_singletons_lifts_instead_of_fast_pathing() {
         let mut interp = Interpreter::new();
         interp.set_scalar_fastpath_enabled(enabled);
         interp.update_stack(vec![singleton_vector(6), singleton_vector(3)]);
-        comparison::op_lt(&mut interp).expect("LT lifts over singletons");
+        let (lifted, hits) = counting(|| comparison::op_lt(&mut interp));
+        lifted.expect("LT lifts over singletons");
         assert_eq!(
-            interp.runtime_metrics().scalar_fastpath_count,
-            0,
+            hits, 0,
             "a shaped operand must not take the scalar fast path (enabled={enabled})"
         );
         let result = interp.get_stack().last().expect("a result").clone();

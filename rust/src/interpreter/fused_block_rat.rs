@@ -94,7 +94,6 @@ struct Program {
     regs: usize,
     out: Src,
     out_ty: Ty,
-    fastpath_per_run: u64,
     work_per_run: u64,
 }
 
@@ -111,7 +110,7 @@ fn compile(block: &FusedBlock, inputs: &[Ty]) -> Option<Program> {
         .collect();
     let mut slots: Vec<Option<(Src, Ty)>> = vec![None; block.slots];
     let mut instrs: Vec<Instr> = Vec::with_capacity(block.ops.len());
-    let (mut fastpath, mut work) = (0u64, 0u64);
+    let mut work = 0u64;
     let none = Src::Const((0, 1));
     for op in &block.ops {
         let (kind, a, b, c, ty) = match op {
@@ -172,16 +171,12 @@ fn compile(block: &FusedBlock, inputs: &[Ty]) -> Option<Program> {
                     (Op::And, Ty::Bool, Ty::Bool) => Kind::And,
                     // Two Booleans compare by `pairwise_eq`, off the fast path.
                     (Op::Compare(Compare::Eq), Ty::Bool, Ty::Bool) => Kind::Eq,
-                    (Op::Compare(kind), Ty::Num, Ty::Num) => {
-                        fastpath += 1;
-                        match kind {
-                            Compare::Lt => Kind::Lt,
-                            Compare::Gt => Kind::Gt,
-                            Compare::Eq => Kind::Eq,
-                        }
-                    }
+                    (Op::Compare(kind), Ty::Num, Ty::Num) => match kind {
+                        Compare::Lt => Kind::Lt,
+                        Compare::Gt => Kind::Gt,
+                        Compare::Eq => Kind::Eq,
+                    },
                     (Op::Arith(schema), Ty::Num, Ty::Num) => {
-                        fastpath += 1;
                         work += binary_numeric_work(1, 1);
                         match schema {
                             ExactArithmeticSchema::Add => Kind::Add,
@@ -209,7 +204,6 @@ fn compile(block: &FusedBlock, inputs: &[Ty]) -> Option<Program> {
         instrs,
         out,
         out_ty,
-        fastpath_per_run: fastpath,
         work_per_run: work,
     })
 }
@@ -445,12 +439,7 @@ pub(crate) fn run(
         ),
         FusedWalk::Fold => plain(program.out_ty, accumulator?).into_value(),
     };
-    let charges = Charges {
-        runs,
-        steps,
-        work,
-        fastpath: runs.checked_mul(program.fastpath_per_run)?,
-    };
+    let charges = Charges { steps, work };
     #[cfg(test)]
     RAT_RUNS.with(|c| c.set(c.get() + 1));
     Some((value, charges))

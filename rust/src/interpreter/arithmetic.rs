@@ -93,6 +93,25 @@ fn push_dense_kernel_result(
     Ok(true)
 }
 
+#[cfg(test)]
+thread_local! {
+    static SCALAR_FASTPATH_HITS: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+}
+
+/// Count a scalar fast-path answer, in a test build only, for the tests that
+/// pin which route ran.
+#[inline(always)]
+pub(crate) fn note_scalar_fastpath() {
+    #[cfg(test)]
+    SCALAR_FASTPATH_HITS.with(|c| c.set(c.get() + 1));
+}
+
+/// Scalar fast-path answers on this thread.
+#[cfg(test)]
+pub(crate) fn scalar_fastpath_hits_on_this_thread() -> u64 {
+    SCALAR_FASTPATH_HITS.with(|c| c.get())
+}
+
 fn push_simd_schema_result(
     interp: &mut Interpreter,
     schema: ExactArithmeticSchema,
@@ -244,10 +263,7 @@ fn push_scalar_fastpath_result(
     interp.stack.pop();
     interp.stack.pop();
     interp.stack.push(result);
-    interp.runtime_metrics.scalar_fastpath_count = interp
-        .runtime_metrics
-        .scalar_fastpath_count
-        .saturating_add(1);
+    note_scalar_fastpath();
     Ok(true)
 }
 

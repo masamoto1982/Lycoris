@@ -4,7 +4,7 @@
 //! Assembly is I/O-free, so the typed agent API and the terminal CLI observe
 //! the same stack, NIL flow, diagnostics, output and runtime metrics.
 //! Rendering serializes the *existing* diagnostic structures — `DebugDiagnosis`,
-//! `AiDiagnosticPayload`, `ErrorFlowEvent`, `RuntimeMetrics`, and the shared
+//! `AiDiagnosticPayload`, `ErrorFlowEvent`, and the shared
 //! value protocol (`types::value_protocol`) — into the camelCase wire format
 //! documented in `docs/dev/agent-cli-output-contract.md`. Field names follow
 //! the same protocol-string convention as the WASM boundary
@@ -19,7 +19,7 @@ use crate::interpreter::debug_diagnosis::{AiDiagnosticPayload, DebugDiagnosis};
 use crate::interpreter::error_flow_trace::{ErrorFlowEvent, ErrorFlowEventKind};
 use crate::interpreter::trace_diagnosis::EventDiagnosis;
 use crate::interpreter::upstream_nil_link::link_upstream_nil;
-use crate::interpreter::{Interpreter, ResourceUsage, RuntimeMetrics};
+use crate::interpreter::{Interpreter, ResourceUsage};
 use crate::semantic::AbsenceMetadata;
 use crate::types::value_protocol::{exact_terms, value_to_protocol, ProtocolNode, ProtocolValue};
 use crate::types::{Value, ValueData};
@@ -51,7 +51,6 @@ pub(crate) struct Report {
     pub diagnosis: Option<DebugDiagnosis>,
     pub ai_diagnostic: Option<AiDiagnosticPayload>,
     pub error_flow_trace: Vec<ErrorFlowEvent>,
-    pub runtime_metrics: RuntimeMetrics,
     /// What the run spent of the budgets that can refuse it. Read from the
     /// counters the ceilings read, so it cannot disagree with them.
     pub resource_usage: ResourceUsage,
@@ -144,7 +143,6 @@ impl Report {
             "message": self.message,
             "diagnosis": self.diagnosis.as_ref().map(diagnosis_json),
             "aiDiagnostic": self.ai_diagnostic.as_ref().map(ai_payload_json),
-            "runtimeMetrics": runtime_metrics_json(&self.runtime_metrics),
             "resourceUsage": resource_usage_json(&self.resource_usage),
             "contractDecls": self.contract_decls,
             "stackElided": self.stack_elided,
@@ -277,26 +275,10 @@ pub(crate) fn error_flow_event_json(event: &ErrorFlowEvent) -> Json {
     Json::Object(obj)
 }
 
-pub(crate) fn runtime_metrics_json(metrics: &RuntimeMetrics) -> Json {
-    // Diagnostics only: these counters describe *how* the runtime went about
-    // its work — which cache answered, which fast path fired. Reading them
-    // changes no result, and no Word reads them.
-    json!({
-        "compiledPlanBuildCount": metrics.compiled_plan_build_count,
-        "compiledPlanCacheHitCount": metrics.compiled_plan_cache_hit_count,
-        "compiledPlanCacheMissCount": metrics.compiled_plan_cache_miss_count,
-        "scalarFastpathCount": metrics.scalar_fastpath_count,
-        "resolveCacheHitCount": metrics.resolve_cache_hit_count,
-        "resolveCacheMissCount": metrics.resolve_cache_miss_count,
-        "resolveCacheInvalidationCount": metrics.resolve_cache_invalidation_count,
-        "tailCallJumpCount": metrics.tail_call_jump_count,
-    })
-}
-
 /// What the run spent of the budgets that could have refused it, in the keys
 /// the host declares those budgets under.
 ///
-/// Separate from `runtimeMetrics` on purpose. Every key here names a
+/// Every key here names a
 /// `mcp.limits` key and carries the same number the ceiling compared against,
 /// so an agent can subtract one from the other and know what it has left; no
 /// key here is an internal routing counter, and no counter there is a budget.
@@ -421,7 +403,6 @@ pub(crate) fn completed_run_report(
                 diagnosis: None,
                 ai_diagnostic: None,
                 error_flow_trace: trace,
-                runtime_metrics: interp.runtime_metrics(),
                 resource_usage,
                 contract_decls: None,
                 stack_elided: residue.elided,

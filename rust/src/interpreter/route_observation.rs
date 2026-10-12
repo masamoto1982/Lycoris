@@ -1,6 +1,6 @@
 //! What a run leaves behind that a route could change, for the tests that
 //! hold two routes equal (LANG.AUTHORITY.FREEDOM): the stack, the outcome,
-//! the resource usage, the metrics, the epochs, the trace and the source
+//! the resource usage, the epochs, the trace and the source
 //! position.
 
 use crate::interpreter::Interpreter;
@@ -12,7 +12,6 @@ pub(crate) struct Observation {
     stack: Vec<String>,
     values: String,
     usage: crate::interpreter::ResourceUsage,
-    metrics: String,
     epochs: crate::interpreter::EpochSnapshot,
     trace: String,
     position: Option<crate::tokenizer::SourceSpan>,
@@ -53,7 +52,6 @@ pub(crate) fn observe(
         stack: render_stack(interp.get_stack()),
         values: crate::test_support::representation(interp.get_stack().as_slice()),
         usage: interp.resource_usage(),
-        metrics: format!("{:?}", interp.runtime_metrics()),
         epochs: interp.current_epoch_snapshot(),
         trace: format!("{:?}", interp.error_flow_trace_log),
         position: interp.current_source_position(),

@@ -2,7 +2,7 @@
 //!
 //! LANG.AUTHORITY.FREEDOM makes the route unobservable, so the two runs of each
 //! program here must agree on everything a host can read: the stack, the
-//! error, the resource usage, the runtime metrics, the epochs and the error
+//! error, the resource usage, the epochs and the error
 //! flow trace. Hand-picked cases cover each bail-out (zero divisor, NIL lane,
 //! ceilings); the property test drives random blocks, vectors and limits.
 
@@ -19,7 +19,6 @@ pub(super) struct Observation {
     values: String,
     usage: crate::interpreter::ResourceUsage,
     collection_work: u64,
-    metrics: String,
     epochs: crate::interpreter::EpochSnapshot,
     trace: String,
 }
@@ -53,7 +52,6 @@ fn observe(source: &str, fused: bool, limits: Limits) -> Observation {
         values: crate::test_support::representation(interp.get_stack().as_slice()),
         usage: interp.resource_usage(),
         collection_work: interp.collection_work_used(),
-        metrics: format!("{:?}", interp.runtime_metrics()),
         epochs: interp.current_epoch_snapshot(),
         trace: format!("{:?}", interp.error_flow_trace_log),
     }

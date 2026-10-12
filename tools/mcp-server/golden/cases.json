@@ -244,7 +244,7 @@
       "expectAbsent": [
         "/runtimeMetrics"
       ],
-      "comment": "RANGE and FOLD are one step each and the block's `MUL` runs twenty times: 22. The step count is a budget, reported once under resourceUsage; the engine's optimizer counters (`runtimeMetrics`) are not sent at all. Pinned as an exact number because the defect was a constant — every program reported 0 — so only an exact expectation catches a regression to one."
+      "comment": "RANGE and FOLD are one step each and the block's `MUL` runs twenty times: 22. The step count is a budget, reported once under resourceUsage; the engine reports no optimizer counters (`runtimeMetrics` is gone). Pinned as an exact number because the defect was a constant — every program reported 0 — so only an exact expectation catches a regression to one."
     },
     {
       "name": "a violated #:contract declaration stops compute before anything runs",

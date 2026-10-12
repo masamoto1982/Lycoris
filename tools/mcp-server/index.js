@@ -478,9 +478,7 @@ function withoutEmptyFields(value) {
  *
  * `1 2 ADD` answered 3.7 KB, of which the answer (`stack`, `stackDisplay`)
  * was 85 bytes. The rest was constant metadata an agent cannot act on:
- * `runtimeMetrics` (eight optimizer counters — which cache answered, which
- * fast path fired — meaningful to the engine's author and to nobody calling
- * it; `resourceUsage` is the budget side and stays), and a `receipt` that
+ * a `receipt` that
  * repeated the limit profile `mcp.limits` already carried, the
  * `observationDigest` and `resourceUsage` the top level already carried, and
  * the engine version `mcp.engineVersion` already carried. Five calls in one
@@ -497,7 +495,7 @@ function withoutEmptyFields(value) {
  */
 const RECEIPT_FIELDS_KEPT = ["digest", "sourceDigest", "registryDigest"];
 function presented(report) {
-  const { runtimeMetrics: _runtimeMetrics, receipt, ...rest } = report;
+  const { receipt, ...rest } = report;
   if (receipt && typeof receipt === "object") {
     rest.receipt = Object.fromEntries(
       Object.entries(receipt).filter(([key]) => RECEIPT_FIELDS_KEPT.includes(key)),

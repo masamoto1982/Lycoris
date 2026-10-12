@@ -99,7 +99,6 @@ struct Builder<'a> {
     binds: Vec<(crate::types::Name, u32)>,
     steps: usize,
     callees: Vec<String>,
-    calls: u64,
     call_depth: usize,
 }
 
@@ -116,7 +115,6 @@ impl<'a> Builder<'a> {
             binds: Vec::new(),
             steps: 0,
             callees: Vec::new(),
-            calls: 0,
             call_depth: 0,
         }
     }
@@ -226,7 +224,6 @@ impl<'a> Builder<'a> {
                     self.lowest,
                     self.steps,
                     self.callees.len(),
-                    self.calls,
                     self.call_depth,
                 );
                 if self.inline(&name, level + 1).is_none() {
@@ -236,8 +233,7 @@ impl<'a> Builder<'a> {
                     self.lowest = mark.3;
                     self.steps = mark.4;
                     self.callees.truncate(mark.5);
-                    self.calls = mark.6;
-                    self.call_depth = mark.7;
+                    self.call_depth = mark.6;
                     return None;
                 }
             }
@@ -259,7 +255,6 @@ impl<'a> Builder<'a> {
             _ => lower_tokens_to_ops(&def.body, self.interp).into(),
         };
         self.steps += 1;
-        self.calls += 1;
         self.call_depth = self.call_depth.max(level);
         if !self.callees.iter().any(|callee| callee == name) {
             self.callees.push(name.to_string());
@@ -301,7 +296,6 @@ impl<'a> Builder<'a> {
             binds: self.binds,
             steps: self.steps,
             callees: self.callees,
-            calls: self.calls,
             call_depth: self.call_depth,
             dictionary_epoch: self.interp.dictionary_epoch,
         })
