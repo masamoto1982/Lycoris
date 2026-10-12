@@ -62,9 +62,9 @@ const { client, close } = await connectInMemory("selftest", "0.0.0");
 
 const { tools } = await client.listTools();
 check(
-  "exposes the five focused agent tools",
+  "exposes the four focused agent tools",
   JSON.stringify(tools.map(({ name }) => name).sort()) ===
-    JSON.stringify(["check", "compute", "infer_contracts", "outcomes", "word_contract"]),
+    JSON.stringify(["check", "compute", "infer_contracts", "word_contract"]),
 );
 check(
   "every tool rejects undeclared input",
@@ -77,7 +77,7 @@ check(
     outputSchema?.required?.includes("status")
   ),
 );
-// One `$id` embedded five times is a duplicate schema to any client that
+// One `$id` embedded once per tool is a duplicate schema to any client that
 // registers compiled validators by `$id`; the embedded copies carry none.
 check(
   "an embedded output schema carries no $id a validator cache would collide on",
@@ -207,25 +207,6 @@ check(
   "the contracts resource and word_contract answer with the same entry",
   JSON.stringify(contractsResource.entries.find((entry) => entry.name === "MAP")) ===
     JSON.stringify(contract.structuredContent?.matches?.[0]),
-);
-// The property that makes a published bound worth reading: a caller that joins
-// the atoms' classes gets the same answer the engine infers for the phrase.
-// `[ 1 ] ADD` is `ADD` against a literal, so `numeric` stays `linear` while every
-// other axis stays at the lattice bottom.
-const composed = await client.callTool({
-  name: "infer_contracts",
-  arguments: { source: "[ [ 1 ] ADD ] 'BUDGETED' DEF" },
-});
-check(
-  "an inferred phrase bound agrees with the join of its Words' published bounds",
-  (() => {
-    const add = contractsResource.entries.find((entry) => entry.name === "ADD")?.cost;
-    const inferred = composed.structuredContent?.contracts?.find(
-      (entry) => entry.name === "BUDGETED",
-    )?.cost;
-    return add && inferred &&
-      ["steps", "numeric", "collection"].every((axis) => inferred[axis] === add[axis].class);
-  })(),
 );
 const limitsResource = JSON.parse(
   (await client.readResource({ uri: "ajisai://limits" })).contents[0]?.text ?? "{}",
@@ -517,13 +498,12 @@ check(
     !/\n\s/.test(mirrored.content[0].text),
 );
 // An optional field with nothing in it is absent, not `null`. A plain success
-// used to advertise `diagnosis`, `aiDiagnostic`, `message` and
-// `contractDecls`, all empty — four diagnostic-sounding fields pointing at
-// nothing.
+// used to advertise `message`, `error` and `contractDecls`, all empty —
+// diagnostic-sounding fields pointing at nothing.
 check(
   "a successful result carries no null-valued fields",
   Object.values(mirrored.structuredContent ?? {}).every((field) => field !== null) &&
-    !("diagnosis" in (mirrored.structuredContent ?? {})),
+    !("error" in (mirrored.structuredContent ?? {})),
 );
 // Compaction must not cost a text-only client the outcome distinction, which
 // is the whole reason the text is the serialized result rather than prose.
@@ -540,13 +520,13 @@ for (const [label, call] of [
     typeof text?.status === "string" &&
       text.status === observed.structuredContent?.status &&
       (text.status !== "hostError" || typeof text.error?.code === "string") &&
-      (text.status !== "error" || typeof text.diagnosis?.why === "string"),
+      (text.status !== "error" || typeof text.error?.category === "string"),
   );
 }
 
-// A run names its outcome in the ids `outcomes` predicts, so the three
-// results are told apart without reading the top stack node — and a
-// prediction is checked against a run with one `includes`.
+// A run names its outcome, so the three results are told apart without
+// reading the top stack node; an error's outcome and its `error.category` are
+// one category.
 for (const [source, expected] of [
   ["1 3 DIV", "value"],
   ["-1 SQRT", "nil:domainMiss"],
@@ -557,21 +537,12 @@ for (const [source, expected] of [
   ["[ 1 2", "error:malformedSource"],
 ]) {
   const run = await client.callTool({ name: "compute", arguments: { source } });
-  const predicted = await client.callTool({ name: "outcomes", arguments: { source } });
   check(
-    `compute names the outcome of \`${source}\` as ${expected}, inside the predicted set`,
+    `compute names the outcome of \`${source}\` as ${expected}`,
     run.structuredContent?.outcome === expected &&
-      validateResult(run.structuredContent) &&
-      predicted.structuredContent?.outcomes?.includes(expected),
-  );
-}
-for (const [source, exact] of [["", true], ["[ 1 2", true], ["42", false], ["1 2 ADD", false]]) {
-  const predicted = await client.callTool({ name: "outcomes", arguments: { source } });
-  check(
-    `outcomes reports exact=${exact} for \`${source}\`, as its description says`,
-    predicted.structuredContent?.exact === exact &&
-      (predicted.structuredContent?.outcomes?.length === 1) === exact &&
-      validateResult(predicted.structuredContent),
+      (!expected.startsWith("error:") ||
+        run.structuredContent?.error?.category === expected.slice("error:".length)) &&
+      validateResult(run.structuredContent),
   );
 }
 
@@ -627,11 +598,8 @@ for (const tool of ["check", "compute"]) {
     violated.isError !== true &&
       result?.status === "error" &&
       result?.message?.startsWith("Contract declaration violated:") &&
-      result?.diagnosis?.why === "contractViolation" &&
-      result?.diagnosis?.when === "checkContract" &&
-      result?.diagnosis?.where?.word === "DOUBLE" &&
-      result?.aiDiagnostic?.category === "contractViolation" &&
-      result?.diagnosis?.nextChecks?.[0]?.code === "checkDeclaredContract" &&
+      result?.error?.category === "contractViolation" &&
+      result?.error?.word === "DOUBLE" &&
       result?.contractDecls?.outcome === "error" &&
       result?.contractDecls?.findings?.[0]?.severity === "error" &&
       (tool === "check" ? !("outcome" in result) : result?.outcome === "error:contractViolation") &&
@@ -641,38 +609,29 @@ for (const tool of ["check", "compute"]) {
 }
 const verifiedDeclaration = await client.callTool({
   name: "compute",
-  arguments: { source: "#:contract DOUBLE inputs=1 outputs=1 purity=pure\n[ 2 MUL ] 'DOUBLE' DEF 21 DOUBLE" },
+  arguments: { source: "#:contract DOUBLE inputs=1 outputs=1 field=closed\n[ 2 MUL ] 'DOUBLE' DEF 21 DOUBLE" },
 });
 check(
   "compute runs a program whose declaration verifies, and says the check happened",
   verifiedDeclaration.structuredContent?.status === "ok" &&
     verifiedDeclaration.structuredContent?.stackDisplay?.[0] === "42/1" &&
     verifiedDeclaration.structuredContent?.contractDecls?.outcome === "value" &&
-    verifiedDeclaration.structuredContent?.contractDecls?.gapSummary?.verified === 1,
+    verifiedDeclaration.structuredContent?.contractDecls?.declarations?.[0]?.word === "DOUBLE" &&
+    validateResult(verifiedDeclaration.structuredContent),
 );
+// A directive accepts `inputs`, `outputs` and `field` and nothing else; any
+// other term is a malformed declaration, refused rather than ignored.
+const malformedDeclaration = await client.callTool({
+  name: "check",
+  arguments: { source: "#:contract DOUBLE inputs=1 purity=pure\n[ 2 MUL ] 'DOUBLE' DEF" },
+});
 check(
-  "outcomes predicts the violation exactly when a declaration is present",
-  (await client.callTool({ name: "outcomes", arguments: { source: declared } }))
-    .structuredContent?.outcomes?.includes("error:contractViolation") === true &&
-    (await client.callTool({ name: "outcomes", arguments: { source: "1 2 ADD" } }))
-      .structuredContent?.outcomes?.includes("error:contractViolation") === false,
+  "a #:contract term outside inputs/outputs/field is a contract violation",
+  malformedDeclaration.structuredContent?.status === "error" &&
+    malformedDeclaration.structuredContent?.error?.category === "contractViolation" &&
+    malformedDeclaration.structuredContent?.contractDecls?.findings?.[0]?.message?.includes("purity=pure") &&
+    validateResult(malformedDeclaration.structuredContent),
 );
-// A Forth-style stack word or a structured-programming keyword is a
-// recognizable mistake with a repair of its own, which `checkSpelling` could
-// not say; a full-width name is the Japanese input method's.
-for (const [source, code, candidate] of [
-  ["1 2 DUP", "checkNoStackShufflers", undefined],
-  ["[ 1 ] IF", "checkNoControlKeywords", undefined],
-  ["１ ２ ADD", "checkCharacterWidth", undefined],
-  ["ＡＤＤ", "checkCharacterWidth", "ADD"],
-]) {
-  const observed = await client.callTool({ name: "compute", arguments: { source } });
-  check(
-    `\`${source}\` is diagnosed with ${code}${candidate ? ` and suggests ${candidate}` : ""}`,
-    observed.structuredContent?.diagnosis?.nextChecks?.[0]?.code === code &&
-      (candidate === undefined || observed.structuredContent?.diagnosis?.candidates?.[0] === candidate),
-  );
-}
 // Empty source and whitespace-only source are the same empty program; one used
 // to be a host error and the other a value.
 for (const source of ["", "   "]) {
@@ -736,25 +695,16 @@ if (compute.structuredContent?.error?.code === "backendUnavailable") {
     "Ajisai language errors remain structured non-MCP errors",
     languageError.isError !== true && languageError.structuredContent?.status === "error",
   );
-  // The stable half of a next-check is its code; the display text is free to
-  // be reworded or translated without breaking a consumer or a repair scorer.
-  const [firstCheck] = languageError.structuredContent?.diagnosis?.nextChecks ?? [];
-  check(
-    "diagnostic checks carry a stable code and per-locale display text",
-    firstCheck?.code === "checkSpelling" &&
-      typeof firstCheck?.title?.en === "string" &&
-      typeof firstCheck?.title?.ja === "string" &&
-      typeof firstCheck?.detail?.en === "string" &&
-      typeof firstCheck?.detail?.ja === "string" &&
-      !/[぀-ヿ一-鿿]/.test(firstCheck.detail.en),
-  );
   const misspelled = await client.callTool({
     name: "compute",
     arguments: { source: "[ 1 2 3 ] LENGHT" },
   });
   check(
-    "an unknown Word diagnosis names its likely correction",
-    misspelled.structuredContent?.diagnosis?.candidates?.[0] === "LENGTH" &&
+    "an unknown Word error names the Word and where it was written",
+    misspelled.structuredContent?.error?.category === "unknownWord" &&
+      misspelled.structuredContent?.error?.word === "LENGHT" &&
+      misspelled.structuredContent?.error?.line === 1 &&
+      misspelled.structuredContent?.error?.column === 11 &&
       validateResult(misspelled.structuredContent),
   );
 
@@ -813,7 +763,7 @@ if (compute.structuredContent?.error?.code === "backendUnavailable") {
       addContract.structuredContent?.schemaVersion === spent.structuredContent.schemaVersion,
   );
 
-  // An error report's answer is its diagnosis; the stack is residual state.
+  // An error report's answer is its error; the stack is residual state.
   // `0 99999 RANGE LENGHT` is a one-character typo holding a
   // 100,000-element vector, which serialized in full is ~27 MB — so before the
   // stack was elided the whole result became `responseTooLarge` and the reader
@@ -828,10 +778,10 @@ if (compute.structuredContent?.error?.code === "backendUnavailable") {
     "utf8",
   );
   check(
-    "a diagnosis survives a failing stack too large to send",
+    "the error survives a failing stack too large to send",
     hugeResidue.isError !== true &&
       hugeResidue.structuredContent?.status === "error" &&
-      hugeResidue.structuredContent?.diagnosis?.candidates?.[0] === "LENGTH" &&
+      hugeResidue.structuredContent?.error?.word === "LENGHT" &&
       hugeResidueBytes < LIMITS.responseBytes &&
       validateResult(hugeResidue.structuredContent),
   );
@@ -863,7 +813,14 @@ if (compute.structuredContent?.error?.code === "backendUnavailable") {
   });
   check(
     "infer_contracts returns the user Word contract",
-    inferred.structuredContent?.contracts?.some((entry) => entry.name === "INC"),
+    JSON.stringify(inferred.structuredContent?.contracts) === JSON.stringify([{
+      field: "closed",
+      fieldExits: [],
+      inputs: 1,
+      name: "INC",
+      outputs: 1,
+      suggested: "#:contract INC inputs=1 outputs=1 field=closed",
+    }]),
   );
   check(
     "infer_contracts satisfies the published result schema",

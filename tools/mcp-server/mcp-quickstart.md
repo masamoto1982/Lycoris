@@ -32,7 +32,7 @@ reaching for it exactly where it would have helped. The 77 Words are:
 | JSON in and out | `JSON-DECODE` (object → Record, array → Vector, numbers exact) `JSON-ENCODE` (no rounding: `1/3` travels as `"1/3"`) |
 | absence | `NIL` `NIL?` `NIL-REASON` `ABSENT` (declare a reasoned NIL from your own text) |
 | naming, control, output | `DEF` `BIND` `DEL` · `EXEC` `FAIL` (raise a declared ERROR) · `PRINT` |
-| reflection | `DIGEST` (content identity of a Word, denotation digest of a value) `CONTRACT` (a Word's or a block's contract as a Record, inferred without running it; `'cost' GET` before running it) |
+| reflection | `DIGEST` (content identity of a Word, denotation digest of a value) `CONTRACT` (a Word's or a block's contract as a Record keyed `inputs` `outputs` `field`, inferred without running it) |
 
 **This is the whole list.** Word names are case-insensitive — `add` runs as
 `ADD`, because every name is canonicalized to upper case — but otherwise exact.
@@ -59,20 +59,19 @@ don't know.
 | a number, a vector, an exact root, a `PRINT` line | `compute` | `source` |
 | to know whether source parses, resolves and keeps its `#:contract` declarations, without running it | `check` | `source` |
 | the inferred contract of Words *you* defined | `infer_contracts` | `source` |
-| every outcome a program could reach, before running it | `outcomes` | `source` |
 | a built-in Word's contract, or "did I spell it right?" | `word_contract` | `word` |
 
-All five take text, never a file path. To run a file, read it yourself and pass
+All four take text, never a file path. To run a file, read it yourself and pass
 its contents as `source`.
 
 ## 2. Read a result in this order
 
 1. **`status`** decides everything else. `ok` — a value. `error` — an *Ajisai*
-   error, still an ordinary successful call carrying a full diagnosis.
+   error, still an ordinary successful call carrying `message` and `error`.
    `hostError` (with `isError` set) — this server failed, and your program may
-   be fine. A `compute` result also names its **`outcome`** in the ids
-   `outcomes` predicts: `value`, `nil:<reason>` (a reasoned absence, under
-   `status: ok`) or `error:<category>`.
+   be fine. A `compute` result also names its **`outcome`**: `value`,
+   `nil:<reason>` (a reasoned absence, under `status: ok`) or
+   `error:<category>`.
 2. On `ok`: `stackDisplay` is the final stack bottom→top, `output` holds `PRINT`
    lines, and `stack` is the machine-readable form of the same values. That is
    the general rule and it has exactly one exception: for an irrational square
@@ -82,19 +81,20 @@ its contents as `source`.
    means a value was too large to send: its slot keeps its `type` and gains an
    `elided` record (`elements`, `approxBytes`) in place of the value, the
    values beside it are whole, and the fix is to leave less on the stack.
-3. On `error`: `diagnosis.why` and `.where` locate it; `diagnosis.candidates`
-   names the Word you probably meant; `diagnosis.nextChecks[].code` is a stable
-   identifier to act on — never match on its display text, which is localized.
-   A `#:contract` declaration the body contradicts is an error like any other
-   (`aiDiagnostic.category: contractViolation`), with every finding listed in
-   `contractDecls.findings`; see §8.
+3. On `error`: `message` says what went wrong, and `error` carries it as
+   data — `category` (the stable id to branch on; never match on `message`),
+   the `word` it is attributed to, its `line` and `column` in the source, and
+   for a crossed ceiling the `resource` it crossed. A `#:contract` declaration
+   the body contradicts is an error like any other (`error.category:
+   contractViolation`), with every finding listed in `contractDecls.findings`;
+   see §8.
 4. On `hostError`: branch on `error.code`, and retry only if `error.retryable`
    is true. `mcp.limitProfile` names the profile that applied; its ceilings
    are the `ajisai://limits` resource, and a ceiling that fired names itself
-   and its value in `diagnosis.resourceLimit`.
+   in `error.resource` and its value in `message`.
 
 A field carrying no value is **absent**, not `null`: a successful result simply
-has no `diagnosis`. Test for presence.
+has no `error`. Test for presence.
 
 Do not collapse these into "it worked / it broke". Retrying a division by zero
 and rewriting a program that merely timed out are both wasted turns.
@@ -118,7 +118,7 @@ call carries no absence:
 ```
 
 The reason is on the value (`semantics.absence.reason`, here `domainMiss`)
-and in `errorFlowTrace` as a `nilProduced` event. Supply a fallback with
+and in the result's `outcome` (`nil:domainMiss`). Supply a fallback with
 `BIND`, `NIL?` and `SELECT`. `NIL?` consumes its subject, like every Word,
 and answers whether it was absent, which is exactly where `SELECT` reads its
 truth operand, so name the subject once and read it twice:
@@ -191,18 +191,18 @@ value:
 [ 1 2 3 ] LENGHT
 ```
 
-That returns `status: "error"` with `diagnosis.candidates` beginning `LENGTH`.
-Fix from the diagnosis rather than guessing. Before writing an unfamiliar Word,
-`word_contract` gives its arity, purity and NIL policy — and answers a
-misspelling with `suggestions`.
+That returns `status: "error"` with `error.category: unknownWord` and
+`error.word: LENGHT`, at line 1, column 11. Look the name up rather than
+guessing: `word_contract` answers a misspelling with `suggestions` (`LENGTH`
+here), and for a Word it knows gives its arity, purity and NIL policy.
 
 ## 6. Bounds
 
 Every result names the profile it ran under in `mcp.limitProfile`, alongside
 `mcp.serverVersion`, `mcp.engineVersion` and `mcp.backend.kind`; the ceilings
 themselves are read once, at `ajisai://limits`, rather than repeated on every
-result. Exceeding a ceiling is a diagnosed outcome, never a hang, and the
-diagnosis names the ceiling and its value (`diagnosis.resourceLimit`). The
+result. Exceeding a ceiling is an error, never a hang: `error.resource` names
+the ceiling, and `message` its value and what crossed it. The
 result contract is at `ajisai://schema/result`, every Word's full contract at
 `ajisai://contracts`, and the inventory — every Word's name and family — at
 `ajisai://vocabulary`.
@@ -272,22 +272,15 @@ Two further rules:
   `MAP`/`FILTER`/`FOLD` run a block you supply, and `RANGE`/`FILL` are sized by
   an operand's *value*. Pin those with literal operands, or expect to meet a
   ceiling.
-- `infer_contracts` bounds Words you define yourself, without executing their
-  bodies — so a definition can be budgeted before it is ever called. It reports
-  the class per axis directly (`"cost": { "steps": "const", … }`) rather than as
-  a `{class, exact}` pair: an inferred bound states what the inference derived,
-  and its exactness is observable instead as whether `suggested` carries that
-  axis — `suggested` names only the axes the declaration checker can verify.
+- A Word you define yourself is bounded by the Words its body calls: read
+  their costs and join them.
 
 ## 8. Declare a contract, and have it checked before anything runs
 
 A Word you define can state its own contract on a `#:contract` comment line,
-in the keys and values `word_contract` answers in: `inputs=N` `outputs=N`
-(must match the body), `purity=pure|effectful`,
-`partiality=total|partial|projecting`, `field=closed|leaving`,
-`determinism=deterministic|stateRelative|hostRelative` (each a bound the body
-must not exceed), and `cost steps=… numeric=… collection=…` with a class from
-`const` `linear` `superlinear` `unbounded`. A key left out is not checked.
+in the keys `CONTRACT` answers in: `inputs=N` and `outputs=N` (must match the
+body) and `field=closed|leaving`. A key left out is not checked; any other
+term makes the directive malformed, which is a `contractViolation` error.
 `field=closed` promises the body never answers a point over zero (`1/0` or
 `0/0`) from operands holding none: only `DIV`, `POW`, `NUM` and a
 literal over zero leave the field, and a `DIV` by a non-zero literal (`2 DIV`)
@@ -298,12 +291,12 @@ and `infer_contracts` names a `leaving` body's exits under `fieldExits`
 `compute` runs the same check first:
 
 ```ajisai tool=check status=ok
-#:contract DOUBLE inputs=1 outputs=1 purity=pure
+#:contract DOUBLE inputs=1 outputs=1 field=closed
 [ 2 MUL ] 'DOUBLE' DEF 21 DOUBLE
 ```
 
 A declaration the body contradicts is refused by both, as an ordinary error:
-`status: error`, `aiDiagnostic.category: contractViolation`, `outcome:
+`status: error`, `error.category: contractViolation`, `outcome:
 error:contractViolation` (from `compute`), `message` quoting the finding, and
 `contractDecls.findings` listing every one. Nothing runs and nothing prints:
 
@@ -313,8 +306,8 @@ error:contractViolation` (from `compute`), `message` quoting the finding, and
 ```
 
 A body the inference cannot read (a block taken out of data and passed to
-`EXEC`) is *cannot verify* — a `note` with a `gap.*` code — never a false
-violation. To write a declaration without guessing, call `infer_contracts`
+`EXEC`) is *cannot verify* — a `note` finding, and that declaration's
+`outcome` is `nil` — never a false violation. To write a declaration without guessing, call `infer_contracts`
 first and paste the `suggested` line it answers for the Word.
 
 ---

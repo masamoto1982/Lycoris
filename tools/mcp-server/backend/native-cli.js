@@ -73,7 +73,7 @@ export class NativeCliBackend {
               ),
             );
           }
-          // Ajisai language errors intentionally exit 1 with a JSON diagnosis
+          // Ajisai language errors intentionally exit 1 with a JSON report
           // on stdout — a *successful* MCP call carrying a structured error.
           if (error.code === 1 && stdout) return resolve(stdout);
           reject(
@@ -137,12 +137,5 @@ export class NativeCliBackend {
 
   inferContracts(source) {
     return this.#runAgent(source, "infer-contracts", []);
-  }
-
-  outcomes(source) {
-    // The prediction reports the ceilings it assumed, so it runs under the
-    // same step budget `compute` does or its `limitProfile` would name a
-    // budget this server never applies.
-    return this.#runAgent(source, "outcomes", ["--step-limit", String(this.executionSteps)]);
   }
 }

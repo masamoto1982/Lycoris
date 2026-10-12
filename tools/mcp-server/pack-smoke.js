@@ -99,7 +99,7 @@ try {
   writeFileSync(decoy, "#!/bin/sh\nexit 99\n", { mode: 0o755 });
   await withServer(async (client) => {
     const tools = await client.listTools();
-    if (tools.tools.length !== 5) throw new Error("installed package did not expose five tools");
+    if (tools.tools.length !== 4) throw new Error("installed package did not expose four tools");
     const guide = await client.readResource({ uri: "ajisai://guide/quickstart" });
     if (!guide.contents[0]?.text?.includes("Ajisai")) {
       throw new Error("installed package did not expose its packaged guide");
@@ -146,7 +146,7 @@ try {
   await spawned.connect(new StdioClientTransport({ command: process.execPath, args: [binPath] }));
   try {
     const tools = await spawned.listTools();
-    if (tools.tools.length !== 5) {
+    if (tools.tools.length !== 4) {
       throw new Error("the installed bin entry served no tools when launched by name");
     }
     const computed = await spawned.callTool({ name: "compute", arguments: { source: "1 3 DIV" } });

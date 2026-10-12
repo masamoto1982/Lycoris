@@ -37,7 +37,7 @@ const noCall = { content: [{ type: "text", text: "I would rather not." }], stop_
 
 const testCase = {
   id: "repair-unknown-word",
-  prompts: { en: "Repair `1 2 AD` using its diagnosis.", ja: "`1 2 AD` を診断を使って直して。" },
+  prompts: { en: "Repair `1 2 AD` using its error report.", ja: "`1 2 AD` をエラー報告を使って直して。" },
 };
 
 // ── the loop: attempt, execute, hand the result back, attempt again ──────
@@ -62,7 +62,7 @@ assert.equal(trace.language, "en");
 assert.equal(trace.observed.sawDiagnosis, true, "the executed first attempt really did fail");
 
 // The second turn must carry the *structured* failure, not a summary of it:
-// the claim under test is that the diagnosis drives the repair, so a harness
+// the claim under test is that the error report drives the repair, so a harness
 // that pre-digested it would be grading its own prose.
 const [, secondRequest] = client.requests;
 assert.equal(secondRequest.messages.length, 3, "attempt, assistant turn, tool result");
@@ -71,11 +71,11 @@ assert.equal(resultBlock.type, "tool_result");
 assert.equal(resultBlock.tool_use_id, "t1");
 const delivered = JSON.parse(resultBlock.content);
 assert.equal(delivered.status, "error");
-assert.equal(delivered.diagnosis.why, "typoOrUnknownName");
+assert.equal(delivered.error.category, "unknownWord");
 assert.equal(
-  delivered.diagnosis.where.word,
+  delivered.error.word,
   "AD",
-  "the model sees the whole structured diagnosis the server produced",
+  "the model sees the whole structured error the server produced",
 );
 
 // ── every call in a turn is answered, not just the recorded one ──────────

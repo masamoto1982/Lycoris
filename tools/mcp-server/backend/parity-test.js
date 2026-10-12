@@ -52,10 +52,9 @@ const STABLE_FIELDS = [
   "stack",
   "stackDisplay",
   "output",
+  "outcome",
   "message",
-  "diagnosis",
-  "aiDiagnostic",
-  "errorFlowTrace",
+  "error",
   "contractDecls",
   "receipt",
 ];

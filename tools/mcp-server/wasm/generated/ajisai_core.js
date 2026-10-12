@@ -317,31 +317,6 @@ function agent_infer_contracts(source) {
 exports.agent_infer_contracts = agent_infer_contracts;
 
 /**
- * Predict the finite set of outcome ids `source` could produce without
- * executing it, under the same agent-profile ceilings `agent_compute`
- * applies, matching `ajisai agent outcomes`. `step_limit` as for
- * `agent_compute`.
- * @param {string} source
- * @param {number | null} [step_limit]
- * @returns {string}
- */
-function agent_predict_outcomes(source, step_limit) {
-    let deferred2_0;
-    let deferred2_1;
-    try {
-        const ptr0 = passStringToWasm0(source, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        const len0 = WASM_VECTOR_LEN;
-        const ret = wasm.agent_predict_outcomes(ptr0, len0, isLikeNone(step_limit) ? Number.MAX_SAFE_INTEGER : (step_limit) >>> 0);
-        deferred2_0 = ret[0];
-        deferred2_1 = ret[1];
-        return getStringFromWasm0(ret[0], ret[1]);
-    } finally {
-        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
-    }
-}
-exports.agent_predict_outcomes = agent_predict_outcomes;
-
-/**
  * Benchmark hook for `scripts/bench/speed-bench-wasm.mjs`: run `source` on a fresh
  * interpreter with every priced ceiling lifted (`agent::unbounded_interpreter`,
  * the same one `rust/examples/speed_bench.rs` times natively) and answer the
@@ -625,7 +600,7 @@ function __wbg_get_imports() {
             return ret;
         },
         __wbindgen_cast_0000000000000001: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 219, ret: Result(Unit), inner_ret: Some(Result(Unit)) }, mutable: true }) -> Externref`.
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 213, ret: Result(Unit), inner_ret: Some(Result(Unit)) }, mutable: true }) -> Externref`.
             const ret = makeMutClosure(arg0, arg1, wasm_bindgen_413a9fa07f7179f1___convert__closures_____invoke___wasm_bindgen_413a9fa07f7179f1___JsValue__core_7d5f0a2ba6a62c33___result__Result_____wasm_bindgen_413a9fa07f7179f1___JsError___true_);
             return ret;
         },

@@ -145,14 +145,6 @@ export function agent_compute(source: string, step_limit?: number | null): Promi
 export function agent_infer_contracts(source: string): string;
 
 /**
- * Predict the finite set of outcome ids `source` could produce without
- * executing it, under the same agent-profile ceilings `agent_compute`
- * applies, matching `ajisai agent outcomes`. `step_limit` as for
- * `agent_compute`.
- */
-export function agent_predict_outcomes(source: string, step_limit?: number | null): string;
-
-/**
  * Benchmark hook for `scripts/bench/speed-bench-wasm.mjs`: run `source` on a fresh
  * interpreter with every priced ceiling lifted (`agent::unbounded_interpreter`,
  * the same one `rust/examples/speed_bench.rs` times natively) and answer the

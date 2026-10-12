@@ -1,10 +1,11 @@
 #!/usr/bin/env node
-// Capture whether a real model repairs a failure *from its diagnosis*.
+// Capture whether a real model repairs a failure *from its error report*.
 //
 // `capture-traces.js` asks one question and records what the model reached for.
 // A repair is not one question: the model attempts, the attempt fails, the
-// failure carries a structured diagnosis, and the question is whether that
-// diagnosis is what produces the corrected attempt. Nothing captured that —
+// failure carries a structured error (`message`, and `error` naming its
+// category, Word and position), and the question is whether that report is
+// what produces the corrected attempt. Nothing captured that —
 // `score-repairs.js` has graded a hand-written fixture since it was written, so
 // the repair rate has been "unmeasured" in the tracker for every round since.
 //

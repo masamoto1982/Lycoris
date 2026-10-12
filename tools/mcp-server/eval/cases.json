@@ -110,7 +110,7 @@
    },
    "expect": {
     "/status": "error",
-    "/diagnosis/why": "typoOrUnknownName"
+    "/error/category": "unknownWord"
    }
   },
   {
@@ -270,7 +270,7 @@
    },
    "expect": {
     "/status": "error",
-    "/diagnosis/why": "typoOrUnknownName"
+    "/error/category": "unknownWord"
    }
   },
   {
@@ -815,8 +815,8 @@
    },
    "expect": {
     "/status": "error",
-    "/diagnosis/why": "resourceLimit",
-    "/diagnosis/resourceLimit/resource": "collectionWork"
+    "/error/category": "resourceLimitExceeded",
+    "/error/resource": "collectionWork"
    }
   },
   {
@@ -832,8 +832,8 @@
    },
    "expect": {
     "/status": "error",
-    "/diagnosis/why": "resourceLimit",
-    "/diagnosis/resourceLimit/resource": "numericWork"
+    "/error/category": "resourceLimitExceeded",
+    "/error/resource": "numericWork"
    }
   },
   {
@@ -849,8 +849,8 @@
    },
    "expect": {
     "/status": "error",
-    "/diagnosis/why": "resourceLimit",
-    "/diagnosis/resourceLimit/resource": "materializedElements"
+    "/error/category": "resourceLimitExceeded",
+    "/error/resource": "materializedElements"
    }
   },
   {
@@ -866,8 +866,7 @@
    },
    "expect": {
     "/status": "error",
-    "/diagnosis/why": "resourceLimit",
-    "/diagnosis/resourceLimit/resource": "executionSteps"
+    "/error/category": "executionLimitExceeded"
    }
   },
   {
@@ -883,7 +882,7 @@
    },
    "expect": {
     "/status": "error",
-    "/diagnosis/why": "shapeMismatch"
+    "/error/category": "shapeMismatch"
    }
   },
   {
@@ -899,7 +898,7 @@
    },
    "expect": {
     "/status": "error",
-    "/diagnosis/why": "stackShape"
+    "/error/category": "stackUnderflow"
    }
   },
   {
@@ -915,7 +914,7 @@
    },
    "expect": {
     "/status": "error",
-    "/diagnosis/why": "sourceForm"
+    "/error/category": "malformedSource"
    }
   },
   {
