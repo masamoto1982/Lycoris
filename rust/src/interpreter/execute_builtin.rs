@@ -224,6 +224,7 @@ impl Interpreter {
         &mut self,
         word: &'static crate::kernel::generated::GeneratedWord,
     ) -> Result<()> {
+        self.unpack_truth_columns_for(word.id);
         let result = match self.apply_declared_nil_contract(word) {
             Some(decided) => decided,
             None => match self.apply_declared_lift(word) {
@@ -231,6 +232,7 @@ impl Interpreter {
                 None => self.execute_builtin_by_id(word.id),
             },
         };
+        self.note_truth_column_on_top();
         result.map_err(|err| err.attributed_to(word.name))
     }
 

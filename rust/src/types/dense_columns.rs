@@ -149,6 +149,7 @@ fn append_values(values: &[Value], columns: &mut Columns) -> Option<Shape> {
 
 fn append_value(value: &Value, columns: &mut Columns) -> Option<Shape> {
     match &value.data {
+        ValueData::Truths(t) => append_value(&t.to_vector(), columns),
         ValueData::Scalar(fraction) => {
             let (n, d) = fraction.extract_i64_pair()?;
             columns.nums.push(n);

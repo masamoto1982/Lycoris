@@ -59,6 +59,7 @@ fn nested_vector_shape(v: &[Value]) -> Option<Vec<usize>> {
 /// ragged sub-structures.
 fn element_rect_shape(value: &Value) -> Option<Vec<usize>> {
     match &value.data {
+        ValueData::Truths(t) => element_rect_shape(&t.to_vector()),
         ValueData::Scalar(_) | ValueData::ExactScalar(_) => Some(Vec::new()),
         // A NIL is not a numeric leaf: a Vector holding one has no dense
         // counterpart to equal.
@@ -280,7 +281,10 @@ impl Value {
 
     #[inline]
     pub fn from_children(children: Vec<Value>) -> Self {
-        Self::new(ValueData::Vector(Arc::new(children)), None)
+        Self::new(
+            ValueData::Vector(Arc::new(unpack_truth_columns(children))),
+            None,
+        )
     }
 
     /// Build a Vector value (LANG.VALUES.VECTOR).
@@ -293,7 +297,10 @@ impl Value {
     /// Vector "an ordered finite collection of values" and makes "order and
     /// length" its whole observable structure; zero is a finite length.
     pub fn from_vector(values: Vec<Value>) -> Self {
-        Self::new(ValueData::Vector(Arc::new(values)), None)
+        Self::new(
+            ValueData::Vector(Arc::new(unpack_truth_columns(values))),
+            None,
+        )
     }
 
     #[inline]
@@ -343,7 +350,7 @@ impl Value {
             ValueData::Scalar(_) | ValueData::ExactScalar(_) => "Scalar",
             ValueData::Boolean(_) | ValueData::Both => "Boolean",
             ValueData::Text(_) => "String",
-            ValueData::Vector(_) | ValueData::Tensor { .. } => "Vector",
+            ValueData::Vector(_) | ValueData::Tensor { .. } | ValueData::Truths(_) => "Vector",
             ValueData::Record(_) => "Record",
             ValueData::Nil(_) => "NIL",
             ValueData::Symbol(_) => "Symbol",
@@ -357,7 +364,10 @@ impl Value {
 
     #[inline]
     pub fn is_vector(&self) -> bool {
-        matches!(self.data, ValueData::Vector(_) | ValueData::Tensor { .. })
+        matches!(
+            self.data,
+            ValueData::Vector(_) | ValueData::Tensor { .. } | ValueData::Truths(_)
+        )
     }
 
     /// Whether this value is a String (LANG.VALUES.DISJOINT).
@@ -399,6 +409,7 @@ impl Value {
             ValueData::Tensor { data, shape } => Some(std::borrow::Cow::Owned(
                 tensor_to_nested_values(data, shape),
             )),
+            ValueData::Truths(t) => Some(std::borrow::Cow::Owned(t.to_values())),
             ValueData::Boolean(_)
             | ValueData::Both
             | ValueData::Text(_)
@@ -410,9 +421,9 @@ impl Value {
         }
     }
 
-    /// Return a `Cow<Value>` that is guaranteed to use a non-`Tensor`
-    /// representation. `Tensor` values are converted into a nested
-    /// `ValueData::Vector`; every other
+    /// Return a `Cow<Value>` that is guaranteed to use neither dense
+    /// representation. `Tensor` and `Truths` values are converted into a
+    /// nested `ValueData::Vector`; every other
     /// variant is borrowed in place.
     ///
     /// Useful at user-visible boundaries (PRINT, JSON-EXPORT, GUI hand-off,
@@ -425,6 +436,7 @@ impl Value {
                 let children = tensor_to_nested_values(data, shape);
                 std::borrow::Cow::Owned(Value::new(ValueData::Vector(Arc::new(children)), None))
             }
+            ValueData::Truths(t) => std::borrow::Cow::Owned(t.to_vector()),
             _ => std::borrow::Cow::Borrowed(self),
         }
     }
@@ -452,6 +464,7 @@ impl Value {
             // irrationals; Gosper nodes conservatively report truthy.
             ValueData::ExactScalar(_) => true,
             ValueData::Vector(v) => !v.is_empty() && !v.iter().all(|c| !c.is_truthy()),
+            ValueData::Truths(t) => t.to_vector().is_truthy(),
             ValueData::Tensor { data, .. } => !data.is_empty() && !data.iter().all(|f| f.is_zero()),
             ValueData::Symbol(_) => true,
             // A Record is not a truth value either; like a String it collapses
@@ -459,4 +472,18 @@ impl Value {
             ValueData::Record(_) => false,
         }
     }
+}
+
+/// A truth column is held only where a Word left it, never inside another
+/// value (`types::truth_column`): every reader of a container's children then
+/// meets the Vectors they are. So a container built from values unpacks any
+/// column among them.
+#[inline]
+pub(super) fn unpack_truth_columns(mut values: Vec<Value>) -> Vec<Value> {
+    for value in values.iter_mut() {
+        if let ValueData::Truths(column) = &value.data {
+            *value = column.to_vector();
+        }
+    }
+    values
 }

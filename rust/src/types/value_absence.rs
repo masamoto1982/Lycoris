@@ -183,6 +183,7 @@ fn append_dense_values(values: &[Value], data: &mut Vec<Fraction>) -> Option<Vec
 #[cfg(test)]
 fn append_dense_value(value: &Value, data: &mut Vec<Fraction>) -> Option<Vec<usize>> {
     match &value.data {
+        ValueData::Truths(t) => append_dense_value(&t.to_vector(), data),
         ValueData::Scalar(fraction) => {
             data.push(fraction.clone());
             Some(Vec::new())

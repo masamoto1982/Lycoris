@@ -317,6 +317,7 @@ fn apply_exact_arithmetic_schema(
 
 fn extract_scalar_from_value(val: &Value) -> Option<Fraction> {
     match &val.data {
+        ValueData::Truths(t) => extract_scalar_from_value(&t.to_vector()),
         ValueData::Scalar(f) => Some(f.clone()),
         ValueData::ExactScalar(_) => None, // handled by ExactReal path
         ValueData::Vector(children) if children.len() == 1 => {

@@ -18,3 +18,5 @@ cc 8d0dfeb3eb7e8209a8e69727a3a7c9bb9e1a02a050364706b43a943b0c3e76a1 # shrinks to
 cc d6085c1be797ff45aa6d4441192e85995de254d2baee6c8c589bd263073db07d # shrinks to (a, b) = (["0"], ["-5/2"]), scalar = "1", shape = 2, word = "DIV", unary = ""
 cc 85ac63ccb59924a58f5a162a2f8d3e8bf1f8f2bf4148e7d5582166ffbbc68f8d # shrinks to (a, b) = (["2"], ["0"]), scalar = "1/6", shape = 1, word = "MUL", unary = ""
 cc e0897a9332a44f6211b5703ac3b7b1c5102909088c63e128b84a6a7d2a1173ce # shrinks to a = "6", b = "[ 1/2 ]", word = "MUL", unary = "", bits = None
+cc 55550852709a9e84c34dc31d92bd3344426a2e950fdc224e0db2d3629fd9a046 # shrinks to (a, b) = (["0"], ["0"]), scalar = "0", shape = 0, word = "LT", unary = ""
+cc 76b2ba80079a922323eb02a0d919a895e379cbdd8ef04eb42f9f3ce3f0ce0bc7 # shrinks to a = "[ 0 ]", b = "0", word = "LT", unary = "", bits = None

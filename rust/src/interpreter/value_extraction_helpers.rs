@@ -8,6 +8,7 @@ use num_traits::ToPrimitive;
 pub(crate) fn value_as_string(val: &Value) -> Option<String> {
     fn collect_chars(val: &Value) -> Vec<char> {
         match &val.data {
+            ValueData::Truths(t) => collect_chars(&t.to_vector()),
             ValueData::Text(s) => s.chars().collect(),
             ValueData::Nil(_) => vec![],
             ValueData::Scalar(f) => f

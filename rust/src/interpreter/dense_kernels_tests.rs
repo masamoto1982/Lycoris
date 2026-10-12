@@ -32,7 +32,7 @@ pub(super) fn observe(source: &str, dense: bool, bits: Option<u64>) -> Observati
         // The values, not the `Stack`: its `fresh_from` mark only schedules
         // the next nesting check, and a refused general route pops and
         // re-pushes operands the kernel never touched.
-        values: format!("{:?}", interp.get_stack().as_slice()),
+        values: crate::test_support::representation(interp.get_stack().as_slice()),
         usage: interp.resource_usage(),
         metrics: format!("{:?}", interp.runtime_metrics()),
         trace: format!("{:?}", interp.error_flow_trace_log),
@@ -478,7 +478,12 @@ fn a_vector_of_truths_is_the_vector_of_its_booleans() {
     for truths in [vec![], vec![true], vec![false, true, true, false]] {
         let built = Value::from_truths(truths.iter().copied());
         let boxed = Value::from_vector(truths.iter().map(|&t| Value::from_bool(t)).collect());
-        assert_eq!(format!("{built:?}"), format!("{boxed:?}"));
+        assert!(matches!(built.data, crate::types::ValueData::Truths(_)));
+        assert_eq!(built, boxed);
+        assert_eq!(
+            crate::test_support::representation(std::slice::from_ref(&built)),
+            crate::test_support::representation(std::slice::from_ref(&boxed))
+        );
         assert_eq!(built.nesting(), boxed.nesting());
     }
 }

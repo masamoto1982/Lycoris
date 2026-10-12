@@ -186,6 +186,7 @@ fn write_small_sint(bytes: &mut Vec<u8>, i: i128) {
 /// never the raw variant payload.
 fn encode_value(bytes: &mut Vec<u8>, value: &Value) {
     match &value.data {
+        ValueData::Truths(t) => encode_value(bytes, &t.to_vector()),
         ValueData::Nil(_) => {
             bytes.push(b'N');
             let reason = value

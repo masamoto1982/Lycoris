@@ -102,6 +102,26 @@ fn exact_scalar_carries_exact_source_in_semantics() {
     );
 }
 
+/// A truth column is a representation, not a domain: it crosses the wire as
+/// the Vector it stands for, node for node.
+#[test]
+fn a_truth_column_serializes_as_its_vector() {
+    use crate::error::NilReason;
+    use crate::semantic::Recoverability;
+    use crate::types::TruthColumn;
+    let lanes = vec![
+        Value::from_bool(true),
+        Value::both(),
+        Value::nil_with_reason(NilReason::DomainMiss, Recoverability::Recoverable),
+    ];
+    let column = Value::from_truth_column(TruthColumn::pack(&lanes).unwrap());
+    let vector = Value::from_vector(lanes);
+    assert_eq!(
+        format!("{:?}", value_to_protocol(&column)),
+        format!("{:?}", value_to_protocol(&vector))
+    );
+}
+
 /// Only an irrational has a normal form to send. A restored session can hold
 /// an `ExactScalar` that is rational (the wire's `ExactRat`), and a plain
 /// number is not an `ExactScalar` at all; neither has exact terms.

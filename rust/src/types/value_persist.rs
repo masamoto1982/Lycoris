@@ -116,6 +116,7 @@ enum PersistData {
 
 fn encode_data(data: &ValueData) -> PersistData {
     match data {
+        ValueData::Truths(t) => encode_data(&t.to_vector().data),
         ValueData::Boolean(b) => PersistData::Bool { v: *b },
         ValueData::Both => PersistData::Both,
         ValueData::Scalar(f) => {

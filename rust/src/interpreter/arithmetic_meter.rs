@@ -34,6 +34,7 @@ use crate::types::{DenseTensor, Value, ValueData};
 /// value stores its lanes.
 pub(crate) fn measure_operand(value: &Value) -> OperandWork {
     match &value.data {
+        ValueData::Truths(t) => measure_operand(&t.to_vector()),
         ValueData::Scalar(f) => OperandWork::leaf(fraction_work_bits(f)),
         ValueData::ExactScalar(er) => OperandWork {
             lanes: 1,
@@ -136,6 +137,7 @@ fn dense_tensor_result_bits(data: &DenseTensor) -> u64 {
 /// The widest lane and largest algebraic term count a result carries.
 fn measure_result(value: &Value) -> (u64, usize) {
     match &value.data {
+        ValueData::Truths(t) => measure_result(&t.to_vector()),
         ValueData::Scalar(f) => (fraction_result_bits(f), 0),
         ValueData::ExactScalar(er) => (er.max_coefficient_bits(), er.algebraic_term_count()),
         ValueData::Tensor { data, .. } => (dense_tensor_result_bits(data), 0),

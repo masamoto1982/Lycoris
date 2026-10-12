@@ -110,7 +110,7 @@ fn lift_flat<const N: usize>(
                 len if len == width => {}
                 _ => return None,
             },
-            ValueData::Tensor { .. } | ValueData::Record(_) => return None,
+            ValueData::Tensor { .. } | ValueData::Record(_) | ValueData::Truths(_) => return None,
             _ => {}
         }
     }
@@ -253,7 +253,10 @@ fn descend(
 fn is_container(value: &Value) -> bool {
     matches!(
         value.data,
-        ValueData::Vector(_) | ValueData::Tensor { .. } | ValueData::Record(_)
+        ValueData::Vector(_)
+            | ValueData::Tensor { .. }
+            | ValueData::Record(_)
+            | ValueData::Truths(_)
     )
 }
 

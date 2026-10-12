@@ -51,7 +51,7 @@ pub(crate) fn observe(
     Observation {
         outcome: outcome.map(|_| ()),
         stack: render_stack(interp.get_stack()),
-        values: format!("{:?}", interp.get_stack()),
+        values: crate::test_support::representation(interp.get_stack().as_slice()),
         usage: interp.resource_usage(),
         metrics: format!("{:?}", interp.runtime_metrics()),
         epochs: interp.current_epoch_snapshot(),

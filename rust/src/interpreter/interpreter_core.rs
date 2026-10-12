@@ -237,6 +237,8 @@ pub struct Interpreter {
     /// (`dense_kernels`). Disable via `AJISAI_NO_DENSE_KERNELS` for A/B
     /// comparison.
     pub(crate) dense_kernels_enabled: bool,
+    /// Whether a truth column may be on the stack (`truth_columns`).
+    pub(crate) packed_truths: std::cell::Cell<bool>,
     /// Compiled scalar calls answered without the dispatch (`quickened`).
     pub(crate) quickening_enabled: bool,
     /// Runs of scalar Words, names and User Word calls lowered to typed
@@ -300,6 +302,7 @@ impl Interpreter {
             scalar_fastpath_enabled: std::env::var("AJISAI_NO_SCALAR_FASTPATH").is_err(),
             fused_block_enabled: std::env::var("AJISAI_NO_FUSED_BLOCK").is_err(),
             dense_kernels_enabled: std::env::var("AJISAI_NO_DENSE_KERNELS").is_err(),
+            packed_truths: Default::default(),
             quickening_enabled: std::env::var("AJISAI_NO_QUICKEN").is_err(),
             segments_enabled: std::env::var("AJISAI_NO_SEGMENTS").is_err(),
             block_cache: Default::default(),

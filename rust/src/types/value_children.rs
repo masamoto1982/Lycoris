@@ -60,6 +60,7 @@ impl Value {
             // scans — though it is not a sequence: `get_child` answers `None`.
             ValueData::Record(record) => record.len(),
             ValueData::Vector(v) => v.len(),
+            ValueData::Truths(t) => t.len(),
             ValueData::Tensor { data, shape } => {
                 if shape.is_empty() {
                     data.len()
@@ -78,7 +79,7 @@ impl Value {
     pub fn get_child(&self, index: usize) -> Option<&Value> {
         match &self.data {
             ValueData::Vector(v) => v.get(index),
-            ValueData::Tensor { .. } => None,
+            ValueData::Tensor { .. } | ValueData::Truths(_) => None,
             ValueData::Scalar(_) | ValueData::ExactScalar(_) if index == 0 => Some(self),
             ValueData::Boolean(_)
             | ValueData::Both
@@ -104,6 +105,7 @@ impl Value {
             ValueData::Vector(v) => v.get(index).cloned(),
             ValueData::Scalar(_) | ValueData::ExactScalar(_) if index == 0 => Some(self.clone()),
             ValueData::Tensor { data, shape } => tensor_child(data, shape, index),
+            ValueData::Truths(t) => (index < t.len()).then(|| t.lane(index)),
             ValueData::Boolean(_)
             | ValueData::Both
             | ValueData::Text(_)
@@ -134,7 +136,7 @@ impl Value {
     pub fn last(&self) -> Option<&Value> {
         match &self.data {
             ValueData::Vector(v) => v.last(),
-            ValueData::Tensor { .. } => None,
+            ValueData::Tensor { .. } | ValueData::Truths(_) => None,
             ValueData::Scalar(_) | ValueData::ExactScalar(_) => Some(self),
             ValueData::Nil(_) => None,
             ValueData::Boolean(_)
@@ -149,15 +151,20 @@ impl Value {
     /// so that mutating helpers (push/pop/insert/remove/replace) can operate
     /// on a uniform `Vec<Value>` representation.
     fn hydrate_tensor_to_vector(&mut self) {
-        let ValueData::Tensor { data, shape } = &self.data else {
-            return;
+        let children = match &self.data {
+            ValueData::Tensor { data, shape } => tensor_to_nested_values(data, shape),
+            ValueData::Truths(t) => t.to_values(),
+            _ => return,
         };
-        let children = tensor_to_nested_values(data, shape);
         self.data = ValueData::Vector(Arc::new(children));
     }
 
     pub fn push_child(&mut self, child: Value) {
-        if matches!(self.data, ValueData::Tensor { .. }) {
+        let child = match &child.data {
+            ValueData::Truths(column) => column.to_vector(),
+            _ => child,
+        };
+        if matches!(self.data, ValueData::Tensor { .. } | ValueData::Truths(_)) {
             self.hydrate_tensor_to_vector();
         }
         match &mut self.data {
@@ -184,6 +191,7 @@ impl Value {
             | ValueData::Both
             | ValueData::Text(_)
             | ValueData::Tensor { .. }
+            | ValueData::Truths(_)
             | ValueData::Symbol(_)
             | ValueData::Record(_) => {}
         }
@@ -200,6 +208,7 @@ impl Value {
             | ValueData::ExactScalar(_)
             | ValueData::Vector(_)
             | ValueData::Tensor { .. }
+            | ValueData::Truths(_)
             | ValueData::Nil(_)
             | ValueData::Symbol(_)
             | ValueData::Record(_) => None,
@@ -220,7 +229,7 @@ impl Value {
     pub fn as_vector(&self) -> Option<&Vec<Value>> {
         match &self.data {
             ValueData::Vector(v) => Some(v),
-            ValueData::Tensor { .. } => None,
+            ValueData::Tensor { .. } | ValueData::Truths(_) => None,
             ValueData::Boolean(_)
             | ValueData::Both
             | ValueData::Text(_)
@@ -265,6 +274,7 @@ impl Value {
             // exact.
             ValueData::Boolean(_)
             | ValueData::Both
+            | ValueData::Truths(_)
             | ValueData::Text(_)
             | ValueData::Symbol(_)
             | ValueData::Record(_) => {}
@@ -277,6 +287,12 @@ impl Value {
             ValueData::Scalar(_) | ValueData::ExactScalar(_) => 1,
             ValueData::Vector(v) => v.iter().map(|c| c.count_fractions()).sum(),
             ValueData::Tensor { data, .. } => data.len(),
+            // A truth column's UNKNOWN lanes are NILs, one lane each.
+            ValueData::Truths(t) => t
+                .codes()
+                .iter()
+                .filter(|&&c| c == super::truth_column::UNKNOWN)
+                .count(),
             // U takes the `Nil` arm above and contributes one fraction lane
             // (see `collect_fractions_flat_into`); a Boolean/Text/Symbol
             // contributes none.
@@ -308,6 +324,7 @@ impl Value {
                 }
             }
             ValueData::Tensor { shape, .. } => (**shape).clone(),
+            ValueData::Truths(t) => vec![t.len()],
             ValueData::Boolean(_)
             | ValueData::Both
             | ValueData::Text(_)
