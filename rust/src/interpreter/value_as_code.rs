@@ -41,6 +41,7 @@ pub(crate) fn value_elements_to_tokens(elements: &[Value]) -> Result<Vec<Token>>
 
 fn push_value_as_tokens(value: &Value, out: &mut Vec<Token>) -> Result<()> {
     match &value.data {
+        ValueData::Truths(t) => return push_value_as_tokens(&t.to_vector(), out),
         ValueData::Symbol(name) => out.push(Token::Symbol(name.into())),
         ValueData::Text(s) => out.push(Token::String(s.clone())),
         // The value is already in hand, so it is carried across rather than
@@ -119,6 +120,7 @@ pub(crate) fn value_elements_to_source_tokens(elements: &[Value]) -> Result<Vec<
 /// whitespace (`tokenizer::is_string_token_content`) are not.
 fn writes_as_literal(value: &Value) -> bool {
     match &value.data {
+        ValueData::Truths(t) => writes_as_literal(&t.to_vector()),
         ValueData::Symbol(_) | ValueData::Scalar(_) | ValueData::Boolean(_) | ValueData::Both => {
             true
         }
@@ -138,6 +140,7 @@ fn writes_as_literal(value: &Value) -> bool {
 /// The literal spelling of a value `writes_as_literal` admits.
 fn push_literal(value: &Value, out: &mut Vec<Token>) {
     match &value.data {
+        ValueData::Truths(t) => push_literal(&t.to_vector(), out),
         ValueData::Symbol(name) => out.push(Token::Symbol(name.into())),
         ValueData::Text(s) => out.push(Token::String(s.clone())),
         ValueData::Scalar(f) => out.push(Token::number_from_value(f.clone())),
@@ -165,6 +168,7 @@ fn push_literal(value: &Value, out: &mut Vec<Token>) {
 /// Source that, run at the top level of a body, pushes `value`.
 fn push_source_expression(value: &Value, out: &mut Vec<Token>) -> Result<()> {
     match &value.data {
+        ValueData::Truths(t) => push_source_expression(&t.to_vector(), out),
         // At the top level a bare name is a call; the Symbol stays data by
         // being read out of a literal.
         ValueData::Symbol(name) => {
@@ -275,9 +279,10 @@ pub(crate) fn algebraic_radicands(elements: &[Value], out: &mut Vec<BigInt>) {
                 algebraic_radicands(record.keys(), out);
                 algebraic_radicands(record.values(), out);
             }
-            // A dense tensor holds rationals only; the other domains hold no
-            // number.
+            // A dense tensor holds rationals only, a truth column truth
+            // values; the other domains hold no number.
             ValueData::Tensor { .. }
+            | ValueData::Truths(_)
             | ValueData::Scalar(_)
             | ValueData::Boolean(_)
             | ValueData::Both

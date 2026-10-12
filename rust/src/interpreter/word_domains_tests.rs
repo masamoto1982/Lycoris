@@ -76,7 +76,9 @@ fn domain_of(value: &Value) -> Option<ValueDomain> {
     Some(match &value.data {
         ValueData::Boolean(_) | ValueData::Both => ValueDomain::Boolean,
         ValueData::Scalar(_) | ValueData::ExactScalar(_) => ValueDomain::Scalar,
-        ValueData::Vector(_) | ValueData::Tensor { .. } => ValueDomain::Vector,
+        ValueData::Vector(_) | ValueData::Tensor { .. } | ValueData::Truths(_) => {
+            ValueDomain::Vector
+        }
         ValueData::Text(_) => ValueDomain::String,
         ValueData::Record(_) => ValueDomain::Record,
         ValueData::Symbol(_) => ValueDomain::Symbol,

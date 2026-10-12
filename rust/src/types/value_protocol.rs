@@ -168,6 +168,8 @@ fn tensor_to_protocol(data: &DenseTensor, offset: usize, shape: &[usize]) -> Vec
 /// (LANG.VALUES.DISJOINT); nothing about how the value was produced reaches it.
 pub(crate) fn value_to_protocol(value: &Value) -> ProtocolNode {
     let (type_str, protocol_value) = match &value.data {
+        // A representation, not a domain: the wire sees the Vector it is.
+        ValueData::Truths(t) => return value_to_protocol(&t.to_vector()),
         ValueData::Nil(_) => ("nil", ProtocolValue::Null),
         ValueData::Boolean(b) => ("boolean", ProtocolValue::Bool(*b)),
         // BOTH is a Boolean with no two-valued image: `value` is null and

@@ -163,6 +163,7 @@ pub(crate) fn charge_walk_of(interp: &mut Interpreter, value: &Value) -> Result<
 /// The bytes of text `value` holds, through every container.
 fn text_bytes(value: &Value) -> u64 {
     match &value.data {
+        ValueData::Truths(t) => text_bytes(&t.to_vector()),
         ValueData::Text(text) => text.len() as u64,
         ValueData::Symbol(name) => name.len() as u64,
         ValueData::Vector(children) => children.iter().map(text_bytes).sum(),

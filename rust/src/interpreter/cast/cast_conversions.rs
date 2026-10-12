@@ -61,6 +61,7 @@ pub(crate) fn format_value_to_string_repr(value: &Value) -> String {
 
     fn collect_fractions(val: &Value) -> Vec<String> {
         match &val.data {
+            ValueData::Truths(t) => collect_fractions(&t.to_vector()),
             ValueData::Nil(_) => vec!["NIL".to_string()],
             ValueData::Boolean(b) => vec![if *b { "TRUE" } else { "FALSE" }.to_string()],
             ValueData::Both => vec!["BOTH".to_string()],
@@ -103,6 +104,7 @@ pub(crate) fn format_value_to_string_repr(value: &Value) -> String {
 /// look-alike, in the one value class exactness is the whole point of.
 fn has_no_exact_lexeme(value: &Value) -> bool {
     match &value.data {
+        ValueData::Truths(t) => has_no_exact_lexeme(&t.to_vector()),
         ValueData::ExactScalar(exact) => exact.to_fraction().is_none(),
         ValueData::Vector(children) => children.iter().any(has_no_exact_lexeme),
         ValueData::Record(record) => record.values().iter().any(has_no_exact_lexeme),

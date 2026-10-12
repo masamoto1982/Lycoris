@@ -50,7 +50,7 @@ fn observe(source: &str, fused: bool, limits: Limits) -> Observation {
     Observation {
         outcome: outcome.map(|_| ()),
         stack: render_stack(interp.get_stack()),
-        values: format!("{:?}", interp.get_stack()),
+        values: crate::test_support::representation(interp.get_stack().as_slice()),
         usage: interp.resource_usage(),
         collection_work: interp.collection_work_used(),
         metrics: format!("{:?}", interp.runtime_metrics()),

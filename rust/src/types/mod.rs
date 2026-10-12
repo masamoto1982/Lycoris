@@ -51,6 +51,8 @@ mod value_protocol_tests;
 
 mod token_text;
 pub use self::token_text::{Name, NumberLiteral};
+pub(crate) mod truth_column;
+pub use self::truth_column::TruthColumn;
 
 use self::fraction::Fraction;
 pub use self::record::{RecordBuildError, RecordData};
@@ -100,6 +102,10 @@ pub enum ValueData {
     /// Vector Word accepts it and no Record Word accepts a Vector — and it
     /// has no literal: `RECORD` is its only constructor.
     Record(Arc<RecordData>),
+    /// A flat Vector of truth values held a byte a lane (`truth_column`): a
+    /// representation of the Vector it stands for, equal to it and read as
+    /// it by everything that does not read the bytes directly.
+    Truths(Arc<TruthColumn>),
 }
 
 impl PartialEq for ValueData {
@@ -138,6 +144,10 @@ impl PartialEq for ValueData {
             // A Record equals a Record with the same key sequence and the
             // same value sequence (LANG.VALUES.DENOTATION), and nothing else.
             (ValueData::Record(a), ValueData::Record(b)) => a == b,
+            (ValueData::Truths(a), ValueData::Truths(b)) => a == b,
+            (ValueData::Truths(t), other) | (other, ValueData::Truths(t)) => {
+                ValueData::Vector(Arc::new(t.to_values())) == *other
+            }
             _ => false,
         }
     }
@@ -187,6 +197,7 @@ impl std::hash::Hash for ValueData {
                     v.hash(state);
                 }
             },
+            ValueData::Truths(t) => ValueData::Vector(Arc::new(t.to_values())).hash(state),
             ValueData::Tensor { data, shape } => {
                 state.write_u8(HASH_TAG_DENSE);
                 shape.hash(state);
@@ -216,15 +227,15 @@ pub struct Value {
     /// How many containers deep this value nests, computed once when the
     /// value is built (`Value::new`). Private so that no value can be built
     /// around it: every construction goes through `Value::new` (or
-    /// `Value::from_truths`, whose nesting is known without asking), and
-    /// every in-place change of `data` recomputes it (`value_children.rs`).
+    /// `Value::leaf`, whose nesting is known without asking), and every
+    /// in-place change of `data` recomputes it (`value_children.rs`).
     nesting: u32,
 }
 
 impl Value {
     /// A value from its parts. The one general constructor: every other one
-    /// but `from_truths` goes through here, so a value's nesting is always
-    /// the one its data has.
+    /// but `leaf` goes through here, so a value's nesting is always the one
+    /// its data has.
     #[inline]
     pub fn new(data: ValueData, absence: Option<AbsenceMetadata>) -> Self {
         let data = match (data, absence) {
@@ -251,22 +262,13 @@ impl Value {
         self.nesting
     }
 
-    /// A Vector of Booleans, one per truth: what `Value::from_vector` of
-    /// `Value::from_bool`s builds, without the pass over the children that
-    /// finds their deepest nesting. A Boolean nests 0 deep, so the Vector
-    /// nests 1 deep however many it holds. Built for comparisons over a
-    /// whole Tensor (`dense_kernels`), whose answers run to millions of lanes.
+    /// A Vector of Booleans, one per truth, held as a truth column
+    /// (`truth_column`): a byte a lane rather than a `Value`. Built for
+    /// comparisons over a whole Tensor (`dense_kernels`), whose answers run
+    /// to millions of lanes.
     pub(crate) fn from_truths(truths: impl Iterator<Item = bool>) -> Self {
-        let children = truths
-            .map(|truth| Self {
-                data: ValueData::Boolean(truth),
-                nesting: 0,
-            })
-            .collect();
-        Self {
-            data: ValueData::Vector(Arc::new(children)),
-            nesting: 1,
-        }
+        let codes = truths.map(u8::from).collect();
+        Self::from_truth_column(TruthColumn::known(codes))
     }
 
     /// Raise the kept nesting to at least `nesting`, after a child was added
@@ -294,6 +296,7 @@ impl ValueData {
                 deepest(&mut record.keys().iter().chain(record.values().iter())).saturating_add(1)
             }
             ValueData::Tensor { shape, .. } => u32::try_from(shape.len()).unwrap_or(u32::MAX),
+            ValueData::Truths(_) => 1,
             ValueData::Boolean(_)
             | ValueData::Both
             | ValueData::Scalar(_)

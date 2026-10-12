@@ -30,6 +30,8 @@ pub(crate) fn body_symbol_names(body: &[Token]) -> Vec<std::sync::Arc<str>> {
 pub(crate) fn value_symbol_names(value: &Value, out: &mut Vec<std::sync::Arc<str>>) {
     use crate::types::ValueData;
     match &value.data {
+        // A truth column holds truth values and NILs, never a name.
+        ValueData::Truths(_) => {}
         ValueData::Symbol(name) => out.push(name.clone()),
         ValueData::Vector(children) => {
             for child in children.iter() {

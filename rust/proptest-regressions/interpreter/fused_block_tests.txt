@@ -27,3 +27,4 @@ cc c061e8f1b2cf2a3bfb10f7bcd915c6d0ec13cdd71b71a8ea31749256233d014d # shrinks to
 cc 63b4b38524dc8df8e2ebbee8ffafed3b5283bd2043a3ead68a537fa35eaa14bf # shrinks to target = "[ -4 ]", (num, truth) = ("X X DIV FLOOR FLOOR X DIV", "X X LT"), walk = 0, outer = 0, steps = None, work = None
 cc 24b6ffa0ac55b0d80c4c7910541667b19756f5b65ba39582fd5b75a12d930edd # shrinks to target = "[ 9223372036854775807 ]", seed = "0", code = "[ 2 DIV ]", walk = 0, outer = None, steps = None, work = None, bits = None
 cc 510afde51f0770c1ae114385b9b21af0f219313bf9c14a8684cd961c6b1e0434 # shrinks to target = "[ 0 ]", (num, truth) = ("-1 K DIV X K X LT SELECT", "X X LT"), walk = 2, outer = -2, steps = None, work = None
+cc 8c2ce17653f5565733d7f5ec5de451890af61d2995fc17ceb4c37c62165f4fc5 # shrinks to target = "[ 0 ]", seed = "0", code = "[ 0 LT ]", walk = 0, outer = None, steps = None, work = None, bits = None

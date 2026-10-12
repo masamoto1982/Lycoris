@@ -45,6 +45,7 @@ pub enum RecordBuildError {
 impl RecordData {
     /// Pair `keys` with `values` position by position.
     pub fn new(keys: Vec<Value>, values: Vec<Value>) -> Result<Self, RecordBuildError> {
+        let values = super::value_identity::unpack_truth_columns(values);
         if keys.len() != values.len() {
             return Err(RecordBuildError::LengthMismatch {
                 keys: keys.len(),

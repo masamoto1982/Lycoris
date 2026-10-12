@@ -206,3 +206,18 @@ pub(crate) async fn agent_json(
 ) -> serde_json::Value {
     crate::agent::api::compute(source, options).await.to_json()
 }
+
+/// How `values` are held, for tests that hold two routes to one
+/// representation: a dense Tensor and a Vector of the same numbers are told
+/// apart, but a truth column reads as the Vector it stands for — it is the
+/// only form a route may answer a mask in, and never nested (`truth_column`).
+pub(crate) fn representation(values: &[Value]) -> String {
+    let values: Vec<Value> = values
+        .iter()
+        .map(|value| match &value.data {
+            ValueData::Truths(column) => column.to_vector(),
+            _ => value.clone(),
+        })
+        .collect();
+    format!("{values:?}")
+}

@@ -1,9 +1,9 @@
 use crate::error::{AjisaiError, NilReason, Result};
 use crate::interpreter::lane_lift::lift_lanes;
+use crate::interpreter::truth_ops;
 use crate::interpreter::Interpreter;
 use crate::semantic::Recoverability;
 use crate::types::{Value, ValueData};
-use std::sync::Arc;
 
 /// One of the four truth values of LANG.VALUES.TRUTH, read from a lane in
 /// truth position.
@@ -70,7 +70,11 @@ fn lifted_conjunction(a: &Value, b: &Value) -> Result<Value> {
 /// built, so the work that produced them happened before `SELECT` ran, once
 /// each and in the order they were written — which is why `SELECT` is `pure`
 /// and `const` on the step axis where `COND` was `unbounded` on all three.
-fn compute_selection(when_true: &Value, when_false: &Value, mask: &Value) -> Result<Value> {
+pub(crate) fn compute_selection(
+    when_true: &Value,
+    when_false: &Value,
+    mask: &Value,
+) -> Result<Value> {
     Ok(match operand_truth(mask)? {
         Truth::True => when_true.clone(),
         Truth::False => when_false.clone(),
@@ -143,41 +147,12 @@ pub fn op_reconcile(interp: &mut Interpreter) -> Result<()> {
     Ok(())
 }
 
-/// The lanes of a flat Vector of truth values, open for rewriting where they
-/// lie: the answer of a connective whose operand is such a Vector is that
-/// Vector with its lanes replaced, so when nothing else holds it the answer
-/// needs no new Vector and frees no old one. `None` for anything else — a
-/// lane that is not a truth value, whose ERROR the lifted path words — and
-/// nothing has been touched.
-fn sole_truth_lanes(value: &mut Value) -> Option<&mut [Value]> {
-    let ValueData::Vector(items) = &mut value.data else {
-        return None;
-    };
-    let truths = items.iter().all(|lane| {
-        matches!(
-            lane.data,
-            ValueData::Boolean(_) | ValueData::Both | ValueData::Nil(_)
-        )
-    });
-    // A Vector something else still holds is copied once, here, and the copy
-    // rewritten: cheaper than building the answer lane by lane.
-    truths.then(|| Arc::make_mut(items).as_mut_slice())
-}
-
-/// The top of the stack, open for rewriting in place.
-fn top_mut(interp: &mut Interpreter) -> Option<&mut Value> {
-    let top = interp.stack.len().checked_sub(1)?;
-    Some(&mut interp.stack[top])
-}
-
 pub fn op_not(interp: &mut Interpreter) -> Result<()> {
-    if let Some(lanes) = top_mut(interp).and_then(sole_truth_lanes) {
-        for lane in lanes {
-            if let ValueData::Boolean(b) = &mut lane.data {
-                *b = !*b;
-            }
+    // A column, or a Vector of truth values, negated as codes in place.
+    if let Some(top) = interp.stack.len().checked_sub(1) {
+        if truth_ops::negate(&mut interp.stack[top]) {
+            return Ok(());
         }
-        return Ok(());
     }
     let val = interp.stack.pop().ok_or(AjisaiError::stack_underflow())?;
 
@@ -199,10 +174,11 @@ pub fn op_and(interp: &mut Interpreter) -> Result<()> {
     }
 
     let b_val = interp.stack.pop().ok_or(AjisaiError::stack_underflow())?;
-    if let Some(answer) = conjoin_in_place(interp, &b_val) {
-        return answer;
-    }
     let a_val = interp.stack.pop().ok_or(AjisaiError::stack_underflow())?;
+    if let Some(answer) = truth_ops::conjoin(&a_val, &b_val) {
+        interp.stack.push(answer);
+        return Ok(());
+    }
 
     let result = match lifted_conjunction(&a_val, &b_val) {
         Ok(v) => v,
@@ -214,86 +190,6 @@ pub fn op_and(interp: &mut Interpreter) -> Result<()> {
     };
     interp.stack.push(result);
     Ok(())
-}
-
-/// `AND` written into its left operand when that is a flat Vector of truth
-/// values and the right one is a truth value or a Vector of them of the same
-/// length: each lane becomes the conjunction it would have been in a new
-/// Vector. `None` leaves both operands as they were.
-fn conjoin_in_place(interp: &mut Interpreter, b_val: &Value) -> Option<Result<()>> {
-    let is_truth = |v: &Value| {
-        matches!(
-            v.data,
-            ValueData::Boolean(_) | ValueData::Both | ValueData::Nil(_)
-        )
-    };
-    let right: &[Value] = match &b_val.data {
-        ValueData::Vector(items) if items.iter().all(is_truth) => items,
-        _ if is_truth(b_val) => std::slice::from_ref(b_val),
-        _ => return None,
-    };
-    let width = interp.stack.last()?.as_vector_view()?.len();
-    if right.len() != 1 && right.len() != width {
-        return None;
-    }
-    let lanes = top_mut(interp).and_then(sole_truth_lanes)?;
-    let reused = right.len() == 1;
-    for (index, lane) in lanes.iter_mut().enumerate() {
-        let other = &right[if reused { 0 } else { index }];
-        // Every lane is a truth value, so the law cannot refuse one.
-        *lane = compute_conjunction(lane, other).expect("both lanes are truth values");
-    }
-    Some(Ok(()))
-}
-
-/// `SELECT` written into its truth operand when that is a flat Vector of
-/// truth values and each candidate is a leaf or a Vector of leaves as long
-/// as the mask (or one lane long): each mask lane becomes the candidate it
-/// chooses, as the lifted law would have built it. The candidates are taken
-/// off the stack only when it answers; `false` leaves everything in place.
-fn select_in_place(interp: &mut Interpreter, mask: &mut Value) -> bool {
-    let Some(width) = mask.as_vector_view().map(|lanes| lanes.len()) else {
-        return false;
-    };
-    let fits = |v: &Value| match &v.data {
-        ValueData::Vector(items) => {
-            (items.len() == 1 || items.len() == width)
-                && items.iter().all(|lane| !is_container(lane))
-        }
-        _ => !is_container(v),
-    };
-    let depth = interp.stack.len();
-    if depth < 2 || !fits(&interp.stack[depth - 1]) || !fits(&interp.stack[depth - 2]) {
-        return false;
-    }
-    // Only a mask nothing else holds: copying a shared one first costs more
-    // than building the answer, since every lane is overwritten anyway.
-    if !matches!(&mask.data, ValueData::Vector(items) if Arc::strong_count(items) == 1) {
-        return false;
-    }
-    let Some(lanes) = sole_truth_lanes(mask) else {
-        return false;
-    };
-    let when_false = interp.stack.pop().expect("checked above");
-    let when_true = interp.stack.pop().expect("checked above");
-    fn pick(v: &Value, index: usize) -> &Value {
-        match &v.data {
-            ValueData::Vector(items) => &items[if items.len() == 1 { 0 } else { index }],
-            _ => v,
-        }
-    }
-    for (index, lane) in lanes.iter_mut().enumerate() {
-        let (t, f) = (pick(&when_true, index), pick(&when_false, index));
-        *lane = compute_selection(t, f, lane).expect("every mask lane is a truth value");
-    }
-    true
-}
-
-fn is_container(v: &Value) -> bool {
-    matches!(
-        v.data,
-        ValueData::Vector(_) | ValueData::Tensor { .. } | ValueData::Record(_)
-    )
 }
 
 /// `SELECT` — the conditional.
@@ -314,13 +210,13 @@ pub fn op_select(interp: &mut Interpreter) -> Result<()> {
         return Err(AjisaiError::stack_underflow());
     }
 
-    let mut mask = interp.stack.pop().ok_or(AjisaiError::stack_underflow())?;
-    if select_in_place(interp, &mut mask) {
-        interp.stack.push(mask);
-        return Ok(());
-    }
+    let mask = interp.stack.pop().ok_or(AjisaiError::stack_underflow())?;
     let when_false = interp.stack.pop().ok_or(AjisaiError::stack_underflow())?;
     let when_true = interp.stack.pop().ok_or(AjisaiError::stack_underflow())?;
+    if let Some(answer) = truth_ops::select(&when_true, &when_false, &mask) {
+        interp.stack.push(answer);
+        return Ok(());
+    }
 
     let result = match lift_lanes([&when_true, &when_false, &mask], |[t, f, m]| {
         compute_selection(t, f, m)
@@ -339,74 +235,5 @@ pub fn op_select(interp: &mut Interpreter) -> Result<()> {
 }
 
 #[cfg(test)]
-mod in_place_tests {
-    use super::*;
-    use crate::error::NilReason;
-
-    fn lanes() -> Vec<Value> {
-        let unknown = |reason| Value::nil_with_reason(reason, Recoverability::Recoverable);
-        vec![
-            Value::from_bool(true),
-            Value::from_bool(false),
-            Value::both(),
-            unknown(NilReason::NotFound),
-            unknown(NilReason::DomainMiss),
-        ]
-    }
-
-    fn right_lanes(all: &[Value]) -> Vec<Value> {
-        all.iter().flat_map(|_| all.iter().cloned()).collect()
-    }
-
-    fn run(stack: Vec<Value>, op: fn(&mut Interpreter) -> Result<()>) -> Vec<Value> {
-        let mut interp = Interpreter::new();
-        interp.stack.extend(stack);
-        op(&mut interp).expect("truth operands");
-        interp.stack.into_values()
-    }
-
-    /// The rewritten lanes are the ones the lifted law builds, reasons
-    /// included, whether or not anything else holds the operand.
-    #[test]
-    fn rewriting_in_place_answers_what_the_lifted_law_builds() {
-        let all = lanes();
-        let left: Vec<Value> = all
-            .iter()
-            .flat_map(|a| all.iter().map(move |_| a.clone()))
-            .collect();
-        let right = right_lanes(&all);
-        let (left, right) = (Value::from_vector(left), Value::from_vector(right));
-        let expected = lifted_conjunction(&left, &right).unwrap();
-        for shared in [false, true] {
-            let keep = shared.then(|| left.clone());
-            assert_eq!(
-                run(vec![left.clone(), right.clone()], op_and),
-                vec![expected.clone()]
-            );
-            drop(keep);
-        }
-        for scalar in all.iter() {
-            let expected = lifted_conjunction(&left, scalar).unwrap();
-            assert_eq!(
-                run(vec![left.clone(), scalar.clone()], op_and),
-                vec![expected]
-            );
-        }
-        let expected = lift_lanes([&left], |[x]| compute_inverted_value(x)).unwrap();
-        assert_eq!(run(vec![left.clone()], op_not), vec![expected]);
-        let numbers =
-            |k: i64| Value::from_vector((0..25).map(|i| Value::from_int(i * k)).collect());
-        let one = |v: Value| Value::from_vector(vec![v]);
-        for (t, f) in [
-            (Value::from_int(1), Value::from_int(0)),
-            (numbers(1), numbers(-1)),
-            (one(Value::from_int(1)), numbers(2)),
-            (Value::from_bool(true), Value::both()),
-        ] {
-            let mask = || Value::from_vector(right_lanes(&all));
-            let expected = lift_lanes([&t, &f, &mask()], |[t, f, m]| compute_selection(t, f, m));
-            let answer = run(vec![t.clone(), f.clone(), mask()], op_select);
-            assert_eq!(answer, vec![expected.unwrap()], "{t:?} {f:?}");
-        }
-    }
-}
+#[path = "truth_ops_tests.rs"]
+mod truth_ops_tests;

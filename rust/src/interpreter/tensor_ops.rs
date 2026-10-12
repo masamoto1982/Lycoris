@@ -19,6 +19,7 @@ impl FlatTensor {
     /// is remapped directly here, not at each caller.
     pub(crate) fn from_value(value: &Value) -> Result<Self> {
         match &value.data {
+            ValueData::Truths(t) => Self::from_value(&t.to_vector()),
             ValueData::Nil(_) => Err(AjisaiError::declared(
                 "nonNumeric",
                 "expected a Scalar or a Vector, got NIL",

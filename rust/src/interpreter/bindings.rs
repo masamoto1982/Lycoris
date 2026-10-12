@@ -118,6 +118,11 @@ impl Interpreter {
     {
         for scope in self.open_scopes().iter().rev() {
             if let Some(bound) = scope.names.get(name) {
+                // A truth column read onto the stack must be seen there
+                // (`truth_columns`).
+                if matches!(bound.data, crate::types::ValueData::Truths(_)) {
+                    self.packed_truths.set(true);
+                }
                 return Some(bound.clone());
             }
             if scope.barrier {
