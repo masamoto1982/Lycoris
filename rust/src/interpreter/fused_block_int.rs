@@ -2,10 +2,10 @@
 //! machine-word integer or a Boolean.
 //!
 //! A block is straight-line, so once the types of the elements and the seed
-//! are known, the type of every value it makes is too. The block is checked
-//! against them before the walk starts — `typed` — and every op that would
-//! leave this tier (an operand of the wrong domain, a `DIV` that makes a
-//! fraction) sends the walk to the general tier before anything has run. What
+//! are known, the type of every value it makes is too. The block's program is
+//! checked against them before the walk starts — `compile` — and every op
+//! that would leave this tier (an operand of the wrong domain, a `DIV` that
+//! makes a fraction) sends the walk to the next tier before anything has run. What
 //! remains runs on `i64`, a Boolean as 0 or 1, with checked arithmetic: an
 //! overflow is the one thing left to discover while running, and it, too,
 //! falls to the general tier.
@@ -17,17 +17,17 @@
 //! and a scalar `EQ` do. Every result fits 64 bits, so the size ceiling can
 //! refuse one only when it is set below that, and then this tier steps aside.
 //!
-//! `DIV` followed directly by `FLOOR` is floor division on integers — `a b
-//! DIV FLOOR`, the quotient half of `a - b * floor(a / b)` — and runs as one,
-//! still charged as the two Words it is. A zero divisor's quotient is one of
+//! `DIV FLOOR` (`Op::FloorDiv`) is floor division on integers, the quotient
+//! half of `a - b * floor(a / b)`, still charged as the two Words it is. A zero divisor's quotient is one of
 //! the two points over zero, which this tier does not hold: the walk goes
 //! on to the next tier, which answers it.
 
 use crate::interpreter::arithmetic::ExactArithmeticSchema;
-use crate::interpreter::fused_block::{Charges, Compare, FusedBlock, FusedWalk, Op, Plain};
+use crate::interpreter::fused_block::{
+    self as fb, Charges, Compare, FusedBlock, FusedWalk, Op, Plain,
+};
 use crate::interpreter::fused_block_general::promote;
-use crate::interpreter::fused_block_reg::RegProgram;
-use crate::interpreter::runtime_limits::binary_numeric_work;
+use crate::interpreter::fused_block_reg::{Instr, Kind, RegProgram, Src};
 use crate::interpreter::Interpreter;
 use crate::types::fraction::{Fraction, FractionRepr};
 use crate::types::{DenseTensor, Value, ValueData};
@@ -53,39 +53,6 @@ enum Ty {
 /// sent on to the next tier.
 pub(crate) const POISON: i64 = i64::MIN;
 
-/// The block in stack form, typed; `fused_block_reg` compiles it to
-/// register code.
-#[derive(Debug, Clone, Copy)]
-pub(crate) enum IntOp {
-    Push(i64),
-    Load(usize),
-    Store(usize),
-    Add,
-    Sub,
-    Mul,
-    FloorDiv,
-    /// `a / b` when `b` divides `a`, else [`POISON`].
-    ExactDiv,
-    Min,
-    Max,
-    Lt,
-    Gt,
-    Eq,
-    Not,
-    And,
-    Select,
-    /// `POW` on two integers, as `quickened::small_power` answers it.
-    Pow,
-}
-
-/// The block checked against `inputs`, with what one run charges.
-#[derive(Debug)]
-struct Typed {
-    ops: Vec<IntOp>,
-    out: Ty,
-    work_per_run: u64,
-}
-
 /// The block typed and lowered to register code, per input types, kept on
 /// the block (`FusedBlock::int_programs`) so a block walked again and again —
 /// the inner `FOLD` of `[ [ 0 ] [ ADD ] FOLD ] MAP` — is compiled once. Both
@@ -99,8 +66,9 @@ type KeptProgram = (Vec<Ty>, Option<Arc<Compiled>>);
 
 #[derive(Debug)]
 struct Compiled {
-    typed: Typed,
     program: RegProgram,
+    out: Ty,
+    work_per_run: u64,
 }
 
 /// Input-type combinations kept per block; a block meets one or two.
@@ -121,10 +89,7 @@ impl IntPrograms {
         if let Some((_, compiled)) = kept.iter().find(|(types, _)| types == inputs) {
             return compiled.clone();
         }
-        let compiled = typed(block, inputs).and_then(|typed| {
-            let program = RegProgram::lower(&typed.ops, inputs.len(), block.slots)?;
-            Some(Arc::new(Compiled { typed, program }))
-        });
+        let compiled = compile(block, inputs).map(Arc::new);
         if kept.len() < KEPT_PROGRAMS {
             kept.push((inputs.to_vec(), compiled.clone()));
         }
@@ -146,113 +111,77 @@ fn plain_int(p: &Plain) -> Option<(Ty, i64)> {
     }
 }
 
-fn typed(block: &FusedBlock, inputs: &[Ty]) -> Option<Typed> {
-    let mut stack: Vec<Ty> = inputs.to_vec();
-    let mut slots: Vec<Option<Ty>> = vec![None; block.slots];
-    let mut ops = Vec::with_capacity(block.ops.len());
-    let mut work = 0u64;
-    let pair = |stack: &mut Vec<Ty>| Some((stack.pop()?, stack.pop()?));
-    let mut i = 0;
-    while i < block.ops.len() {
-        let (op, ty) = match &block.ops[i] {
-            Op::Push(p) | Op::Const(p) => {
-                let (ty, n) = plain_int(p)?;
-                (IntOp::Push(n), ty)
-            }
-            Op::PushWord(b) => (IntOp::Push(i64::from(*b)), Ty::Bool),
-            // A Word's plain law runs in the general tier only.
-            Op::Kernel(_) => return None,
-            Op::Pow => {
-                (pair(&mut stack)? == (Ty::Int, Ty::Int)).then_some(())?;
-                work += binary_numeric_work(1, 1);
-                (IntOp::Pow, Ty::Int)
-            }
-            Op::Load(slot) => (IntOp::Load(*slot), slots[*slot]?),
-            Op::Bind(slot) => {
-                slots[*slot] = Some(stack.pop()?);
-                ops.push(IntOp::Store(*slot));
-                i += 1;
-                continue;
-            }
-            Op::Floor | Op::Round => {
-                // The floor and nearest integer of an integer are itself.
-                (stack.pop()? == Ty::Int).then_some(())?;
-                stack.push(Ty::Int);
-                i += 1;
-                continue;
-            }
-            Op::Not => {
-                (stack.pop()? == Ty::Bool).then_some(())?;
-                (IntOp::Not, Ty::Bool)
-            }
-            Op::And => {
-                (pair(&mut stack)? == (Ty::Bool, Ty::Bool)).then_some(())?;
-                (IntOp::And, Ty::Bool)
-            }
-            Op::Select => {
-                let mask = stack.pop()?;
-                let (when_false, when_true) = pair(&mut stack)?;
-                (mask == Ty::Bool).then_some(())?;
-                let ty = match (when_true, when_false) {
-                    (a, b) if a == b => a,
-                    (Ty::Int, Ty::Exact) | (Ty::Exact, Ty::Int) => Ty::Exact,
-                    _ => return None,
-                };
-                (IntOp::Select, ty)
-            }
-            Op::Compare(kind) => {
-                let (b, a) = pair(&mut stack)?;
-                let op = match (kind, a, b) {
-                    (Compare::Lt, Ty::Int, Ty::Int) => IntOp::Lt,
-                    (Compare::Gt, Ty::Int, Ty::Int) => IntOp::Gt,
-                    (Compare::Eq, Ty::Int, Ty::Int) => IntOp::Eq,
-                    // Two Booleans compare by `pairwise_eq`, off the fast path.
-                    (Compare::Eq, Ty::Bool, Ty::Bool) => {
-                        stack.push(Ty::Bool);
-                        ops.push(IntOp::Eq);
-                        i += 1;
-                        continue;
-                    }
-                    _ => return None,
-                };
-                (op, Ty::Bool)
-            }
-            Op::Extremum { max } => {
-                (pair(&mut stack)? == (Ty::Int, Ty::Int)).then_some(())?;
-                (if *max { IntOp::Max } else { IntOp::Min }, Ty::Int)
-            }
-            Op::Arith(schema) => {
-                (pair(&mut stack)? == (Ty::Int, Ty::Int)).then_some(())?;
-                work += binary_numeric_work(1, 1);
-                let op = match schema {
-                    ExactArithmeticSchema::Add => IntOp::Add,
-                    ExactArithmeticSchema::Sub => IntOp::Sub,
-                    ExactArithmeticSchema::Mul => IntOp::Mul,
-                    ExactArithmeticSchema::Div => {
-                        // Only as floor division: the `FLOOR` is consumed
-                        // here, and costs its step as the `steps_per_run`
-                        // count already has it.
-                        if !matches!(block.ops.get(i + 1), Some(Op::Floor)) {
-                            ops.push(IntOp::ExactDiv);
-                            stack.push(Ty::Exact);
-                            i += 1;
-                            continue;
-                        }
-                        i += 1;
-                        IntOp::FloorDiv
-                    }
-                };
-                (op, Ty::Int)
+/// The program as register code on machine words, for inputs of kinds
+/// `inputs`, or `None` when it does not stay on them. `FLOOR` and `ROUND` of
+/// an integer are the integer, so they compile to nothing; `DIV` without
+/// `FLOOR` is `Ty::Exact`.
+fn compile(block: &FusedBlock, inputs: &[Ty]) -> Option<Compiled> {
+    let kinds: smallvec::SmallVec<[fb::Ty; 2]> = inputs
+        .iter()
+        .map(|t| match t {
+            Ty::Bool => fb::Ty::Bool,
+            _ => fb::Ty::Num,
+        })
+        .collect();
+    let (_, work_per_run) = block.types(&kinds)?;
+    let mut values: Vec<(Src, Ty)> = (0..inputs.len())
+        .map(|i| (Src::Reg(i), inputs[i]))
+        .collect();
+    let mut instrs = Vec::with_capacity(block.instrs.len());
+    let none = (Src::Const(0), Ty::Int);
+    for ins in &block.instrs {
+        let get = |s: fb::Src| match s {
+            fb::Src::Reg(r) => Some(values[r]),
+            fb::Src::Const(k) => {
+                let (ty, n) = plain_int(&block.consts[k])?;
+                Some((Src::Const(n), ty))
             }
         };
-        ops.push(op);
-        stack.push(ty);
-        i += 1;
+        let arity = ins.op.arity();
+        let (a, ta) = get(ins.a)?;
+        let (b, tb) = if arity > 1 { get(ins.b)? } else { none };
+        let (c, tc) = if arity > 2 { get(ins.c)? } else { none };
+        // A quotient that may be a fraction may only be chosen by `SELECT`.
+        let exact = ta == Ty::Exact || tb == Ty::Exact;
+        if tc == Ty::Exact || (exact && !matches!(ins.op, Op::Select)) {
+            return None;
+        }
+        let (kind, ty) = match ins.op {
+            Op::Floor | Op::Round => {
+                values.push((a, Ty::Int));
+                continue;
+            }
+            Op::Arith(ExactArithmeticSchema::Add) => (Kind::Add, Ty::Int),
+            Op::Arith(ExactArithmeticSchema::Sub) => (Kind::Sub, Ty::Int),
+            Op::Arith(ExactArithmeticSchema::Mul) => (Kind::Mul, Ty::Int),
+            Op::Arith(ExactArithmeticSchema::Div) => (Kind::ExactDiv, Ty::Exact),
+            Op::FloorDiv => (Kind::FloorDiv, Ty::Int),
+            Op::Pow => (Kind::Pow, Ty::Int),
+            Op::Extremum { max: false } => (Kind::Min, Ty::Int),
+            Op::Extremum { max: true } => (Kind::Max, Ty::Int),
+            Op::Compare(Compare::Lt) => (Kind::Lt, Ty::Bool),
+            Op::Compare(Compare::Gt) => (Kind::Gt, Ty::Bool),
+            Op::Compare(Compare::Eq) => (Kind::Eq, Ty::Bool),
+            Op::Not => (Kind::Not, Ty::Bool),
+            Op::And => (Kind::And, Ty::Bool),
+            Op::Select => (Kind::Select, if exact { Ty::Exact } else { ta }),
+            Op::Kernel(_) => return None,
+        };
+        let dst = inputs.len() + instrs.len();
+        instrs.push(Instr { kind, dst, a, b, c });
+        values.push((Src::Reg(dst), ty));
     }
-    Some(Typed {
-        ops,
-        out: *stack.last()?,
-        work_per_run: work,
+    let (out, out_ty) = match block.out {
+        fb::Src::Reg(r) => values[r],
+        fb::Src::Const(k) => {
+            let (ty, n) = plain_int(&block.consts[k])?;
+            (Src::Const(n), ty)
+        }
+    };
+    Some(Compiled {
+        program: RegProgram::new(instrs, inputs.len(), out),
+        out: out_ty,
+        work_per_run,
     })
 }
 
@@ -327,10 +256,10 @@ pub(crate) fn run(
     let inputs: smallvec::SmallVec<[Ty; 2]> =
         seed.iter().map(|(t, _)| *t).chain([elem_ty]).collect();
     let compiled = block.int_programs.get(block, &inputs)?;
-    let (typed, program) = (&compiled.typed, &compiled.program);
+    let program = &compiled.program;
     match walk {
-        FusedWalk::Filter if typed.out != Ty::Bool => return None,
-        FusedWalk::Fold | FusedWalk::Scan if Some(typed.out) != seed.map(|(t, _)| t) => {
+        FusedWalk::Filter if compiled.out != Ty::Bool => return None,
+        FusedWalk::Fold | FusedWalk::Scan if Some(compiled.out) != seed.map(|(t, _)| t) => {
             return None
         }
         _ => {}
@@ -338,7 +267,7 @@ pub(crate) fn run(
 
     let runs = elements.len() as u64;
     let steps = block.steps_within_ceiling(interp, runs)?;
-    let work = runs.checked_mul(typed.work_per_run)?;
+    let work = runs.checked_mul(compiled.work_per_run)?;
     if interp.numeric_work_used.checked_add(work)? > interp.runtime_limits.max_numeric_work {
         return None;
     }
@@ -347,7 +276,7 @@ pub(crate) fn run(
         (FusedWalk::Map, _) => {
             let mut results = Vec::with_capacity(elements.len());
             program.run_columns(&elements, |_, out| results.extend_from_slice(out))?;
-            match typed.out {
+            match compiled.out {
                 // A fraction was chosen for some lane: the next tier's walk.
                 Ty::Exact if results.contains(&POISON) => return None,
                 Ty::Exact => promote_lanes(Ty::Int, results),
@@ -371,13 +300,15 @@ pub(crate) fn run(
         (FusedWalk::Scan, Some((_, acc))) => {
             let mut visited = Vec::with_capacity(elements.len());
             program.run_accumulating(&elements, acc, |a| {
-                visited.push(plain(typed.out, a).into_value());
+                visited.push(plain(compiled.out, a).into_value());
             })?;
             Value::from_vector(visited)
         }
-        (FusedWalk::Fold, Some((_, acc))) => {
-            plain(typed.out, program.run_accumulating(&elements, acc, |_| {})?).into_value()
-        }
+        (FusedWalk::Fold, Some((_, acc))) => plain(
+            compiled.out,
+            program.run_accumulating(&elements, acc, |_| {})?,
+        )
+        .into_value(),
         (FusedWalk::Fold | FusedWalk::Scan, None) => return None,
     };
     let charges = Charges { steps, work };

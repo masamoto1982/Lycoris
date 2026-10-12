@@ -33,27 +33,21 @@
 //! agrees with it, which `fused_block_tests` holds the tier to.
 
 use crate::interpreter::arithmetic::ExactArithmeticSchema;
-use crate::interpreter::fused_block::{Charges, Compare, FusedBlock, FusedWalk, Op, Plain};
-use crate::interpreter::fused_block_general::promote;
-use crate::interpreter::runtime_limits::binary_numeric_work;
+use crate::interpreter::fused_block::{
+    Charges, Compare, FusedBlock, FusedWalk, Op, Plain, Src, Ty,
+};
+use crate::interpreter::fused_block_general::{small, Elements, Gather};
 use crate::interpreter::Interpreter;
-use crate::types::fraction::{Fraction, FractionRepr};
-use crate::types::small_rational::{self, add_total, div_total, mul_total, order_total};
-use crate::types::{DenseTensor, Value, ValueData};
-use std::cmp::Ordering;
-use std::sync::Arc;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Ty {
-    Num,
-    Bool,
-}
+use crate::types::small_rational::{self, add_total, div_total, mul_total, order_total};
+use crate::types::Value;
+use std::cmp::Ordering;
 
 /// A number as a `small_rational` pair; a Boolean is `(0 or 1, 1)`.
 type Pair = crate::types::small_rational::Pair;
 
 #[derive(Debug, Clone, Copy)]
-enum Src {
+enum RSrc {
     Reg(usize),
     Const(Pair),
 }
@@ -64,6 +58,7 @@ enum Kind {
     Sub,
     Mul,
     Div,
+    FloorDiv,
     Min,
     Max,
     Floor,
@@ -82,9 +77,9 @@ enum Kind {
 struct Instr {
     kind: Kind,
     dst: usize,
-    a: Src,
-    b: Src,
-    c: Src,
+    a: RSrc,
+    b: RSrc,
+    c: RSrc,
 }
 
 /// The block typed against its inputs and lowered to register code, with
@@ -92,7 +87,7 @@ struct Instr {
 struct Program {
     instrs: Vec<Instr>,
     regs: usize,
-    out: Src,
+    out: RSrc,
     out_ty: Ty,
     work_per_run: u64,
 }
@@ -105,106 +100,67 @@ fn plain_pair(p: &Plain) -> Option<(Ty, Pair)> {
 }
 
 fn compile(block: &FusedBlock, inputs: &[Ty]) -> Option<Program> {
-    let mut stack: Vec<(Src, Ty)> = (0..inputs.len())
-        .map(|i| (Src::Reg(i), inputs[i]))
-        .collect();
-    let mut slots: Vec<Option<(Src, Ty)>> = vec![None; block.slots];
-    let mut instrs: Vec<Instr> = Vec::with_capacity(block.ops.len());
-    let mut work = 0u64;
-    let none = Src::Const((0, 1));
-    for op in &block.ops {
-        let (kind, a, b, c, ty) = match op {
-            Op::Push(p) | Op::Const(p) => {
-                let (ty, pair) = plain_pair(p)?;
-                stack.push((Src::Const(pair), ty));
-                continue;
-            }
-            // A Word's plain law runs in the general tier only.
+    let (types, work_per_run) = block.types(inputs)?;
+    let src = |s: Src| -> Option<RSrc> {
+        Some(match s {
+            Src::Reg(r) => RSrc::Reg(r),
+            Src::Const(k) => RSrc::Const(plain_pair(&block.consts[k])?.1),
+        })
+    };
+    let none = RSrc::Const((0, 1));
+    let mut instrs = Vec::with_capacity(block.instrs.len());
+    for (at, ins) in block.instrs.iter().enumerate() {
+        let kind = match ins.op {
+            Op::Arith(ExactArithmeticSchema::Add) => Kind::Add,
+            Op::Arith(ExactArithmeticSchema::Sub) => Kind::Sub,
+            Op::Arith(ExactArithmeticSchema::Mul) => Kind::Mul,
+            Op::Arith(ExactArithmeticSchema::Div) => Kind::Div,
+            Op::FloorDiv => Kind::FloorDiv,
+            Op::Compare(Compare::Lt) => Kind::Lt,
+            Op::Compare(Compare::Gt) => Kind::Gt,
+            Op::Compare(Compare::Eq) => Kind::Eq,
+            Op::Extremum { max: false } => Kind::Min,
+            Op::Extremum { max: true } => Kind::Max,
+            Op::Floor => Kind::Floor,
+            Op::Round => Kind::Round,
+            Op::Not => Kind::Not,
+            Op::And => Kind::And,
+            Op::Select => Kind::Select,
+            Op::Pow => Kind::Pow,
             Op::Kernel(_) => return None,
-            Op::Pow => {
-                let (b, b_ty) = stack.pop()?;
-                let (a, a_ty) = stack.pop()?;
-                (a_ty == Ty::Num && b_ty == Ty::Num).then_some(())?;
-                work += binary_numeric_work(1, 1);
-                (Kind::Pow, a, b, none, Ty::Num)
-            }
-            Op::PushWord(b) => {
-                stack.push((Src::Const((i64::from(*b), 1)), Ty::Bool));
-                continue;
-            }
-            Op::Load(slot) => {
-                stack.push(slots[*slot]?);
-                continue;
-            }
-            Op::Bind(slot) => {
-                slots[*slot] = Some(stack.pop()?);
-                continue;
-            }
-            Op::Floor | Op::Round | Op::Not => {
-                let (a, ty) = stack.pop()?;
-                let (kind, want) = match op {
-                    Op::Floor => (Kind::Floor, Ty::Num),
-                    Op::Round => (Kind::Round, Ty::Num),
-                    _ => (Kind::Not, Ty::Bool),
-                };
-                (ty == want).then_some(())?;
-                (kind, a, none, none, want)
-            }
-            Op::Select => {
-                let (mask, mask_ty) = stack.pop()?;
-                let (when_false, f_ty) = stack.pop()?;
-                let (when_true, t_ty) = stack.pop()?;
-                (mask_ty == Ty::Bool && t_ty == f_ty).then_some(())?;
-                (Kind::Select, when_true, when_false, mask, t_ty)
-            }
-            Op::Extremum { max } => {
-                let (b, b_ty) = stack.pop()?;
-                let (a, a_ty) = stack.pop()?;
-                (a_ty == Ty::Num && b_ty == Ty::Num).then_some(())?;
-                let kind = if *max { Kind::Max } else { Kind::Min };
-                (kind, a, b, none, Ty::Num)
-            }
-            Op::And | Op::Compare(_) | Op::Arith(_) => {
-                let (b, b_ty) = stack.pop()?;
-                let (a, a_ty) = stack.pop()?;
-                let kind = match (op, a_ty, b_ty) {
-                    (Op::And, Ty::Bool, Ty::Bool) => Kind::And,
-                    // Two Booleans compare by `pairwise_eq`, off the fast path.
-                    (Op::Compare(Compare::Eq), Ty::Bool, Ty::Bool) => Kind::Eq,
-                    (Op::Compare(kind), Ty::Num, Ty::Num) => match kind {
-                        Compare::Lt => Kind::Lt,
-                        Compare::Gt => Kind::Gt,
-                        Compare::Eq => Kind::Eq,
-                    },
-                    (Op::Arith(schema), Ty::Num, Ty::Num) => {
-                        work += binary_numeric_work(1, 1);
-                        match schema {
-                            ExactArithmeticSchema::Add => Kind::Add,
-                            ExactArithmeticSchema::Sub => Kind::Sub,
-                            ExactArithmeticSchema::Mul => Kind::Mul,
-                            ExactArithmeticSchema::Div => Kind::Div,
-                        }
-                    }
-                    _ => return None,
-                };
-                let ty = match kind {
-                    Kind::Add | Kind::Sub | Kind::Mul | Kind::Div => Ty::Num,
-                    _ => Ty::Bool,
-                };
-                (kind, a, b, none, ty)
-            }
         };
-        let dst = inputs.len() + instrs.len();
-        instrs.push(Instr { kind, dst, a, b, c });
-        stack.push((Src::Reg(dst), ty));
+        let arity = ins.op.arity();
+        instrs.push(Instr {
+            kind,
+            dst: inputs.len() + at,
+            a: src(ins.a)?,
+            b: if arity > 1 { src(ins.b)? } else { none },
+            c: if arity > 2 { src(ins.c)? } else { none },
+        });
     }
-    let (out, out_ty) = stack.pop()?;
+    let (out, out_ty) = match block.out {
+        Src::Reg(r) => (RSrc::Reg(r), types[r]),
+        Src::Const(k) => {
+            let (ty, pair) = plain_pair(&block.consts[k])?;
+            (RSrc::Const(pair), ty)
+        }
+    };
     Some(Program {
-        regs: inputs.len() + instrs.len(),
+        regs: types.len(),
         instrs,
         out,
         out_ty,
-        work_per_run: work,
+        work_per_run,
+    })
+}
+
+/// `DIV FLOOR` on pairs; a point over zero is its own floor. Kept out of
+/// line, so the loop every other block runs does not carry a second division.
+#[inline(never)]
+fn floor_div(a: Pair, b: Pair) -> Option<Pair> {
+    Some(match div_total(a, b)? {
+        q if q.1 == 0 => q,
+        (n, d) => (n.div_euclid(d), 1),
     })
 }
 
@@ -212,9 +168,9 @@ impl Program {
     /// One run on `regs`, whose first registers hold the inputs. `None`
     /// when a result leaves the tier.
     fn run(&self, regs: &mut [Pair]) -> Option<Pair> {
-        let read = |regs: &[Pair], s: Src| match s {
-            Src::Reg(r) => regs[r],
-            Src::Const(p) => p,
+        let read = |regs: &[Pair], s: RSrc| match s {
+            RSrc::Reg(r) => regs[r],
+            RSrc::Const(p) => p,
         };
         let truth = |b: bool| (i64::from(b), 1);
         for ins in &self.instrs {
@@ -224,6 +180,7 @@ impl Program {
                 Kind::Sub => add_total(a, b, true)?,
                 Kind::Mul => mul_total(a, b)?,
                 Kind::Div => div_total(a, b)?,
+                Kind::FloorDiv => floor_div(a, b)?,
                 Kind::Pow => crate::interpreter::quickened::small_power(a, b)?,
                 // The left operand on a tie, as MIN and MAX keep it.
                 Kind::Min if order_total(b, a)? == Ordering::Less => b,
@@ -251,104 +208,33 @@ impl Program {
     }
 }
 
-/// Every element as a pair of one type: a dense Tensor's columns, borrowed
-/// in place, or the pairs of a Vector of plain values. `None` for an absent
-/// lane, a lane wider than a pair, or mixed types.
-enum Elements<'a> {
-    Columns(&'a [i64], &'a [i64]),
-    Pairs(Vec<Pair>),
-}
-
-impl Elements<'_> {
-    fn len(&self) -> usize {
-        match self {
-            Elements::Columns(nums, _) => nums.len(),
-            Elements::Pairs(pairs) => pairs.len(),
-        }
-    }
-
-    #[inline]
-    fn at(&self, i: usize) -> Pair {
-        match self {
-            Elements::Columns(nums, dens) => (nums[i], dens[i]),
-            Elements::Pairs(pairs) => pairs[i],
-        }
-    }
-}
-
+/// Every element as a pair of one type, or `None` for an absent lane, a lane
+/// wider than a pair, or mixed types.
 fn elements(target: &Value) -> Option<(Ty, Elements<'_>)> {
-    match &target.data {
-        ValueData::Tensor { data, shape } if shape.len() == 1 => Some((
-            Ty::Num,
-            Elements::Columns(&data.numerators, &data.denominators),
-        )),
-        ValueData::Vector(items) => {
-            let lanes: Vec<(Ty, Pair)> = items
-                .iter()
-                .map(|v| plain_pair(&Plain::of(v)?))
-                .collect::<Option<_>>()?;
-            let ty = lanes.first()?.0;
-            lanes.iter().all(|(t, _)| *t == ty).then_some(())?;
-            Some((
-                ty,
-                Elements::Pairs(lanes.into_iter().map(|(_, p)| p).collect()),
-            ))
-        }
-        _ => None,
-    }
+    let elements = Elements::of(target)?;
+    let Elements::Plains(plains) = &elements else {
+        return Some((Ty::Num, elements));
+    };
+    let ty = plain_pair(plains.first()?)?.0;
+    plains
+        .iter()
+        .all(|p| plain_pair(p).is_some_and(|(t, _)| t == ty))
+        .then_some((ty, elements))
 }
 
-/// Results gathered as the two columns a dense Tensor stores.
-#[derive(Default)]
-struct Columns {
-    nums: Vec<i64>,
-    dens: Vec<i64>,
-}
-
-impl Columns {
-    fn with_capacity(n: usize) -> Self {
-        Self {
-            nums: Vec::with_capacity(n),
-            dens: Vec::with_capacity(n),
-        }
-    }
-
-    #[inline]
-    fn push(&mut self, (n, d): Pair) {
-        self.nums.push(n);
-        self.dens.push(d);
+#[inline]
+fn pair_at(elements: &Elements, i: usize) -> Pair {
+    match elements {
+        Elements::Columns(nums, dens) => (nums[i], dens[i]),
+        Elements::Plains(plains) => plain_pair(&plains[i]).map_or((0, 1), |(_, p)| p),
     }
 }
 
 fn plain(ty: Ty, (n, d): Pair) -> Plain {
     match ty {
-        Ty::Num => Plain::Num(Fraction::from_repr(FractionRepr::Small(n, d))),
+        Ty::Num => small((n, d)),
         Ty::Bool => Plain::Bool(n != 0),
     }
-}
-
-/// `Value::from_vector_promoted` of a run of one type: for a non-empty run
-/// of numbers, `from_fractions` of these pairs is exactly these columns.
-fn promote_columns(ty: Ty, columns: Columns) -> Value {
-    let Columns { nums, dens } = columns;
-    // Booleans are never promoted: a Vector of them is what `from_truths`
-    // builds, without a `Plain` and a pass over the children per lane.
-    if ty == Ty::Bool {
-        return Value::from_truths(nums.into_iter().map(|n| n != 0));
-    }
-    if nums.is_empty() {
-        return promote(nums.into_iter().zip(dens).map(|p| plain(ty, p)).collect());
-    }
-    let shape = vec![nums.len()];
-    let integer = dens.iter().all(|d| *d == 1);
-    let tensor = DenseTensor::from_columns(nums, dens, shape.clone(), integer);
-    Value::new(
-        ValueData::Tensor {
-            data: Arc::new(tensor),
-            shape: Arc::new(shape),
-        },
-        None,
-    )
 }
 
 pub(crate) fn run(
@@ -385,24 +271,53 @@ pub(crate) fn run(
 
     let mut regs = vec![(0i64, 1i64); program.regs];
     let mut accumulator = seed.map(|(_, p)| p);
-    let mut results = Columns::with_capacity(match walk {
-        FusedWalk::Fold => 0,
-        _ => elements.len(),
+    let mut gathered = Gather::with_capacity(match walk {
+        FusedWalk::Map | FusedWalk::Filter => elements.len(),
+        _ => 0,
     });
-    // `MAP` over a Tensor's columns, the commonest walk, has a loop of its
-    // own with nothing in it but the run and the result.
-    let (columns_map, rest) = match (walk, &elements) {
-        (FusedWalk::Map, Elements::Columns(nums, dens)) => (Some((nums, dens)), 0),
+    let mut visited = Vec::new();
+    let push = |gathered: &mut Gather, ty: Ty, pair: Pair| match ty {
+        Ty::Num => gathered.push_pair(pair),
+        Ty::Bool => gathered.push_truth(pair.0 != 0),
+    };
+    // `MAP` and `FILTER` over a Tensor's columns, the commonest walks, have a
+    // loop of their own with nothing in it but the run and the result.
+    let (columns, rest) = match (walk, &elements) {
+        (FusedWalk::Map | FusedWalk::Filter, Elements::Columns(nums, dens)) => {
+            (Some((nums, dens)), 0)
+        }
         _ => (None, elements.len()),
     };
-    if let Some((nums, dens)) = columns_map {
-        for (&n, &d) in nums.iter().zip(dens.iter()) {
-            regs[0] = (n, d);
-            results.push(program.run(&mut regs)?);
+    if let Some((nums, dens)) = columns {
+        let pairs = nums.iter().zip(dens.iter()).map(|(&n, &d)| (n, d));
+        match (&mut gathered, walk, program.out_ty) {
+            (Gather::Pairs(out_nums, out_dens), FusedWalk::Map, Ty::Num) => {
+                for x in pairs {
+                    regs[0] = x;
+                    let (n, d) = program.run(&mut regs)?;
+                    out_nums.push(n);
+                    out_dens.push(d);
+                }
+            }
+            (Gather::Pairs(out_nums, out_dens), FusedWalk::Filter, _) => {
+                for x in pairs {
+                    regs[0] = x;
+                    if program.run(&mut regs)?.0 != 0 {
+                        out_nums.push(x.0);
+                        out_dens.push(x.1);
+                    }
+                }
+            }
+            _ => {
+                for x in pairs {
+                    regs[0] = x;
+                    push(&mut gathered, program.out_ty, program.run(&mut regs)?);
+                }
+            }
         }
     }
     for i in 0..rest {
-        let x = elements.at(i);
+        let x = pair_at(&elements, i);
         match accumulator {
             Some(acc) => {
                 regs[0] = acc;
@@ -412,14 +327,14 @@ pub(crate) fn run(
         }
         let result = program.run(&mut regs)?;
         match walk {
-            FusedWalk::Map => results.push(result),
+            FusedWalk::Map => push(&mut gathered, program.out_ty, result),
             FusedWalk::Filter => {
                 if result.0 != 0 {
-                    results.push(x);
+                    push(&mut gathered, elem_ty, x);
                 }
             }
             FusedWalk::Scan => {
-                results.push(result);
+                visited.push(plain(program.out_ty, result).into_value());
                 accumulator = Some(result);
             }
             FusedWalk::Fold => accumulator = Some(result),
@@ -427,16 +342,8 @@ pub(crate) fn run(
     }
 
     let value = match walk {
-        FusedWalk::Map => promote_columns(program.out_ty, results),
-        FusedWalk::Filter => promote_columns(elem_ty, results),
-        FusedWalk::Scan => Value::from_vector(
-            results
-                .nums
-                .into_iter()
-                .zip(results.dens)
-                .map(|p| plain(program.out_ty, p).into_value())
-                .collect(),
-        ),
+        FusedWalk::Map | FusedWalk::Filter => gathered.finish(),
+        FusedWalk::Scan => Value::from_vector(visited),
         FusedWalk::Fold => plain(program.out_ty, accumulator?).into_value(),
     };
     let charges = Charges { steps, work };
