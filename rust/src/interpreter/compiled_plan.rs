@@ -280,6 +280,20 @@ pub(crate) fn execute_compiled_nested_block(
     result
 }
 
+impl CompiledPlan {
+    /// The segment that is this whole body, when one is: a call can then be
+    /// run as that segment alone (`Segment::try_run_as_body`).
+    pub(crate) fn whole_segment(&self) -> Option<&super::segment::Segment> {
+        let line = &self.line;
+        match line.segments.as_slice() {
+            [only] if !line.reinterpret && only.start == 0 && only.end == line.ops.len() => {
+                Some(&only.code)
+            }
+            _ => None,
+        }
+    }
+}
+
 pub fn execute_compiled_plan(interp: &mut Interpreter, plan: &CompiledPlan) -> Result<()> {
     execute_compiled_line(interp, &plan.line)
 }
