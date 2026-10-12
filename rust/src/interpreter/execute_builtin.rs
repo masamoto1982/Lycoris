@@ -179,6 +179,15 @@ impl Interpreter {
 
         let compiled_plan = self.get_compiled_plan(name, &def);
 
+        // A body that is one typed segment runs as that segment, with no frame
+        // opened for names nothing will read (`Segment::try_run_as_body`).
+        if let Some(segment) = compiled_plan.as_deref().and_then(|p| p.whole_segment()) {
+            if segment.try_run_as_body(self) {
+                self.call_depth -= 1;
+                return Ok(());
+            }
+        }
+
         // A Word call is a barrier frame: its body names its own locals and
         // reads none of the caller's, so what a Word means depends on its
         // operands and its dictionary and nothing else.

@@ -186,6 +186,25 @@ fn runs_are_segments() {
     );
 }
 
+/// A body that is one segment runs as the call, with no frame opened: the
+/// names it binds must still be its own, never the caller's, and gone when
+/// it returns.
+#[test]
+fn a_whole_body_run_binds_nothing_the_caller_sees() {
+    for source in [
+        "5 'X' BIND [ 'X' BIND X X MUL ] 'SQ' DEF 3 SQ X",
+        "[ 'Y' BIND Y 1 ADD Y MUL ] 'F' DEF 3 F Y",
+        "[ 'Y' BIND Y 1 ADD Y MUL ] 'F' DEF 1 2 [ F ] 'G' DEF G F G",
+    ] {
+        assert_same(source, Limits::default());
+    }
+    let caller = "5 'X' BIND [ 'X' BIND X X MUL ] 'SQ' DEF 3 SQ X ADD";
+    assert_eq!(segment_runs(caller), 1);
+    let mut interp = Interpreter::new();
+    crate::agent::block_on(interp.execute(caller)).expect("runs");
+    assert_eq!(format!("{}", interp.stack.last().unwrap()), "14/1");
+}
+
 /// A Word the line redefines after a segment inlined it: the segment must
 /// not run the old body.
 #[test]

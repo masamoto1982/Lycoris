@@ -134,8 +134,20 @@ impl Segment {
     /// Run the segment against the top of the stack and commit it, or answer
     /// `false` having touched nothing.
     pub(crate) fn try_run(&self, interp: &mut Interpreter) -> bool {
+        self.try_run_in(interp, true)
+    }
+
+    /// [`Self::try_run`] for a segment that is a User Word's whole body, run
+    /// as the call: the names its frame binds are not written anywhere,
+    /// since that frame would close the moment the body ends and nothing
+    /// could read them in between.
+    pub(crate) fn try_run_as_body(&self, interp: &mut Interpreter) -> bool {
+        self.reads.is_empty() && self.try_run_in(interp, false)
+    }
+
+    fn try_run_in(&self, interp: &mut Interpreter, keep_binds: bool) -> bool {
         let mut scratch = std::mem::take(&mut interp.segment_scratch);
-        let committed = self.run(interp, &mut scratch).is_some();
+        let committed = self.run(interp, &mut scratch, keep_binds).is_some();
         interp.segment_scratch = scratch;
         #[cfg(test)]
         if committed {
@@ -144,7 +156,12 @@ impl Segment {
         committed
     }
 
-    fn run(&self, interp: &mut Interpreter, scratch: &mut SegmentScratch) -> Option<()> {
+    fn run(
+        &self,
+        interp: &mut Interpreter,
+        scratch: &mut SegmentScratch,
+        keep_binds: bool,
+    ) -> Option<()> {
         if !interp.segments_enabled
             || !interp.scalar_fastpath_enabled
             || interp.runtime_limits.max_bigint_bits < 64
@@ -255,8 +272,10 @@ impl Segment {
                 interp.store_compiled_plan_for_word(name, plan);
             }
         }
-        for (name, slot) in &self.binds {
-            interp.bind_local(name.clone(), slots[*slot as usize].into_value());
+        if keep_binds {
+            for (name, slot) in &self.binds {
+                interp.bind_local(name.clone(), slots[*slot as usize].into_value());
+            }
         }
         // The operands the run took are plain slots (`Slot::of` read every
         // one), which own nothing a destructor would free, so they are let
