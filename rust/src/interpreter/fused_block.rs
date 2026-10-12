@@ -29,9 +29,10 @@
 //! register written once, a literal is a constant, and a `BIND` or a bound
 //! name is nothing at all — the name refers to whichever operand was bound.
 //! Every walk runs that one program, on the first lane representation that
-//! holds the elements: machine-word integers a column at a time
-//! (`fused_block_int`), rationals whose halves fit machine words
-//! (`fused_block_rat`), or any plain value (`fused_block_general`).
+//! holds the elements: machine-word rationals and truths a chunk of columns
+//! at a time, on the same kernels the element-wise Words use
+//! (`fused_block_columns`, `dense_kernels`), or any plain value
+//! (`fused_block_general`).
 //!
 //! The walk is *speculative*. It touches no interpreter state while it runs;
 //! it computes what the interpreted walk would have charged — the same steps
@@ -180,8 +181,8 @@ pub(crate) struct FusedBlock {
     /// seed): fixed by the program, so worked out once.
     lanes_from_element: Option<bool>,
     lanes_from_seed: Option<bool>,
-    /// The integer tier's compiled forms of the program, per input kinds.
-    pub(crate) int_programs: crate::interpreter::fused_block_int::IntPrograms,
+    /// The column tier's preparations of the program, per input kinds.
+    pub(crate) preparations: Preparations,
 }
 
 /// What a walk would charge, committed only once it has finished.
@@ -220,7 +221,7 @@ impl FusedBlock {
             reads_outer: lowering.reads_outer,
             lanes_from_element: None,
             lanes_from_seed: None,
-            int_programs: Default::default(),
+            preparations: Default::default(),
         };
         block.lanes_from_element = block.lane_flow(&[false]);
         block.lanes_from_seed = block.lane_flow(&[true, false]);
@@ -271,16 +272,7 @@ impl FusedBlock {
             },
         };
         let (mut value, charges) =
-            crate::interpreter::fused_block_int::run(self, interp, walk, target, seed.as_ref())
-                .or_else(|| {
-                    crate::interpreter::fused_block_rat::run(
-                        self,
-                        interp,
-                        walk,
-                        target,
-                        seed.as_ref(),
-                    )
-                })
+            crate::interpreter::fused_block_columns::run(self, interp, walk, target, seed.as_ref())
                 .or_else(|| {
                     crate::interpreter::fused_block_general::run(
                         self,
@@ -379,6 +371,57 @@ impl FusedBlock {
         let steps = usize::try_from(runs.checked_mul(self.steps_per_run)?).ok()?;
         (interp.execution_step_count.checked_add(steps)? <= interp.max_execution_steps)
             .then_some(steps)
+    }
+}
+
+/// What a walk over inputs of given kinds needs from the block, worked out
+/// once per kinds: a block walked again and again — the inner `FOLD` of
+/// `[ [ 0 ] [ ADD ] FOLD ] MAP` — is prepared once.
+#[derive(Debug)]
+pub(crate) struct Prepared {
+    pub(crate) work_per_run: u64,
+    pub(crate) out_ty: Ty,
+    pub(crate) consts: Vec<(i64, i64)>,
+    /// Per register, whether it depends on the accumulator (register 0).
+    pub(crate) reads_acc: Vec<bool>,
+    /// `acc = acc op x` (or `x op acc`), when that is all that reads the
+    /// accumulator.
+    pub(crate) single: Option<(ExactArithmeticSchema, bool, Src)>,
+}
+
+/// The preparations kept on a block, per input kinds; a block meets one or
+/// two.
+#[derive(Debug, Default)]
+pub(crate) struct Preparations(std::sync::Mutex<Vec<KeptPreparation>>);
+
+type KeptPreparation = (u8, Option<std::sync::Arc<Prepared>>);
+
+impl Preparations {
+    pub(crate) fn get(
+        &self,
+        block: &FusedBlock,
+        inputs: &[Ty],
+    ) -> Option<std::sync::Arc<Prepared>> {
+        let mut kept = self
+            .0
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        // The kinds as one small key: a bit per input, and the count.
+        let key = inputs
+            .iter()
+            .enumerate()
+            .fold(inputs.len() as u8, |key, (i, ty)| {
+                key | (u8::from(*ty == Ty::Bool) << (4 + i))
+            });
+        if let Some((_, prepared)) = kept.iter().find(|(kept_key, _)| *kept_key == key) {
+            return prepared.clone();
+        }
+        let prepared = crate::interpreter::fused_block_columns::prepare(block, inputs)
+            .map(std::sync::Arc::new);
+        if kept.len() < 4 {
+            kept.push((key, prepared.clone()));
+        }
+        prepared
     }
 }
 

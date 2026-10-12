@@ -1,14 +1,15 @@
-//! Element-wise Words over one-dimensional dense Tensors, computed on the
-//! columns themselves.
+//! Column kernels: the element-wise Words over one-dimensional dense
+//! Tensors, and every instruction of a column walk (`fused_block_columns`),
+//! computed on the columns themselves. A kernel writes its lanes into an
+//! [`Out`]; a Word wraps that in a Tensor, and a walk keeps one per register
+//! and runs each instruction a chunk at a time.
 //!
 //! A dense Tensor stores its lanes as two `i64` columns — numerators and
 //! denominators, each pair already in lowest terms. The general routes for
 //! `DIV`, `FLOOR`/`ROUND` and `LT`/`GT` read those columns back out as a
 //! `Vec<Fraction>` (`FlatTensor`) or as one boxed `Value` per lane
 //! (`lift_lanes`), apply the law, and rebuild: about 200 ns a lane for what is
-//! a handful of machine instructions. `ADD`/`SUB`/`MUL` had a column route
-//! already (`simd_ops`), but through a function pointer it could not inline,
-//! with an early exit that kept it from vectorising.
+//! a handful of machine instructions; `ADD`/`SUB`/`MUL` the same.
 //!
 //! These kernels take the columns as they are, for the shapes whose answer is
 //! fixed by the lanes alone: a Tensor beside a plain scalar, or two Tensors of
@@ -29,13 +30,14 @@
 //! holds `6/1` and `1/0`, and keeps its columns.
 
 mod lanes;
+mod lanewise;
 mod quotients;
 
 use crate::interpreter::arithmetic::ExactArithmeticSchema;
-use crate::interpreter::comparison::OrderingKind;
-use crate::types::small_rational;
+use crate::types::small_rational::{self, Pair};
 use crate::types::Value;
-use lanes::{paired, Lanes, Out};
+pub(crate) use lanes::{paired, Lanes, Out};
+pub(crate) use lanewise::*;
 #[cfg(test)]
 pub(crate) use quotients::binary_gcd_x4;
 use quotients::{integer_quotients, scaled_by_integer};
@@ -67,35 +69,88 @@ fn integer_lanes(
     a: Lanes,
     b: Lanes,
     n: usize,
+    out: &mut Out,
     f: impl Fn(i64, i64) -> (i64, bool),
-) -> Option<Vec<i64>> {
-    let mut out = vec![0i64; n];
+) -> Option<()> {
+    // Every lane is overwritten below, so a reused buffer keeps whatever it
+    // held, and a new one is allocated zeroed, nearly free however long.
+    if out.nums.capacity() < n {
+        out.nums = vec![0; n];
+    } else {
+        out.nums.truncate(n);
+        out.nums.resize(n, 0);
+    }
     let mut bad = false;
     match (a, b) {
         (Lanes::Columns { nums: x, .. }, Lanes::Columns { nums: y, .. }) => {
-            for ((o, &x), &y) in out.iter_mut().zip(x).zip(y) {
+            for ((o, &x), &y) in out.nums.iter_mut().zip(x).zip(y) {
                 let (v, f) = f(x, y);
                 *o = v;
                 bad |= f;
             }
         }
         (Lanes::Columns { nums: x, .. }, Lanes::Splat(y, _)) => {
-            for (o, &x) in out.iter_mut().zip(x) {
+            for (o, &x) in out.nums.iter_mut().zip(x) {
                 let (v, f) = f(x, y);
                 *o = v;
                 bad |= f;
             }
         }
         (Lanes::Splat(x, _), Lanes::Columns { nums: y, .. }) => {
-            for (o, &y) in out.iter_mut().zip(y) {
+            for (o, &y) in out.nums.iter_mut().zip(y) {
                 let (v, f) = f(x, y);
                 *o = v;
                 bad |= f;
             }
         }
-        (Lanes::Splat(..), Lanes::Splat(..)) => return None,
+        (Lanes::Splat(x, _), Lanes::Splat(y, _)) => {
+            let (v, f) = f(x, y);
+            out.nums.fill(v);
+            bad = f;
+        }
     }
-    (!bad).then_some(out)
+    if bad {
+        return None;
+    }
+    out.integers();
+    Some(())
+}
+
+/// `out.push(f(a[i], b[i]))` on numerators, one loop per operand shape so
+/// each is a plain zip.
+#[inline(always)]
+fn zip_nums(a: Lanes, b: Lanes, n: usize, out: &mut Vec<i64>, f: impl Fn(i64, i64) -> i64) {
+    match (a, b) {
+        (Lanes::Columns { nums: x, .. }, Lanes::Columns { nums: y, .. }) => {
+            out.extend(x[..n].iter().zip(&y[..n]).map(|(&x, &y)| f(x, y)))
+        }
+        (Lanes::Columns { nums: x, .. }, Lanes::Splat(y, _)) => {
+            out.extend(x[..n].iter().map(|&x| f(x, y)))
+        }
+        (Lanes::Splat(x, _), Lanes::Columns { nums: y, .. }) => {
+            out.extend(y[..n].iter().map(|&y| f(x, y)))
+        }
+        (Lanes::Splat(x, _), Lanes::Splat(y, _)) => out.extend(std::iter::repeat_n(f(x, y), n)),
+    }
+}
+
+/// `out[i] = f(a[i], b[i])` on any lanes, one at a time; `None` when a lane
+/// has no machine-word answer.
+#[inline(always)]
+fn pair_lanes(
+    a: Lanes,
+    b: Lanes,
+    n: usize,
+    out: &mut Out,
+    f: impl Fn(Pair, Pair) -> Option<Pair>,
+) -> Option<()> {
+    out.clear();
+    out.reserve(n);
+    for i in 0..n {
+        let (rn, rd) = f(a.at(i), b.at(i))?;
+        out.push(rn, rd);
+    }
+    Some(())
 }
 
 /// The floor quotient and remainder of `x` by `m >= 1`: `x = q·m + r` with
@@ -135,20 +190,40 @@ pub(crate) fn floor_divmod(x: i64, m: i64, inv: f64) -> (i64, i64) {
 /// zero is left as it was — `k - 1/0` is `1/0`, the negation of the one
 /// unsigned point — which is what `add_total` answers for it. `None`
 /// for anything else, or when a lane overflows.
-fn shifted_by_integer(schema: ExactArithmeticSchema, a: Lanes, b: Lanes) -> Option<Value> {
+fn shifted_by_integer(
+    schema: ExactArithmeticSchema,
+    a: Lanes,
+    b: Lanes,
+    out: &mut Out,
+) -> Option<()> {
     let subtract = match schema {
         ExactArithmeticSchema::Add => false,
         ExactArithmeticSchema::Sub => true,
         _ => return None,
     };
     let (nums, dens, k, k_first) = match (a, b) {
-        (Lanes::Columns { nums, dens, .. }, Lanes::Splat(k, 1)) => (nums, dens, k, false),
-        (Lanes::Splat(k, 1), Lanes::Columns { nums, dens, .. }) => (nums, dens, k, true),
+        (
+            Lanes::Columns {
+                nums,
+                dens,
+                integer: false,
+            },
+            Lanes::Splat(k, 1),
+        ) => (nums, dens, k, false),
+        (
+            Lanes::Splat(k, 1),
+            Lanes::Columns {
+                nums,
+                dens,
+                integer: false,
+            },
+        ) => (nums, dens, k, true),
         _ => return None,
     };
-    let mut out = vec![0i64; nums.len()];
+    out.nums.clear();
+    out.nums.resize(nums.len(), 0);
     let mut bad = false;
-    for ((o, &n), &d) in out.iter_mut().zip(nums).zip(dens) {
+    for ((o, &n), &d) in out.nums.iter_mut().zip(nums).zip(dens) {
         let (kd, f) = small_rational::overflowing_mul(k, d);
         let (v, g) = match (subtract, k_first) {
             (false, _) => n.overflowing_add(kd),
@@ -158,140 +233,201 @@ fn shifted_by_integer(schema: ExactArithmeticSchema, a: Lanes, b: Lanes) -> Opti
         *o = if d == 0 { n } else { v };
         bad |= f | g;
     }
-    (!bad).then(|| Out::columns(out, dens.to_vec()).into_value())
+    if bad {
+        return None;
+    }
+    out.dens.clear();
+    out.dens.extend_from_slice(dens);
+    out.settle();
+    Some(())
+}
+
+/// `x / m` for integer lanes and a power of two `m`: `x` over `m`, both
+/// shifted right by the twos `x` shares with `m`, which is their gcd — a
+/// shift and a mask a lane, never a division.
+fn halved(nums: &[i64], m: i64, out: &mut Out) {
+    let s = m.trailing_zeros();
+    let mut odd = 0;
+    if s == 1 {
+        // `x / 2`: an even lane halves, an odd one is `x/2` as it stands.
+        out.nums.extend(nums.iter().map(|&x| x >> (1 - (x & 1))));
+        out.dens.extend(nums.iter().map(|&x| {
+            odd |= x & 1;
+            1 + (x & 1)
+        }));
+    } else {
+        let twos = |x: i64| x.trailing_zeros().min(s);
+        out.nums.extend(nums.iter().map(|&x| x >> twos(x)));
+        out.dens.extend(nums.iter().map(|&x| {
+            let d = m >> twos(x);
+            odd |= d - 1;
+            d
+        }));
+    }
+    if odd == 0 {
+        out.integers();
+    } else {
+        out.integer = false;
+    }
+}
+
+/// `a schema b` over `n` lanes into `out`, or `None` when a lane has no
+/// machine-word answer.
+pub(crate) fn arith_into(
+    schema: ExactArithmeticSchema,
+    a: Lanes,
+    b: Lanes,
+    n: usize,
+    out: &mut Out,
+) -> Option<()> {
+    if a.integer() && b.integer() {
+        let done = match schema {
+            ExactArithmeticSchema::Add => integer_lanes(a, b, n, out, i64::overflowing_add),
+            ExactArithmeticSchema::Sub => integer_lanes(a, b, n, out, i64::overflowing_sub),
+            ExactArithmeticSchema::Mul => {
+                integer_lanes(a, b, n, out, small_rational::overflowing_mul)
+            }
+            ExactArithmeticSchema::Div => {
+                out.clear();
+                out.reserve(n);
+                if let (Lanes::Columns { nums, .. }, Lanes::Splat(m, _)) = (a, b) {
+                    if m > 0 && m & (m - 1) == 0 {
+                        halved(nums, m, out);
+                        return Some(());
+                    }
+                }
+                return integer_quotients(a, b, n, out);
+            }
+        };
+        if done.is_some() {
+            return Some(());
+        }
+    }
+    if shifted_by_integer(schema, a, b, out).is_some() {
+        return Some(());
+    }
+    out.clear();
+    out.reserve(n);
+    if scaled_by_integer(schema, a, b, out).is_some() {
+        return Some(());
+    }
+    // A lane over zero, or a zero divisor, is the `Fraction`'s own law
+    // (`small_rational`'s total forms): its answer is one of the points or
+    // zero, a small pair. A lane that outgrows a machine word is the general
+    // route's to make.
+    match schema {
+        ExactArithmeticSchema::Add => {
+            pair_lanes(a, b, n, out, |x, y| small_rational::add_total(x, y, false))
+        }
+        ExactArithmeticSchema::Sub => {
+            pair_lanes(a, b, n, out, |x, y| small_rational::add_total(x, y, true))
+        }
+        ExactArithmeticSchema::Mul => pair_lanes(a, b, n, out, small_rational::mul_total),
+        ExactArithmeticSchema::Div => pair_lanes(a, b, n, out, small_rational::div_total),
+    }
+}
+
+/// The floor of a pair; a point over zero is its own floor.
+#[inline(always)]
+pub(crate) fn floor_pair((n, d): Pair) -> Pair {
+    if d == 0 || d == 1 {
+        (n, d)
+    } else {
+        (n.div_euclid(d), 1)
+    }
+}
+
+/// `a b DIV FLOOR` over `n` lanes into `out`. On integers by one positive
+/// integer it is a shift or a reciprocal multiply, never a gcd.
+pub(crate) fn floor_div_into(a: Lanes, b: Lanes, n: usize, out: &mut Out) -> Option<()> {
+    if let (
+        Lanes::Columns {
+            nums,
+            integer: true,
+            ..
+        },
+        Lanes::Splat(m, 1),
+    ) = (a, b)
+    {
+        if m > 0 {
+            out.nums.clear();
+            if m & (m - 1) == 0 {
+                let shift = m.trailing_zeros();
+                out.nums.extend(nums.iter().map(|&x| x >> shift));
+            } else {
+                let inv = 1.0 / m as f64;
+                out.nums
+                    .extend(nums.iter().map(|&x| floor_divmod(x, m, inv).0));
+            }
+            out.integers();
+            return Some(());
+        }
+    }
+    pair_lanes(a, b, n, out, |x, y| {
+        Some(floor_pair(small_rational::div_total(x, y)?))
+    })
 }
 
 /// `a schema b` lane by lane, or `None` for the general route.
 pub(crate) fn arithmetic(schema: ExactArithmeticSchema, a: &Value, b: &Value) -> Option<Value> {
-    hit(arithmetic_lanes(schema, a, b))
-}
-
-fn arithmetic_lanes(schema: ExactArithmeticSchema, a: &Value, b: &Value) -> Option<Value> {
     let (a, b) = (Lanes::of(a)?, Lanes::of(b)?);
     let n = paired(a, b)?;
-    if a.integer() && b.integer() {
-        let lanes = match schema {
-            ExactArithmeticSchema::Add => integer_lanes(a, b, n, i64::overflowing_add),
-            ExactArithmeticSchema::Sub => integer_lanes(a, b, n, i64::overflowing_sub),
-            ExactArithmeticSchema::Mul => integer_lanes(a, b, n, small_rational::overflowing_mul),
-            ExactArithmeticSchema::Div => None,
-        };
-        if let Some(nums) = lanes {
-            return Some(Out::integers(nums).into_value());
+    let mut out = Out::default();
+    arith_into(schema, a, b, n, &mut out)?;
+    hit(Some(out.into_value()))
+}
+
+/// [`fold_integers`] for the one arithmetic Word the block applies.
+#[inline(always)]
+pub(crate) fn fold_op(
+    schema: ExactArithmeticSchema,
+    flipped: bool,
+    acc: i64,
+    x: Lanes,
+    n: usize,
+    each: impl FnMut(i64),
+) -> Option<i64> {
+    match (schema, flipped) {
+        (ExactArithmeticSchema::Add, _) => fold_integers(acc, x, n, each, i64::overflowing_add),
+        (ExactArithmeticSchema::Mul, _) => {
+            fold_integers(acc, x, n, each, small_rational::overflowing_mul)
         }
-        if matches!(schema, ExactArithmeticSchema::Div) {
-            return integer_quotients(a, b, n);
-        }
+        (_, false) => fold_integers(acc, x, n, each, i64::overflowing_sub),
+        (_, true) => fold_integers(acc, x, n, each, |a, x| x.overflowing_sub(a)),
     }
-    if let Some(shifted) = shifted_by_integer(schema, a, b) {
-        return Some(shifted);
-    }
-    if let Some(scaled) = scaled_by_integer(schema, a, b) {
-        return Some(scaled);
-    }
-    let mut out = Out::with_capacity(n);
-    for i in 0..n {
-        let (x, y) = (a.at(i), b.at(i));
-        // A lane over zero, or a zero divisor, is the `Fraction`'s own law
-        // (`small_rational`'s total forms): its answer is one of the three
-        // points or zero, a small pair. A lane that outgrows a machine word
-        // is a boxed Vector, the general route's to make.
-        let (rn, rd) = match schema {
-            ExactArithmeticSchema::Add => small_rational::add_total(x, y, false),
-            ExactArithmeticSchema::Sub => small_rational::add_total(x, y, true),
-            ExactArithmeticSchema::Mul => small_rational::mul_total(x, y),
-            ExactArithmeticSchema::Div => small_rational::div_total(x, y),
-        }?;
-        out.push(rn, rd);
-    }
-    Some(out.into_value())
 }
 
-/// `a LT b` / `a GT b` lane by lane: the Vector of Booleans `lift_lanes`
-/// builds, or `None` for the general route — which a lane over zero takes,
-/// since neither point has an order to answer (LANG.VALUES.EXACT,
-/// `small_rational::order_total`).
-pub(crate) fn ordering(kind: OrderingKind, a: &Value, b: &Value) -> Option<Value> {
-    hit(ordering_lanes(kind, a, b))
-}
-
-fn ordering_lanes(kind: OrderingKind, a: &Value, b: &Value) -> Option<Value> {
-    let (a, b) = (Lanes::of(a)?, Lanes::of(b)?);
-    let n = paired(a, b)?;
-    let truth = |ordering| kind.apply_ordering(ordering);
-    if a.integer() && b.integer() {
-        return Some(Value::from_truths(
-            (0..n).map(|i| truth(a.num(i).cmp(&b.num(i)))),
-        ));
-    }
-    let mut truths = Vec::with_capacity(n);
-    for i in 0..n {
-        truths.push(truth(small_rational::order_total(a.at(i), b.at(i))?));
-    }
-    Some(Value::from_truths(truths.into_iter()))
-}
-
-/// Which rounding `rounded` applies.
-#[derive(Clone, Copy)]
-pub(crate) enum Rounding {
-    Floor,
-    /// Half away from zero, as `Fraction::round`.
-    Round,
-}
-
-/// `FLOOR`/`ROUND` of every lane, or `None` for the general route. Every
-/// rational rounds to an integer, so the answer is a pure-integer Tensor
-/// unless a lane is one of the two points over zero, which is its own
-/// floor and its own rounding; for a Tensor that already was pure-integer,
-/// that is the operand itself.
-pub(crate) fn rounded(rounding: Rounding, value: &Value) -> Option<Value> {
-    hit(rounded_lanes(rounding, value))
-}
-
-fn rounded_lanes(rounding: Rounding, value: &Value) -> Option<Value> {
-    let lanes = Lanes::of(value)?;
-    let Lanes::Columns {
-        nums,
-        dens,
-        integer,
-    } = lanes
-    else {
-        return None;
-    };
-    if integer {
-        return Some(value.clone());
-    }
-    // A column's denominators repeat (after `7 DIV` they are 7 or 1), so the
-    // reciprocal `floor_divmod` multiplies by is kept for the last one met;
-    // an integer lane is its own floor and rounding and leaves it alone.
-    let (mut last_d, mut inv) = (1i64, 1.0f64);
-    let mut over_zero = false;
-    let out: Vec<i64> = nums
-        .iter()
-        .zip(dens)
-        .map(|(&n, &d)| {
-            if d == 1 {
-                return n;
-            }
-            if d == 0 {
-                over_zero = true;
-                return n;
-            }
-            match rounding {
-                Rounding::Floor => {
-                    if d != last_d {
-                        (last_d, inv) = (d, 1.0 / d as f64);
-                    }
-                    floor_divmod(n, d, inv).0
+/// `acc = op(acc, x)` over `n` integer lanes, in a loop with nothing else in
+/// it; `None` on an overflow.
+#[inline(always)]
+fn fold_integers(
+    mut acc: i64,
+    x: Lanes,
+    n: usize,
+    mut each: impl FnMut(i64),
+    op: impl Fn(i64, i64) -> (i64, bool),
+) -> Option<i64> {
+    let lanes = match x {
+        Lanes::Columns { nums, .. } => &nums[..n],
+        Lanes::Splat(x, _) => {
+            for _ in 0..n {
+                let (v, bad) = op(acc, x);
+                if bad {
+                    return None;
                 }
-                Rounding::Round => small_rational::round_half_away_from_zero(n, d),
+                acc = v;
+                each(v);
             }
-        })
-        .collect();
-    if !over_zero {
-        return Some(Out::integers(out).into_value());
+            return Some(acc);
+        }
+    };
+    for &x in lanes {
+        let (v, bad) = op(acc, x);
+        if bad {
+            return None;
+        }
+        acc = v;
+        each(v);
     }
-    // The two points over zero keep their own denominator.
-    let out_dens = dens.iter().map(|&d| i64::from(d != 0)).collect();
-    Some(Out::columns(out, out_dens).into_value())
+    Some(acc)
 }

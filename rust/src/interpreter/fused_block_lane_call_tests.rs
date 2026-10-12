@@ -108,21 +108,20 @@ fn lane_and_call_programs_agree() {
     }
 }
 
-/// The Collatz step stays on the integer tier: its inexact quotient is
-/// never chosen. One that is chosen for some lane leaves for the
-/// small-rational tier.
+/// The Collatz step stays on the column tier whether its fraction is chosen
+/// for a lane or not.
 #[test]
-fn an_unchosen_fraction_keeps_the_integer_tier() {
-    let rat_runs = |source: &str| {
-        let before = crate::interpreter::fused_block_rat::rat_runs_on_this_thread();
+fn a_fraction_chosen_or_not_keeps_the_column_tier() {
+    let column_runs = |source: &str| {
+        let before = crate::interpreter::fused_block_columns::column_runs_on_this_thread();
         let mut interp = crate::interpreter::Interpreter::new();
         crate::agent::block_on(interp.execute(source)).unwrap();
-        crate::interpreter::fused_block_rat::rat_runs_on_this_thread() - before
+        crate::interpreter::fused_block_columns::column_runs_on_this_thread() - before
     };
     let collatz = "[ 'N' BIND N 2 DIV N 3 MUL 1 ADD N 2 DIV FLOOR 2 MUL N EQ SELECT ] MAP";
-    assert_eq!(rat_runs(&format!("0 1000 RANGE {collatz}")), 0);
+    assert_eq!(column_runs(&format!("0 1000 RANGE {collatz}")), 1);
     let chosen = "[ 'N' BIND N 2 DIV N N 2 DIV FLOOR 2 MUL N EQ NOT SELECT ] MAP";
-    assert_eq!(rat_runs(&format!("0 1000 RANGE {chosen}")), 1);
+    assert_eq!(column_runs(&format!("0 1000 RANGE {chosen}")), 1);
 }
 
 /// `POW` and `LENGTH` of a literal Vector fuse; `LENGTH` of the element, or

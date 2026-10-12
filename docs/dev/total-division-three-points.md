@@ -97,5 +97,5 @@ UNKNOWN になること）も、`leaving` の Word かリテラルを経由し�
   返し、`0/0` に対してのみ `None`。`PartialOrd` はこれを経由し、`Ord` は実装しない。
 - `rust/src/interpreter/comparison.rs`: `unordered_projection()` が順序ワードの
   投影先。`three_way_compare` と `compare_scalar_pair` は `Option` を返す。
-- 高速層（`fused_block*.rs`・`dense_kernels.rs`・`quickened.rs`・`simd_ops.rs`）
+- 高速層（`fused_block*.rs`・`dense_kernels.rs`・`quickened.rs`）
   は有限レーン以外を辞退し、組の公式を仮定する経路に 0 分母を通さない。
