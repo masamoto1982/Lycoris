@@ -160,6 +160,8 @@ mod fusion_contract_route_tests;
 #[cfg(test)]
 mod fusion_contract_tests;
 pub(crate) mod nil_diagnostics;
+#[cfg(test)]
+mod route_differential_tests;
 
 #[cfg(test)]
 mod arithmetic_meter_tests;
