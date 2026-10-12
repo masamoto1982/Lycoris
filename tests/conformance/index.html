@@ -471,17 +471,10 @@
   <div class="ajisai-expect-effects"></div>
 </section>
 
-<section class="ajisai-case" id="core-both-literal" data-category="core">
-  <h3>BOTH is a Boolean told both TRUE and FALSE, not an absence</h3>
-  <pre class="ajisai-source">BOTH NIL?</pre>
-  <pre class="ajisai-expect-result">FALSE</pre>
-  <div class="ajisai-expect-effects"></div>
-</section>
-
-<section class="ajisai-case" id="core-belnap-and-both-unknown" data-category="core">
-  <h3>BOTH and UNKNOWN meet at FALSE under Belnap's AND</h3>
-  <pre class="ajisai-source">BOTH NIL AND</pre>
-  <pre class="ajisai-expect-result">FALSE</pre>
+<section class="ajisai-case" id="core-truth-is-three-valued" data-category="core">
+  <h3>The truth domain is three-valued, as in SQL: UNKNOWN or TRUE is TRUE, written from AND and NOT (LANG.VALUES.TRUTH)</h3>
+  <pre class="ajisai-source">NIL NOT TRUE NOT AND NOT NIL NOT FALSE NOT AND NOT NIL?</pre>
+  <pre class="ajisai-expect-result">TRUE TRUE</pre>
   <div class="ajisai-expect-effects"></div>
 </section>
 
@@ -492,24 +485,24 @@
   <div class="ajisai-expect-effects"></div>
 </section>
 
-<section class="ajisai-case" id="core-reconcile-truths-are-both" data-category="core">
-  <h3>Two different truth values reconcile to BOTH</h3>
-  <pre class="ajisai-source">TRUE FALSE RECONCILE</pre>
-  <pre class="ajisai-expect-result">BOTH</pre>
+<section class="ajisai-case" id="core-reconcile-truths-conflict" data-category="core">
+  <h3>Two different truth values are a conflict like any other, which reads as UNKNOWN in truth position (LANG.VALUES.TRUTH)</h3>
+  <pre class="ajisai-source">TRUE FALSE RECONCILE NIL-REASON TRUE FALSE RECONCILE NIL?</pre>
+  <pre class="ajisai-expect-result">'conflict' TRUE</pre>
   <div class="ajisai-expect-effects"></div>
 </section>
 
 <section class="ajisai-case" id="core-reconcile-conflict" data-category="core">
-  <h3>Two different values that are not truth values have nothing they agree on</h3>
+  <h3>Two different values have nothing they agree on</h3>
   <pre class="ajisai-source">'Tokyo' 'Osaka' RECONCILE NIL-REASON</pre>
   <pre class="ajisai-expect-result">'conflict'</pre>
   <div class="ajisai-expect-effects"></div>
 </section>
 
-<section class="ajisai-case" id="core-select-both-reconciles" data-category="core">
-  <h3>A BOTH truth chooses both candidates, answering them reconciled</h3>
-  <pre class="ajisai-source">[ 1 2 ] [ 1 3 ] [ BOTH ] SELECT</pre>
-  <pre class="ajisai-expect-result">[ 1/1 NIL ]</pre>
+<section class="ajisai-case" id="core-select-conflict-chooses-neither" data-category="core">
+  <h3>A conflict in truth position chooses neither candidate and answers the conflict, reason kept</h3>
+  <pre class="ajisai-source">1 2 TRUE FALSE RECONCILE SELECT NIL-REASON</pre>
+  <pre class="ajisai-expect-result">'conflict'</pre>
   <div class="ajisai-expect-effects"></div>
 </section>
 

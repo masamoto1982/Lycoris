@@ -1,6 +1,6 @@
 //! `NOT`, `AND` and `SELECT` over truth columns (`types::truth_column`).
 //!
-//! Each law of LANG.VALUES.TRUTH is a table over the four lane codes, so a
+//! Each law of LANG.VALUES.TRUTH is a table over the three lane codes, so a
 //! column is answered a byte at a time with no `Value` built. A flat Vector
 //! of truth values is packed first and answered the same way; anything the
 //! tables cannot say — a lane that is not a truth value, a nested lane,
@@ -10,8 +10,8 @@
 use std::borrow::Cow;
 use std::sync::Arc;
 
-use crate::interpreter::logic::{compute_selection, reconcile};
-use crate::types::truth_column::{BOTH, FALSE, TRUE, UNKNOWN};
+use crate::interpreter::logic::compute_selection;
+use crate::types::truth_column::{FALSE, TRUE, UNKNOWN};
 use crate::types::{TruthColumn, Value, ValueData};
 
 /// One operand of a connective, read as codes.
@@ -29,7 +29,6 @@ impl<'a> Truths<'a> {
             ValueData::Vector(lanes) => Truths::Column(Cow::Owned(TruthColumn::pack(lanes)?)),
             ValueData::Boolean(false) => Truths::Lane(FALSE, None),
             ValueData::Boolean(true) => Truths::Lane(TRUE, None),
-            ValueData::Both => Truths::Lane(BOTH, None),
             ValueData::Nil(_) => Truths::Lane(UNKNOWN, Some(value)),
             _ => return None,
         })
@@ -60,7 +59,7 @@ impl<'a> Truths<'a> {
     }
 }
 
-/// `NOT` on a column: TRUE and FALSE swap, BOTH and UNKNOWN stay
+/// `NOT` on a column: TRUE and FALSE swap, UNKNOWN stays
 /// (LANG.VALUES.TRUTH). Rewritten in place when the column is the only
 /// holder of its bytes.
 pub(crate) fn negate(value: &mut Value) -> bool {
@@ -75,21 +74,21 @@ pub(crate) fn negate(value: &mut Value) -> bool {
     };
     for code in Arc::make_mut(column).codes_mut() {
         // FALSE (0) and TRUE (1) differ in the low bit alone.
-        if *code < BOTH {
+        if *code < UNKNOWN {
             *code ^= 1;
         }
     }
     true
 }
 
-/// Belnap's conjunction, `CONJUNCTION[4 * a + b]`. Where the law answers an
-/// operand whole the code is that operand's, so an UNKNOWN keeps its NIL:
-/// the right one's from `T ∧ U` and `U ∧ U`, the left one's from `U ∧ T`.
-const CONJUNCTION: [u8; 16] = [
-    FALSE, FALSE, FALSE, FALSE, // FALSE ∧ _
-    FALSE, TRUE, BOTH, UNKNOWN, // TRUE ∧ b = b
-    FALSE, BOTH, BOTH, FALSE, // BOTH ∧ _
-    FALSE, UNKNOWN, FALSE, UNKNOWN, // UNKNOWN ∧ _
+/// The strong Kleene conjunction, `CONJUNCTION[3 * a + b]`. Where the law
+/// answers an operand whole the code is that operand's, so an UNKNOWN keeps
+/// its NIL: the right one's from `T ∧ U` and `U ∧ U`, the left one's from
+/// `U ∧ T`.
+const CONJUNCTION: [u8; 9] = [
+    FALSE, FALSE, FALSE, // FALSE ∧ _
+    FALSE, TRUE, UNKNOWN, // TRUE ∧ b = b
+    FALSE, UNKNOWN, UNKNOWN, // UNKNOWN ∧ _
 ];
 
 /// The extent two or more operands set together, or `None` when two disagree.
@@ -121,7 +120,7 @@ pub(crate) fn conjoin(a: &Value, b: &Value) -> Option<Value> {
     };
     let width = common_extent(&[a.extent(), b.extent()])?.unwrap_or(1);
     let codes = (0..width)
-        .map(|i| CONJUNCTION[usize::from(4 * a.code(i) + b.code(i))])
+        .map(|i| CONJUNCTION[usize::from(3 * a.code(i) + b.code(i))])
         .collect();
     let column = TruthColumn::with_unknown(codes, unknown).expect("an UNKNOWN lane has its NIL");
     Some(Value::from_truth_column(column))
@@ -169,7 +168,7 @@ impl<'a> Candidate<'a> {
 
 /// `SELECT` when the mask reads as codes and is longer than one lane, and the
 /// candidates are leaves or flat: each lane is the candidate its code chooses,
-/// both reconciled for BOTH, the mask's NIL for UNKNOWN.
+/// the mask's NIL for UNKNOWN.
 pub(crate) fn select(when_true: &Value, when_false: &Value, mask: &Value) -> Option<Value> {
     if !matches!(mask.data, ValueData::Truths(_) | ValueData::Vector(_)) {
         return None;
@@ -194,7 +193,6 @@ pub(crate) fn select(when_true: &Value, when_false: &Value, mask: &Value) -> Opt
         .map(|(i, &code)| match code {
             TRUE => t.lane(i).into_owned(),
             FALSE => f.lane(i).into_owned(),
-            BOTH => reconcile(&t.lane(i), &f.lane(i)),
             _ => compute_selection(&t.lane(i), &f.lane(i), &column.lane(i))
                 .expect("an UNKNOWN lane is a truth value"),
         })
@@ -205,8 +203,8 @@ pub(crate) fn select(when_true: &Value, when_false: &Value, mask: &Value) -> Opt
 /// `SELECT` between two machine-word numbers under a mask of TRUE and FALSE
 /// alone: every lane is one of the two pairs, so the answer is written
 /// straight into a dense Tensor's columns — the Vector of those numbers, held
-/// as `Value::from_vector_promoted` would hold it. A BOTH or UNKNOWN lane
-/// answers a reconciliation or a NIL, which no column holds.
+/// as `Value::from_vector_promoted` would hold it. An UNKNOWN lane answers a
+/// NIL, which no column holds.
 fn select_numbers(t: &Candidate, f: &Candidate, codes: &[u8]) -> Option<Value> {
     let pair = |c: &Candidate| match c {
         Candidate::Leaf(value) => value.as_scalar()?.extract_i64_pair(),

@@ -25,7 +25,7 @@
       "algebraic_family": "boolean-truth",
       "core_tier": "identity",
       "kind": "domain",
-      "description": "Boolean truth domain {T,F,B}, with UNKNOWN as an absence read in truth position: Belnap's FOUR; a direct-sum component of V, disjoint from numbers.",
+      "description": "Boolean truth domain {T,F}, with UNKNOWN as an absence read in truth position: strong Kleene K3, SQL's three-valued logic; a direct-sum component of V, disjoint from numbers.",
       "admission_reason": "Accepted as the shared k3-truth schema required by existing formalization entries; it is not represented as surface sugar or a hosted effect boundary.",
       "introduced_by": [
         "TRUE",
@@ -64,7 +64,7 @@
       "algebraic_family": "boolean-truth",
       "core_tier": "identity",
       "kind": "operation",
-      "description": "Belnap meet (greatest lower bound of the truth order) on FOUR, the strong Kleene meet on its K3 restriction; the algebraic primitive AND derives from.",
+      "description": "Strong Kleene meet (greatest lower bound of the truth order F < U < T) on K3; the algebraic primitive AND derives from.",
       "admission_reason": "Accepted as the shared k3-truth schema required by existing formalization entries; it is not represented as surface sugar or a hosted effect boundary.",
       "introduced_by": [
         "AND"
@@ -79,7 +79,7 @@
       "algebraic_family": "boolean-truth",
       "core_tier": "identity",
       "kind": "operation",
-      "description": "Truth-order-reversing involution on FOUR fixing U and B; the algebraic primitive NOT derives from.",
+      "description": "Truth-order-reversing involution on K3 fixing U; the algebraic primitive NOT derives from.",
       "admission_reason": "Accepted as the shared k3-truth schema required by existing formalization entries; it is not represented as surface sugar or a hosted effect boundary.",
       "introduced_by": [
         "NOT"
@@ -94,7 +94,7 @@
       "algebraic_family": "boolean-truth",
       "core_tier": "identity",
       "kind": "operation",
-      "description": "Join of the information order: absence below every value, a conflict above; on truth values Belnap's knowledge join, T join F = B. The algebraic primitive RECONCILE derives from.",
+      "description": "Join of the information order: absence below every value, a conflict above, so T join F is the conflict. The algebraic primitive RECONCILE derives from.",
       "admission_reason": "Accepted as the operation that brings B into the truth domain; it is not represented as surface sugar or a hosted effect boundary.",
       "introduced_by": [
         "RECONCILE",
@@ -673,31 +673,6 @@
       "core_tier": "identity"
     },
     {
-      "id": "core.both",
-      "kind": "coreword",
-      "surface": "BOTH",
-      "classification": "Core",
-      "spec_sections": [
-        "SPECIFICATION.html §7.5",
-        "SPECIFICATION.html §12"
-      ],
-      "law_tests": [
-        "rust/src/interpreter/belnap_truth_conformance_tests.rs"
-      ],
-      "conformance_cases": [
-        "core-both-literal"
-      ],
-      "status": "Formalized",
-      "notes": "Boolean value told both TRUE and FALSE; distinct from every number and from absence.",
-      "semantic_role": "Primitive",
-      "primitive": true,
-      "derived_from": [
-        "algebra.k3.domain"
-      ],
-      "algebraic_family": "boolean-truth",
-      "core_tier": "identity"
-    },
-    {
       "id": "core.nil",
       "kind": "coreword",
       "surface": "NIL",
@@ -820,10 +795,10 @@
       ],
       "conformance_cases": [
         "core-kleene-and-definite",
-        "core-belnap-and-both-unknown"
+        "core-truth-is-three-valued"
       ],
       "status": "Formalized",
-      "notes": "Belnap conjunction over TRUE/FALSE/BOTH/UNKNOWN; the strong Kleene table on its three-valued restriction. The U rows arise from a NIL read in truth position; they are pinned by native logic tests.",
+      "notes": "Strong Kleene conjunction over TRUE/FALSE/UNKNOWN, SQL's AND. The U rows arise from a NIL read in truth position; they are pinned by native logic tests.",
       "semantic_role": "Derived",
       "primitive": false,
       "derived_from": [
@@ -848,7 +823,7 @@
         "core-kleene-not-definite"
       ],
       "status": "Formalized",
-      "notes": "Belnap negation: exchanges TRUE and FALSE, fixes BOTH and UNKNOWN.",
+      "notes": "Strong Kleene negation: exchanges TRUE and FALSE, fixes UNKNOWN.",
       "semantic_role": "Derived",
       "primitive": false,
       "derived_from": [
@@ -1289,10 +1264,10 @@
         "core-select-chooses-by-truth",
         "core-select-chooses-lane-by-lane",
         "core-select-unknown-truth-chooses-neither",
-        "core-select-both-reconciles"
+        "core-select-conflict-chooses-neither"
       ],
       "status": "Formalized",
-      "notes": "FOUR-honest choice between two values: UNKNOWN chooses neither and answers the absence it read, BOTH chooses both and answers them reconciled. Nothing is evaluated, so the choice is an ordinary lifted operation rather than a control construct.",
+      "notes": "Choice between two values under K3: UNKNOWN chooses neither and answers the absence it read. Nothing is evaluated, so the choice is an ordinary lifted operation rather than a control construct.",
       "semantic_role": "Derived",
       "primitive": false,
       "derived_from": [
@@ -1312,15 +1287,15 @@
         "SPECIFICATION.html §7.5"
       ],
       "law_tests": [
-        "rust/src/interpreter/belnap_truth_conformance_tests.rs"
+        "rust/src/interpreter/reconcile_conformance_tests.rs"
       ],
       "conformance_cases": [
         "core-reconcile-agrees",
-        "core-reconcile-truths-are-both",
+        "core-reconcile-truths-conflict",
         "core-reconcile-conflict"
       ],
       "status": "Formalized",
-      "notes": "What two sources agree on: absence yields, equal values agree, different truth values are BOTH, other different values project NIL(conflict), which absorbs. Associative, commutative and idempotent.",
+      "notes": "What two sources agree on: absence yields, equal values agree, any two different values, truth values included, project NIL(conflict), which absorbs. Associative, commutative and idempotent.",
       "semantic_role": "Derived",
       "primitive": false,
       "derived_from": [

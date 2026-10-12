@@ -328,9 +328,7 @@ fn extract_scalar_from_value(val: &Value) -> Option<Fraction> {
         ValueData::Tensor { data, .. } if data.len() == 1 => Some(data.fraction_at(0)),
         ValueData::Tensor { .. } => None,
         ValueData::Nil(_) => None,
-        ValueData::Boolean(_) | ValueData::Both | ValueData::Symbol(_) | ValueData::Record(_) => {
-            None
-        }
+        ValueData::Boolean(_) | ValueData::Symbol(_) | ValueData::Record(_) => None,
     }
 }
 

@@ -6,12 +6,12 @@
   ],
   "semanticMetadataFrom": "docs/formalization-coverage.json",
   "counts": {
-    "canonicalWords": 78,
-    "semanticKernelWords": 50,
+    "canonicalWords": 77,
+    "semanticKernelWords": 49,
     "standardWords": 28,
-    "corewords": 78,
+    "corewords": 77,
     "surface_forms": 4,
-    "manifestEntries": 82
+    "manifestEntries": 81
   },
   "entries": [
     {
@@ -40,23 +40,6 @@
       "source": "spec/words.json",
       "canonical": "FALSE",
       "coverage_entry_id": "core.false",
-      "semantic_role": "Primitive",
-      "algebraic_family": "boolean-truth",
-      "core_tier": "identity",
-      "derived_from": [
-        "algebra.k3.domain"
-      ],
-      "classification": "Core"
-    },
-    {
-      "id": "core.both",
-      "kind": "coreword",
-      "surface": "BOTH",
-      "family": "truthOrder",
-      "vocabularyTier": "kernel",
-      "source": "spec/words.json",
-      "canonical": "BOTH",
-      "coverage_entry_id": "core.both",
       "semantic_role": "Primitive",
       "algebraic_family": "boolean-truth",
       "core_tier": "identity",

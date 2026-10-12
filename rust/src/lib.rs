@@ -77,9 +77,6 @@ mod zero_shape_laws;
 mod zero_shape_contract_laws;
 
 #[cfg(test)]
-mod zero_shape_lattice_laws;
-
-#[cfg(test)]
 mod arithmetic_operation_tests;
 
 #[cfg(test)]

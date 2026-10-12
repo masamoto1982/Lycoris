@@ -3,7 +3,7 @@
 
 This reference is generated from [`spec/words.json`](../spec/words.json). Runtime catalogs are implementation-validation inputs, not documentation authorities.
 
-Canonical inventory: **78 Words**, of which **50** form the Semantic Kernel and **28** are Standard Words. Every entry below is an ordinary Core Word reached by its plain name; the tier is a design classification, and each Word carries the same contract detail regardless of it. Syntax surfaces are listed in [the generated manifest](word-manifest.json) and are not counted here.
+Canonical inventory: **77 Words**, of which **49** form the Semantic Kernel and **28** are Standard Words. Every entry below is an ordinary Core Word reached by its plain name; the tier is a design classification, and each Word carries the same contract detail regardless of it. Syntax surfaces are listed in [the generated manifest](word-manifest.json) and are not counted here.
 
 ## `TRUE`
 
@@ -31,22 +31,9 @@ The truth value FALSE: `FALSE` is `1 2 EQ`. It is a Boolean, not the number zero
 - **Clauses:** `LANG.VALUES.TRUTH`
 - **Syntax:** `FALSE`
 
-## `BOTH`
-
-The truth value BOTH: a truth told TRUE and told FALSE at once (LANG.VALUES.TRUTH), as `TRUE FALSE RECONCILE` answers. It is a Boolean, so `BOTH NIL?` is `FALSE`; `BOTH NOT` is `BOTH`, `BOTH TRUE AND` is `BOTH`, `BOTH FALSE AND` is `FALSE`, and `BOTH NIL AND` is `FALSE`. `SELECT` given BOTH answers its two candidates reconciled.
-
-- **Vocabulary tier:** Semantic Kernel
-- **Family:** `truthOrder`
-- **Stack:** 0 input(s) → 1 output(s)
-- **NIL policy:** `preserveReason`; projection: none
-- **Purity / determinism:** `pure` / `deterministic`
-- **Effects:** none
-- **Clauses:** `LANG.VALUES.TRUTH`
-- **Syntax:** `BOTH`
-
 ## `AND`
 
-Conjunction under Belnap's four-valued table (LANG.VALUES.TRUTH): `TRUE FALSE AND` is `FALSE`, and element-wise over Vectors, `[ TRUE TRUE ] [ TRUE FALSE ] AND` is `[ TRUE FALSE ]`. A NIL read here is UNKNOWN: FALSE settles the answer against it, `NIL FALSE AND` is `FALSE`, BOTH meets it at FALSE, `BOTH NIL AND` is `FALSE`, and TRUE leaves it UNKNOWN with its reason kept. A disjunction is `a NOT b NOT AND NOT`. An operand that is neither a truth value nor a NIL is `nonTruthValue`.
+Conjunction under the strong Kleene table (LANG.VALUES.TRUTH), SQL's `AND`: `TRUE FALSE AND` is `FALSE`, and element-wise over Vectors, `[ TRUE TRUE ] [ TRUE FALSE ] AND` is `[ TRUE FALSE ]`. A NIL read here is UNKNOWN: FALSE settles the answer against it, `NIL FALSE AND` is `FALSE`, and TRUE leaves it UNKNOWN with its reason kept. A disjunction is `a NOT b NOT AND NOT`. An operand that is neither a truth value nor a NIL is `nonTruthValue`.
 
 - **Vocabulary tier:** Semantic Kernel
 - **Family:** `truthOrder`
@@ -61,7 +48,7 @@ Conjunction under Belnap's four-valued table (LANG.VALUES.TRUTH): `TRUE FALSE AN
 
 ## `NOT`
 
-Negation under Belnap's four-valued table (LANG.VALUES.TRUTH): `TRUE NOT` is `FALSE`, and element-wise over Vectors, `[ TRUE FALSE ] NOT` is `[ FALSE TRUE ]`. BOTH stays BOTH, `BOTH NOT` is `BOTH`, and UNKNOWN — a NIL read here — stays UNKNOWN with its reason kept. An operand that is neither a truth value nor a NIL is `nonTruthValue`.
+Negation under the strong Kleene table (LANG.VALUES.TRUTH), SQL's `NOT`: `TRUE NOT` is `FALSE`, and element-wise over Vectors, `[ TRUE FALSE ] NOT` is `[ FALSE TRUE ]`. UNKNOWN — a NIL read here — stays UNKNOWN with its reason kept. An operand that is neither a truth value nor a NIL is `nonTruthValue`.
 
 - **Vocabulary tier:** Semantic Kernel
 - **Family:** `truthOrder`
@@ -76,7 +63,7 @@ Negation under Belnap's four-valued table (LANG.VALUES.TRUTH): `TRUE NOT` is `FA
 
 ## `SELECT`
 
-Choose between two already-computed values by a truth value: `'yes' 'no' TRUE SELECT` is `'yes'` and `'yes' 'no' FALSE SELECT` is `'no'`. The choice is element-wise (LANG.COLLECTIONS.LIFT), so a Vector of truths weaves two Vectors lane by lane and a one-lane operand is reused across the other's length. An UNKNOWN lane — a NIL read in truth position, whatever its reason — chooses neither and answers that same absence, so the reason survives the choice. A BOTH lane chooses both, answering the two candidates reconciled (RECONCILE): `1 1 BOTH SELECT` is `1`, and two different candidates are a conflict. Both operands are values the program already built: SELECT evaluates nothing, and whatever computed them ran before it, exactly once.
+Choose between two already-computed values by a truth value: `'yes' 'no' TRUE SELECT` is `'yes'` and `'yes' 'no' FALSE SELECT` is `'no'`. The choice is element-wise (LANG.COLLECTIONS.LIFT), so a Vector of truths weaves two Vectors lane by lane and a one-lane operand is reused across the other's length. An UNKNOWN lane — a NIL read in truth position, whatever its reason — chooses neither and answers that same absence, so the reason survives the choice. Both operands are values the program already built: SELECT evaluates nothing, and whatever computed them ran before it, exactly once.
 
 - **Vocabulary tier:** Semantic Kernel
 - **Family:** `truthOrder`
@@ -91,7 +78,7 @@ Choose between two already-computed values by a truth value: `'yes' 'no' TRUE SE
 
 ## `RECONCILE`
 
-What two sources agree on (LANG.VALUES.TRUTH): `1 1 RECONCILE` is `1`, and an absence yields to what the other source holds, `NIL 5 RECONCILE` is `5`. Among numbers `0/0` knows least and yields to the other number (LANG.VALUES.SHAPE): `0/0 5 RECONCILE` is `5`, while `0/0 TRUE RECONCILE` is a conflict. Two different truth values are BOTH, `TRUE FALSE RECONCILE` is `BOTH`; any other two different values have nothing they agree on and project NIL(conflict), `'Tokyo' 'Osaka' RECONCILE NIL-REASON` is `'conflict'`. A conflict is not settled by a third source, so the Word is associative, commutative and idempotent, and a FOLD of it over many sources does not depend on their order. Like EQ it compares its operands whole: `[ 1 2 ] [ 1 3 ] RECONCILE` is a conflict, and a program that reconciles lane by lane ZIPs and MAPs.
+What two sources agree on (LANG.VALUES.TRUTH): `1 1 RECONCILE` is `1`, and an absence yields to what the other source holds, `NIL 5 RECONCILE` is `5`. Among numbers `0/0` knows least and yields to the other number (LANG.VALUES.SHAPE): `0/0 5 RECONCILE` is `5`, while `0/0 TRUE RECONCILE` is a conflict. Any two different values have nothing they agree on and project NIL(conflict), two truth values included: `TRUE FALSE RECONCILE NIL-REASON` is `'conflict'`, as `'Tokyo' 'Osaka' RECONCILE NIL-REASON` is. In truth position that conflict reads as UNKNOWN, its reason saying the sources disagreed rather than that nothing was known. A conflict is not settled by a third source, so the Word is associative, commutative and idempotent, and a FOLD of it over many sources does not depend on their order. Like EQ it compares its operands whole: `[ 1 2 ] [ 1 3 ] RECONCILE` is a conflict, and a program that reconciles lane by lane ZIPs and MAPs.
 
 - **Vocabulary tier:** Semantic Kernel
 - **Family:** `knowledgeOrder`
@@ -746,7 +733,7 @@ A block applied to each element of a Vector, in order, answering a Vector of the
 
 ## `FILTER`
 
-The elements of a Vector for which a predicate block answers TRUE or BOTH, in order: `[ 1 2 3 4 ] [ 2 GT ] FILTER` is `[ 3 4 ]`. The block's answer is read as a truth value, BOTH keeps the element as TRUE does, since it was told true, and an UNKNOWN drops it like FALSE does. A non-Vector is `nonVector`, a non-block `notExecutable`, a block that leaves other than exactly one value `blockContractViolation`, and an answer that is not a truth value `nonTruthValue`.
+The elements of a Vector for which a predicate block answers TRUE, in order: `[ 1 2 3 4 ] [ 2 GT ] FILTER` is `[ 3 4 ]`. The block's answer is read as a truth value, and an UNKNOWN drops the element as FALSE does, as an SQL WHERE clause drops a row whose condition is unknown: `[ 1 0/0 2 ] [ 0 GT ] FILTER` is `[ 1 2 ]`. A non-Vector is `nonVector`, a non-block `notExecutable`, a block that leaves other than exactly one value `blockContractViolation`, and an answer that is not a truth value `nonTruthValue`.
 
 - **Vocabulary tier:** Standard (`operational`)
 - **Family:** `higherOrder`
@@ -970,7 +957,7 @@ Read JSON text into a value: `'[1, 2]' JSON-DECODE` is `[ 1 2 ]`. An object beco
 
 ## `JSON-ENCODE`
 
-Write a value as JSON text, the inverse of `JSON-DECODE`: a Record with String keys becomes an object in key order, a Vector an array, a String a string, a Boolean `true`/`false`, a NIL `null`. A rational with a finite decimal spelling (a denominator of the form 2^a·5^b) is written as a JSON number exactly — `1/4` is `0.25` — and every other number is written as its Ajisai lexeme inside a string, `1/3` as `"1/3"` and `1/0` as `"1/0"`, so no digit is ever rounded away: the encoder is not a place a value silently loses precision. A value with no JSON image — a Symbol, BOTH, an irrational, a Record with a non-String key — projects `domainMiss`. The round trip through `JSON-DECODE` is therefore not the identity for those numbers: JSON has no exact rational, so a number written as a lexeme comes back as that String, and `[ 1/3 1/4 ] JSON-ENCODE JSON-DECODE` is `[ '1/3' 1/4 ]` — a String in the first lane, where the sender must apply `NUM` to recover the number. Every other value with a JSON image comes back as it was given.
+Write a value as JSON text, the inverse of `JSON-DECODE`: a Record with String keys becomes an object in key order, a Vector an array, a String a string, a Boolean `true`/`false`, a NIL `null`. A rational with a finite decimal spelling (a denominator of the form 2^a·5^b) is written as a JSON number exactly — `1/4` is `0.25` — and every other number is written as its Ajisai lexeme inside a string, `1/3` as `"1/3"` and `1/0` as `"1/0"`, so no digit is ever rounded away: the encoder is not a place a value silently loses precision. A value with no JSON image — a Symbol, an irrational, a Record with a non-String key — projects `domainMiss`. The round trip through `JSON-DECODE` is therefore not the identity for those numbers: JSON has no exact rational, so a number written as a lexeme comes back as that String, and `[ 1/3 1/4 ] JSON-ENCODE JSON-DECODE` is `[ '1/3' 1/4 ]` — a String in the first lane, where the sender must apply `NUM` to recover the number. Every other value with a JSON image comes back as it was given.
 
 - **Vocabulary tier:** Standard (`algorithm`)
 - **Family:** `text`

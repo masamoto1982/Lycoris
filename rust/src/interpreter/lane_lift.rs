@@ -270,19 +270,13 @@ mod tests {
     fn the_flat_loop_agrees_with_the_general_walk() {
         let t = Value::from_bool(true);
         let f = Value::from_bool(false);
-        let leaves = [
-            t.clone(),
-            f.clone(),
-            Value::both(),
-            Value::nil(),
-            Value::from_int(7),
-        ];
+        let leaves = [t.clone(), f.clone(), Value::nil(), Value::from_int(7)];
         let vector = |items: &[Value]| Value::from_vector(items.to_vec());
         let mut operands = leaves.to_vec();
         operands.extend([
             vector(&[]),
             vector(std::slice::from_ref(&t)),
-            vector(&[t.clone(), f.clone(), Value::both()]),
+            vector(&[t.clone(), f.clone(), Value::nil()]),
             vector(&[Value::nil(), t.clone(), f.clone()]),
             vector(&[t.clone(), f.clone()]),
             vector(&[vector(std::slice::from_ref(&t)), f.clone(), t.clone()]),

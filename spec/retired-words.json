@@ -25,6 +25,10 @@
     {
       "reason": "Gave their slots to the four-valued truth domain (2026-10): BOTH and RECONCILE took the head of the retirement queue in scripts/check-minimal-core.mjs. Both were derivable Standards with no recorded use: INDEX-OF is a first match over GET and EQ, and MEMBER? the same chain answering a truth value.",
       "names": ["MEMBER?", "INDEX-OF"]
+    },
+    {
+      "reason": "The three-valued downgrade (2026-10): the truth domain is SQL's strong Kleene logic, TRUE, FALSE and UNKNOWN. BOTH was Belnap's fourth value; two sources that disagree on a truth value now meet as any two disagreeing values do, in NIL(conflict), whose reason keeps what BOTH said. See docs/dev/three-valued-truth.md.",
+      "names": ["BOTH"]
     }
   ]
 }

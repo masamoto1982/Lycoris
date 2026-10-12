@@ -57,7 +57,6 @@ fn compile_symbol(token: &Token, symbol: &str, interp: &Interpreter) -> Compiled
     match symbol {
         "TRUE" => CompiledOp::PushWordLiteral(Value::from_bool(true), "TRUE"),
         "FALSE" => CompiledOp::PushWordLiteral(Value::from_bool(false), "FALSE"),
-        "BOTH" => CompiledOp::PushWordLiteral(Value::both(), "BOTH"),
         "NIL" => CompiledOp::PushWordLiteral(Value::nil(), "NIL"),
         _ => {
             if lookup_builtin_spec(symbol).is_some() {
@@ -125,7 +124,6 @@ fn try_collect_literal_vector(
                 match Interpreter::normalize_symbol(s).as_ref() {
                     "TRUE" => values.push(Value::from_bool(true)),
                     "FALSE" => values.push(Value::from_bool(false)),
-                    "BOTH" => values.push(Value::both()),
                     "NIL" => values.push(Value::nil()),
                     // LANG.VALUES.VECTOR: a name inside a Vector literal
                     // denotes a Symbol — data until something executes it —

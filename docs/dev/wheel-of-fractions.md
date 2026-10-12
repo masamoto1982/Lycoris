@@ -50,4 +50,4 @@ README の「超実数算術を体に制限したもの」という記述も事�
 - `SORT` などは順序のない要素が一つでもあれば全体が `domainMiss`。要素ごとの演算とは
   違い、答えが全要素の順序に依存するので、README にそう書いた。
 - `BOTH` を渡された `SELECT` は二つの候補を `RECONCILE` した値を答える（等しければ
-  その値、違えば `conflict`）。三値化の PR で扱う。
+  その値、違えば `conflict`）。三値化の PR で BOTH ごと廃止した（`three-valued-truth.md`）。
