@@ -37,7 +37,7 @@
         "different"
       ],
       "total": true,
-      "note": "LANG.VALUES.EXACT fixes this domain by a condition that includes deciding equality in finite time, so `unknown` is unreachable here — not because this clause forbids it but because a normal form that did not decide would not meet the condition. The three points over zero decide too: identity is denotation, and `0/0` is one value, however it was reached. Order is another question, and the one `0/0` does not answer; that is a projection of the Word asking (LANG.VALUES.EXACT), not an identity outcome.",
+      "note": "LANG.VALUES.EXACT fixes this domain by a condition that includes deciding equality in finite time, so `unknown` is unreachable here — not because this clause forbids it but because a normal form that did not decide would not meet the condition. The two points over zero decide too: identity is denotation, and `1/0` and `0/0` are each one value, however they were reached. Order is another question, and the one the two points do not answer; that is a projection of the Word asking (LANG.VALUES.EXACT), not an identity outcome.",
       "witnesses": [
         {
           "source": "8 SQRT 2 SQRT 2 SQRT ADD EQ",
@@ -50,9 +50,9 @@
           "note": "Decided, and decided negatively — `different` is a real answer at this level, not a default."
         },
         {
-          "source": "100 0 DIV 1/0 EQ 0/0 0/0 EQ 1/0 -1/0 EQ",
+          "source": "100 0 DIV -5 0 DIV EQ 0/0 0/0 EQ 1/0 0/0 EQ",
           "expect": "TRUE TRUE FALSE",
-          "note": "Every pair over zero reduces to its sign over zero, so two quotients by zero of one sign are one value, 0/0 is one value, and the two signs are two values."
+          "note": "Every pair over zero reduces to one of two points, so every quotient of a nonzero number by zero is the one value 1/0 whatever its sign, 0/0 is one value, and the two points are two values."
         }
       ]
     },

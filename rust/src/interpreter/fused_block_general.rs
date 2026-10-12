@@ -16,7 +16,7 @@
 //! - A Word run by its plain law (`fusion_contract`) charges what that law
 //!   reports, which is what its dispatch charges.
 //!
-//! The three points over zero are numbers here like any other: `ADD`/`SUB`/
+//! The two points over zero are numbers here like any other: `ADD`/`SUB`/
 //! `MUL`/`DIV` answer them, and a zero divisor, by the `Fraction`'s total
 //! arithmetic, as the fast path does. An operand outside the domain a Word
 //! accepts is that Word's ERROR, and an order asked of `0/0` its `domainMiss`

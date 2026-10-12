@@ -139,7 +139,7 @@ pub(crate) fn op_max(interp: &mut Interpreter) -> Result<()> {
 /// multiquadratic normal form, so it compares and decides with no rounding.
 /// `1/0` and `0/0` are their own roots.
 ///
-/// A negative radicand (`-1/0` included) is a well-formed domain miss: the
+/// A negative radicand is a well-formed domain miss: the
 /// multiquadratic field is not closed under it, so the operation projects to
 /// NIL rather than raising (LANG.FAILURE.PROJECT). It is recoverable — a
 /// different input resolves it.

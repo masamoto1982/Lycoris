@@ -130,7 +130,7 @@ pub(crate) fn op_format(interp: &mut Interpreter) -> Result<()> {
         interp.stack.extend(operands);
         return Err(e);
     }
-    // No decimal lies at or beyond the three points over zero, so there is
+    // No decimal lies at or beyond the two points over zero, so there is
     // no text to render: a well-formed operand outside the operation's
     // domain projects `domainMiss`, as `STR` does for an irrational.
     if !x.is_finite() {

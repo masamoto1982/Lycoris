@@ -108,7 +108,7 @@
                     <p>厳密な数と、それを運ぶスタック。この形が定まったとき、私の脳裏に浮かんだのは「器に注がれた水」の情景でした。器を満たすのは、決して丸められることのない水だけです。しかし、AIとともにその水面へ広げていく波紋のかたちに、際限はありません。</p>
                     <p>奇しくも、「水の器」を学名の語源に持つ花があります。紫陽花(あじさい)です。開発を始めたのは、雨が降り続く日本の6月、梅雨の時期でした。Ajisaiは、その情景を思い浮かべながらつくった言語です。</p>
                     <h3>数値の厳密性</h3>
-                    <p>すべての数値は厳密に扱われます。値は厳密な有理数と、それらを<code>SQRT</code>で閉じたときに生じる代数的無理数、すなわち多重二次正規形として保持されます。算術も比較も丸め誤差なしに実行されます。なお、スタック表示の<code>sqrt(2)</code>や<code>1/1+sqrt(2)</code>は正規形をそのまま一つのトークンとして書いた表示であり、打ち切りも近似もありません。Playgroundのスタック領域も同じトークンをそのまま表示します。除算も例外ではなく全域的です。ゼロで割ってもプログラムは止まらず、被除数の符号を0の上に置いた数、すなわち<code>1/0</code>、<code>-1/0</code>、<code>0/0</code>の3つのうちの1つが答えになります(<a href="#division-by-zero">ゼロで割る</a>)。</p>
+                    <p>すべての数値は厳密に扱われます。値は厳密な有理数と、それらを<code>SQRT</code>で閉じたときに生じる代数的無理数、すなわち多重二次正規形として保持されます。算術も比較も丸め誤差なしに実行されます。なお、スタック表示の<code>sqrt(2)</code>や<code>1/1+sqrt(2)</code>は正規形をそのまま一つのトークンとして書いた表示であり、打ち切りも近似もありません。Playgroundのスタック領域も同じトークンをそのまま表示します。除算も例外ではなく全域的です。ゼロで割ってもプログラムは止まらず、0の上の点が答えになります。被除数が0でなければ符号によらず<code>1/0</code>、0なら<code>0/0</code>です(<a href="#division-by-zero">ゼロで割る</a>)。</p>
                     <h3>本リファレンスの特徴</h3>
                     <p>本書では、各機能を検証済みの短いサンプルコードとともに解説します。すべての例には<strong>「Playgroundで開く」</strong>ボタンが用意されており、クリックするだけでアプリのエディタにコードが読み込まれ、実際の挙動をすぐに確認できます。</p>
                     <p>本書は、プログラムを要素に分け、要素をさらに分けられる限り分けていく順に述べます。分けていった先にあるのが個々のワードで、そこで本書は終わります。</p>
@@ -742,8 +742,8 @@
                     <p>無理数の表示形式は1つです。値の正規形を空白なしの一つのトークンとして書きます。<code>2 SQRT</code>は<code>sqrt(2)</code>、<code>1 2 SQRT ADD</code>は<code>1/1+sqrt(2)</code>、<code>2 SQRT 3 SQRT SUB</code>は<code>sqrt(2)-sqrt(3)</code>、<code>8 SQRT</code>は<code>2/1*sqrt(2)</code>です(根号の中は平方因子を持たない形に正規化されます)。打ち切りも近似もなく、ベクトルの中でも一要素として読めます。CLIやMCPホストの<code>stackDisplay</code>も、Playgroundのスタック領域も、この同じトークンを表示します。CLIとMCPでは同じ項が<code>semantics.exactTerms</code>に構造化されて並びます。</p>
                     <p class="ref-note">これは表示専用の出力であり、ソースコードの構文ではありません。<code>sqrt(2)</code>をプログラムに書いても未知の名前です。<code>(</code> <code>)</code>は構文ではなく名前の文字なので、プログラム中に書いても括弧としては働きません。</p>
                     <h3 id="division-by-zero">ゼロで割る</h3>
-                    <p>すべての数は非負の分母を持つ既約な整数の組であり、<code>DIV</code>は全域的です。除算は逆数との積であり、すべての数は逆数を持ちます。ゼロで割ってもプログラムは止まらず、不在も生まれません。答えは被除数の符号を0の上に置いた数です。<code>n</code>と<code>0</code>の最大公約数は<code>|n|</code>なので、0の上のすべての組はちょうど3つの数、<code>1/0</code>、<code>-1/0</code>、<code>0/0</code>のいずれかに簡約されます。<code>100 0 DIV</code>が<code>1/0</code>なのは<code>4/2</code>が<code>2/1</code>なのと同じ理由であり、<code>1/0</code>は<code>1/2</code>と同じくリテラルです。この3つの点は、ほかのすべての数と同じ分数の公式で計算されます。<code>1/0 5 ADD</code>は<code>1/0</code>、<code>1 1/0 DIV</code>は<code>0</code>、<code>1/0 1/0 ADD</code>は<code>0/0</code>。<code>-1/0</code>はほかのすべての数より下に、<code>1/0</code>は上にあります。<code>0/0</code>は出会うすべてを吸収し、順序の中に場所を持たないので、その順序を問う比較は<code>NIL</code>(<code>domainMiss</code>)を投影し、「不明」と読まれます(<a href="#logic">四値論理</a>)。ベクトルでは、ゼロで割られた要素だけが0の上の点になり、隣の要素は普通の商のままです。</p>
-                    <p class="ref-note">この3つの点でだけ、0に言及する体の法則が成り立たなくなります。<code>0 1/0 MUL</code>は<code>0</code>ではなく<code>0/0</code>、<code>1/0 1/0 SUB</code>も<code>0</code>ではなく<code>0/0</code>で、分配法則もそこでは破れます。機械はこれらを特別扱いで取り戻しません。点に到達してはならないプログラムは先に除数を調べ、到達したプログラムはそのまま計算を続けます。<code>EQ</code>は依然として決定し、<code>0/0 0/0 EQ</code>は<code>TRUE</code>です。</p>
+                    <p>すべての数は、0でない因数の違いを同一視した整数の組(分数の輪)であり、非負の分母を持つ既約な形で書かれます。<code>DIV</code>は全域的です。除算は逆数との積であり、すべての数は逆数を持ちます。ゼロで割ってもプログラムは止まらず、不在も生まれません。<code>n</code>と<code>0</code>の最大公約数は<code>|n|</code>であり、因数<code>-1</code>が<code>1/0</code>と<code>-1/0</code>を結ぶので、0の上のすべての組はちょうど2つの数、符号のない唯一の無限遠点<code>1/0</code>と<code>0/0</code>のいずれかに簡約されます。<code>100 0 DIV</code>も<code>-5 0 DIV</code>も<code>1/0</code>なのは<code>4/2</code>が<code>2/1</code>なのと同じ理由であり、<code>1/0</code>は<code>1/2</code>と同じくリテラルです。この2つの点は、ほかのすべての数と同じ分数の公式で計算されます。<code>1/0 5 ADD</code>は<code>1/0</code>、<code>1 1/0 DIV</code>は<code>0</code>、<code>1/0 1/0 ADD</code>は<code>0/0</code>で、逆数の逆数は常に元の数に戻ります。どちらの点も順序の中に場所を持ちません。<code>1/0</code>には符号がなく、<code>0/0</code>は出会うすべてを吸収します。そのため、その順序を問う比較は<code>NIL</code>(<code>domainMiss</code>)を投影し、「不明」と読まれます(<a href="#logic">四値論理</a>)。ベクトルでは、ゼロで割られた要素だけが0の上の点になり、隣の要素は普通の商のままです。</p>
+                    <p class="ref-note">この2つの点でだけ、0に言及する体の法則が成り立たなくなります。<code>0 1/0 MUL</code>は<code>0</code>ではなく<code>0/0</code>、<code>1/0 1/0 SUB</code>も<code>0</code>ではなく<code>0/0</code>で、分配法則もそこでは破れます。機械はこれらを特別扱いで取り戻しません。点に到達してはならないプログラムは先に除数を調べ、到達したプログラムはそのまま計算を続けます。<code>EQ</code>は依然として決定し、<code>0/0 0/0 EQ</code>は<code>TRUE</code>です。</p>
                     <div class="sample">
                         <div class="ref-table-wrap">
                         <table class="ref-table">
@@ -771,14 +771,14 @@
                             </thead>
                             <tbody>
                                 <tr>
-                                    <td><code>1 0 DIV 1 GT</code></td>
+                                    <td><code>-1 0 DIV 1 0 DIV EQ</code></td>
                                     <td><code>TRUE</code></td>
-                                    <td class="notes"><code>1/0</code>はほかのすべての数より上にあるので、順序が決まる。</td>
+                                    <td class="notes">割られた数の符号によらず無限遠点は1つであり、等しさは決まる。</td>
                                 </tr>
                                 <tr>
-                                    <td><code>0 0 DIV 1 GT</code></td>
+                                    <td><code>1 0 DIV 1 GT</code></td>
                                     <td><code>NIL</code></td>
-                                    <td class="notes"><code>0/0</code>は順序の中に場所を持たないので比較は不明。理由<code>domainMiss</code>の<code>NIL</code>になる。</td>
+                                    <td class="notes"><code>1/0</code>は順序の中に場所を持たないので比較は不明。理由<code>domainMiss</code>の<code>NIL</code>になる。<code>0/0</code>も同じ。</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -1509,7 +1509,7 @@ FILTER</code></td>
                         <li><strong>丸め処理</strong>: <code>FLOOR</code>(切り捨て)、<code>ROUND</code>(最も近い整数へ。ちょうど半分は0から遠い側へ)。切り上げは<code>x -1 MUL FLOOR -1 MUL</code>と書きます。</li>
                         <li><strong>格子への丸め</strong>: <code>x d MUL 1/2 ADD FLOOR d DIV</code>は値を<code>1/d</code>の倍数に丸めます。ループ処理や反復計算で分母の肥大化を止めるのに使います。詳しくは<a href="#iterative">反復のコスト</a>を参照してください。</li>
                     </ul>
-                    <p class="ref-note">ゼロ除算が発生してもプログラムはクラッシュせず、不在も生まれません。該当する要素はその符号を0の上に置いた数になり、隣の要素は商のままです。除算の後に続くワードは、その点を同じ分数の公式で計算します。詳しくは<a href="#division-by-zero">ゼロで割る</a>を参照してください。</p>
+                    <p class="ref-note">ゼロ除算が発生してもプログラムはクラッシュせず、不在も生まれません。該当する要素は0の上の点という数になり、隣の要素は商のままです。除算の後に続くワードは、その点を同じ分数の公式で計算します。詳しくは<a href="#division-by-zero">ゼロで割る</a>を参照してください。</p>
                     <div class="sample">
                         <div class="ref-table-wrap">
                         <table class="ref-table">
@@ -1686,7 +1686,7 @@ FILTER</code></td>
                         </div>
                     </div>
                     <h3>厳密な比較</h3>
-                    <p class="ref-note">比較は、有理数も平方根も含め、ワードが組み立てられるすべての値にわたって厳密に決定します。したがって比較は常に有限時間で<code>TRUE</code>か<code>FALSE</code>を返します。例外は1つだけで、<code>0/0</code>は順序の中に場所を持たないので、それに順序を問うと<code>NIL</code>(<code>domainMiss</code>)を答えます。</p>
+                    <p class="ref-note">比較は、有理数も平方根も含め、ワードが組み立てられるすべての値にわたって厳密に決定します。したがって比較は常に有限時間で<code>TRUE</code>か<code>FALSE</code>を返します。例外は1つだけで、0の上の2つの点<code>1/0</code>と<code>0/0</code>は順序の中に場所を持たないので、それに順序を問うと<code>NIL</code>(<code>domainMiss</code>)を答えます。</p>
 
                     <h3 id="logic">論理</h3>
                     <p>Ajisaiの真理値はベルナップの四値です。<code>TRUE</code>、<code>FALSE</code>、<code>BOTH</code>(真とも偽とも告げられた値)、UNKNOWN(真偽の位置で読まれた<code>NIL</code>)の4つを、<code>AND</code>と<code>NOT</code>という2つの論理ワードで合成します。どちらも、ほかのワードと同じく綴りのまま書きます。論理和はド・モルガンの法則どおり<code>a NOT b NOT AND NOT</code>と書きます。<code>NOT</code>は<code>TRUE</code>と<code>FALSE</code>を入れ替え、<code>BOTH</code>とUNKNOWNはそのままにします。<code>BOTH</code>とUNKNOWNの<code>AND</code>は<code>FALSE</code>です。</p>
@@ -1896,7 +1896,7 @@ FILTER</code></td>
 </div>
 <div class="word-entry" id="word-LT">
 <h4><code>LT</code> <span class="word-tier">Semantic Kernel</span></h4>
-<p>左の数が右より小さいかどうか。<code>1 2 LT</code>は<code>TRUE</code>で、ベクトルには要素ごとに働き、<code>[ 1 5 ] 3 LT</code>は<code>[ TRUE FALSE ]</code>。厳密な定義域の上の順序が決める(LANG.VALUES.EXACT)。無理数も含まれ、<code>2 SQRT 3/2 LT</code>は<code>TRUE</code>。<code>-1/0</code>は他のすべての数より下に、<code>1/0</code>は上にある。<code>0/0</code>だけは順序を持たないので、それを問う比較はNIL(domainMiss)を投影する。<code>0/0 1 LT</code>は、真偽の位置で不在が読まれるUNKNOWNである(LANG.VALUES.TRUTH)。順序があるのは数だけで、それ以外は<code>nonNumeric</code>。</p>
+<p>左の数が右より小さいかどうか。<code>1 2 LT</code>は<code>TRUE</code>で、ベクトルには要素ごとに働き、<code>[ 1 5 ] 3 LT</code>は<code>[ TRUE FALSE ]</code>。厳密な定義域の上の順序が決める(LANG.VALUES.EXACT)。無理数も含まれ、<code>2 SQRT 3/2 LT</code>は<code>TRUE</code>。0の上の2つの点はどちらも順序を持たない。<code>1/0</code>は符号のない唯一の無限遠点、<code>0/0</code>は輪の底である。それを問う比較はNIL(domainMiss)を投影する。<code>1/0 1 LT</code>は、真偽の位置で不在が読まれるUNKNOWNである(LANG.VALUES.TRUTH)。順序があるのは数だけで、それ以外は<code>nonNumeric</code>。</p>
 <dl class="word-contract">
 <dt>構文</dt><dd><code>1 2 LT</code></dd>
 <dt>スタック効果</dt><dd><span class="notation">[ a ] [ b ] -&gt; [ TRUE | FALSE ]</span></dd>
@@ -1913,7 +1913,7 @@ FILTER</code></td>
 </div>
 <div class="word-entry" id="word-GT">
 <h4><code>GT</code> <span class="word-tier">Semantic Kernel</span></h4>
-<p>左の数が右より大きいかどうか。<code>2 1 GT</code>は<code>TRUE</code>で、ベクトルには要素ごとに働き、<code>[ 1 5 ] 3 GT</code>は<code>[ FALSE TRUE ]</code>。厳密な定義域の上の順序が決める(LANG.VALUES.EXACT)。無理数も含まれ、<code>2 SQRT 3/2 LT</code>は<code>TRUE</code>。<code>-1/0</code>は他のすべての数より下に、<code>1/0</code>は上にある。<code>0/0</code>だけは順序を持たないので、それを問う比較はNIL(domainMiss)を投影する。<code>0/0 1 GT</code>は、真偽の位置で不在が読まれるUNKNOWNである(LANG.VALUES.TRUTH)。順序があるのは数だけで、それ以外は<code>nonNumeric</code>。</p>
+<p>左の数が右より大きいかどうか。<code>2 1 GT</code>は<code>TRUE</code>で、ベクトルには要素ごとに働き、<code>[ 1 5 ] 3 GT</code>は<code>[ FALSE TRUE ]</code>。厳密な定義域の上の順序が決める(LANG.VALUES.EXACT)。無理数も含まれ、<code>2 SQRT 3/2 LT</code>は<code>TRUE</code>。0の上の2つの点はどちらも順序を持たない。<code>1/0</code>は符号のない唯一の無限遠点、<code>0/0</code>は輪の底である。それを問う比較はNIL(domainMiss)を投影する。<code>1/0 1 GT</code>は、真偽の位置で不在が読まれるUNKNOWNである(LANG.VALUES.TRUTH)。順序があるのは数だけで、それ以外は<code>nonNumeric</code>。</p>
 <dl class="word-contract">
 <dt>構文</dt><dd><code>2 1 GT</code></dd>
 <dt>スタック効果</dt><dd><span class="notation">[ a ] [ b ] -&gt; [ TRUE | FALSE ]</span></dd>
@@ -1930,7 +1930,7 @@ FILTER</code></td>
 </div>
 <div class="word-entry" id="word-MIN">
 <h4><code>MIN</code> <span class="word-tier">Standard · namedPattern</span></h4>
-<p>2つの数の小さい方。<code>1 2 MIN</code>は<code>1</code>で、ベクトルにはブロードキャスト付きで要素ごとに働き、<code>[ 3 1 ] 2 MIN</code>は<code>[ 2 1 ]</code>。順序は厳密な定義域のもの(LANG.VALUES.EXACT)。<code>-1/0 5 MIN</code>は<code>-1/0</code>で、順序を持たない<code>0/0</code>はLTと同じくNIL(domainMiss)を投影する。数でないものは<code>nonNumeric</code>。</p>
+<p>2つの数の小さい方。<code>1 2 MIN</code>は<code>1</code>で、ベクトルにはブロードキャスト付きで要素ごとに働き、<code>[ 3 1 ] 2 MIN</code>は<code>[ 2 1 ]</code>。順序は厳密な定義域のもの(LANG.VALUES.EXACT)。<code>-1 5 MIN</code>は<code>-1</code>で、順序を持たない0の上の点(<code>1/0</code>または<code>0/0</code>)はLTと同じくNIL(domainMiss)を投影する。数でないものは<code>nonNumeric</code>。</p>
 <dl class="word-contract">
 <dt>構文</dt><dd><code>1 2 MIN</code></dd>
 <dt>スタック効果</dt><dd><span class="notation">[ a ] [ b ] -&gt; [ min ]</span></dd>
@@ -1947,7 +1947,7 @@ FILTER</code></td>
 </div>
 <div class="word-entry" id="word-MAX">
 <h4><code>MAX</code> <span class="word-tier">Standard · namedPattern</span></h4>
-<p>2つの数の大きい方。<code>1 2 MAX</code>は<code>2</code>で、ベクトルにはブロードキャスト付きで要素ごとに働き、<code>[ -1 2 -3 ] 0 MAX</code>は<code>[ 0 2 0 ]</code>。順序は厳密な定義域のもの(LANG.VALUES.EXACT)。<code>1/0 5 MAX</code>は<code>1/0</code>で、順序を持たない<code>0/0</code>はGTと同じくNIL(domainMiss)を投影する。数でないものは<code>nonNumeric</code>。</p>
+<p>2つの数の大きい方。<code>1 2 MAX</code>は<code>2</code>で、ベクトルにはブロードキャスト付きで要素ごとに働き、<code>[ -1 2 -3 ] 0 MAX</code>は<code>[ 0 2 0 ]</code>。順序は厳密な定義域のもの(LANG.VALUES.EXACT)。<code>-1 5 MAX</code>は<code>5</code>で、順序を持たない0の上の点(<code>1/0</code>または<code>0/0</code>)はGTと同じくNIL(domainMiss)を投影する。数でないものは<code>nonNumeric</code>。</p>
 <dl class="word-contract">
 <dt>構文</dt><dd><code>1 2 MAX</code></dd>
 <dt>スタック効果</dt><dd><span class="notation">[ a ] [ b ] -&gt; [ max ]</span></dd>
@@ -1981,7 +1981,7 @@ FILTER</code></td>
 </div>
 <div class="word-entry" id="word-ADD">
 <h4><code>ADD</code> <span class="word-tier">Semantic Kernel</span></h4>
-<p>厳密な和。<code>1/3 1/6 ADD</code>は<code>1/2</code>で、ベクトルにはブロードキャスト付きで要素ごとに働き(LANG.COLLECTIONS.LIFT)、<code>[ 1 2 ] 10 ADD</code>は<code>[ 11 12 ]</code>。何も丸められない。<code>2 SQRT 2 SQRT ADD</code>は<code>8 SQRT</code>。0の上の3つの点も同じ分数の公式で決まる。<code>1/0 5 ADD</code>は<code>1/0</code>、<code>1/0 1/0 ADD</code>は<code>0/0</code>(LANG.VALUES.EXACT)。数でないものは<code>nonNumeric</code>。</p>
+<p>厳密な和。<code>1/3 1/6 ADD</code>は<code>1/2</code>で、ベクトルにはブロードキャスト付きで要素ごとに働き(LANG.COLLECTIONS.LIFT)、<code>[ 1 2 ] 10 ADD</code>は<code>[ 11 12 ]</code>。何も丸められない。<code>2 SQRT 2 SQRT ADD</code>は<code>8 SQRT</code>。0の上の2つの点も同じ分数の公式で決まる。<code>1/0 5 ADD</code>は<code>1/0</code>、<code>1/0 1/0 ADD</code>は<code>0/0</code>(LANG.VALUES.EXACT)。数でないものは<code>nonNumeric</code>。</p>
 <dl class="word-contract">
 <dt>構文</dt><dd><code>1 2 ADD</code></dd>
 <dt>スタック効果</dt><dd><span class="notation">[ a ] [ b ] -&gt; [ a + b ]</span></dd>
@@ -2015,7 +2015,7 @@ FILTER</code></td>
 </div>
 <div class="word-entry" id="word-MUL">
 <h4><code>MUL</code> <span class="word-tier">Semantic Kernel</span></h4>
-<p>厳密な積。<code>2/3 3/4 MUL</code>は<code>1/2</code>で、ベクトルにはブロードキャスト付きで要素ごとに働き(LANG.COLLECTIONS.LIFT)、<code>[ 1 2 3 ] [ 10 ] MUL</code>は<code>[ 10 20 30 ]</code>。0の上の3つの点も同じ分数の公式で決まる。<code>1/0 -2 MUL</code>は<code>-1/0</code>、<code>1/0 0 MUL</code>は<code>0/0</code>(LANG.VALUES.EXACT)。数でないものは<code>nonNumeric</code>。</p>
+<p>厳密な積。<code>2/3 3/4 MUL</code>は<code>1/2</code>で、ベクトルにはブロードキャスト付きで要素ごとに働き(LANG.COLLECTIONS.LIFT)、<code>[ 1 2 3 ] [ 10 ] MUL</code>は<code>[ 10 20 30 ]</code>。0の上の2つの点も同じ分数の公式で決まる。<code>1/0 -2 MUL</code>は<code>1/0</code>、<code>1/0 0 MUL</code>は<code>0/0</code>(LANG.VALUES.EXACT)。数でないものは<code>nonNumeric</code>。</p>
 <dl class="word-contract">
 <dt>構文</dt><dd><code>2 4 MUL</code></dd>
 <dt>スタック効果</dt><dd><span class="notation">[ a ] [ b ] -&gt; [ a * b ]</span></dd>
@@ -2032,7 +2032,7 @@ FILTER</code></td>
 </div>
 <div class="word-entry" id="word-DIV">
 <h4><code>DIV</code> <span class="word-tier">Semantic Kernel</span></h4>
-<p>厳密な商(左を右で割る)。<code>1 3 DIV</code>は厳密に<code>1/3</code>。ベクトルにはブロードキャスト付きで要素ごとに働き(LANG.COLLECTIONS.LIFT)、<code>[ 2 4 ] 2 DIV</code>は<code>[ 1 2 ]</code>。除算は全域的である(LANG.VALUES.EXACT)。逆数との積であり、すべての数は逆数を持つ。除数が0なら、被除数の符号を0の上に置いた点を自分のレーンだけに答え、他のレーンには触れない。<code>[ 1 -2 0 ] 0 DIV</code>は<code>[ 1/0 -1/0 0/0 ]</code>、<code>1 1/0 DIV</code>は<code>0</code>。隣のレーンは商のままであり、後続のワードはその点を同じ分数の公式で計算するので、<code>1 0 DIV 2 MUL</code>は<code>1/0</code>、<code>1 0 DIV 0 MUL</code>は<code>0/0</code>。数でないものは<code>nonNumeric</code>。</p>
+<p>厳密な商(左を右で割る)。<code>1 3 DIV</code>は厳密に<code>1/3</code>。ベクトルにはブロードキャスト付きで要素ごとに働き(LANG.COLLECTIONS.LIFT)、<code>[ 2 4 ] 2 DIV</code>は<code>[ 1 2 ]</code>。除算は全域的である(LANG.VALUES.EXACT)。逆数との積であり、すべての数は逆数を持つ。除数が0なら、0の上の点を自分のレーンだけに答え、他のレーンには触れない。被除数が0でなければ符号によらず<code>1/0</code>、0なら<code>0/0</code>なので、<code>[ 1 -2 0 ] 0 DIV</code>は<code>[ 1/0 1/0 0/0 ]</code>、<code>1 1/0 DIV</code>は<code>0</code>。隣のレーンは商のままであり、後続のワードはその点を同じ分数の公式で計算するので、<code>1 0 DIV 2 MUL</code>は<code>1/0</code>、<code>1 0 DIV 0 MUL</code>は<code>0/0</code>。数でないものは<code>nonNumeric</code>。</p>
 <dl class="word-contract">
 <dt>構文</dt><dd><code>10 2 DIV</code></dd>
 <dt>スタック効果</dt><dd><span class="notation">[ a ] [ b ] -&gt; [ a / b ]</span></dd>
@@ -2049,7 +2049,7 @@ FILTER</code></td>
 </div>
 <div class="word-entry" id="word-FLOOR">
 <h4><code>FLOOR</code> <span class="word-tier">Semantic Kernel</span></h4>
-<p>その数を超えない最大の整数。<code>7/3 FLOOR</code>は<code>2</code>、<code>-7/3 FLOOR</code>は<code>-3</code>で、ベクトルには要素ごとに働く。無理数も厳密に切り捨てられる。<code>2 SQRT FLOOR</code>は<code>1</code>。0の上の3つの点には、その位置やその先に整数がないので、それぞれが自分自身の床である。<code>1/0 FLOOR</code>は<code>1/0</code>。数でないものは<code>nonNumeric</code>。</p>
+<p>その数を超えない最大の整数。<code>7/3 FLOOR</code>は<code>2</code>、<code>-7/3 FLOOR</code>は<code>-3</code>で、ベクトルには要素ごとに働く。無理数も厳密に切り捨てられる。<code>2 SQRT FLOOR</code>は<code>1</code>。0の上の2つの点には、その位置に整数がないので、それぞれが自分自身の床である。<code>1/0 FLOOR</code>は<code>1/0</code>。数でないものは<code>nonNumeric</code>。</p>
 <dl class="word-contract">
 <dt>構文</dt><dd><code>7/3 FLOOR</code></dd>
 <dt>スタック効果</dt><dd><span class="notation">[ x ] -&gt; [ floor x ]</span></dd>
@@ -2066,7 +2066,7 @@ FILTER</code></td>
 </div>
 <div class="word-entry" id="word-ROUND">
 <h4><code>ROUND</code> <span class="word-tier">Standard · algorithm</span></h4>
-<p>最も近い整数。ちょうど半分は0から遠い側へ。<code>5/2 ROUND</code>は<code>3</code>、<code>-5/2 ROUND</code>は<code>-3</code>で、ベクトルには要素ごとに働く。FORMATも最終桁を同じ規則で丸める。0の上の3つの点は、それぞれが自分自身の床であるのと同じく、それぞれが自分自身の丸めである。数でないものは<code>nonNumeric</code>。</p>
+<p>最も近い整数。ちょうど半分は0から遠い側へ。<code>5/2 ROUND</code>は<code>3</code>、<code>-5/2 ROUND</code>は<code>-3</code>で、ベクトルには要素ごとに働く。FORMATも最終桁を同じ規則で丸める。0の上の2つの点は、それぞれが自分自身の床であるのと同じく、それぞれが自分自身の丸めである。数でないものは<code>nonNumeric</code>。</p>
 <dl class="word-contract">
 <dt>構文</dt><dd><code>5/2 ROUND</code></dd>
 <dt>スタック効果</dt><dd><span class="notation">[ x ] -&gt; [ round x ]</span></dd>
@@ -2083,7 +2083,7 @@ FILTER</code></td>
 </div>
 <div class="word-entry" id="word-SQRT">
 <h4><code>SQRT</code> <span class="word-tier">Semantic Kernel</span></h4>
-<p>非負の数の厳密な平方根。<code>4 SQRT</code>は<code>2</code>、<code>2 SQRT</code>は無理数そのもので、多重二次正規形で保持され丸めなしに比較される(LANG.VALUES.EXACT)ので、<code>2 SQRT 2 SQRT MUL</code>は<code>2</code>。根号の中は平方因子を含まない形に簡約されるので、1つの数は組み立て方によらず1つの形を持つ。<code>8 SQRT</code>は<code>2 SQRT 2 MUL</code>である。この簡約は根号の中を素因数分解し、実行の数値作業量に計上される。残りの作業量で分解できない根号の中身は<code>resourceLimitExceeded</code>。<code>1/0</code>と<code>0/0</code>はそれぞれ自分自身の平方根である。ベクトルには要素ごとに働き、<code>-1/0</code>を含む負の数はNIL(domainMiss)を投影する。<code>[ 4 -1 ] SQRT</code>は<code>[ 2 NIL ]</code>で、2番目のレーンはその理由で不在になる。数でないものは<code>nonNumeric</code>。</p>
+<p>非負の数の厳密な平方根。<code>4 SQRT</code>は<code>2</code>、<code>2 SQRT</code>は無理数そのもので、多重二次正規形で保持され丸めなしに比較される(LANG.VALUES.EXACT)ので、<code>2 SQRT 2 SQRT MUL</code>は<code>2</code>。根号の中は平方因子を含まない形に簡約されるので、1つの数は組み立て方によらず1つの形を持つ。<code>8 SQRT</code>は<code>2 SQRT 2 MUL</code>である。この簡約は根号の中を素因数分解し、実行の数値作業量に計上される。残りの作業量で分解できない根号の中身は<code>resourceLimitExceeded</code>。<code>1/0</code>と<code>0/0</code>はそれぞれ自分自身の平方根である。ベクトルには要素ごとに働き、負の数はNIL(domainMiss)を投影する。<code>[ 4 -1 ] SQRT</code>は<code>[ 2 NIL ]</code>で、2番目のレーンはその理由で不在になる。数でないものは<code>nonNumeric</code>。</p>
 <dl class="word-contract">
 <dt>構文</dt><dd><code>2 SQRT</code></dd>
 <dt>スタック効果</dt><dd><span class="notation">[ x ] -&gt; [ sqrt(x) ]</span></dd>
@@ -2100,7 +2100,7 @@ FILTER</code></td>
 </div>
 <div class="word-entry" id="word-POW">
 <h4><code>POW</code> <span class="word-tier">Semantic Kernel</span></h4>
-<p>厳密なべき乗<code>x y POW</code>。ベクトルには要素ごとに働き、厳密な定義域の中で答える。整数の指数なら結果は底と同じ層に留まる。<code>2 10 POW</code>は<code>1024</code>、<code>2 SQRT 2 POW</code>は<code>2</code>、<code>2 -1 POW</code>は<code>1/2</code>、<code>7 0 POW</code>は空積の<code>1</code>。除算は全域的なので<code>0 -1 POW</code>は<code>1/0</code>、<code>1/0 -1 POW</code>は<code>0</code>(LANG.VALUES.EXACT)。<code>0/0</code>はあらゆる演算を吸収するのと同じくPOWも吸収し、どちらのオペランドにあってもよい。<code>0/0 0 POW</code>も<code>2 0/0 POW</code>も<code>0/0</code>。非負の有理数の底に対する指数<code>p/2</code>も体の中に留まる。<code>2 1/2 POW</code>は<code>2 SQRT</code>の答えとまったく同じで、<code>2 3/2 POW</code>は<code>2 2 SQRT MUL</code>。<code>p/2</code>乗の負の底は実数の値を持たず<code>domainMiss</code>を投影する。それ以外の指数(分母が1でも2でもないもの、無理数の底に対する<code>p/2</code>、無理数の指数、<code>1/0</code>や<code>-1/0</code>)も体の外に出るので<code>domainMiss</code>を投影する(<code>8 1/3 POW</code>、<code>2 2 SQRT POW</code>、<code>2 1/0 POW</code>)。<code>bigintBits</code>より広い、または<code>algebraicTerms</code>より多くの項を持つ結果は、<code>MUL</code>が同じ幅を拒否するのとまったく同じように、計算する前に上限の名前を添えたERROR(<code>resourceLimitExceeded</code>)として拒否される(LANG.MACHINE.LIMITS)。体を組み立てるワードは今も<code>SQRT</code>であり、<code>POW</code>はその糖衣ではない。</p>
+<p>厳密なべき乗<code>x y POW</code>。ベクトルには要素ごとに働き、厳密な定義域の中で答える。整数の指数なら結果は底と同じ層に留まる。<code>2 10 POW</code>は<code>1024</code>、<code>2 SQRT 2 POW</code>は<code>2</code>、<code>2 -1 POW</code>は<code>1/2</code>、<code>7 0 POW</code>は空積の<code>1</code>。除算は全域的なので<code>0 -1 POW</code>は<code>1/0</code>、<code>1/0 -1 POW</code>は<code>0</code>(LANG.VALUES.EXACT)。<code>0/0</code>はあらゆる演算を吸収するのと同じくPOWも吸収し、どちらのオペランドにあってもよい。<code>0/0 0 POW</code>も<code>2 0/0 POW</code>も<code>0/0</code>。非負の有理数の底に対する指数<code>p/2</code>も体の中に留まる。<code>2 1/2 POW</code>は<code>2 SQRT</code>の答えとまったく同じで、<code>2 3/2 POW</code>は<code>2 2 SQRT MUL</code>。<code>p/2</code>乗の負の底は実数の値を持たず<code>domainMiss</code>を投影する。それ以外の指数(分母が1でも2でもないもの、無理数の底に対する<code>p/2</code>、無理数の指数、<code>1/0</code>)も体の外に出るので<code>domainMiss</code>を投影する(<code>8 1/3 POW</code>、<code>2 2 SQRT POW</code>、<code>2 1/0 POW</code>)。<code>bigintBits</code>より広い、または<code>algebraicTerms</code>より多くの項を持つ結果は、<code>MUL</code>が同じ幅を拒否するのとまったく同じように、計算する前に上限の名前を添えたERROR(<code>resourceLimitExceeded</code>)として拒否される(LANG.MACHINE.LIMITS)。体を組み立てるワードは今も<code>SQRT</code>であり、<code>POW</code>はその糖衣ではない。</p>
 <dl class="word-contract">
 <dt>構文</dt><dd><code>2 10 POW</code></dd>
 <dt>スタック効果</dt><dd><span class="notation">[ x ] [ y ] -&gt; [ x^y ]</span></dd>
@@ -2134,7 +2134,7 @@ FILTER</code></td>
 </div>
 <div class="word-entry" id="word-RATIO">
 <h4><code>RATIO</code> <span class="word-tier">Standard · operational</span></h4>
-<p>数を既約の分子と分母に開き、分母を非負とする2要素のベクトルで答える。<code>6/4 RATIO</code>は<code>[ 3 2 ]</code>、<code>-3 RATIO</code>は<code>[ -3 1 ]</code>、<code>100 0 DIV RATIO</code>は<code>[ 1 0 ]</code>。0の上のすべての対はその符号を0の上に置いた点に簡約されるからである(LANG.VALUES.EXACT)。ベクトルには要素ごとに働く。この言語は厳密な分数を掲げており、これがその2つの部分を読み戻すワードである。答えはベクトルなので、算術は他のベクトルと同じようにその上へ持ち上がる。無理数(<code>2 SQRT</code>)には分子がなく<code>domainMiss</code>を投影する。</p>
+<p>数を既約の分子と分母に開き、分母を非負とする2要素のベクトルで答える。<code>6/4 RATIO</code>は<code>[ 3 2 ]</code>、<code>-3 RATIO</code>は<code>[ -3 1 ]</code>、<code>100 0 DIV RATIO</code>は<code>[ 1 0 ]</code>。分子が0でない0の上のすべての対は<code>1/0</code>に簡約されるからである(LANG.VALUES.EXACT)。ベクトルには要素ごとに働く。この言語は厳密な分数を掲げており、これがその2つの部分を読み戻すワードである。答えはベクトルなので、算術は他のベクトルと同じようにその上へ持ち上がる。無理数(<code>2 SQRT</code>)には分子がなく<code>domainMiss</code>を投影する。</p>
 <dl class="word-contract">
 <dt>構文</dt><dd><code>6/4 RATIO</code></dd>
 <dt>スタック効果</dt><dd><span class="notation">[ q ] -&gt; [ [ numerator denominator ] ]</span></dd>
@@ -2674,7 +2674,7 @@ FILTER</code></td>
 </div>
 <div class="word-entry" id="word-SORT">
 <h4><code>SORT</code> <span class="word-tier">Standard · operational</span></h4>
-<p>数のベクトルを昇順に並べた複製。<code>[ 3 1 2 ] SORT</code>は<code>[ 1 2 3 ]</code>。順序は無理数を含めて厳密で、<code>-1/0</code>が先頭、<code>1/0</code>が末尾になる。順序を持たない<code>0/0</code>を含むベクトルには整列した形がなく、NIL(domainMiss)を投影する(LANG.VALUES.EXACT)。順序があるのは数だけで(<code>nonNumeric</code>)、ベクトルでないものは<code>nonVector</code>。並べ替えの置換を答えるのはORDER。</p>
+<p>数のベクトルを昇順に並べた複製。<code>[ 3 1 2 ] SORT</code>は<code>[ 1 2 3 ]</code>。順序は無理数を含めて厳密である。順序を持たない0の上の点(<code>1/0</code>または<code>0/0</code>)を含むベクトルには整列した形がなく、NIL(domainMiss)を投影する(LANG.VALUES.EXACT)。順序があるのは数だけで(<code>nonNumeric</code>)、ベクトルでないものは<code>nonVector</code>。並べ替えの置換を答えるのはORDER。</p>
 <dl class="word-contract">
 <dt>構文</dt><dd><code>[ 3 1 2 ] SORT</code></dd>
 <dt>スタック効果</dt><dd><span class="notation">[ vec ] -&gt; [ sorted ]</span></dd>
@@ -2691,7 +2691,7 @@ FILTER</code></td>
 </div>
 <div class="word-entry" id="word-ORDER">
 <h4><code>ORDER</code> <span class="word-tier">Standard · operational</span></h4>
-<p>数のベクトルを昇順に並べるインデックス。<code>[ 30 10 20 ] ORDER</code>は<code>[ 1 2 0 ]</code>なので、それで収集すれば並べ替えになる。<code>[ 30 10 20 ] 'V' BIND V V ORDER GET</code>は<code>[ 10 20 30 ]</code>。同点は元の順序を保つ。<code>[ 2 1 2 1 ] ORDER</code>は<code>[ 1 3 0 2 ]</code>。順序を持たない<code>0/0</code>を含むベクトルは、SORTと同じくNIL(domainMiss)を投影する(LANG.VALUES.EXACT)。順序があるのは数だけで(<code>nonNumeric</code>)、ベクトルでないものは<code>nonVector</code>。</p>
+<p>数のベクトルを昇順に並べるインデックス。<code>[ 30 10 20 ] ORDER</code>は<code>[ 1 2 0 ]</code>なので、それで収集すれば並べ替えになる。<code>[ 30 10 20 ] 'V' BIND V V ORDER GET</code>は<code>[ 10 20 30 ]</code>。同点は元の順序を保つ。<code>[ 2 1 2 1 ] ORDER</code>は<code>[ 1 3 0 2 ]</code>。順序を持たない0の上の点を含むベクトルは、SORTと同じくNIL(domainMiss)を投影する(LANG.VALUES.EXACT)。順序があるのは数だけで(<code>nonNumeric</code>)、ベクトルでないものは<code>nonVector</code>。</p>
 <dl class="word-contract">
 <dt>構文</dt><dd><code>[ 30 10 20 ] ORDER</code></dd>
 <dt>スタック効果</dt><dd><span class="notation">[ vec ] -&gt; [ permutation ]</span></dd>
@@ -2759,7 +2759,7 @@ FILTER</code></td>
 </div>
 <div class="word-entry" id="word-BSEARCH">
 <h4><code>BSEARCH</code> <span class="word-tier">Standard · algorithm</span></h4>
-<p>昇順のベクトルの中の各キーのインデックスを、区間を半分にしながら探す。<code>[ 1 3 5 7 ] [ 5 ] BSEARCH</code>は<code>[ 2 ]</code>で、単独のキーは単独のインデックスを答え、ないキーのレーンはNIL(notFound)。ベクトルは昇順でなければならず、そうでなければ<code>unsortedInput</code>を送出する。順序のないデータの上の二分探索は、何も答えないのではなく何かを答えてしまうからである。順序を持たない<code>0/0</code>を含むベクトルはNIL(domainMiss)を投影し、<code>0/0</code>のキーも自分のレーンに同じものを投影する(LANG.VALUES.EXACT)。順序の確認はベクトルを1回走査するだけで、その後の各キーはO(log n)なので、m個のキーの費用は線形走査のO(m·n)に対してO(n + m log n)。区間が空になるまで半分にし続けるのはデータに長さが依存するループであり、際限のないループを持たない言語には書けない。</p>
+<p>昇順のベクトルの中の各キーのインデックスを、区間を半分にしながら探す。<code>[ 1 3 5 7 ] [ 5 ] BSEARCH</code>は<code>[ 2 ]</code>で、単独のキーは単独のインデックスを答え、ないキーのレーンはNIL(notFound)。ベクトルは昇順でなければならず、そうでなければ<code>unsortedInput</code>を送出する。順序のないデータの上の二分探索は、何も答えないのではなく何かを答えてしまうからである。順序を持たない0の上の点を含むベクトルはNIL(domainMiss)を投影し、0の上の点のキーも自分のレーンに同じものを投影する(LANG.VALUES.EXACT)。順序の確認はベクトルを1回走査するだけで、その後の各キーはO(log n)なので、m個のキーの費用は線形走査のO(m·n)に対してO(n + m log n)。区間が空になるまで半分にし続けるのはデータに長さが依存するループであり、際限のないループを持たない言語には書けない。</p>
 <dl class="word-contract">
 <dt>構文</dt><dd><code>[ 1 3 5 7 ] [ 5 ] BSEARCH</code></dd>
 <dt>スタック効果</dt><dd><span class="notation">[ sorted ] [ keys ] -&gt; [ indices ]</span></dd>
@@ -3470,7 +3470,7 @@ FILTER</code></td>
 </div>
 <div class="word-entry" id="word-NUM">
 <h4><code>NUM</code> <span class="word-tier">Semantic Kernel</span></h4>
-<p>テキストを、ソースのリテラルを読むのと同じ文法で数として解析する。<code>'3/4' NUM</code>は<code>3/4</code>、<code>'0.25' NUM</code>は<code>1/4</code>、<code>'5/0' NUM</code>は、対をその符号を0の上に置いた点に簡約した<code>1/0</code>(LANG.VALUES.EXACT)。数を綴らないテキスト(<code>'abc'</code>、<code>'.5'</code>、<code>'1_000'</code>)はNIL(invalidEncoding)を投影し、指数を含めて数値リテラルの上限がソースのリテラルに許すより多くの桁を綴るテキスト(<code>'1e99999999'</code>)は、ソース中の同じ字句と全く同じように、ERROR(<code>resourceLimitExceeded</code>、<code>numericLiteralDigits</code>)として拒否される(LANG.MACHINE.LIMITS)。StringでないオペランドはERROR(<code>nonText</code>)。Stringのベクトルは持ち上がる。</p>
+<p>テキストを、ソースのリテラルを読むのと同じ文法で数として解析する。<code>'3/4' NUM</code>は<code>3/4</code>、<code>'0.25' NUM</code>は<code>1/4</code>、<code>'-5/0' NUM</code>は、対を0の上の点に簡約した<code>1/0</code>(LANG.VALUES.EXACT)。数を綴らないテキスト(<code>'abc'</code>、<code>'.5'</code>、<code>'1_000'</code>)はNIL(invalidEncoding)を投影し、指数を含めて数値リテラルの上限がソースのリテラルに許すより多くの桁を綴るテキスト(<code>'1e99999999'</code>)は、ソース中の同じ字句と全く同じように、ERROR(<code>resourceLimitExceeded</code>、<code>numericLiteralDigits</code>)として拒否される(LANG.MACHINE.LIMITS)。StringでないオペランドはERROR(<code>nonText</code>)。Stringのベクトルは持ち上がる。</p>
 <dl class="word-contract">
 <dt>構文</dt><dd><code>'42' NUM</code></dd>
 <dt>スタック効果</dt><dd><span class="notation">[ text ] -&gt; [ n ]</span></dd>
@@ -3503,7 +3503,7 @@ FILTER</code></td>
 </div>
 <div class="word-entry" id="word-FORMAT">
 <h4><code>FORMAT</code> <span class="word-tier">Standard · operational</span></h4>
-<p>厳密なスカラーを、小数点以下の桁数を指定した十進テキストとして描く。ちょうど半分は<code>ROUND</code>とまったく同じく0から遠い側へ丸める。<code>1/3 5 FORMAT</code>は<code>'0.33333'</code>、<code>5/2 0 FORMAT</code>は<code>'3'</code>、<code>2 SQRT 3 FORMAT</code>は<code>'1.414'</code>。値が丸められる唯一の場所であり、そこから出ていくのはテキストであって決して数ではない。算術は丸めを行わず、<code>STR</code>は厳密な字句を持たない数を断るので、十進の近似が欲しいプログラムは表示の境界であるここで精度を名指す。0の上の3つの点の位置やその先には小数がないので、<code>1/0</code>、<code>-1/0</code>、<code>0/0</code>はNIL(domainMiss)を投影する(LANG.VALUES.EXACT)。それらの字句を書くのはSTRである。桁数は非負の整数(そうでなければ<code>invalidInteger</code>)、値はスカラー(そうでなければ<code>nonNumeric</code>)。体の順序は決して同点にならないので、無理数を含めすべての桁が厳密に決まる。</p>
+<p>厳密なスカラーを、小数点以下の桁数を指定した十進テキストとして描く。ちょうど半分は<code>ROUND</code>とまったく同じく0から遠い側へ丸める。<code>1/3 5 FORMAT</code>は<code>'0.33333'</code>、<code>5/2 0 FORMAT</code>は<code>'3'</code>、<code>2 SQRT 3 FORMAT</code>は<code>'1.414'</code>。値が丸められる唯一の場所であり、そこから出ていくのはテキストであって決して数ではない。算術は丸めを行わず、<code>STR</code>は厳密な字句を持たない数を断るので、十進の近似が欲しいプログラムは表示の境界であるここで精度を名指す。0の上の2つの点の位置には小数がないので、<code>1/0</code>と<code>0/0</code>はNIL(domainMiss)を投影する(LANG.VALUES.EXACT)。それらの字句を書くのはSTRである。桁数は非負の整数(そうでなければ<code>invalidInteger</code>)、値はスカラー(そうでなければ<code>nonNumeric</code>)。体の順序は決して同点にならないので、無理数を含めすべての桁が厳密に決まる。</p>
 <dl class="word-contract">
 <dt>構文</dt><dd><code>1/3 5 FORMAT</code></dd>
 <dt>スタック効果</dt><dd><span class="notation">[ x ] [ digits ] -&gt; [ text ]</span></dd>

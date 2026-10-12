@@ -319,15 +319,9 @@ mod tests {
     async fn sqrt2_div_zero_is_the_positive_point_over_zero() {
         let stack = run_ok("2 SQRT 0 DIV").await;
         assert_eq!(stack.len(), 1);
-        assert_eq!(
-            stack[0],
-            Value::from_fraction(Fraction::positive_infinity())
-        );
+        assert_eq!(stack[0], Value::from_fraction(Fraction::infinity()));
         let stack = run_ok("2 SQRT -1 MUL 0 DIV").await;
-        assert_eq!(
-            stack[0],
-            Value::from_fraction(Fraction::negative_infinity())
-        );
+        assert_eq!(stack[0], Value::from_fraction(Fraction::infinity()));
         let stack = run_ok("1 2 SQRT 0 DIV DIV").await;
         assert_eq!(stack[0], Value::from_int(0));
     }

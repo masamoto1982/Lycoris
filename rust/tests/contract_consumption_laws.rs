@@ -157,8 +157,8 @@ fn key_word_contracts_match_spec_7_14() {
     assert_eq!(add.partiality, Partiality::Total);
     assert_eq!(add.nil_policy, NilPolicy::Passthrough);
 
-    // DIV is total (LANG.VALUES.EXACT): a quotient by zero is the dividend's
-    // sign over zero, a number, so there is nothing to project. A NIL operand
+    // DIV is total (LANG.VALUES.EXACT): a quotient by zero is a point over
+    // zero, a number, so there is nothing to project. A NIL operand
     // passes through unchanged, exactly as it does for ADD.
     let div = c("DIV");
     assert_eq!(div.partiality, Partiality::Total);

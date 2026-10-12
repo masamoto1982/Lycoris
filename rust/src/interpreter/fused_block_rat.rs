@@ -22,7 +22,7 @@
 //! literal or the quotient of a zero divisor — is a pair like any other: the
 //! arithmetic that meets one is answered by the `Fraction`'s total law
 //! (`small_rational`'s `_total` forms), and its answer is again one of the
-//! three points or zero, so the walk stays here. The meter prices such a
+//! two points or zero, so the walk stays here. The meter prices such a
 //! pair at one limb as well, so the charges are the same. Each point is its
 //! own floor and its own rounding. Only an order asked of `0/0` — `LT`, `GT`,
 //! `MIN`, `MAX` — has no answer here: it is the ordinary walk's `domainMiss`

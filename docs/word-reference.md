@@ -119,7 +119,7 @@ Whether two values are one value (LANG.VALUES.DENOTATION), whatever built each: 
 
 ## `LT`
 
-Whether the left number is less than the right: `1 2 LT` is `TRUE`, element-wise over Vectors, `[ 1 5 ] 3 LT` is `[ TRUE FALSE ]`. Order over the exact domain decides (LANG.VALUES.EXACT), irrationals included — `2 SQRT 3/2 LT` is `TRUE` — and `-1/0` lies below every other number and `1/0` above. `0/0` alone has no order, so a comparison asking it projects NIL(domainMiss): `0/0 1 LT` is the UNKNOWN that absence reads as in truth position (LANG.VALUES.TRUTH). Only numbers are ordered; anything else is `nonNumeric`.
+Whether the left number is less than the right: `1 2 LT` is `TRUE`, element-wise over Vectors, `[ 1 5 ] 3 LT` is `[ TRUE FALSE ]`. Order over the exact domain decides (LANG.VALUES.EXACT), irrationals included — `2 SQRT 3/2 LT` is `TRUE` — and neither point over zero has an order — `1/0` is the one unsigned point at infinity and `0/0` the wheel's bottom — so a comparison asking one projects NIL(domainMiss): `1/0 1 LT` is the UNKNOWN that absence reads as in truth position (LANG.VALUES.TRUTH). Only numbers are ordered; anything else is `nonNumeric`.
 
 - **Vocabulary tier:** Semantic Kernel
 - **Family:** `truthOrder`
@@ -134,7 +134,7 @@ Whether the left number is less than the right: `1 2 LT` is `TRUE`, element-wise
 
 ## `GT`
 
-Whether the left number is greater than the right: `2 1 GT` is `TRUE`, element-wise over Vectors, `[ 1 5 ] 3 GT` is `[ FALSE TRUE ]`. Order over the exact domain decides (LANG.VALUES.EXACT), irrationals included — `2 SQRT 3/2 LT` is `TRUE` — and `-1/0` lies below every other number and `1/0` above. `0/0` alone has no order, so a comparison asking it projects NIL(domainMiss): `0/0 1 GT` is the UNKNOWN that absence reads as in truth position (LANG.VALUES.TRUTH). Only numbers are ordered; anything else is `nonNumeric`.
+Whether the left number is greater than the right: `2 1 GT` is `TRUE`, element-wise over Vectors, `[ 1 5 ] 3 GT` is `[ FALSE TRUE ]`. Order over the exact domain decides (LANG.VALUES.EXACT), irrationals included — `2 SQRT 3/2 LT` is `TRUE` — and neither point over zero has an order — `1/0` is the one unsigned point at infinity and `0/0` the wheel's bottom — so a comparison asking one projects NIL(domainMiss): `1/0 1 GT` is the UNKNOWN that absence reads as in truth position (LANG.VALUES.TRUTH). Only numbers are ordered; anything else is `nonNumeric`.
 
 - **Vocabulary tier:** Semantic Kernel
 - **Family:** `truthOrder`
@@ -149,7 +149,7 @@ Whether the left number is greater than the right: `2 1 GT` is `TRUE`, element-w
 
 ## `ADD`
 
-The exact sum: `1/3 1/6 ADD` is `1/2`, and element-wise over Vectors with broadcasting (LANG.COLLECTIONS.LIFT), `[ 1 2 ] 10 ADD` is `[ 11 12 ]`. Nothing is rounded: `2 SQRT 2 SQRT ADD` is `8 SQRT`. The pair formula decides the three points over zero too: `1/0 5 ADD` is `1/0` and `1/0 1/0 ADD` is `0/0` (LANG.VALUES.EXACT). A non-number is `nonNumeric`.
+The exact sum: `1/3 1/6 ADD` is `1/2`, and element-wise over Vectors with broadcasting (LANG.COLLECTIONS.LIFT), `[ 1 2 ] 10 ADD` is `[ 11 12 ]`. Nothing is rounded: `2 SQRT 2 SQRT ADD` is `8 SQRT`. The pair formula decides the two points over zero too: `1/0 5 ADD` is `1/0` and `1/0 1/0 ADD` is `0/0` (LANG.VALUES.EXACT). A non-number is `nonNumeric`.
 
 - **Vocabulary tier:** Semantic Kernel
 - **Family:** `knowledgeOrder`
@@ -179,7 +179,7 @@ The exact difference, left minus right: `5 3 SUB` is `2`, and element-wise over 
 
 ## `MUL`
 
-The exact product: `2/3 3/4 MUL` is `1/2`, and element-wise over Vectors with broadcasting (LANG.COLLECTIONS.LIFT), `[ 1 2 3 ] [ 10 ] MUL` is `[ 10 20 30 ]`. The pair formula decides the three points over zero too: `1/0 -2 MUL` is `-1/0` and `1/0 0 MUL` is `0/0` (LANG.VALUES.EXACT). A non-number is `nonNumeric`.
+The exact product: `2/3 3/4 MUL` is `1/2`, and element-wise over Vectors with broadcasting (LANG.COLLECTIONS.LIFT), `[ 1 2 3 ] [ 10 ] MUL` is `[ 10 20 30 ]`. The pair formula decides the two points over zero too: `1/0 -2 MUL` is `1/0` and `1/0 0 MUL` is `0/0` (LANG.VALUES.EXACT). A non-number is `nonNumeric`.
 
 - **Vocabulary tier:** Semantic Kernel
 - **Family:** `knowledgeOrder`
@@ -194,7 +194,7 @@ The exact product: `2/3 3/4 MUL` is `1/2`, and element-wise over Vectors with br
 
 ## `DIV`
 
-The exact quotient, left over right: `1 3 DIV` is exactly `1/3`, and element-wise over Vectors with broadcasting (LANG.COLLECTIONS.LIFT), `[ 2 4 ] 2 DIV` is `[ 1 2 ]`. Division is total (LANG.VALUES.EXACT): it is multiplication by the reciprocal, and every number has one. A zero divisor answers the dividend's sign over zero in its own lane and no other — `[ 1 -2 0 ] 0 DIV` is `[ 1/0 -1/0 0/0 ]`, and `1 1/0 DIV` is `0` — the lanes beside it are quotients, and a Word after it computes with the point by the same pair formulas, so `1 0 DIV 2 MUL` is `1/0` and `1 0 DIV 0 MUL` is `0/0`. A non-number is `nonNumeric`.
+The exact quotient, left over right: `1 3 DIV` is exactly `1/3`, and element-wise over Vectors with broadcasting (LANG.COLLECTIONS.LIFT), `[ 2 4 ] 2 DIV` is `[ 1 2 ]`. Division is total (LANG.VALUES.EXACT): it is multiplication by the reciprocal, and every number has one. A zero divisor answers a point over zero in its own lane and no other — `1/0` for a nonzero dividend of either sign and `0/0` for zero, so `[ 1 -2 0 ] 0 DIV` is `[ 1/0 1/0 0/0 ]`, and `1 1/0 DIV` is `0` — the lanes beside it are quotients, and a Word after it computes with the point by the same pair formulas, so `1 0 DIV 2 MUL` is `1/0` and `1 0 DIV 0 MUL` is `0/0`. A non-number is `nonNumeric`.
 
 - **Vocabulary tier:** Semantic Kernel
 - **Family:** `knowledgeOrder`
@@ -209,7 +209,7 @@ The exact quotient, left over right: `1 3 DIV` is exactly `1/3`, and element-wis
 
 ## `FLOOR`
 
-The greatest integer not above the number: `7/3 FLOOR` is `2` and `-7/3 FLOOR` is `-3`, element-wise over Vectors. Irrationals floor exactly: `2 SQRT FLOOR` is `1`. No integer lies at or beyond the three points over zero, so each is its own floor: `1/0 FLOOR` is `1/0`. A non-number is `nonNumeric`.
+The greatest integer not above the number: `7/3 FLOOR` is `2` and `-7/3 FLOOR` is `-3`, element-wise over Vectors. Irrationals floor exactly: `2 SQRT FLOOR` is `1`. No integer lies at the two points over zero, so each is its own floor: `1/0 FLOOR` is `1/0`. A non-number is `nonNumeric`.
 
 - **Vocabulary tier:** Semantic Kernel
 - **Family:** `knowledgeOrder`
@@ -224,7 +224,7 @@ The greatest integer not above the number: `7/3 FLOOR` is `2` and `-7/3 FLOOR` i
 
 ## `ROUND`
 
-The nearest integer, a tie going away from zero: `5/2 ROUND` is `3` and `-5/2 ROUND` is `-3`, element-wise over Vectors. FORMAT rounds its last digit the same way. Each of the three points over zero is its own rounding, as it is its own floor. A non-number is `nonNumeric`.
+The nearest integer, a tie going away from zero: `5/2 ROUND` is `3` and `-5/2 ROUND` is `-3`, element-wise over Vectors. FORMAT rounds its last digit the same way. Each of the two points over zero is its own rounding, as it is its own floor. A non-number is `nonNumeric`.
 
 - **Vocabulary tier:** Standard (`algorithm`)
 - **Family:** `knowledgeOrder`
@@ -239,7 +239,7 @@ The nearest integer, a tie going away from zero: `5/2 ROUND` is `3` and `-5/2 RO
 
 ## `MIN`
 
-The smaller of two numbers: `1 2 MIN` is `1`, and element-wise over Vectors with broadcasting, `[ 3 1 ] 2 MIN` is `[ 2 1 ]`. The order is the exact domain's (LANG.VALUES.EXACT): `-1/0 5 MIN` is `-1/0`, and `0/0`, which has no order, projects NIL(domainMiss) as LT does. A non-number is `nonNumeric`.
+The smaller of two numbers: `1 2 MIN` is `1`, and element-wise over Vectors with broadcasting, `[ 3 1 ] 2 MIN` is `[ 2 1 ]`. The order is the exact domain's (LANG.VALUES.EXACT): `-1 5 MIN` is `-1`, and a point over zero, `1/0` or `0/0`, which has no order, projects NIL(domainMiss) as LT does. A non-number is `nonNumeric`.
 
 - **Vocabulary tier:** Standard (`namedPattern`)
 - **Family:** `truthOrder`
@@ -254,7 +254,7 @@ The smaller of two numbers: `1 2 MIN` is `1`, and element-wise over Vectors with
 
 ## `MAX`
 
-The larger of two numbers: `1 2 MAX` is `2`, and element-wise over Vectors with broadcasting, `[ -1 2 -3 ] 0 MAX` is `[ 0 2 0 ]`. The order is the exact domain's (LANG.VALUES.EXACT): `1/0 5 MAX` is `1/0`, and `0/0`, which has no order, projects NIL(domainMiss) as GT does. A non-number is `nonNumeric`.
+The larger of two numbers: `1 2 MAX` is `2`, and element-wise over Vectors with broadcasting, `[ -1 2 -3 ] 0 MAX` is `[ 0 2 0 ]`. The order is the exact domain's (LANG.VALUES.EXACT): `-1 5 MAX` is `5`, and a point over zero, `1/0` or `0/0`, which has no order, projects NIL(domainMiss) as GT does. A non-number is `nonNumeric`.
 
 - **Vocabulary tier:** Standard (`namedPattern`)
 - **Family:** `truthOrder`
@@ -269,7 +269,7 @@ The larger of two numbers: `1 2 MAX` is `2`, and element-wise over Vectors with 
 
 ## `SQRT`
 
-The exact square root of a non-negative number: `4 SQRT` is `2`, and `2 SQRT` is the irrational itself, carried in multiquadratic normal form and compared with no rounding (LANG.VALUES.EXACT), so `2 SQRT 2 SQRT MUL` is `2`. The radicand is reduced to its square-free part, so one number has one form however it was built: `8 SQRT` is `2 SQRT 2 MUL`. That reduction factors the radicand and is charged to the run's numeric work; a radicand the remaining work cannot factor is `resourceLimitExceeded`. `1/0` and `0/0` are their own roots. Element-wise over Vectors, and a negative radicand, `-1/0` included, projects NIL(domainMiss): `[ 4 -1 ] SQRT` is `[ 2 NIL ]` with the second lane absent for that reason. A non-number is `nonNumeric`.
+The exact square root of a non-negative number: `4 SQRT` is `2`, and `2 SQRT` is the irrational itself, carried in multiquadratic normal form and compared with no rounding (LANG.VALUES.EXACT), so `2 SQRT 2 SQRT MUL` is `2`. The radicand is reduced to its square-free part, so one number has one form however it was built: `8 SQRT` is `2 SQRT 2 MUL`. That reduction factors the radicand and is charged to the run's numeric work; a radicand the remaining work cannot factor is `resourceLimitExceeded`. `1/0` and `0/0` are their own roots. Element-wise over Vectors, and a negative radicand projects NIL(domainMiss): `[ 4 -1 ] SQRT` is `[ 2 NIL ]` with the second lane absent for that reason. A non-number is `nonNumeric`.
 
 - **Vocabulary tier:** Semantic Kernel
 - **Family:** `knowledgeOrder`
@@ -284,7 +284,7 @@ The exact square root of a non-negative number: `4 SQRT` is `2`, and `2 SQRT` is
 
 ## `POW`
 
-Exact power `x y POW`, element-wise over Vectors, answered inside the exact domain. An integer exponent keeps the result in the base's own tier: `2 10 POW` is `1024`, `2 SQRT 2 POW` is `2`, `2 -1 POW` is `1/2`, `7 0 POW` is `1`, the empty product, and since division is total `0 -1 POW` is `1/0` and `1/0 -1 POW` is `0` (LANG.VALUES.EXACT). `0/0` absorbs POW as it absorbs every operation, in either operand: `0/0 0 POW` and `2 0/0 POW` are `0/0`. An exponent `p/2` over a non-negative rational base stays in the field too — `2 1/2 POW` is exactly what `2 SQRT` answers, and `2 3/2 POW` is `2 2 SQRT MUL`. A negative base under `p/2` has no real value and projects `domainMiss`; every other exponent — a denominator other than 1 or 2, `p/2` over an irrational base, an irrational exponent, `1/0` or `-1/0` — leaves the field and projects `domainMiss` as well (`8 1/3 POW`, `2 2 SQRT POW`, `2 1/0 POW`). A result wider than `bigintBits` or of more terms than `algebraicTerms` is refused as ERROR(`resourceLimitExceeded`) by the ceiling's name before it is computed, exactly as `MUL` refuses the same width (LANG.MACHINE.LIMITS). `SQRT` remains the Word that builds the field; `POW` is not its sugar.
+Exact power `x y POW`, element-wise over Vectors, answered inside the exact domain. An integer exponent keeps the result in the base's own tier: `2 10 POW` is `1024`, `2 SQRT 2 POW` is `2`, `2 -1 POW` is `1/2`, `7 0 POW` is `1`, the empty product, and since division is total `0 -1 POW` is `1/0` and `1/0 -1 POW` is `0` (LANG.VALUES.EXACT). `0/0` absorbs POW as it absorbs every operation, in either operand: `0/0 0 POW` and `2 0/0 POW` are `0/0`. An exponent `p/2` over a non-negative rational base stays in the field too — `2 1/2 POW` is exactly what `2 SQRT` answers, and `2 3/2 POW` is `2 2 SQRT MUL`. A negative base under `p/2` has no real value and projects `domainMiss`; every other exponent — a denominator other than 1 or 2, `p/2` over an irrational base, an irrational exponent, `1/0` — leaves the field and projects `domainMiss` as well (`8 1/3 POW`, `2 2 SQRT POW`, `2 1/0 POW`). A result wider than `bigintBits` or of more terms than `algebraicTerms` is refused as ERROR(`resourceLimitExceeded`) by the ceiling's name before it is computed, exactly as `MUL` refuses the same width (LANG.MACHINE.LIMITS). `SQRT` remains the Word that builds the field; `POW` is not its sugar.
 
 - **Vocabulary tier:** Semantic Kernel
 - **Family:** `knowledgeOrder`
@@ -314,7 +314,7 @@ The greatest common divisor of two integers, non-negative, element-wise over Vec
 
 ## `RATIO`
 
-A number opened into its reduced numerator and denominator, as a two-element Vector with the denominator non-negative: `6/4 RATIO` is `[ 3 2 ]`, `-3 RATIO` is `[ -3 1 ]`, and `100 0 DIV RATIO` is `[ 1 0 ]`, since every pair over zero reduces to its sign over zero (LANG.VALUES.EXACT); element-wise over Vectors. The language advertises exact fractions; this is the Word that reads their two parts back, and because the answer is a Vector, arithmetic lifts over it as it does over any other. An irrational (`2 SQRT`) has no numerator and projects `domainMiss`.
+A number opened into its reduced numerator and denominator, as a two-element Vector with the denominator non-negative: `6/4 RATIO` is `[ 3 2 ]`, `-3 RATIO` is `[ -3 1 ]`, and `100 0 DIV RATIO` is `[ 1 0 ]`, since every pair over zero with a nonzero numerator reduces to `1/0` (LANG.VALUES.EXACT); element-wise over Vectors. The language advertises exact fractions; this is the Word that reads their two parts back, and because the answer is a Vector, arithmetic lifts over it as it does over any other. An irrational (`2 SQRT`) has no numerator and projects `domainMiss`.
 
 - **Vocabulary tier:** Standard (`operational`)
 - **Family:** `knowledgeOrder`
@@ -521,7 +521,7 @@ How deeply Vectors nest: anything that is not a Vector — a number, a text, a t
 
 ## `SORT`
 
-A copy of a Vector of numbers in ascending order: `[ 3 1 2 ] SORT` is `[ 1 2 3 ]`. Order is exact, irrationals included, with `-1/0` first and `1/0` last; a Vector holding `0/0`, which has no order, has no sorted form and projects NIL(domainMiss) (LANG.VALUES.EXACT). Only numbers are ordered (`nonNumeric`), and a non-Vector is `nonVector`. ORDER answers the permutation instead.
+A copy of a Vector of numbers in ascending order: `[ 3 1 2 ] SORT` is `[ 1 2 3 ]`. Order is exact, irrationals included; a Vector holding a point over zero, `1/0` or `0/0`, which has no order, has no sorted form and projects NIL(domainMiss) (LANG.VALUES.EXACT). Only numbers are ordered (`nonNumeric`), and a non-Vector is `nonVector`. ORDER answers the permutation instead.
 
 - **Vocabulary tier:** Standard (`operational`)
 - **Family:** `collection`
@@ -536,7 +536,7 @@ A copy of a Vector of numbers in ascending order: `[ 3 1 2 ] SORT` is `[ 1 2 3 ]
 
 ## `ORDER`
 
-The indices that would sort a Vector of numbers ascending: `[ 30 10 20 ] ORDER` is `[ 1 2 0 ]`, so gathering by it sorts: `[ 30 10 20 ] 'V' BIND V V ORDER GET` is `[ 10 20 30 ]`. Ties keep their original order: `[ 2 1 2 1 ] ORDER` is `[ 1 3 0 2 ]`. A Vector holding `0/0`, which has no order, projects NIL(domainMiss) as SORT does (LANG.VALUES.EXACT). Only numbers are ordered (`nonNumeric`), and a non-Vector is `nonVector`.
+The indices that would sort a Vector of numbers ascending: `[ 30 10 20 ] ORDER` is `[ 1 2 0 ]`, so gathering by it sorts: `[ 30 10 20 ] 'V' BIND V V ORDER GET` is `[ 10 20 30 ]`. Ties keep their original order: `[ 2 1 2 1 ] ORDER` is `[ 1 3 0 2 ]`. A Vector holding a point over zero, which has no order, projects NIL(domainMiss) as SORT does (LANG.VALUES.EXACT). Only numbers are ordered (`nonNumeric`), and a non-Vector is `nonVector`.
 
 - **Vocabulary tier:** Standard (`operational`)
 - **Family:** `collection`
@@ -626,7 +626,7 @@ Bundle values by the key at the same position, as a Record from key to the Vecto
 
 ## `BSEARCH`
 
-The index of each key in an ascending vector, found by halving: `[ 1 3 5 7 ] [ 5 ] BSEARCH` is `[ 2 ]`, a single key answers a single index, and a key that is not there is a NIL(notFound) lane. The vector must be in ascending order; one that is not raises `unsortedInput`, since a binary search over unordered data would answer something rather than nothing, and one holding `0/0`, which has no order, projects NIL(domainMiss), as does a key of `0/0` in its own lane (LANG.VALUES.EXACT). Checking the order is one pass over the vector, and each key then costs O(log n), so m keys cost O(n + m log n) against a linear scan's O(m·n) — and halving a range until it is empty is a loop whose length depends on the data, which a language with no unbounded loop cannot write.
+The index of each key in an ascending vector, found by halving: `[ 1 3 5 7 ] [ 5 ] BSEARCH` is `[ 2 ]`, a single key answers a single index, and a key that is not there is a NIL(notFound) lane. The vector must be in ascending order; one that is not raises `unsortedInput`, since a binary search over unordered data would answer something rather than nothing, and one holding a point over zero, which has no order, projects NIL(domainMiss), as does a key over zero in its own lane (LANG.VALUES.EXACT). Checking the order is one pass over the vector, and each key then costs O(log n), so m keys cost O(n + m log n) against a linear scan's O(m·n) — and halving a range until it is empty is a loop whose length depends on the data, which a language with no unbounded loop cannot write.
 
 - **Vocabulary tier:** Standard (`algorithm`)
 - **Family:** `collection`
@@ -911,7 +911,7 @@ Every occurrence of one text replaced by another: `'a-b-c' '-' '+' REPLACE` is `
 
 ## `NUM`
 
-Parse text as a number, by the same grammar a source literal is read with: `'3/4' NUM` is `3/4`, `'0.25' NUM` is `1/4`, and `'5/0' NUM` is `1/0`, the pair reduced to its sign over zero (LANG.VALUES.EXACT). Text that spells no number — `'abc'`, `'.5'`, `'1_000'` — projects NIL(invalidEncoding), and text spelling a number of more digits than the numeric-literal ceiling allows a source literal, its exponent counted (`'1e99999999'`), is refused as ERROR(`resourceLimitExceeded`, `numericLiteralDigits`), exactly as the same lexeme in source is (LANG.MACHINE.LIMITS). A non-String operand is an ERROR (`nonText`); a Vector of Strings lifts.
+Parse text as a number, by the same grammar a source literal is read with: `'3/4' NUM` is `3/4`, `'0.25' NUM` is `1/4`, and `'-5/0' NUM` is `1/0`, the pair reduced to its point over zero (LANG.VALUES.EXACT). Text that spells no number — `'abc'`, `'.5'`, `'1_000'` — projects NIL(invalidEncoding), and text spelling a number of more digits than the numeric-literal ceiling allows a source literal, its exponent counted (`'1e99999999'`), is refused as ERROR(`resourceLimitExceeded`, `numericLiteralDigits`), exactly as the same lexeme in source is (LANG.MACHINE.LIMITS). A non-String operand is an ERROR (`nonText`); a Vector of Strings lifts.
 
 - **Vocabulary tier:** Semantic Kernel
 - **Family:** `text`
@@ -940,7 +940,7 @@ Write a Scalar, String or Boolean as the text that reads back as it: `42 STR` is
 
 ## `FORMAT`
 
-Render an exact scalar as decimal text with a stated number of digits after the point, rounding a tie away from zero exactly as `ROUND` does: `1/3 5 FORMAT` is `'0.33333'`, `5/2 0 FORMAT` is `'3'`, `2 SQRT 3 FORMAT` is `'1.414'`. This is the one place a value is rounded, and it is text that leaves it, never a number: arithmetic performs no rounding and `STR` refuses a number with no exact lexeme, so a program that wants a decimal approximation names its precision here, at the display boundary. No decimal lies at or beyond the three points over zero, so `1/0`, `-1/0` and `0/0` project NIL(domainMiss) (LANG.VALUES.EXACT); STR writes their lexemes. The digit count is a non-negative integer (`invalidInteger` otherwise) and the value a scalar (`nonNumeric` otherwise). Every digit is decided exactly, an irrational's included, since the field's order never ties.
+Render an exact scalar as decimal text with a stated number of digits after the point, rounding a tie away from zero exactly as `ROUND` does: `1/3 5 FORMAT` is `'0.33333'`, `5/2 0 FORMAT` is `'3'`, `2 SQRT 3 FORMAT` is `'1.414'`. This is the one place a value is rounded, and it is text that leaves it, never a number: arithmetic performs no rounding and `STR` refuses a number with no exact lexeme, so a program that wants a decimal approximation names its precision here, at the display boundary. No decimal lies at the two points over zero, so `1/0` and `0/0` project NIL(domainMiss) (LANG.VALUES.EXACT); STR writes their lexemes. The digit count is a non-negative integer (`invalidInteger` otherwise) and the value a scalar (`nonNumeric` otherwise). Every digit is decided exactly, an irrational's included, since the field's order never ties.
 
 - **Vocabulary tier:** Standard (`operational`)
 - **Family:** `text`

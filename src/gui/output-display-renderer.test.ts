@@ -162,13 +162,11 @@ describe('a point over zero in the Stack says where it stands', () => {
     const point = (numerator: string, denominator = '0'): Node =>
         ({ type: 'number', value: { numerator, denominator }, semantics: {} }) as Node;
 
-    test('100 0 DIV is 1/0, the point above every other number', () => {
+    test('100 0 DIV is 1/0, the unsigned point at infinity', () => {
         expect(render(point('1'))).toBe('1/0');
-        expect(describePointNode(point('1'))).toBe('1/0 · the point above every other number');
-    });
-
-    test('-5 0 DIV is -1/0, the point below every other number', () => {
-        expect(describePointNode(point('-1'))).toBe('-1/0 · the point below every other number');
+        expect(describePointNode(point('1'))).toBe(
+            '1/0 · the point at infinity: unsigned, with no order'
+        );
     });
 
     test('0 0 DIV is 0/0, the point with no order', () => {
@@ -557,7 +555,7 @@ describe('renderStack', () => {
         const nodes = items.map(item => item.children[0] as FakeElement);
         expect(nodes[0]!.classes).toContain('stack-node-point');
         expect(nodes[0]!.classes).not.toContain('stack-node-nil');
-        expect(nodes[0]!.title).toBe('1/0 · the point above every other number');
+        expect(nodes[0]!.title).toBe('1/0 · the point at infinity: unsigned, with no order');
         const lanes = nodes[1]!.children.filter((c): c is FakeElement => typeof c !== 'string');
         const nullity = lanes.find(lane => lane.textContent === '0/0')!;
         expect(nullity.classes).toContain('stack-node-point');

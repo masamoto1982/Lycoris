@@ -131,7 +131,7 @@ proptest! {
 }
 
 /// The total forms of `small_rational` against `Fraction` on every pair of
-/// a set that holds the three points over zero, zero, signs, a non-integer
+/// a set that holds the two points over zero, zero, signs, a non-integer
 /// and the ends of a machine word: the same pair wherever `Fraction`'s
 /// answer fits one, and the same order, `None` exactly where `Fraction`
 /// orders nothing.
@@ -147,7 +147,6 @@ fn small_rational_total_forms_agree_with_fraction() {
         (i64::MAX, 1),
         (i64::MIN + 1, 1),
         (1, 0),
-        (-1, 0),
         (0, 0),
     ];
     for a in pairs {
@@ -171,7 +170,7 @@ fn small_rational_total_forms_agree_with_fraction() {
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(16384))]
 
-    /// The total forms agree with `Fraction` on random pairs and the three
+    /// The total forms agree with `Fraction` on random pairs and the two
     /// points over zero.
     #[test]
     fn small_rational_total_forms_agree_on_random_pairs(
@@ -190,7 +189,7 @@ proptest! {
 }
 
 fn over_zero() -> impl Strategy<Value = (i64, i64)> {
-    prop_oneof![Just((1, 0)), Just((-1, 0)), Just((0, 0))]
+    prop_oneof![Just((1, 0)), Just((0, 0))]
 }
 
 proptest! {

@@ -213,8 +213,8 @@ mod tests {
         }
     }
 
-    /// Division is total (LANG.VALUES.EXACT): a quotient by zero is the
-    /// dividend's sign over zero, a number like any other, so `DIV` declares
+    /// Division is total (LANG.VALUES.EXACT): a quotient by zero is a point
+    /// over zero, a number like any other, so `DIV` declares
     /// no projection and passes a NIL operand through exactly as `ADD` does.
     /// `SQRT` is the arithmetic Word that still projects — a negative
     /// radicand has no square root in the field — and it both passes a NIL

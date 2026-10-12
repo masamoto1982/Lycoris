@@ -20,7 +20,7 @@ use super::word_contract::{AccumulatedContract, WordContract};
 use crate::coreword_registry::FieldClosure;
 use crate::types::{Token, Value, ValueData};
 
-/// Whether a literal token pushes one of the three points over zero, at any
+/// Whether a literal token pushes one of the two points over zero, at any
 /// depth. A body that writes `1/0` leaves the field as surely as one that
 /// writes `1 0 DIV`. A lexeme that does not parse is not counted: running it
 /// raises before anything is pushed.

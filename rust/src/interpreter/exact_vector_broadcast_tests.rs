@@ -92,7 +92,7 @@ async fn irrational_vector_div_by_zero_lane_is_the_point_over_zero() {
     );
     assert_eq!(
         children[1],
-        Value::from_fraction(Fraction::positive_infinity()),
+        Value::from_fraction(Fraction::infinity()),
         "√3 / 0 is the sign of √3 over zero"
     );
 }

@@ -136,9 +136,9 @@ impl Fraction {
 impl PartialEq for Fraction {
     #[inline]
     fn eq(&self, other: &Self) -> bool {
-        // A pair over zero is one of three reduced pairs (`fraction_extended`),
+        // A pair over zero is one of two reduced pairs (`fraction_extended`),
         // so it compares as the pair it is: cross-multiplying would make
-        // `1/0` and `-1/0` equal, both products being 0.
+        // `1/0` and `0/0` equal, both products being 0.
         if !self.is_finite() || !other.is_finite() {
             return self.extract_i64_pair() == other.extract_i64_pair();
         }
@@ -181,7 +181,7 @@ impl Eq for Fraction {}
 impl std::hash::Hash for Fraction {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         if let FractionRepr::Small(n, 0) = &self.repr {
-            // One of the three points: hashed as the pair it is, which is
+            // One of the two points: hashed as the pair it is, which is
             // what `==` compares.
             state.write_u8(0);
             n.hash(state);
@@ -226,7 +226,7 @@ impl Fraction {
     }
 
     /// A `Fraction` from a pair the caller already knows is in lowest terms
-    /// with a non-negative denominator — one of the three pairs over zero
+    /// with a non-negative denominator — one of the two pairs over zero
     /// included.
     ///
     /// `Fraction::new` reaches the same answer by widening both halves to
@@ -244,7 +244,7 @@ impl Fraction {
     #[inline]
     pub(crate) fn from_normalized_pair(numerator: i64, denominator: i64) -> Self {
         debug_assert!(
-            denominator > 0 || (denominator == 0 && (-1..=1).contains(&numerator)),
+            denominator > 0 || (denominator == 0 && (0..=1).contains(&numerator)),
             "from_normalized_pair needs a reduced pair with a non-negative denominator, got {numerator}/{denominator}"
         );
         debug_assert!(
@@ -275,8 +275,8 @@ impl Fraction {
     }
 
     /// The reduced pair `numerator / denominator`. A zero denominator is a
-    /// pair like any other: it reduces to the numerator's sign over zero
-    /// (`fraction_extended`), so `100/0` is `1/0`.
+    /// pair like any other: it reduces to one of the two points over zero
+    /// (`fraction_extended`), so `100/0` and `-100/0` are `1/0`.
     pub fn new(numerator: BigInt, denominator: BigInt) -> Self {
         if denominator.is_zero() {
             return Self::over_zero(numerator.sign().cmp(&num_bigint::Sign::NoSign));
@@ -378,7 +378,7 @@ impl Fraction {
     }
 
     /// True for the number zero. `0/0` is not zero: its denominator is 0, and
-    /// it is one of the three points of `fraction_extended`.
+    /// it is one of the two points of `fraction_extended`.
     #[inline]
     pub fn is_zero(&self) -> bool {
         match &self.repr {
@@ -749,18 +749,12 @@ mod literal_parsing_tests {
     }
 
     #[test]
-    fn zero_denominator_fraction_literal_reduces_to_its_sign_over_zero() {
-        // `n/0` denotes one of the three points (LANG.SOURCE.TEXT), reduced
+    fn zero_denominator_fraction_literal_reduces_to_its_point_over_zero() {
+        // `n/0` denotes one of the two points (LANG.SOURCE.TEXT), reduced
         // like every other pair.
-        assert_eq!(
-            Fraction::from_str("3/0").unwrap(),
-            Fraction::positive_infinity()
-        );
+        assert_eq!(Fraction::from_str("3/0").unwrap(), Fraction::infinity());
         assert_eq!(Fraction::from_str("0/0").unwrap(), Fraction::nullity());
-        assert_eq!(
-            Fraction::from_str("-5/0").unwrap(),
-            Fraction::negative_infinity()
-        );
+        assert_eq!(Fraction::from_str("-5/0").unwrap(), Fraction::infinity());
     }
 
     #[test]

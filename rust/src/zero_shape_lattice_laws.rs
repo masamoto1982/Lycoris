@@ -32,7 +32,7 @@ const DEFINITIONS: &str = "\
 
 /// `(numerator ≠ 0, denominator ≠ 0)`, read as a truth value: the numerator
 /// half says it holds, the denominator half that it does not. FALSE is `0`,
-/// TRUE `±1/0`, UNKNOWN `0/0` and BOTH every other number.
+/// TRUE `1/0`, UNKNOWN `0/0` and BOTH every other number.
 type Shape = (bool, bool);
 
 const FALSE: Shape = (false, true);

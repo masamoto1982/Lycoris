@@ -38,7 +38,7 @@ fn frac_from_parts(num: &str, den: &str) -> Result<Fraction, String> {
     let numerator = BigInt::from_str(num).map_err(|e| format!("bad numerator: {e}"))?;
     let denominator = BigInt::from_str(den).map_err(|e| format!("bad denominator: {e}"))?;
     // A zero denominator is a pair like any other: `Fraction::new` reduces it
-    // to one of the three points over zero, so an untrusted `100/0` decodes
+    // to one of the two points over zero, so an untrusted `100/0` decodes
     // as the `1/0` it spells.
     Ok(Fraction::new(numerator, denominator))
 }
@@ -87,7 +87,7 @@ enum PersistData {
         s: String,
     },
     /// A dense tensor: its two columns as stored. A lane with denominator 0
-    /// is one of the three points over zero, a number like any other lane.
+    /// is one of the two points over zero, a number like any other lane.
     Tensor {
         nums: Vec<i64>,
         dens: Vec<i64>,

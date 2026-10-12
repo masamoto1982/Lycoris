@@ -289,7 +289,7 @@ mod number_sign_guards {
 
 /// A pair over zero is a number, read where every other number is.
 ///
-/// `1/0` denotes one of the three points over zero (LANG.VALUES.EXACT), so it
+/// `1/0` denotes one of the two points over zero (LANG.VALUES.EXACT), so it
 /// tokenizes as a Number and runs like one: `1 PRINT 1/0` prints and then
 /// leaves `1/0`. It used to be the one source error that surfaced halfway
 /// through a run, and then a source error refused up front; now it is a
@@ -357,17 +357,17 @@ mod zero_denominator_literal_tests {
 
     /// And the value is the same wherever the literal is written — bare,
     /// inside a vector literal, and in a `DEF` body: the pair reduced to its
-    /// sign over zero.
+    /// point, `1/0` whatever the sign of its numerator.
     #[tokio::test]
     async fn a_literal_over_zero_reduces_to_its_point_wherever_it_is_written() {
         for (source, expected) in [
             ("1/0", "1/0"),
             ("0/0", "0/0"),
-            ("-1/0", "-1/0"),
+            ("-1/0", "1/0"),
             ("7/00", "1/0"),
             ("[ 1/0 ]", "[ 1/0 ]"),
             ("1/0 2 ADD", "1/0"),
-            ("[ 1/0 MUL ] 'W' DEF -3 W", "-1/0"),
+            ("[ 1/0 MUL ] 'W' DEF -3 W", "1/0"),
         ] {
             let mut interp = Interpreter::new();
             interp

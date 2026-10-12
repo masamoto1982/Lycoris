@@ -384,11 +384,7 @@ fn a_number_is_spelled_the_same_from_words_or_from_bigints() {
         value_to_protocol(&Value::from_fraction(wide)).value,
         num("1180591620717411303424", "3")
     );
-    for (point, numerator) in [
-        (Fraction::positive_infinity(), "1"),
-        (Fraction::negative_infinity(), "-1"),
-        (Fraction::nullity(), "0"),
-    ] {
+    for (point, numerator) in [(Fraction::infinity(), "1"), (Fraction::nullity(), "0")] {
         let node = value_to_protocol(&Value::from_fraction(point));
         assert_eq!(node.type_str, "number");
         assert_eq!(node.value, num(numerator, "0"));
@@ -418,10 +414,7 @@ fn tensor_shape_decides_leaves_or_rows() {
 
 #[test]
 fn a_dense_lane_keeps_a_fraction_and_a_point() {
-    let lanes = vec![
-        Fraction::new(1.into(), 2.into()),
-        Fraction::positive_infinity(),
-    ];
+    let lanes = vec![Fraction::new(1.into(), 2.into()), Fraction::infinity()];
     let dense = DenseTensor::from_fractions(lanes, vec![2]).expect("dense lanes");
     let value = Value::new(
         ValueData::Tensor {

@@ -38,7 +38,7 @@ fn leaf() -> impl Strategy<Value = Value> {
             num_bigint::BigInt::from(i64::MAX) * 4,
             1.into(),
         ))),
-        // The three points over zero, which are lanes like any other.
+        // The two points over zero, which are lanes like any other.
         1 => (-1i64..=1).prop_map(|sign| Value::from_fraction(
             super::fraction::Fraction::new(sign.into(), 0.into()),
         )),

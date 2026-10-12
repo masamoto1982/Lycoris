@@ -264,7 +264,7 @@ pub struct NumberLiteral {
     lexeme: Name,
     /// Set only when the lexeme is exactly `[+-]?digits` in `i64` range, in which
     /// case it denotes precisely this integer over 1. Every other spelling —
-    /// `1/2`, `1.5`, `1e5`, `1_000`, `1/0` (one of the three points over zero),
+    /// `1/2`, `1.5`, `1e5`, `1_000`, `1/0` (one of the two points over zero),
     /// or anything wider than `i64` — leaves
     /// it `None` and reaches `Fraction::from_str` as it did before.
     integer: Option<i64>,

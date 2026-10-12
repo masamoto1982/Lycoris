@@ -1,7 +1,7 @@
 //! LANG.CONTRACT.FIELD, held against the implementation.
 //!
 //! Every Core Word declares in `spec/words.json` whether it keeps numbers in
-//! the field (`closed`) or can answer one of the three points over zero from
+//! the field (`closed`) or can answer one of the two points over zero from
 //! operands that hold none (`leaving`). The declaration is what the contract
 //! inference joins along a body, so a wrong one would make `field=closed` a
 //! promise the language breaks. Three laws keep it honest:

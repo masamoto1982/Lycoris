@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 impl Value {
     /// The lane at `index` of a dense tensor as a `Value`: the number its
-    /// columns denote, one of the three points over zero included.
+    /// columns denote, one of the two points over zero included.
     pub fn from_dense_lane(data: &DenseTensor, index: usize) -> Value {
         Value::from_fraction(data.fraction_at(index))
     }
@@ -296,9 +296,9 @@ mod tensor_boundary_tests {
     fn from_exact_real_keeps_a_point_over_zero_a_scalar() {
         use crate::types::exact::ExactReal;
 
-        let value = Value::from_exact_real(ExactReal::Rational(Fraction::positive_infinity()));
+        let value = Value::from_exact_real(ExactReal::Rational(Fraction::infinity()));
         assert!(value.is_scalar(), "got {:?}", value.data);
-        assert_eq!(value, Value::from_fraction(Fraction::positive_infinity()));
+        assert_eq!(value, Value::from_fraction(Fraction::infinity()));
         assert_eq!(value.domain_name(), "Scalar");
 
         // A present rational still takes the Scalar fast path, and an

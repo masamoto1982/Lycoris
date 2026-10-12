@@ -259,7 +259,7 @@ impl Fraction {
     /// `1/0`, so `a ÷ 0` is the sign of `a` over zero.
     pub fn div(&self, other: &Fraction) -> Fraction {
         if !other.is_finite() {
-            // The reciprocal of `1/0` or `-1/0` is 0, and of `0/0` is itself:
+            // The reciprocal of `1/0` is 0, and of `0/0` is itself:
             // the product is the ordinary one, or the extended one.
             return self.mul(&other.reciprocal());
         }
@@ -314,6 +314,8 @@ impl Fraction {
     #[inline]
     pub fn neg(&self) -> Fraction {
         match &self.repr {
+            // `(-1, 0)` and `(1, 0)` are one number, and `-0/0` is `0/0`.
+            FractionRepr::Small(_, 0) => self.clone(),
             FractionRepr::Small(n, d) => match n.checked_neg() {
                 Some(negated) => Fraction::from_repr(FractionRepr::Small(negated, *d)),
                 None => Fraction::from_repr(FractionRepr::big(-BigInt::from(*n), BigInt::from(*d))),
@@ -348,7 +350,7 @@ impl Fraction {
     }
 
     pub fn floor(&self) -> Fraction {
-        // No integer lies at or beyond the three points, so each is its own
+        // No integer lies at or beyond the two points, so each is its own
         // floor, as it is its own rounding.
         if !self.is_finite() {
             return self.clone();

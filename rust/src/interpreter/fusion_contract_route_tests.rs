@@ -85,7 +85,7 @@ const PROGRAMS: &[&str] = &[
     "[ [ 1 ] [ 2 ] ] [ DEPTH ] MAP",
     "[ 1 TRUE 3 ] [ 4 GCD ] MAP",
     "[ 4611686018427387904 9223372036854775807 ] [ 4611686018427387904 GCD ] MAP",
-    // The three points over zero are plain values on every route: `GCD`
+    // The two points over zero are plain values on every route: `GCD`
     // answers NIL for them (no plain answer), `NIL?` FALSE, `DEPTH` 0.
     "1/0 6 GCD",
     "0/0 0/0 GCD",

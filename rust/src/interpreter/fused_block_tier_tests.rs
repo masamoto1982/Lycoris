@@ -32,14 +32,14 @@ fn the_rational_tier_is_taken_where_it_applies() {
 }
 
 /// Elements over zero, and a zero divisor the integer tier meets, stay on the
-/// small-rational tier (`small_rational`'s total forms); an order asked of
-/// `0/0` has no answer on any fused tier.
+/// small-rational tier (`small_rational`'s total forms); an order asked of a
+/// point has no answer on any fused tier.
 #[test]
 fn points_over_zero_stay_on_the_rational_tier() {
     assert_eq!(rat_runs("1 [ 0 1 2 ] DIV [ 2 MUL ] MAP"), 1);
     assert_eq!(rat_runs("[ 1 0 2 ] [ 'X' BIND 1 X DIV ] MAP"), 1);
-    assert_eq!(rat_runs("[ 1/0 -1/0 0/0 5/2 ] [ FLOOR ] MAP"), 1);
-    assert_eq!(rat_runs("[ 1/0 -1/0 2 ] [ 1/2 GT ] FILTER"), 1);
+    assert_eq!(rat_runs("[ 1/0 0/0 5/2 ] [ FLOOR ] MAP"), 1);
+    assert_eq!(rat_runs("[ 1/0 2 ] [ 1/2 GT ] FILTER"), 0);
     assert_eq!(rat_runs("[ 1 2 -3 ] 1/0 [ MUL ] SCAN"), 1);
     assert_eq!(rat_runs("[ 1/0 0/0 2 ] [ 1/2 GT ] FILTER"), 0);
     assert_eq!(rat_runs("[ 0/0 1 ] [ 3 MIN ] MAP"), 0);

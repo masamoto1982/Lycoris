@@ -133,22 +133,22 @@
   <div class="ajisai-expect-effects"></div>
 </section>
 
-<section class="ajisai-case" id="core-division-by-zero-is-the-sign-over-zero" data-category="core">
-  <h3>Division by zero is total: the dividend's sign over zero, one of the three points (LANG.VALUES.EXACT)</h3>
-  <pre class="ajisai-source">100 0 DIV -5 0 DIV 0 0 DIV 1/2 0 DIV</pre>
-  <pre class="ajisai-expect-result">1/0 -1/0 0/0 1/0</pre>
+<section class="ajisai-case" id="core-division-by-zero-is-a-point-over-zero" data-category="core">
+  <h3>Division by zero is total: 1/0 for every nonzero dividend, whatever its sign, and 0/0 for zero — the two points over zero (LANG.VALUES.EXACT)</h3>
+  <pre class="ajisai-source">100 0 DIV -5 0 DIV 0 0 DIV 1/2 0 DIV -1/0</pre>
+  <pre class="ajisai-expect-result">1/0 1/0 0/0 1/0 1/0</pre>
   <div class="ajisai-expect-effects"></div>
 </section>
 
 <section class="ajisai-case" id="core-points-over-zero-obey-the-pair-formulas" data-category="core">
-  <h3>The three points obey the pair formulas: a finite operand contributes its sign, 1/0 + 1/0 is 0/0, 1 ÷ 1/0 is 0 (LANG.VALUES.EXACT)</h3>
-  <pre class="ajisai-source">1/0 5 ADD 1/0 1/0 ADD 1/0 -2 MUL 1/0 0 MUL 1 1/0 DIV 1/0 1/0 DIV 3 1/0 SUB</pre>
-  <pre class="ajisai-expect-result">1/0 0/0 -1/0 0/0 0/1 0/0 -1/0</pre>
+  <h3>The two points obey the wheel's pair formulas: 1/0 + 1/0 is 0/0, a nonzero factor of 1/0 is 1/0 whatever its sign, 1 ÷ 1/0 is 0, and the reciprocal is an involution (LANG.VALUES.EXACT)</h3>
+  <pre class="ajisai-source">1/0 5 ADD 1/0 1/0 ADD 1/0 -2 MUL 1/0 0 MUL 1 1/0 DIV 1/0 1/0 DIV 3 1/0 SUB 1 1 -5 0 DIV DIV DIV</pre>
+  <pre class="ajisai-expect-result">1/0 0/0 1/0 0/0 0/1 0/0 1/0 1/0</pre>
   <div class="ajisai-expect-effects"></div>
 </section>
 
 <section class="ajisai-case" id="core-distributivity-gives-way-at-the-points" data-category="core">
-  <h3>The distributive law gives way at the three points and nowhere else: (1 + 1) · 1/0 is 1/0 while 1/0 + 1/0 is 0/0 (LANG.VALUES.EXACT)</h3>
+  <h3>The distributive law gives way at the points and nowhere else: (1 + 1) · 1/0 is 1/0 while 1/0 + 1/0 is 0/0 (LANG.VALUES.EXACT)</h3>
   <pre class="ajisai-source">1 1 ADD 1/0 MUL 1/0 1/0 ADD 1 1 ADD 3 MUL 3 3 ADD EQ</pre>
   <pre class="ajisai-expect-result">1/0 0/0 TRUE</pre>
   <div class="ajisai-expect-effects"></div>
@@ -161,24 +161,24 @@
   <div class="ajisai-expect-effects"></div>
 </section>
 
-<section class="ajisai-case" id="core-nullity-has-no-order" data-category="core">
-  <h3>-1/0 lies below every number and 1/0 above; 0/0 has no order, so an order asked of it projects domainMiss and reads as UNKNOWN (LANG.VALUES.EXACT, LANG.VALUES.TRUTH)</h3>
-  <pre class="ajisai-source">-1/0 -1000000 LT 1/0 1000000 GT 1/0 1/0 LT 0/0 1 LT NIL-REASON 0/0 0/0 GT NIL? 0/0 1 LT TRUE AND NIL?</pre>
-  <pre class="ajisai-expect-result">TRUE TRUE FALSE 'domainMiss' TRUE TRUE</pre>
+<section class="ajisai-case" id="core-points-have-no-order" data-category="core">
+  <h3>Neither point over zero has an order — 1/0 is unsigned, 0/0 the bottom — so an order asked of one projects domainMiss and reads as UNKNOWN, while equality still decides (LANG.VALUES.EXACT, LANG.VALUES.TRUTH)</h3>
+  <pre class="ajisai-source">1/0 1000000 GT NIL-REASON 1/0 1/0 LT NIL? 0/0 1 LT NIL-REASON 0/0 0/0 GT NIL? 0/0 1 LT TRUE AND NIL? 1/0 -1/0 EQ</pre>
+  <pre class="ajisai-expect-result">'domainMiss' TRUE 'domainMiss' TRUE TRUE TRUE</pre>
   <div class="ajisai-expect-effects"></div>
 </section>
 
-<section class="ajisai-case" id="core-order-words-project-on-nullity" data-category="core">
-  <h3>MIN, MAX, SORT, ORDER and BSEARCH order the points and project domainMiss for 0/0 (LANG.VALUES.EXACT)</h3>
-  <pre class="ajisai-source">-1/0 5 MIN 1/0 5 MAX 0/0 1 MIN NIL-REASON [ 3 1/0 -1/0 1 ] SORT [ 3 0/0 1 ] SORT NIL-REASON [ 3 0/0 1 ] ORDER NIL-REASON [ 1 3 ] 0/0 BSEARCH NIL-REASON [ 1 0/0 ] 1 BSEARCH NIL-REASON</pre>
-  <pre class="ajisai-expect-result">-1/0 1/0 'domainMiss' [ -1/0 1/1 3/1 1/0 ] 'domainMiss' 'domainMiss' 'domainMiss' 'domainMiss'</pre>
+<section class="ajisai-case" id="core-order-words-project-on-the-points" data-category="core">
+  <h3>MIN, MAX, SORT, ORDER and BSEARCH project domainMiss for either point over zero, which has no order (LANG.VALUES.EXACT)</h3>
+  <pre class="ajisai-source">1/0 5 MAX NIL-REASON 0/0 1 MIN NIL-REASON [ 3 1/0 1 ] SORT NIL-REASON [ 3 0/0 1 ] SORT NIL-REASON [ 3 1/0 1 ] ORDER NIL-REASON [ 1 3 ] 0/0 BSEARCH NIL-REASON [ 1 1/0 ] 1 BSEARCH NIL-REASON</pre>
+  <pre class="ajisai-expect-result">'domainMiss' 'domainMiss' 'domainMiss' 'domainMiss' 'domainMiss' 'domainMiss' 'domainMiss'</pre>
   <div class="ajisai-expect-effects"></div>
 </section>
 
 <section class="ajisai-case" id="core-points-through-the-other-numeric-words" data-category="core">
-  <h3>An irrational contributes its sign over zero; FLOOR, ROUND and SQRT leave the points as they are, SQRT of -1/0 is the negative radicand it is, and POW is total where division is (LANG.VALUES.EXACT)</h3>
-  <pre class="ajisai-source">2 SQRT 0 DIV 2 SQRT -1 MUL 0 DIV 0/0 FLOOR 1/0 ROUND 1/0 SQRT 0/0 SQRT -1/0 SQRT NIL-REASON 0 -1 POW 1/0 -1 POW -1/0 2 POW 2 1/0 POW NIL-REASON</pre>
-  <pre class="ajisai-expect-result">1/0 -1/0 0/0 1/0 1/0 0/0 'domainMiss' 1/0 0/1 1/0 'domainMiss'</pre>
+  <h3>An irrational divided by zero is 1/0 whatever its sign; FLOOR, ROUND and SQRT leave the points as they are, and POW is total where division is (LANG.VALUES.EXACT)</h3>
+  <pre class="ajisai-source">2 SQRT 0 DIV 2 SQRT -1 MUL 0 DIV 0/0 FLOOR 1/0 ROUND 1/0 SQRT 0/0 SQRT 0 -1 POW 1/0 -1 POW 1/0 2 POW 2 1/0 POW NIL-REASON</pre>
+  <pre class="ajisai-expect-result">1/0 1/0 0/0 1/0 1/0 0/0 1/0 0/1 1/0 'domainMiss'</pre>
   <div class="ajisai-expect-effects"></div>
 </section>
 
@@ -1190,9 +1190,9 @@
   <div class="ajisai-expect-effects"></div>
 </section>
 
-<section class="ajisai-case" id="core-every-pair-over-zero-reduces-to-its-sign" data-category="core">
-  <h3>Every pair over zero reduces to its sign over zero: 100/0, 5/0 and 1/0 are one value, and so are -3/0 and -1/0</h3>
-  <pre class="ajisai-source">100/0 5/0 EQ 5 0 DIV 1/0 EQ -3/0 -1/0 EQ 100/0</pre>
+<section class="ajisai-case" id="core-every-pair-over-zero-reduces-to-a-point" data-category="core">
+  <h3>Every pair over zero with a nonzero numerator reduces to 1/0: 100/0, 5/0, -3/0 and 1/0 are one value</h3>
+  <pre class="ajisai-source">100/0 5/0 EQ 5 0 DIV 1/0 EQ -3/0 1/0 EQ -3/0</pre>
   <pre class="ajisai-expect-result">TRUE TRUE TRUE 1/0</pre>
   <div class="ajisai-expect-effects"></div>
 </section>
@@ -1614,7 +1614,7 @@
 </section>
 
 <section class="ajisai-case" id="core-division-by-zero-fills-its-own-lane-only" data-category="core">
-  <h3>A zero divisor answers its own lane's sign over zero, and the lanes beside it are quotients</h3>
+  <h3>A zero divisor answers its own lane's point over zero, and the lanes beside it are quotients</h3>
   <pre class="ajisai-source">[ 6 6 6 ] [ 1 2 0 ] DIV</pre>
   <pre class="ajisai-expect-result">[ 6/1 3/1 1/0 ]</pre>
   <div class="ajisai-expect-effects"></div>
@@ -1623,7 +1623,7 @@
 <section class="ajisai-case" id="core-division-by-zero-after-broadcast" data-category="core">
   <h3>A broadcast dividend keeps the lanes whose divisor was not zero</h3>
   <pre class="ajisai-source">[ 6 ] [ 1 2 0 ] DIV [ -6 ] [ 0 ] DIV</pre>
-  <pre class="ajisai-expect-result">[ 6/1 3/1 1/0 ] [ -1/0 ]</pre>
+  <pre class="ajisai-expect-result">[ 6/1 3/1 1/0 ] [ 1/0 ]</pre>
   <div class="ajisai-expect-effects"></div>
 </section>
 

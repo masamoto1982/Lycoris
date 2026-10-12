@@ -95,7 +95,7 @@ fn tensor_with_a_lane_over_zero_round_trips() {
         vec![
             Fraction::from(1),
             Fraction::nullity(),
-            Fraction::negative_infinity(),
+            Fraction::infinity(),
             Fraction::from(4),
         ],
         vec![4],
@@ -105,7 +105,7 @@ fn tensor_with_a_lane_over_zero_round_trips() {
         "the fixture must actually carry a lane over zero"
     );
     assert_value_roundtrip(tensor);
-    assert_value_roundtrip(Value::from_fraction(Fraction::positive_infinity()));
+    assert_value_roundtrip(Value::from_fraction(Fraction::infinity()));
 }
 #[test]
 fn multi_slot_stack_round_trips_in_order() {
@@ -201,7 +201,7 @@ fn a_restored_tensor_reduces_a_lane_over_zero_to_its_point() {
     assert_eq!(
         restored.child(1).map(|c| format!("{c}")),
         Some("1/0".to_string()),
-        "a pair over zero reduces to its sign over zero"
+        "a pair over zero reduces to its point over zero"
     );
 }
 

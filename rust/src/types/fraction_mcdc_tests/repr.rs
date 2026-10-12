@@ -238,7 +238,7 @@ mod integer_reads {
     #[test]
     fn aq_ver_001_l_to_u64_small_declines_a_point_or_a_negative() {
         assert_eq!(ToPrimitive::to_u64(&small(7, 2)), Some(3));
-        assert_eq!(ToPrimitive::to_u64(&Fraction::positive_infinity()), None);
+        assert_eq!(ToPrimitive::to_u64(&Fraction::infinity()), None);
         assert_eq!(ToPrimitive::to_u64(&small(-7, 2)), None);
     }
 
@@ -283,7 +283,7 @@ mod integer_reads {
         assert_eq!(ToPrimitive::to_i64(&big(pow2(64) + 1, 4)), Some(1 << 62));
         assert_eq!(ToPrimitive::to_i64(&big(pow2(70) + 1, 3)), None);
         assert_eq!(ToPrimitive::to_f64(&small(1, 4)), Some(0.25));
-        assert_eq!(ToPrimitive::to_f64(&Fraction::negative_infinity()), None);
+        assert_eq!(ToPrimitive::to_f64(&Fraction::infinity()), None);
         let wide = ToPrimitive::to_f64(&big(pow2(70), 3)).unwrap();
         assert!((wide - 2f64.powi(70) / 3.0).abs() < 1e6);
     }
@@ -387,19 +387,13 @@ mod mixed_representation_order_and_equality {
 
     #[test]
     fn aq_ver_001_n_a_rational_against_a_point() {
+        // The point at infinity is unsigned, so no rational of either
+        // representation lies above or below it.
         let wide = big(pow2(70), 1);
-        assert_eq!(
-            wide.order(&Fraction::positive_infinity()),
-            Some(Ordering::Less)
-        );
-        assert_eq!(
-            small(1, 1).order(&Fraction::negative_infinity()),
-            Some(Ordering::Greater)
-        );
-        assert_eq!(
-            small(0, 1).order(&Fraction::positive_infinity()),
-            Some(Ordering::Less)
-        );
+        assert_eq!(wide.order(&Fraction::infinity()), None);
+        assert_eq!(Fraction::infinity().order(&wide), None);
+        assert_eq!(small(1, 1).order(&Fraction::infinity()), None);
+        assert_eq!(small(0, 1).order(&Fraction::infinity()), None);
     }
 
     #[test]

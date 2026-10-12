@@ -873,7 +873,7 @@
       "conformance_cases": [
         "core-exact-addition",
         "core-exact-division",
-        "core-division-by-zero-is-the-sign-over-zero",
+        "core-division-by-zero-is-a-point-over-zero",
         "core-points-over-zero-obey-the-pair-formulas",
         "core-distributivity-gives-way-at-the-points"
       ],
@@ -985,8 +985,8 @@
       ],
       "conformance_cases": [
         "core-exact-division",
-        "core-division-by-zero-is-the-sign-over-zero",
-        "core-every-pair-over-zero-reduces-to-its-sign"
+        "core-division-by-zero-is-a-point-over-zero",
+        "core-every-pair-over-zero-reduces-to-a-point"
       ],
       "status": "Formalized",
       "notes": "Exact-real division as a bihomographic arithmetic word, total over the reduced pairs: a zero divisor answers the dividend's sign over zero (LANG.VALUES.EXACT) rather than a host exception or an absence.",

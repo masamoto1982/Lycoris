@@ -148,14 +148,15 @@ proptest! {
         assert_law("nil-passthrough", &format!("-1 SQRT {a} ADD"), "NIL");
     }
 
-    /// Division by zero is total, and the three points over zero obey the
-    /// pair formulas (LANG.VALUES.EXACT): a quotient by zero is its sign over
-    /// zero, and arithmetic after it stays on the three points.
+    /// Division by zero is total, and the two points over zero obey the
+    /// pair formulas (LANG.VALUES.EXACT): a quotient by zero is `1/0` for a
+    /// nonzero dividend of either sign and `0/0` for zero, and arithmetic
+    /// after it stays on the two points.
     #[test]
-    fn division_by_zero_is_the_sign_over_zero(a in small()) {
-        let sign = a.signum();
-        assert_law("div-by-zero", &format!("{a} 0 DIV"), &format!("{sign}/0"));
-        assert_law("div-by-zero-absorbs-add", &format!("{a} 0 DIV {a} ADD"), &format!("{sign}/0"));
+    fn division_by_zero_is_a_point_over_zero(a in small()) {
+        let point = i64::from(a != 0);
+        assert_law("div-by-zero", &format!("{a} 0 DIV"), &format!("{point}/0"));
+        assert_law("div-by-zero-absorbs-add", &format!("{a} 0 DIV {a} ADD"), &format!("{point}/0"));
         assert_law("div-by-point-is-zero", &format!("{a} 1/0 DIV"), "0/1");
         assert_law("point-minus-itself", &format!("{a} 0 DIV {a} 0 DIV SUB"), "0/0");
         assert_law("nullity-absorbs", &format!("0/0 {a} ADD"), "0/0");

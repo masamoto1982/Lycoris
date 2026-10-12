@@ -182,7 +182,7 @@
       "A sign must be followed by an ASCII digit, which is what leaves a bare '-' or '+' an ordinary name.",
       "A decimal carries at least one digit on both sides of the point: '0.5' and '5.0' are numbers, '.5' and '5.' are not. The point is therefore never the first or last character of a number, which keeps a lone '.' unambiguously a name.",
       "A rational takes no fraction and no exponent: after the denominator the lexeme must end.",
-      "A denominator may be zero: '1/0', '-5/0' and '0/0' are numbers, each denoting the reduced pair its sign over zero gives (LANG.VALUES.EXACT), so a lexeme of the rational shape is a number whatever its denominator.",
+      "A denominator may be zero: '1/0', '-5/0' and '0/0' are numbers, each denoting the point over zero its pair reduces to — '1/0' and '-5/0' the one point 1/0, '0/0' itself (LANG.VALUES.EXACT), so a lexeme of the rational shape is a number whatever its denominator.",
       "This is the single definition of what text denotes a number. A conversion from Text to a Scalar accepts exactly these lexemes and projects everything else to NIL, so the language has one numeric grammar rather than one per entry point."
     ],
     "examples": {

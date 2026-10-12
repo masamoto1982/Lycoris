@@ -329,8 +329,8 @@ const annotateNilNode = (node: HTMLElement, item: Value): void => {
     node.title = label;
 };
 
-// The three points over zero (LANG.VALUES.EXACT) are numbers, drawn in the
-// number's own ink as the pairs they are: `1/0`, `-1/0`, `0/0`. Nothing in
+// The two points over zero (LANG.VALUES.EXACT) are numbers, drawn in the
+// number's own ink as the pairs they are: `1/0` and `0/0`. Nothing in
 // the text says they are the points where the field's laws give way, so a
 // reader who has not met them yet would take `1/0` for a malformed fraction.
 // Like a reasoned NIL, the node invites the pointer and the tooltip says
@@ -347,9 +347,7 @@ export const describePointNode = (item: Value): string | null => {
     if (/^-?0+$/.test(numerator)) {
         return `${text} · the point with no order: it absorbs every operation`;
     }
-    return numerator.startsWith('-')
-        ? `${text} · the point below every other number`
-        : `${text} · the point above every other number`;
+    return `${text} · the point at infinity: unsigned, with no order`;
 };
 
 const annotatePointNode = (node: HTMLElement, item: Value): void => {
@@ -451,7 +449,7 @@ const checkFractionShape = (value: unknown): Fraction | null => {
     const numerator = String(candidate.numerator ?? '');
     const denominator = String(candidate.denominator ?? '');
     if (!INTEGER_PATTERN.test(numerator) || !INTEGER_PATTERN.test(denominator)) return null;
-    // A zero denominator is one of the three points over zero
+    // A zero denominator is one of the two points over zero
     // (LANG.VALUES.EXACT), a number with no decimal or scientific form.
     // Reject it here so the math view falls back to the canonical text
     // rendering instead of dividing by zero inside `scientificLatex`.
