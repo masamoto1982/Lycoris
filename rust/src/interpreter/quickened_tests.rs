@@ -154,10 +154,9 @@ fn compiled_scalar_calls_are_quickened() {
         let mut interp = Interpreter::new();
         interp.set_quickening_enabled(quickened);
         interp.set_segments_enabled(false);
-        let started = interp.error_flow_trace_log.len();
         crate::agent::block_on(interp.execute("[ 2 MUL 1 ADD ] 'F' DEF 5 F")).unwrap();
         (
-            interp.error_flow_trace_log.len() - started,
+            interp.resource_usage().execution_steps,
             interp.get_stack().len(),
         )
     };

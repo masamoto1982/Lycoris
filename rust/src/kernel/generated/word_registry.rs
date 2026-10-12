@@ -236,74 +236,6 @@ impl FieldClosure {
     }
 }
 
-/// What the Word does to the zero shapes of numbers (LANG.VALUES.SHAPE, LANG.CONTRACT.FIELD).
-///
-/// Generated from the `zeroShapes` enum in spec/words.schema.json: every value the
-/// specification admits is a variant, so the implementation vocabulary cannot be
-/// narrower than the canonical one.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum ZeroShapeLaw {
-    /// `none`
-    None,
-    /// `carry`
-    Carry,
-    /// `count`
-    Count,
-    /// `carryCount`
-    CarryCount,
-    /// `finite`
-    Finite,
-    /// `parse`
-    Parse,
-    /// `sum`
-    Sum,
-    /// `difference`
-    Difference,
-    /// `product`
-    Product,
-    /// `quotient`
-    Quotient,
-    /// `power`
-    Power,
-    /// `root`
-    Root,
-    /// `round`
-    Round,
-    /// `map`
-    Map,
-    /// `filter`
-    Filter,
-    /// `fold`
-    Fold,
-    /// `exec`
-    Exec,
-}
-
-impl ZeroShapeLaw {
-    /// The canonical spec string for this variant.
-    pub const fn as_spec_str(self) -> &'static str {
-        match self {
-            ZeroShapeLaw::None => "none",
-            ZeroShapeLaw::Carry => "carry",
-            ZeroShapeLaw::Count => "count",
-            ZeroShapeLaw::CarryCount => "carryCount",
-            ZeroShapeLaw::Finite => "finite",
-            ZeroShapeLaw::Parse => "parse",
-            ZeroShapeLaw::Sum => "sum",
-            ZeroShapeLaw::Difference => "difference",
-            ZeroShapeLaw::Product => "product",
-            ZeroShapeLaw::Quotient => "quotient",
-            ZeroShapeLaw::Power => "power",
-            ZeroShapeLaw::Root => "root",
-            ZeroShapeLaw::Round => "round",
-            ZeroShapeLaw::Map => "map",
-            ZeroShapeLaw::Filter => "filter",
-            ZeroShapeLaw::Fold => "fold",
-            ZeroShapeLaw::Exec => "exec",
-        }
-    }
-}
-
 /// Observational purity class (LANG.CONTRACT.REGISTRY).
 ///
 /// Generated from the `purity` enum in spec/words.schema.json: every value the
@@ -384,13 +316,7 @@ impl VocabularyTier {
 /// Generated from the `class` enum in spec/words.schema.json: every value the
 /// specification admits is a variant, so the implementation vocabulary cannot be
 /// narrower than the canonical one.
-///
-/// The variants are declared in the schema's own order, and that order **is** the
-/// lattice order the cost join widens along (`const` < `linear` < `superlinear` <
-/// `unbounded`), which is what the derived `Ord` means here. Reordering the
-/// schema enum would silently reorder the lattice, so `word_cost_tests.rs`
-/// asserts the chain directly.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum CostClass {
     /// `const`
     Const,
@@ -410,18 +336,6 @@ impl CostClass {
             CostClass::Linear => "linear",
             CostClass::Superlinear => "superlinear",
             CostClass::Unbounded => "unbounded",
-        }
-    }
-
-    /// The variant a canonical spec string names, or `None` when the string is
-    /// not one the specification admits.
-    pub fn from_spec_str(value: &str) -> Option<CostClass> {
-        match value {
-            "const" => Some(CostClass::Const),
-            "linear" => Some(CostClass::Linear),
-            "superlinear" => Some(CostClass::Superlinear),
-            "unbounded" => Some(CostClass::Unbounded),
-            _ => None,
         }
     }
 }
@@ -550,17 +464,11 @@ pub struct GeneratedWord {
     pub partiality: Partiality,
     /// Whether the Word can answer a point over zero from operands that hold
     /// none (LANG.CONTRACT.FIELD). Read by `interpreter::word_contract`,
-    /// which joins it along a body as it joins partiality.
+    /// which joins it along a body.
     pub field: FieldClosure,
-    /// What the Word does to the zero shapes of numbers (LANG.VALUES.SHAPE).
-    /// Read by `interpreter::word_contract_shape`, which carries the shapes
-    /// a body's stack may hold through each call; `field` is its projection.
-    pub zero_shapes: ZeroShapeLaw,
     pub purity: Purity,
     pub determinism: Determinism,
-    /// What the Word charges on each metered resource. Read by
-    /// `interpreter::word_cost`, which joins these bounds along a phrase to
-    /// bound it without executing it.
+    /// What the Word charges on each metered resource.
     pub cost: WordCost,
     /// Which half of the public Core the Word belongs to. Both halves are
     /// ordinary sealed-Core Words reached by their plain names; the tier is a
@@ -618,7 +526,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &[],
         partiality: Partiality::Total,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::None,
         purity: Purity::Pure,
         determinism: Determinism::Deterministic,
         cost: WordCost {
@@ -659,7 +566,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &[],
         partiality: Partiality::Total,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::None,
         purity: Purity::Pure,
         determinism: Determinism::Deterministic,
         cost: WordCost {
@@ -700,7 +606,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &[],
         partiality: Partiality::Total,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::None,
         purity: Purity::Pure,
         determinism: Determinism::Deterministic,
         cost: WordCost {
@@ -741,7 +646,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &[],
         partiality: Partiality::Total,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::None,
         purity: Purity::Pure,
         determinism: Determinism::Deterministic,
         cost: WordCost {
@@ -782,7 +686,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &[],
         partiality: Partiality::Total,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::Carry,
         purity: Purity::Pure,
         determinism: Determinism::Deterministic,
         cost: WordCost {
@@ -823,7 +726,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &["conflict"],
         partiality: Partiality::Projecting,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::Carry,
         purity: Purity::Pure,
         determinism: Determinism::Deterministic,
         cost: WordCost {
@@ -864,7 +766,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &[],
         partiality: Partiality::Total,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::None,
         purity: Purity::Pure,
         determinism: Determinism::Deterministic,
         cost: WordCost {
@@ -905,7 +806,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &["domainMiss"],
         partiality: Partiality::Projecting,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::None,
         purity: Purity::Pure,
         determinism: Determinism::Deterministic,
         cost: WordCost {
@@ -946,7 +846,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &["domainMiss"],
         partiality: Partiality::Projecting,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::None,
         purity: Purity::Pure,
         determinism: Determinism::Deterministic,
         cost: WordCost {
@@ -987,7 +886,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &[],
         partiality: Partiality::Total,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::Sum,
         purity: Purity::Pure,
         determinism: Determinism::Deterministic,
         cost: WordCost {
@@ -1028,7 +926,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &[],
         partiality: Partiality::Total,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::Difference,
         purity: Purity::Pure,
         determinism: Determinism::Deterministic,
         cost: WordCost {
@@ -1069,7 +966,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &[],
         partiality: Partiality::Total,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::Product,
         purity: Purity::Pure,
         determinism: Determinism::Deterministic,
         cost: WordCost {
@@ -1110,7 +1006,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &[],
         partiality: Partiality::Total,
         field: FieldClosure::Leaving,
-        zero_shapes: ZeroShapeLaw::Quotient,
         purity: Purity::Pure,
         determinism: Determinism::Deterministic,
         cost: WordCost {
@@ -1151,7 +1046,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &[],
         partiality: Partiality::Total,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::Round,
         purity: Purity::Pure,
         determinism: Determinism::Deterministic,
         cost: WordCost {
@@ -1192,7 +1086,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &[],
         partiality: Partiality::Total,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::Round,
         purity: Purity::Pure,
         determinism: Determinism::Deterministic,
         cost: WordCost {
@@ -1233,7 +1126,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &["domainMiss"],
         partiality: Partiality::Projecting,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::Carry,
         purity: Purity::Pure,
         determinism: Determinism::Deterministic,
         cost: WordCost {
@@ -1274,7 +1166,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &["domainMiss"],
         partiality: Partiality::Projecting,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::Carry,
         purity: Purity::Pure,
         determinism: Determinism::Deterministic,
         cost: WordCost {
@@ -1315,7 +1206,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &["domainMiss"],
         partiality: Partiality::Projecting,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::Root,
         purity: Purity::Pure,
         determinism: Determinism::Deterministic,
         cost: WordCost {
@@ -1356,7 +1246,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &["domainMiss"],
         partiality: Partiality::Projecting,
         field: FieldClosure::Leaving,
-        zero_shapes: ZeroShapeLaw::Power,
         purity: Purity::Pure,
         determinism: Determinism::Deterministic,
         cost: WordCost {
@@ -1397,7 +1286,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &["domainMiss"],
         partiality: Partiality::Projecting,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::Count,
         purity: Purity::Pure,
         determinism: Determinism::Deterministic,
         cost: WordCost {
@@ -1438,7 +1326,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &["domainMiss"],
         partiality: Partiality::Projecting,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::Finite,
         purity: Purity::Pure,
         determinism: Determinism::Deterministic,
         cost: WordCost {
@@ -1479,7 +1366,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &["indexOutOfBounds", "notFound"],
         partiality: Partiality::Projecting,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::Carry,
         purity: Purity::Pure,
         determinism: Determinism::Deterministic,
         cost: WordCost {
@@ -1520,7 +1406,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &[],
         partiality: Partiality::Total,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::Count,
         purity: Purity::Pure,
         determinism: Determinism::Deterministic,
         cost: WordCost {
@@ -1561,7 +1446,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &["indexOutOfBounds"],
         partiality: Partiality::Projecting,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::Carry,
         purity: Purity::Pure,
         determinism: Determinism::Deterministic,
         cost: WordCost {
@@ -1602,7 +1486,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &["indexOutOfBounds"],
         partiality: Partiality::Projecting,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::Carry,
         purity: Purity::Pure,
         determinism: Determinism::Deterministic,
         cost: WordCost {
@@ -1643,7 +1526,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &[],
         partiality: Partiality::Total,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::Carry,
         purity: Purity::Pure,
         determinism: Determinism::Deterministic,
         cost: WordCost {
@@ -1684,7 +1566,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &[],
         partiality: Partiality::Total,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::Carry,
         purity: Purity::Pure,
         determinism: Determinism::Deterministic,
         cost: WordCost {
@@ -1725,7 +1606,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &[],
         partiality: Partiality::Partial,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::Carry,
         purity: Purity::Pure,
         determinism: Determinism::Deterministic,
         cost: WordCost {
@@ -1766,7 +1646,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &[],
         partiality: Partiality::Total,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::Finite,
         purity: Purity::Pure,
         determinism: Determinism::Deterministic,
         cost: WordCost {
@@ -1807,7 +1686,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &[],
         partiality: Partiality::Total,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::Carry,
         purity: Purity::Pure,
         determinism: Determinism::Deterministic,
         cost: WordCost {
@@ -1848,7 +1726,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &["domainMiss"],
         partiality: Partiality::Projecting,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::Count,
         purity: Purity::Pure,
         determinism: Determinism::Deterministic,
         cost: WordCost {
@@ -1889,7 +1766,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &[],
         partiality: Partiality::Total,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::Carry,
         purity: Purity::Pure,
         determinism: Determinism::Deterministic,
         cost: WordCost {
@@ -1930,7 +1806,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &[],
         partiality: Partiality::Total,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::Carry,
         purity: Purity::Pure,
         determinism: Determinism::Deterministic,
         cost: WordCost {
@@ -1971,7 +1846,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &[],
         partiality: Partiality::Total,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::Count,
         purity: Purity::Pure,
         determinism: Determinism::Deterministic,
         cost: WordCost {
@@ -2012,7 +1886,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &["domainMiss"],
         partiality: Partiality::Projecting,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::Carry,
         purity: Purity::Pure,
         determinism: Determinism::Deterministic,
         cost: WordCost {
@@ -2053,7 +1926,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &["domainMiss"],
         partiality: Partiality::Projecting,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::Count,
         purity: Purity::Pure,
         determinism: Determinism::Deterministic,
         cost: WordCost {
@@ -2094,7 +1966,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &[],
         partiality: Partiality::Total,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::Carry,
         purity: Purity::Pure,
         determinism: Determinism::Deterministic,
         cost: WordCost {
@@ -2135,7 +2006,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &[],
         partiality: Partiality::Total,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::CarryCount,
         purity: Purity::Pure,
         determinism: Determinism::Deterministic,
         cost: WordCost {
@@ -2176,7 +2046,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &[],
         partiality: Partiality::Total,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::Carry,
         purity: Purity::Pure,
         determinism: Determinism::Deterministic,
         cost: WordCost {
@@ -2217,7 +2086,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &["indexOutOfBounds"],
         partiality: Partiality::Projecting,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::Carry,
         purity: Purity::Pure,
         determinism: Determinism::Deterministic,
         cost: WordCost {
@@ -2258,7 +2126,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &[],
         partiality: Partiality::Total,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::Carry,
         purity: Purity::Pure,
         determinism: Determinism::Deterministic,
         cost: WordCost {
@@ -2299,7 +2166,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &["notFound", "domainMiss"],
         partiality: Partiality::Projecting,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::Count,
         purity: Purity::Pure,
         determinism: Determinism::Deterministic,
         cost: WordCost {
@@ -2340,7 +2206,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &[],
         partiality: Partiality::Total,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::Carry,
         purity: Purity::Pure,
         determinism: Determinism::Deterministic,
         cost: WordCost {
@@ -2381,7 +2246,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &[],
         partiality: Partiality::Total,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::Carry,
         purity: Purity::Pure,
         determinism: Determinism::Deterministic,
         cost: WordCost {
@@ -2422,7 +2286,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &[],
         partiality: Partiality::Total,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::Carry,
         purity: Purity::Pure,
         determinism: Determinism::Deterministic,
         cost: WordCost {
@@ -2463,7 +2326,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &["notFound"],
         partiality: Partiality::Projecting,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::Carry,
         purity: Purity::Pure,
         determinism: Determinism::Deterministic,
         cost: WordCost {
@@ -2504,7 +2366,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &[],
         partiality: Partiality::Total,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::None,
         purity: Purity::Pure,
         determinism: Determinism::Deterministic,
         cost: WordCost {
@@ -2545,7 +2406,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &[],
         partiality: Partiality::Total,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::Carry,
         purity: Purity::Pure,
         determinism: Determinism::Deterministic,
         cost: WordCost {
@@ -2586,7 +2446,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &[],
         partiality: Partiality::Partial,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::Map,
         purity: Purity::Conditional,
         determinism: Determinism::StateRelative,
         cost: WordCost {
@@ -2627,7 +2486,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &[],
         partiality: Partiality::Partial,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::Filter,
         purity: Purity::Conditional,
         determinism: Determinism::StateRelative,
         cost: WordCost {
@@ -2668,7 +2526,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &[],
         partiality: Partiality::Partial,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::Fold,
         purity: Purity::Conditional,
         determinism: Determinism::StateRelative,
         cost: WordCost {
@@ -2709,7 +2566,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &[],
         partiality: Partiality::Partial,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::Fold,
         purity: Purity::Conditional,
         determinism: Determinism::StateRelative,
         cost: WordCost {
@@ -2750,7 +2606,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &[],
         partiality: Partiality::Total,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::None,
         purity: Purity::Pure,
         determinism: Determinism::Deterministic,
         cost: WordCost {
@@ -2791,7 +2646,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &[],
         partiality: Partiality::Total,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::None,
         purity: Purity::Pure,
         determinism: Determinism::Deterministic,
         cost: WordCost {
@@ -2832,7 +2686,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &[],
         partiality: Partiality::Total,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::None,
         purity: Purity::Pure,
         determinism: Determinism::Deterministic,
         cost: WordCost {
@@ -2873,7 +2726,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &[],
         partiality: Partiality::Total,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::None,
         purity: Purity::Pure,
         determinism: Determinism::Deterministic,
         cost: WordCost {
@@ -2914,7 +2766,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &[],
         partiality: Partiality::Total,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::None,
         purity: Purity::Pure,
         determinism: Determinism::Deterministic,
         cost: WordCost {
@@ -2955,7 +2806,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &[],
         partiality: Partiality::Total,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::None,
         purity: Purity::Pure,
         determinism: Determinism::Deterministic,
         cost: WordCost {
@@ -2996,7 +2846,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &["notFound"],
         partiality: Partiality::Projecting,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::Count,
         purity: Purity::Pure,
         determinism: Determinism::Deterministic,
         cost: WordCost {
@@ -3037,7 +2886,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &[],
         partiality: Partiality::Total,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::None,
         purity: Purity::Pure,
         determinism: Determinism::Deterministic,
         cost: WordCost {
@@ -3078,7 +2926,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &["invalidEncoding"],
         partiality: Partiality::Projecting,
         field: FieldClosure::Leaving,
-        zero_shapes: ZeroShapeLaw::Parse,
         purity: Purity::Pure,
         determinism: Determinism::Deterministic,
         cost: WordCost {
@@ -3119,7 +2966,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &["domainMiss"],
         partiality: Partiality::Projecting,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::None,
         purity: Purity::Pure,
         determinism: Determinism::Deterministic,
         cost: WordCost {
@@ -3160,7 +3006,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &["domainMiss"],
         partiality: Partiality::Projecting,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::None,
         purity: Purity::Pure,
         determinism: Determinism::Deterministic,
         cost: WordCost {
@@ -3201,7 +3046,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &["invalidEncoding"],
         partiality: Partiality::Projecting,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::Finite,
         purity: Purity::Pure,
         determinism: Determinism::Deterministic,
         cost: WordCost {
@@ -3242,7 +3086,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &["domainMiss"],
         partiality: Partiality::Projecting,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::None,
         purity: Purity::Pure,
         determinism: Determinism::Deterministic,
         cost: WordCost {
@@ -3283,7 +3126,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &[],
         partiality: Partiality::Partial,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::Exec,
         purity: Purity::Conditional,
         determinism: Determinism::StateRelative,
         cost: WordCost {
@@ -3324,7 +3166,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &["notFound"],
         partiality: Partiality::Projecting,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::Count,
         purity: Purity::Pure,
         determinism: Determinism::StateRelative,
         cost: WordCost {
@@ -3346,7 +3187,7 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         effects: &[],
         error_when: &["notASymbol"],
         syntax: Some("[ ADD ] 0 GET CONTRACT"),
-        summary: "The contract of a Word or of a block, as a Record: `[ SQRT ] 0 GET CONTRACT 'partiality' GET` is `'projecting'`. For a Symbol naming a Core Word it is the registered record of `spec/words.json` (LANG.CONTRACT.REGISTRY), keyed by the registry's own field names — `name` `vocabularyTier` `inputs` `outputs` `nilPolicy` `projection` `errorWhen` `partiality` `field` `zeroShapes` `shapes` `purity` `determinism` `cost` `effects`, so `[ DIV ] 0 GET CONTRACT 'cost' GET` asks a Word's cost class before running it, and `[ 0 DIV ] CONTRACT 'field' GET` is `'leaving'`: whether code can answer a point over zero from operands holding none is read before it runs, and `[ 0 MUL 0 DIV ] CONTRACT 'shapes' GET` is `[ 'zero' 'nullity' ]`: which zero shapes its numbers may take, so a body that never holds `0/0` never asks its order (LANG.CONTRACT.FIELD). For a Symbol naming a User Word, or for a block of code, it is the contract inferred without running anything — the same inference `ajisai check --contract` runs from outside the language — keyed `inputs` `outputs` `partiality` `field` `shapes` `purity` `determinism` `cost` `effects` — the same keys, in the same vocabulary, so the two compare directly — and `confidence` `gaps`, where `confidence` and `gaps` carry the check's own trichotomy (LANG.CONTRACT.CHECK) as data: an unresolved dependency is a gap in the answer, not an ERROR. A block is never evaluated, so `[ 42 PRINT ] CONTRACT` reports `consoleWrite` under `effects` without printing. A Symbol that names no Word projects `notFound`; an operand that is neither a Symbol nor a block is an ERROR (`notASymbol`).",
+        summary: "The contract of a Word or of a block, as a Record keyed `inputs` `outputs` `field`: `[ SQRT ] 0 GET CONTRACT 'inputs' GET` is `1`. `inputs` and `outputs` are counts, or `'variable'` where the arity is decided by the data; `field` names `'closed'` or `'leaving'` (LANG.CONTRACT.FIELD), so `[ 0 DIV ] CONTRACT 'field' GET` is `'leaving'`: whether code can answer a point over zero from operands holding none is read before it runs. For a Symbol naming a Core Word it is the registered contract of `spec/words.json` (LANG.CONTRACT.REGISTRY); for a Symbol naming a User Word, or for a block of code, it is the contract inferred without running anything — the same inference `ajisai check --contract` runs from outside the language — in the same keys and the same vocabulary, so the two compare directly. A block is never evaluated, so `[ 42 PRINT ] CONTRACT` prints nothing. A Symbol that names no Word projects `notFound`; an operand that is neither a Symbol nor a block is an ERROR (`notASymbol`).",
         stack_effect: "[ symbol | code ] -> [ record ]",
         hover_summary: "CONTRACT — the contract of a Word or a block, as a Record",
         hover_syntax: "[ ADD ] 0 GET CONTRACT",
@@ -3365,7 +3206,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &[],
         partiality: Partiality::Partial,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::None,
         purity: Purity::Pure,
         determinism: Determinism::Deterministic,
         cost: WordCost {
@@ -3406,7 +3246,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &[],
         partiality: Partiality::Total,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::None,
         purity: Purity::Pure,
         determinism: Determinism::Deterministic,
         cost: WordCost {
@@ -3447,7 +3286,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &[],
         partiality: Partiality::Total,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::None,
         purity: Purity::Pure,
         determinism: Determinism::Deterministic,
         cost: WordCost {
@@ -3488,7 +3326,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &["domainMiss"],
         partiality: Partiality::Projecting,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::None,
         purity: Purity::Pure,
         determinism: Determinism::Deterministic,
         cost: WordCost {
@@ -3529,7 +3366,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &["userDeclared"],
         partiality: Partiality::Projecting,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::None,
         purity: Purity::Pure,
         determinism: Determinism::Deterministic,
         cost: WordCost {
@@ -3570,7 +3406,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &[],
         partiality: Partiality::Partial,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::None,
         purity: Purity::Pure,
         determinism: Determinism::StateRelative,
         cost: WordCost {
@@ -3611,7 +3446,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &[],
         partiality: Partiality::Partial,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::None,
         purity: Purity::Effectful,
         determinism: Determinism::StateRelative,
         cost: WordCost {
@@ -3652,7 +3486,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &[],
         partiality: Partiality::Partial,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::None,
         purity: Purity::Effectful,
         determinism: Determinism::StateRelative,
         cost: WordCost {
@@ -3693,7 +3526,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &[],
         partiality: Partiality::Total,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::None,
         purity: Purity::Pure,
         determinism: Determinism::StateRelative,
         cost: WordCost {
@@ -3734,7 +3566,6 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         projection_reasons: &[],
         partiality: Partiality::Total,
         field: FieldClosure::Closed,
-        zero_shapes: ZeroShapeLaw::None,
         purity: Purity::Effectful,
         determinism: Determinism::HostRelative,
         cost: WordCost {

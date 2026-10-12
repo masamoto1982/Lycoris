@@ -107,12 +107,11 @@ fn exact_scalar_carries_exact_source_in_semantics() {
 #[test]
 fn a_truth_column_serializes_as_its_vector() {
     use crate::error::NilReason;
-    use crate::semantic::Recoverability;
     use crate::types::TruthColumn;
     let lanes = vec![
         Value::from_bool(true),
         Value::from_bool(false),
-        Value::nil_with_reason(NilReason::DomainMiss, Recoverability::Recoverable),
+        Value::nil_with_reason(NilReason::DomainMiss),
     ];
     let column = Value::from_truth_column(TruthColumn::pack(&lanes).unwrap());
     let vector = Value::from_vector(lanes);
@@ -229,7 +228,7 @@ fn zero_and_one_are_numbers_and_booleans_are_booleans() {
 /// no truth-valued NIL on the wire.
 #[test]
 fn a_nil_in_truth_position_is_observed_as_a_nil() {
-    let unknown = Value::nil_with_reason_unknown(crate::error::NilReason::DomainMiss);
+    let unknown = Value::nil_with_reason(crate::error::NilReason::DomainMiss);
     let node = value_to_protocol(&unknown);
     assert_eq!(node.type_str, "nil");
     assert_eq!(node.value, ProtocolValue::Null);

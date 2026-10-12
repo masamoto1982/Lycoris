@@ -23,7 +23,6 @@ use crate::error::{AjisaiError, NilReason, Result};
 use crate::interpreter::runtime_limits::{binary_numeric_work, exact_work_bits};
 use crate::interpreter::value_extraction_helpers::{exact_real_of, extract_operands};
 use crate::interpreter::Interpreter;
-use crate::semantic::Recoverability;
 use crate::types::exact::ExactReal;
 use crate::types::fraction::Fraction;
 use crate::types::Value;
@@ -134,10 +133,9 @@ pub(crate) fn op_format(interp: &mut Interpreter) -> Result<()> {
     // no text to render: a well-formed operand outside the operation's
     // domain projects `domainMiss`, as `STR` does for an irrational.
     if !x.is_finite() {
-        interp.stack.push(Value::nil_with_reason(
-            NilReason::DomainMiss,
-            Recoverability::Recoverable,
-        ));
+        interp
+            .stack
+            .push(Value::nil_with_reason(NilReason::DomainMiss));
         return Ok(());
     }
     let n = round_scaled(&x, digits);

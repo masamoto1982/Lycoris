@@ -24,7 +24,6 @@
 //!    value.
 
 use crate::error::NilReason;
-use crate::semantic::Recoverability;
 use crate::test_support::{as_exact, exact_mul, frac, hash_of, sqrt_of};
 use crate::types::fraction::Fraction;
 use crate::types::Value;
@@ -148,8 +147,8 @@ fn nils_with_different_reasons_stay_distinct() {
     // agree. `Value::hash` folds `nil_reason` in for this — without it,
     // `UNIQUE` over a vector of differently-caused NILs would collapse
     // them into one.
-    let domain = Value::nil_with_reason(NilReason::DomainMiss, Recoverability::Unknown);
-    let missing = Value::nil_with_reason(NilReason::NotFound, Recoverability::Unknown);
+    let domain = Value::nil_with_reason(NilReason::DomainMiss);
+    let missing = Value::nil_with_reason(NilReason::NotFound);
     assert_ne!(domain, missing, "different reasons are different values");
     assert_ne!(
         hash_of(&domain),
@@ -200,8 +199,8 @@ fn every_pair_in_a_mixed_corpus_agrees() {
         Value::from_string(""),
         Value::from_string("A"),
         Value::from_string("hello"),
-        Value::nil_with_reason(NilReason::DomainMiss, Recoverability::Unknown),
-        Value::nil_with_reason(NilReason::NotFound, Recoverability::Unknown),
+        Value::nil_with_reason(NilReason::DomainMiss),
+        Value::nil_with_reason(NilReason::NotFound),
         Value::from_fraction(Fraction::infinity()),
         Value::from_fraction(Fraction::infinity()),
         Value::from_fraction(Fraction::nullity()),

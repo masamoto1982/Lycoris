@@ -614,12 +614,12 @@ async fn lookup_of_a_branching_word_round_trips_through_def() {
 async fn a_contract_directive_becomes_the_defined_words_description() {
     let mut interp = Interpreter::new();
     interp
-        .execute("#:contract INC inputs=1 outputs=1 purity=pure partiality=partial\n[ [ 1 ] ADD ] 'INC' DEF")
+        .execute("#:contract INC inputs=1 outputs=1 field=closed\n[ [ 1 ] ADD ] 'INC' DEF")
         .await
         .unwrap();
     assert_eq!(
         interp.lookup_word_description("INC").as_deref(),
-        Some("inputs=1 outputs=1 purity=pure partiality=partial")
+        Some("inputs=1 outputs=1 field=closed")
     );
 }
 
@@ -630,14 +630,14 @@ async fn a_contract_directive_survives_to_a_def_in_a_later_execute_call() {
     // `execute()` call rather than sharing one with the `DEF`.
     let mut interp = Interpreter::new();
     interp
-        .execute("#:contract INC inputs=1 outputs=1 purity=pure partiality=partial")
+        .execute("#:contract INC inputs=1 outputs=1 field=closed")
         .await
         .unwrap();
     assert_eq!(interp.lookup_word_description("INC"), None);
     interp.execute("[ [ 1 ] ADD ] 'INC' DEF").await.unwrap();
     assert_eq!(
         interp.lookup_word_description("INC").as_deref(),
-        Some("inputs=1 outputs=1 purity=pure partiality=partial")
+        Some("inputs=1 outputs=1 field=closed")
     );
 }
 
@@ -652,7 +652,7 @@ async fn a_word_defined_without_a_contract_directive_has_no_description() {
 async fn redefining_without_a_new_directive_drops_the_old_description() {
     let mut interp = Interpreter::new();
     interp
-        .execute("#:contract INC inputs=1 outputs=1 purity=pure partiality=partial\n[ [ 1 ] ADD ] 'INC' DEF")
+        .execute("#:contract INC inputs=1 outputs=1 field=closed\n[ [ 1 ] ADD ] 'INC' DEF")
         .await
         .unwrap();
     interp.execute("[ [ 2 ] ADD ] 'INC' DEF").await.unwrap();

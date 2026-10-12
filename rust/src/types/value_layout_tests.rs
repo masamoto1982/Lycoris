@@ -38,18 +38,15 @@ fn a_value_is_four_words() {
 }
 
 /// Stated separately from the budget above so a regression names its cause.
-/// `AbsenceMetadata` is a reason, an origin, a recoverability, a *pointer*
-/// to a declared detail and a *pointer* to a diagnosis — the diagnosis is
-/// the rarest thing a value can carry and pays for its own allocation when
-/// it exists, and the detail is only ever present on a `userDeclared` NIL.
+/// `AbsenceMetadata` is a reason and a *pointer* to a declared detail, which
+/// is only ever present on a `userDeclared` NIL.
 #[test]
-fn absence_metadata_holds_its_diagnosis_behind_a_pointer() {
+fn absence_metadata_holds_its_detail_behind_a_thin_pointer() {
     let metadata = size_of::<AbsenceMetadata>();
     assert!(
-        metadata <= 3 * size_of::<usize>(),
-        "AbsenceMetadata is {metadata} bytes: it must not inline \
-         DebugDiagnosis, which is hundreds of bytes of strings and lists, \
-         nor widen its detail to a fat pointer"
+        metadata <= 2 * size_of::<usize>(),
+        "AbsenceMetadata is {metadata} bytes: it must not widen its detail \
+         to a fat pointer"
     );
 }
 

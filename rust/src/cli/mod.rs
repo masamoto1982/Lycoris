@@ -9,7 +9,7 @@
 //! ajisai check <file.ajisai>               # tokenize + parse + resolve, no execution
 //! ajisai contract <file.ajisai>            # report inferred word contracts, no execution
 //! ajisai agent <operation> <file.ajisai>   # the one JSON boundary for host adapters
-//!   operations: compute, check, infer-contracts, outcomes
+//!   operations: compute, check, infer-contracts
 //! ajisai test <file-or-dir> [--json]       # execute `#@` host test directives
 //! ajisai repl [--json]                     # persistent interactive session
 //! ajisai version [--json]
@@ -33,7 +33,7 @@ mod test_runner;
 
 use crate::agent::api as agent_api;
 use crate::agent::report::{self, Report};
-use crate::agent::{block_on, contract_report, LimitProfile, Opts};
+use crate::agent::{block_on, contract, LimitProfile, Opts};
 
 const USAGE: &str = "Usage: ajisai <command> [options]
 
@@ -50,7 +50,7 @@ Commands:
                                   paste-ready `#:contract` line (no execution)
   agent <operation> <file.ajisai|-> [--limits <agent|trusted>] [--step-limit <N>]
                                   The one source-to-JSON host boundary. Operations:
-                                  compute, check, infer-contracts, outcomes. `-`
+                                  compute, check, infer-contracts. `-`
                                   reads the program from standard input, so an
                                   embedding host needs no temporary file. `check`
                                   always verifies `#:contract` declarations
@@ -73,12 +73,12 @@ Options:
                                   (exit 1 on a contradiction). The check is
                                   conservative: an unanalyzable body is
                                   reported as `cannot verify`, never as passed
-  --limits <agent|trusted>        With `agent compute`/`agent outcomes`: the
+  --limits <agent|trusted>        With `agent compute`: the
                                   resource ceilings. `agent` (default) is the
                                   tighter profile for untrusted, generated
                                   programs; `trusted` is the interpreter
                                   default `run` uses
-  --step-limit <N>                With `run`/`agent compute`/`agent outcomes`:
+  --step-limit <N>                With `run`/`agent compute`:
                                   override the execution step
                                   budget. N is a positive integer; default:
                                   the host's derived step budget
@@ -160,15 +160,11 @@ pub fn run(args: &[String]) -> i32 {
     // regardless — so it is refused instead.
     let agent_op = |op: &str| command == "agent" && positional.first() == Some(&op);
     let misplaced = [
-        (
-            "--limits",
-            limits_given,
-            agent_op("compute") || agent_op("outcomes"),
-        ),
+        ("--limits", limits_given, agent_op("compute")),
         (
             "--step-limit",
             step_limit.is_some(),
-            command == "run" || agent_op("compute") || agent_op("outcomes"),
+            command == "run" || agent_op("compute"),
         ),
         ("--contract", contract, command == "check"),
         ("--compact", compact, command == "agent"),
@@ -238,13 +234,6 @@ fn cmd_run(path: &str, opts: &Opts) -> i32 {
     response.exit_code()
 }
 
-/// Read one `key=value` evidence entry.
-fn evidence_value<'a>(evidence: &'a [String], key: &str) -> Option<&'a str> {
-    evidence
-        .iter()
-        .find_map(|entry| entry.strip_prefix(key)?.strip_prefix('='))
-}
-
 fn cmd_check(path: &str, opts: &Opts) -> i32 {
     let Some(source) = read_source(path) else {
         return 2;
@@ -253,7 +242,7 @@ fn cmd_check(path: &str, opts: &Opts) -> i32 {
     // implementation, two renderings.
     let response = agent_api::check(&source, opts.contract);
     let report = response.report();
-    if report.diagnosis.is_some() {
+    if report.error.is_some() {
         emit(report);
         return response.exit_code();
     }
@@ -282,42 +271,24 @@ fn cmd_contract(path: &str) -> i32 {
         return 2;
     };
     {
-        let reports = contract_report::report_contracts(&source);
+        let reports = contract::contracts_json(&source);
+        let reports = reports.as_array().map(Vec::as_slice).unwrap_or_default();
         if reports.is_empty() {
             println!("{}: no user words defined", path);
         }
-        for r in &reports {
-            let count = |n: Option<u16>| n.map_or("variable".to_string(), |n| n.to_string());
+        for r in reports {
             println!(
-                "{} : inputs={} outputs={} partiality={} field={} purity={} determinism={} [{}]",
-                r.name,
-                count(r.inputs),
-                count(r.outputs),
-                r.partiality,
-                r.field,
-                r.purity,
-                r.determinism,
-                r.confidence
+                "{} : inputs={} outputs={} field={}",
+                r["name"].as_str().unwrap_or(""),
+                r["inputs"],
+                r["outputs"],
+                r["field"].as_str().unwrap_or("")
             );
-            if !r.effects.is_empty() {
-                println!("    effects: {}", r.effects.join(", "));
+            if let Some(exits) = r["fieldExits"].as_array().filter(|e| !e.is_empty()) {
+                let exits: Vec<&str> = exits.iter().filter_map(|e| e.as_str()).collect();
+                println!("    leaves the field at: {}", exits.join(", "));
             }
-            println!(
-                "    shapes: {}",
-                if r.shapes.is_empty() {
-                    "none".to_string()
-                } else {
-                    r.shapes.join(", ")
-                }
-            );
-            if !r.field_exits.is_empty() {
-                println!("    leaves the field at: {}", r.field_exits.join(", "));
-            }
-            println!(
-                "    cost: steps={} numeric={} collection={}",
-                r.cost_steps, r.cost_numeric, r.cost_collection
-            );
-            println!("    {}", r.suggested);
+            println!("    {}", r["suggested"].as_str().unwrap_or(""));
         }
     }
     0
@@ -361,10 +332,6 @@ fn cmd_agent(operation: &str, path: &str, opts: &Opts) -> i32 {
             let response = agent_api::infer_contracts(&source);
             (response.to_json(), response.exit_code())
         }
-        "outcomes" => (
-            agent_api::predict_outcomes(&source, compute_options(opts)).to_json(),
-            0,
-        ),
         _ => {
             eprintln!("unknown agent operation: {operation}");
             return 2;
@@ -385,7 +352,7 @@ fn cmd_agent(operation: &str, path: &str, opts: &Opts) -> i32 {
     exit_code
 }
 
-/// The ceilings an `agent compute`/`agent outcomes` runs under, from the
+/// The ceilings an `agent compute` runs under, from the
 /// command line: the step budget and the chosen limit profile.
 fn compute_options(opts: &Opts) -> agent_api::ComputeOptions {
     match opts.limits {
@@ -412,48 +379,12 @@ fn emit(report: &Report) {
     if let Some(message) = &report.message {
         eprintln!("error: {}", message);
     }
-    if let Some(diagnosis) = &report.diagnosis {
-        eprintln!("diagnosis: {}", diagnosis.summary);
-        // The stack lengths either side of the failure. They are already in the
-        // structured `evidence`, and reading them is most of the work of
-        // telling "the word was called with too few operands" apart from "the
-        // word consumed more than it should have" — so print them next to the
-        // summary rather than only in `--json`.
-        if let (Some(line), Some(column)) = (
-            evidence_value(&diagnosis.evidence, "sourceLine"),
-            evidence_value(&diagnosis.evidence, "sourceColumn"),
-        ) {
-            eprintln!("  at line {}, column {}", line, column);
+    if let Some(error) = &report.error {
+        if let Some(word) = &error.word {
+            eprintln!("  in {}", word);
         }
-        // The Words the failure happened *inside*, innermost first. The
-        // position above is the top-level token that reached the failure — a
-        // block and a Word body are each their own token stream with no source
-        // of their own — so this is what says the rest: which Word failed, and
-        // which construct it was written in.
-        if let Some(inside) = evidence_value(&diagnosis.evidence, "insideWords") {
-            eprintln!("  inside {}", inside.replace(',', ", "));
-        }
-        for line in &diagnosis.evidence {
-            if line.starts_with("stackLen") {
-                eprintln!("  {}", line);
-            }
-        }
-        if !diagnosis.candidates.is_empty() {
-            eprintln!("  did you mean: {}", diagnosis.candidates.join(", "));
-        }
-        if let Some(facts) = &diagnosis.resource_limit {
-            match facts.observed {
-                Some(observed) => eprintln!(
-                    "  limit {}: {} exceeds {}",
-                    facts.resource, observed, facts.limit
-                ),
-                None => eprintln!("  limit {}: {}", facts.resource, facts.limit),
-            }
-        }
-        // The terminal is an English surface; the same checks reach a Japanese
-        // reader through the `ja` locale of the JSON envelope.
-        for check in &diagnosis.next_checks {
-            eprintln!("  - {}: {}", check.title.en, check.detail.en);
+        if let Some(span) = error.position {
+            eprintln!("  at line {}, column {}", span.line, span.column);
         }
     }
 }

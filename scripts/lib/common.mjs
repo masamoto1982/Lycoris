@@ -264,22 +264,16 @@ export function runAgent(bin, source, { command, args, exitMessage = (r) => `exi
 /**
  * A run's outcome as a stable id: `value`, `nil:<reason>` or
  * `error:<category>` — never the human-readable `message`, which can be
- * reworded without the outcome changing. The table generator, the bijection
- * gate and the prediction gate classify with this one rule, so an outcome the
- * table records is spelled the way the gates compare it.
- *
- * `aiDiagnostic.category` is the fine per-condition `ErrorCategory` protocol
- * string; `diagnosis.why` is the coarse `CauseClass` bucket. Classifying by
- * `why` alone collapsed dozens of declared conditions into one
- * `error:valueShape`. `category` is `null` only for a raw tokenize-time failure
- * that predates word resolution, which is what the `why` fallback is for.
- * A report that fits none of this throws: every report the CLI writes
- * classifies, so one that does not is a broken CLI, not an outcome.
+ * reworded without the outcome changing. The table generator and the
+ * bijection gate classify with this one rule, so an outcome the table records
+ * is spelled the way the gates compare it. A report that carries none throws:
+ * every report the CLI writes classifies, so one that does not is a broken
+ * CLI, not an outcome.
  */
 export function classifyOutcome(json) {
   // The engine names its own outcome (`ajisai agent compute` emits it as
-  // `outcome`, the same id the `outcomes` prediction uses), so the gates read
-  // that field instead of re-deriving it from the report's shape.
+  // `outcome`), so the gates read that field instead of re-deriving it from
+  // the report's shape.
   const outcome = json.outcome;
   if (typeof outcome !== 'string' || outcome === '') {
     throw new Error(`compute report carries no outcome id: ${JSON.stringify(json)}`);

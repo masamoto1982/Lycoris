@@ -174,9 +174,6 @@ impl Interpreter {
         }
         self.call_depth += 1;
 
-        // The caller's stack as the call begins, for the failure record below.
-        let stack_len_at_call: usize = self.stack.len();
-
         let compiled_plan = self.get_compiled_plan(name, &def);
 
         // A body that is one typed segment runs as that segment, with no frame
@@ -208,7 +205,7 @@ impl Interpreter {
         // Attribution stops at a User Word — see `record_user_word_failure`
         // for what that means and the one failure it does not cover.
         if let Err(err) = &result {
-            self.record_user_word_failure(name, err, stack_len_at_call);
+            self.record_user_word_failure(name, err);
         }
 
         result

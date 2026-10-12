@@ -144,11 +144,14 @@ async fn the_step_ceiling_refuses_work_wherever_it_is_written() {
 async fn a_refusal_by_the_ceiling_names_the_word_it_fired_on() {
     // Inline, and inside a Word body whose compiled plan is the route that
     // dropped the name.
-    for (setup, program) in [
-        (String::new(), format!("0 {}", "1 ADD ".repeat(40))),
+    // Attribution stops at a User Word (`failure_site`), so a refusal
+    // inside `BUMP`'s body is `BUMP`'s from the caller's side.
+    for (setup, program, word) in [
+        (String::new(), format!("0 {}", "1 ADD ".repeat(40)), "ADD"),
         (
             "[ 1 ADD 1 ADD 1 ADD 1 ADD ] 'BUMP' DEF".to_string(),
             format!("0 {}", "BUMP ".repeat(10)),
+            "BUMP",
         ),
     ] {
         let mut interp = Interpreter::new();
@@ -165,10 +168,6 @@ async fn a_refusal_by_the_ceiling_names_the_word_it_fired_on() {
             format!("{error:?}").contains("ExecutionLimitExceeded"),
             "expected the ceiling, got {error:?}"
         );
-        let trace = interp.drain_error_flow_trace();
-        assert!(
-            trace.iter().any(|e| e.word.as_deref() == Some("ADD")),
-            "the refusal must name ADD; trace was {trace:?}"
-        );
+        assert_eq!(interp.failed_word_for(&error), Some(word));
     }
 }

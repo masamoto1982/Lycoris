@@ -199,7 +199,7 @@ async fn refused_by(profile: &Profile, source: &str) -> (String, u64, u64) {
     )
     .await
     .to_json();
-    let resource = report["diagnosis"]["resourceLimit"]["resource"]
+    let resource = report["error"]["resource"]
         .as_str()
         .unwrap_or("<none: the program succeeded>")
         .to_string();

@@ -53,7 +53,7 @@ pub(crate) fn observe(
         values: crate::test_support::representation(interp.get_stack().as_slice()),
         usage: interp.resource_usage(),
         epochs: interp.current_epoch_snapshot(),
-        trace: format!("{:?}", interp.error_flow_trace_log),
+        trace: format!("{:?}", interp.failed_word),
         position: interp.current_source_position(),
         dictionary: {
             let mut names: Vec<String> = interp.user_words.keys().cloned().collect();

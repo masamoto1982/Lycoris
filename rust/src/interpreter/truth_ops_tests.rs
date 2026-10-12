@@ -10,7 +10,7 @@ use proptest::prelude::*;
 
 /// The lane every index names: the two Booleans and two different NILs.
 fn lane(index: u8) -> Value {
-    let unknown = |reason| Value::nil_with_reason(reason, Recoverability::Recoverable);
+    let unknown = |reason| Value::nil_with_reason(reason);
     match index % 4 {
         0 => Value::from_bool(false),
         1 => Value::from_bool(true),

@@ -14,9 +14,6 @@ pub mod compiled_plan;
 mod compiled_plan_tests;
 mod contract_record;
 pub mod control;
-mod debug_declared_checks;
-pub mod debug_diagnosis;
-mod debug_next_checks;
 pub(crate) mod declared_nil_contract;
 pub(crate) mod dense_kernels;
 #[cfg(test)]
@@ -25,7 +22,6 @@ mod dense_kernels_tests;
 mod dense_quotient_tests;
 #[cfg(test)]
 mod dense_slice_route_tests;
-pub mod error_flow_trace;
 #[cfg(test)]
 mod error_message_format_tests;
 #[cfg(test)]
@@ -67,7 +63,6 @@ mod segment_lower;
 #[cfg(test)]
 mod segment_tests;
 mod symbol_cache;
-pub mod trace_diagnosis;
 mod truth_columns;
 mod truth_ops;
 // The host-side Word lookup lives in `host.rs`; the module path it used to
@@ -92,7 +87,6 @@ mod ordering_ops;
 mod ordering_ops_tests;
 #[cfg(test)]
 mod power_words_tests;
-pub(crate) mod predict_program_outcomes;
 mod record_ops;
 #[cfg(test)]
 mod record_words_tests;
@@ -110,33 +104,18 @@ pub mod sort;
 pub mod tensor_cmds;
 pub(crate) mod tensor_lane_ops;
 pub mod tensor_ops;
-// The upstream-NIL link lives in `nil_diagnostics.rs`; the module path it
-// used to have is kept for `agent::report`, which imports it by that name.
-pub(crate) use self::nil_diagnostics as upstream_nil_link;
 pub(crate) mod value_extraction_helpers;
 pub mod vector_ops;
-mod word_candidates;
 pub mod word_contract;
-mod word_contract_field;
 mod word_contract_flow;
-mod word_contract_shape;
 #[cfg(test)]
 mod word_contract_tests;
-mod word_contract_widen;
-pub(crate) mod word_cost;
-#[cfg(test)]
-mod word_cost_tests;
-pub(crate) mod word_outcome_vocabulary;
-pub(crate) mod zero_shape;
 // `pub(crate)`, not private: `agent::observation_digest` calls
 // `word_identity::content_digest` and `word_identity::encode_token` directly,
 // so the crate-wide agent boundary needs to name this module.
 pub(crate) mod word_identity;
 #[cfg(test)]
 mod word_identity_tests;
-pub mod word_space;
-#[cfg(test)]
-mod word_space_tests;
 #[cfg(test)]
 mod work_meter_calibration_tests;
 // Re-exported only for the host-only `cli` consumers (receipt / lockfile source
@@ -154,6 +133,7 @@ mod value_as_code;
 
 mod execute_builtin;
 
+mod failure_site;
 pub(crate) mod fusion_contract;
 #[cfg(test)]
 mod fusion_contract_route_tests;
@@ -168,12 +148,6 @@ mod arithmetic_meter_tests;
 #[cfg(test)]
 mod collection_meter_tests;
 #[cfg(test)]
-mod debug_diagnosis_tests;
-#[cfg(test)]
-mod debug_next_checks_tests;
-#[cfg(test)]
-mod declared_condition_tests;
-#[cfg(test)]
 mod definable_name_tests;
 #[cfg(test)]
 mod definition_source_tests;
@@ -185,8 +159,6 @@ mod dictionary_operation_tests;
 mod dictionary_resolution_tests;
 #[cfg(test)]
 mod dictionary_tier_tests;
-#[cfg(test)]
-mod error_flow_trace_tests;
 #[cfg(test)]
 mod exact_vector_broadcast_tests;
 #[cfg(test)]

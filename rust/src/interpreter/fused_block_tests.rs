@@ -53,7 +53,7 @@ fn observe(source: &str, fused: bool, limits: Limits) -> Observation {
         usage: interp.resource_usage(),
         collection_work: interp.collection_work_used(),
         epochs: interp.current_epoch_snapshot(),
-        trace: format!("{:?}", interp.error_flow_trace_log),
+        trace: format!("{:?}", interp.failed_word),
     }
 }
 

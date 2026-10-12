@@ -18,8 +18,7 @@ import type {
     AjisaiInterpreter,
     ExecuteResult,
     UserWord,
-    Value,
-    ProtocolDiagnosis
+    Value
 } from '../wasm-interpreter-types';
 import {
     collectUserWords,
@@ -29,8 +28,7 @@ import {
     resolveExecutionException,
     syncInterpreterState,
     detectExecutionSurfaceChanges,
-    renderDiagnosisReport,
-    checkRunLeftOwnNil,
+    renderErrorReport,
     type ExecutionStateView
 } from './interpreter-execution-utils';
 import { ExecutionTimeoutError } from '../workers/execution-contract';
@@ -218,28 +216,14 @@ describe('describeFailedRunOutput', () => {
     });
 });
 
-// The wall-clock guard is the one refusal the interpreter never diagnoses: the
-// worker is terminated where it stands, so a diagnosis has to be written on
-// this side or the reader gets a bare sentence where every other failure
-// answers with when / where / why and what to do next.
+// The wall-clock guard is the one refusal the interpreter never reports: the
+// worker is terminated where it stands, so its report is written on this side.
 describe('describeTimeoutDiagnosis', () => {
-    it('answers in the same shape as an interpreter diagnosis', () => {
-        const diagnosis = describeTimeoutDiagnosis(5_000);
-
-        expect(diagnosis).toContain('[DIAGNOSIS]');
-        expect(diagnosis).toContain('Q1 when:');
-        expect(diagnosis).toContain('Q2 where:');
-        expect(diagnosis).toContain('Q3 why: resourceLimit');
-        expect(diagnosis).toContain('executionTimeoutMs: 5000');
-        expect(diagnosis.split('\n').filter((line) => line.startsWith('next: ')).length)
-            .toBeGreaterThanOrEqual(3);
-    });
-
-    it('says the guard is the host’s and not the language’s', () => {
-        const diagnosis = describeTimeoutDiagnosis(5_000);
-
-        expect(diagnosis).toContain('not part of the language');
-        expect(diagnosis).toContain('did not refuse this program');
+    it('reports the host guard in the shape every error has', () => {
+        expect(describeTimeoutDiagnosis(5_000)).toBe(
+            '[ERROR] executionTimeout in playground\n'
+                + 'limit executionTimeoutMs: 5000 (wall clock, this host only)'
+        );
     });
 });
 
@@ -257,7 +241,7 @@ describe('resolveExecutionException', () => {
         };
     };
 
-    it('writes a diagnosis under a wall-clock stop', () => {
+    it('writes an error report under a wall-clock stop', () => {
         const sink = collect();
 
         resolveExecutionException(
@@ -268,10 +252,10 @@ describe('resolveExecutionException', () => {
         );
 
         expect(sink.errors[0]).toBe('Execution timed out after 5000 ms');
-        expect(sink.info.join('\n')).toContain('[DIAGNOSIS]');
+        expect(sink.info.join('\n')).toContain('[ERROR] executionTimeout');
     });
 
-    it('leaves an ordinary failure to the diagnosis the interpreter already built', () => {
+    it('leaves an ordinary failure to the report the interpreter already built', () => {
         const sink = collect();
 
         resolveExecutionException('test', new Error('Stack underflow'), sink.showInfo, sink.showError);
@@ -281,116 +265,22 @@ describe('resolveExecutionException', () => {
     });
 });
 
-// ── merged from diagnosis-report.test.ts ──
+// ── error report ──
 
-const check = (code: string, title: string, detail: string) => ({
-    code,
-    title: { en: title, ja: title },
-    detail: { en: detail, ja: detail }
-});
-
-// The reading format is asserted here and nowhere else. Both the diagnoses the
-// interpreter sends and the one the host writes for a wall-clock stop render
-// through this module, so a change to the frame — a renamed question, a fourth
-// one, a moved ceiling line — fails here once rather than passing in one
-// surface and drifting in the other.
-describe('renderDiagnosisReport', () => {
-    it('renders the frame a reader learns once', () => {
-        const diagnosis: ProtocolDiagnosis = {
-            when: 'executeWord',
-            where: { kind: 'coreWord', word: 'SQRT' },
-            why: 'domain',
-            summary: 'executeWord / SQRT (coreWord) / domain (nil:domainMiss)',
-            evidence: ['sourceLine=3', 'sourceColumn=7', 'insideWords=SAFE-ROOT,REPORT'],
-            candidates: [],
-            nextChecks: [check('checkOperandDomain', 'Check the operand domain', 'A negative radicand projects NIL.')]
-        };
-
-        expect(renderDiagnosisReport(diagnosis, { stackLenBefore: 2 })).toBe(
-            [
-                '[DIAGNOSIS] executeWord / SQRT (coreWord) / domain (nil:domainMiss)',
-                'Q1 when: executeWord',
-                'Q2 where: SQRT (coreWord), inside SAFE-ROOT, REPORT at line 3, column 7, stack depth 2',
-                'Q3 why: domain',
-                'next: Check the operand domain - A negative radicand projects NIL.'
-            ].join('\n')
-        );
+describe('renderErrorReport', () => {
+    it('names the category, the ceiling, the Word and the position', () => {
+        expect(renderErrorReport({
+            category: 'resourceLimitExceeded',
+            resource: 'materializedElements',
+            word: 'RANGE',
+            line: 3,
+            column: 7
+        })).toBe('[ERROR] resourceLimitExceeded (materializedElements) in RANGE at line 3, column 7');
     });
 
-    it('omits the position, the depth and the hints it was given nothing for', () => {
-        const diagnosis: ProtocolDiagnosis = {
-            when: 'resolveWord',
-            where: { kind: 'unknown' },
-            why: 'typoOrUnknownName',
-            summary: 'resolveWord / unknown / typoOrUnknownName (error:unknownWord)',
-            evidence: [],
-            candidates: ['DUP', 'DROP'],
-            nextChecks: []
-        };
-
-        expect(renderDiagnosisReport(diagnosis)).toBe(
-            [
-                '[DIAGNOSIS] resolveWord / unknown / typoOrUnknownName (error:unknownWord)',
-                'Q1 when: resolveWord',
-                'Q2 where: unknown',
-                'Q3 why: typoOrUnknownName',
-                'did you mean: DUP, DROP'
-            ].join('\n')
-        );
-    });
-
-    it('reports a declared ceiling with what was observed against it', () => {
-        const diagnosis: ProtocolDiagnosis = {
-            when: 'executeWord',
-            where: { kind: 'coreWord', word: 'RANGE' },
-            why: 'resourceLimit',
-            summary: 'executeWord / RANGE (coreWord) / resourceLimit (error:resourceLimitExceeded)',
-            evidence: [],
-            resourceLimit: { resource: 'materializedElements', limit: 1_000_000, observed: 4_000_000 },
-            nextChecks: []
-        };
-
-        expect(renderDiagnosisReport(diagnosis)).toContain(
-            'limit materializedElements: 4000000 against 1000000'
-        );
-    });
-});
-
-// The wall-clock guard's whole output, locked. It was a hand-written string
-// literal in the shape of the frame above; this is the same text, now produced
-// by the frame itself.
-describe('describeTimeoutDiagnosis', () => {
-    it('renders the host guard through the shared frame', () => {
-        expect(describeTimeoutDiagnosis(5_000)).toBe(
-            [
-                '[DIAGNOSIS] hostGuard / playground (hostEnvironment) / resourceLimit (executionTimeout)',
-                'Q1 when: hostGuard',
-                'Q2 where: playground (hostEnvironment)',
-                'Q3 why: resourceLimit',
-                'limit executionTimeoutMs: 5000 (wall clock, this host only)',
-                'next: Check which guard stopped it - The playground stops a run on wall-clock time. '
-                    + "The interpreter's own budgets (execution steps, materialized elements, numeric work) "
-                    + 'did not refuse this program; it was still running when the time ran out.',
-                'next: Rewrite the loop as a bulk operation - A whole-vector Word does in one step what a '
-                    + 'per-element loop does in as many, and only the loop is charged per step.',
-                'next: Trim what the run carries - Exact values grow as they are combined; rounding to a grid '
-                    + '(x d MUL FLOOR d DIV) bounds a denominator that is otherwise free to grow every iteration.',
-                'next: Check the host profile - This guard is not part of the language. Another host '
-                    + '(the MCP server) applies different limits; the profile badge beside the build version '
-                    + 'lists the ones in force here.'
-            ].join('\n')
-        );
-    });
-
-    it('offers four next-steps, each a protocol check rather than a printed line', () => {
-        // The renderer prints the `en` side of a check; assembling these as
-        // `ProtocolDebugCheck`s is what gives them a `ja` side at all — a
-        // hand-written English line could not carry one, which is the second
-        // thing the duplicated format cost.
-        const rendered = describeTimeoutDiagnosis(5_000);
-        const steps = rendered.split('\n').filter((line) => line.startsWith('next: '));
-
-        expect(steps).toHaveLength(4);
+    it('omits what it was given nothing for', () => {
+        expect(renderErrorReport({ category: 'malformedSource' })).toBe('[ERROR] malformedSource');
+        expect(renderErrorReport({})).toBe('[ERROR] unknown');
     });
 });
 
@@ -543,59 +433,5 @@ describe('detectExecutionSurfaceChanges', () => {
     it('reports no stack change for two empty stacks', () => {
         const changes = detectExecutionSurfaceChanges(view(), view(), okResult());
         expect(changes.stackChanged).toBe(false);
-    });
-});
-
-// A "Why NIL" is about a NIL this run left on the stack. The trace also names
-// the Word that merely left an older NIL on top — `[ 2 MUL ] 'G' DEF` on a
-// stack already holding one — which is not this run's to explain.
-describe('checkRunLeftOwnNil', () => {
-    const nil = (reason: string): Value =>
-        ({ type: 'nil', value: null, semantics: { absence: { reason } } } as unknown as Value);
-    const vector = (...elements: Value[]): Value =>
-        ({ type: 'vector', value: elements } as unknown as Value);
-
-    it('sees a NIL the run pushed', () => {
-        expect(checkRunLeftOwnNil(view(), view({ stack: [nil('domainMiss')] }))).toBe(true);
-    });
-
-    it('sees a NIL the run left below another value', () => {
-        expect(checkRunLeftOwnNil(view(), view({ stack: [nil('domainMiss'), num(5)] }))).toBe(true);
-    });
-
-    // The engine cuts a long Vector to the elements the Stack area draws and
-    // states what the rest holds (rust/src/agent/stack_view.rs).
-    const cut = (holdsNil: boolean, digest: string): Value =>
-        ({ type: 'vector', value: [num(1)], truncated: { length: 1000, holdsNil, holdsRecord: false, digest } } as Value);
-
-    it('sees a NIL in the part of a long Vector the view left out', () => {
-        expect(checkRunLeftOwnNil(view(), view({ stack: [cut(true, 'a')] }))).toBe(true);
-        expect(checkRunLeftOwnNil(view(), view({ stack: [cut(false, 'a')] }))).toBe(false);
-    });
-
-    it('tells a long Vector changed past the cut from one left alone', () => {
-        const before = view({ stack: [cut(true, 'a')] });
-        expect(checkRunLeftOwnNil(before, view({ stack: [cut(true, 'a')] }))).toBe(false);
-        expect(checkRunLeftOwnNil(before, view({ stack: [cut(true, 'b')] }))).toBe(true);
-    });
-
-    it('sees a NIL lane in a Vector the run produced', () => {
-        expect(checkRunLeftOwnNil(view(), view({ stack: [vector(num(1), nil('domainMiss'))] }))).toBe(true);
-    });
-
-    it('ignores a NIL the run was handed and left where it was', () => {
-        const before = view({ stack: [nil('domainMiss')] });
-        const after = view({ stack: [nil('domainMiss')], userWords: [word('G', '2 MUL')] });
-        expect(checkRunLeftOwnNil(before, after)).toBe(false);
-    });
-
-    it('sees a second NIL pushed on top of an earlier one', () => {
-        const before = view({ stack: [nil('domainMiss')] });
-        const after = view({ stack: [nil('domainMiss'), nil('domainMiss')] });
-        expect(checkRunLeftOwnNil(before, after)).toBe(true);
-    });
-
-    it('reports nothing for a run that left no NIL', () => {
-        expect(checkRunLeftOwnNil(view(), view({ stack: [num(3)] }))).toBe(false);
     });
 });

@@ -1,77 +1,19 @@
-//! Inferred contracts for user-defined words. `word_contract_probe.rs`
-//! reuses `infer_word_contract_inner` for `CONTRACT`'s anonymous-block case.
+//! Inferred contracts for User Words and blocks (LANG.CONTRACT.*): the stack
+//! arity and the `field` axis, read off the body without running any of it.
 //!
-//! A word's contract is inferred from its body and resolved dependency
-//! contracts without executing Ajisai code. Built-in contracts are projected
-//! from the existing coreword registry; user-word contracts widen
-//! monotonically as dependencies join. When recursion or a dynamic structure
-//! prevents a complete proof, the result is conservative rather than
-//! Ajisai's logical `UNKNOWN` value.
+//! A Core Word's contract is registered (`spec/words.json`); a User Word's is
+//! the join of what its body writes. Where the walk cannot know — a Word of
+//! variable arity, a name nothing defines, code it cannot read — it answers
+//! the weaker claim: a `variable` arity, or `leaving` with no exit to name.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::agent::contract_gap::GapCode;
-use crate::coreword_registry::{
-    get_coreword_metadata, Determinism, FieldClosure, MassContract, Partiality, Purity,
-};
-use crate::types::{Token, WordDefinition};
-
-use super::word_contract_field::pushes_point_over_zero;
 use super::word_contract_flow::{note_bound_names, BoundNames, FlowSim};
-use super::word_contract_widen::{classify_vector_positions, runs_unread_code, LiteralContext};
-pub use super::word_contract_widen::{
-    ContractConfidence, ContractDeterminism, ContractPartiality, ContractPurity,
-};
-use super::word_cost::{CostBound, CostSim, DepCost};
-use super::word_space::{DepSpace, SpaceBound, SpaceClass, SpaceSim};
-pub(crate) use super::zero_shape::core_word_shapes;
-use super::zero_shape::ZeroAtoms;
 use super::Interpreter;
-
-pub const WORD_CONTRACT_SCHEMA_VERSION: u32 = 2;
-pub const WORD_CONTRACT_CORE_SCHEMA_VERSION: u32 = 2;
-
-type WordContractCache = HashMap<WordContractCacheKey, Arc<WordContract>>;
-const WORD_CONTRACT_CACHE_STATE_KEY: &str = "__ajisai_word_contract_cache";
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct WordContract {
-    pub flow: ContractFlow,
-    pub purity: ContractPurity,
-    pub effects: Vec<String>,
-    pub determinism: ContractDeterminism,
-    pub partiality: ContractPartiality,
-    /// Whether the word can answer a point over zero from operands that hold
-    /// none (LANG.CONTRACT.FIELD): `leaving` as soon as one Word it calls is,
-    /// or one literal it pushes lies over zero; `closed` otherwise.
-    pub field: FieldClosure,
-    /// What makes the word `leaving`, in body order: the Words it calls that
-    /// can leave the field there and the literals it writes over zero. Empty
-    /// when the word is `closed`, and when only a code operand the walk could
-    /// not read made it `leaving` (the gaps name that instead).
-    pub field_exits: Vec<String>,
-    /// The zero shapes its numbers may take from operands in the field, read
-    /// per sign (LANG.CONTRACT.FIELD's `shapes`); `field` is its projection.
-    pub shapes: ZeroAtoms,
-    /// What it leaves for a caller, from operands in the field.
-    pub zero_answers: ZeroAtoms,
-    /// Whether the stack walk inferred `shapes`, rather than the widest set
-    /// `field` admits; only an inferred set can refute a declaration.
-    pub shapes_inferred: bool,
-    /// Sound upper bound on the word's space growth (Phase 2.2; `word_space`).
-    pub space: SpaceClass,
-    /// True when the bound is provably attained, licensing a declaration error.
-    pub space_exact: bool,
-    /// Sound upper bound on the word's charged time cost (`ResourceUsage`'s
-    /// three axes; Phase 5, `word_cost`). `pub(crate)` because `CostBound` is.
-    pub(crate) cost: CostBound,
-    pub confidence: ContractConfidence,
-    /// Why inference could not fully verify this word when `confidence` is
-    /// `Conservative` (empty when `Complete`, Phase 3); `pub(crate)` because `GapCode` is.
-    pub(crate) gaps: Vec<GapCode>,
-    pub cache_key: WordContractCacheKey,
-}
+use crate::coreword_registry::{get_coreword_metadata, FieldClosure, MassContract};
+use crate::types::{Token, Value, ValueData, WordDefinition};
+use crate::word_name::canonical_word_name;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ContractFlow {
@@ -79,421 +21,242 @@ pub enum ContractFlow {
     Dynamic,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct WordContractCacheKey {
-    pub word_identity: String,
-    pub dependency_identities: Vec<String>,
-    pub core_schema_version: u32,
-    pub inference_schema_version: u32,
-}
-
-/// A cache key for a builtin/leaf contract: no dependencies, current schema.
-pub(super) fn leaf_cache_key(word_identity: String) -> WordContractCacheKey {
-    WordContractCacheKey {
-        word_identity,
-        dependency_identities: Vec::new(),
-        core_schema_version: WORD_CONTRACT_CORE_SCHEMA_VERSION,
-        inference_schema_version: WORD_CONTRACT_SCHEMA_VERSION,
-    }
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct WordContract {
+    pub flow: ContractFlow,
+    /// Whether the Word can answer a point over zero from operands that hold
+    /// none (LANG.CONTRACT.FIELD).
+    pub field: FieldClosure,
+    /// What makes it `leaving`, in body order: the calls that can leave the
+    /// field there and the literals written over zero.
+    pub field_exits: Vec<String>,
+    /// `leaving` rests only on code the walk could not read, so it cannot
+    /// refute a declaration of `closed`.
+    pub field_unread: bool,
 }
 
 impl WordContract {
-    pub(crate) fn conservative(key: WordContractCacheKey) -> Self {
-        Self {
+    fn core(name: &str) -> Self {
+        match get_coreword_metadata(name) {
+            Some(meta) => WordContract {
+                flow: match meta.mass {
+                    MassContract::Fixed { consumes, produces } => ContractFlow::Fixed {
+                        consumes: consumes.into(),
+                        produces: produces.into(),
+                    },
+                    MassContract::Dynamic => ContractFlow::Dynamic,
+                },
+                field: meta.field,
+                field_exits: Vec::new(),
+                field_unread: false,
+            },
+            None => WordContract::unread(),
+        }
+    }
+
+    /// What nothing could be read about.
+    fn unread() -> Self {
+        WordContract {
             flow: ContractFlow::Dynamic,
-            purity: ContractPurity::Effectful,
-            effects: vec!["conservative".to_string()],
-            determinism: ContractDeterminism::HostRelative,
-            partiality: ContractPartiality::Projecting,
             field: FieldClosure::Leaving,
             field_exits: Vec::new(),
-            shapes: ZeroAtoms::ALL,
-            zero_answers: ZeroAtoms::ALL,
-            shapes_inferred: false,
-            space: SpaceClass::Unbounded,
-            space_exact: false,
-            cost: CostBound::CONSERVATIVE,
-            confidence: ContractConfidence::Conservative,
-            gaps: vec![GapCode::ConservativeSeed],
-            cache_key: key,
-        }
-    }
-
-    fn identity(name: &str) -> Self {
-        let key = leaf_cache_key(format!("builtin:{name}"));
-        Self {
-            flow: ContractFlow::Fixed {
-                consumes: 0,
-                produces: 0,
-            },
-            purity: ContractPurity::Pure,
-            effects: Vec::new(),
-            determinism: ContractDeterminism::Deterministic,
-            partiality: ContractPartiality::Total,
-            field: FieldClosure::Closed,
-            field_exits: Vec::new(),
-            shapes: ZeroAtoms::NONE,
-            zero_answers: ZeroAtoms::NONE,
-            shapes_inferred: true,
-            space: SpaceClass::Const,
-            space_exact: true,
-            cost: CostBound::IDENTITY,
-            confidence: ContractConfidence::Complete,
-            gaps: Vec::new(),
-            cache_key: key,
+            field_unread: true,
         }
     }
 }
 
-impl From<Purity> for ContractPurity {
-    fn from(value: Purity) -> Self {
-        match value {
-            Purity::Pure => ContractPurity::Pure,
-            // `conditional` means the Word is as pure as the block it is
-            // given. The inference walk already visits the block's symbols
-            // and widens with them, so charging the Word itself would
-            // double-count — a `MAP` over a pure block is pure, and over an
-            // effectful one the block's own effects make the caller effectful.
-            Purity::Conditional => ContractPurity::Pure,
-            Purity::Effectful => ContractPurity::Effectful,
-        }
-    }
+/// The contracts already inferred during one inference, so a dependency
+/// called from many places is walked once.
+type Memo = HashMap<Arc<str>, Arc<WordContract>>;
+
+/// The Words that run the `[ ... ]` written immediately before them as code.
+fn runs_code(name: &str) -> bool {
+    matches!(name, "MAP" | "FILTER" | "FOLD" | "SCAN" | "EXEC")
 }
 
-impl From<Determinism> for ContractDeterminism {
-    fn from(value: Determinism) -> Self {
-        match value {
-            Determinism::Deterministic => ContractDeterminism::Deterministic,
-            Determinism::StateRelative => ContractDeterminism::StateRelative,
-            Determinism::HostRelative => ContractDeterminism::HostRelative,
-        }
-    }
-}
-
-impl From<Partiality> for ContractPartiality {
-    fn from(value: Partiality) -> Self {
-        match value {
-            Partiality::Total => ContractPartiality::Total,
-            Partiality::Partial => ContractPartiality::Partial,
-            Partiality::Projecting => ContractPartiality::Projecting,
-        }
-    }
-}
-
-impl From<MassContract> for ContractFlow {
-    fn from(value: MassContract) -> Self {
-        match value {
-            MassContract::Fixed { consumes, produces } => ContractFlow::Fixed {
-                consumes: consumes.into(),
-                produces: produces.into(),
-            },
-            MassContract::Dynamic => ContractFlow::Dynamic,
-        }
-    }
-}
-
-#[derive(Clone)]
-pub(crate) struct AccumulatedContract {
-    flow: ContractFlow,
-    purity: ContractPurity,
-    effects: Vec<String>,
-    determinism: ContractDeterminism,
-    partiality: ContractPartiality,
-    pub(super) field: FieldClosure,
-    pub(super) field_exits: Vec<String>,
-    confidence: ContractConfidence,
-    pub(crate) gaps: Vec<GapCode>,
-}
-
-impl AccumulatedContract {
-    fn from_contract(contract: &WordContract) -> Self {
-        Self {
-            flow: contract.flow.clone(),
-            purity: contract.purity,
-            effects: contract.effects.clone(),
-            determinism: contract.determinism,
-            partiality: contract.partiality,
-            field: contract.field,
-            field_exits: contract.field_exits.clone(),
-            confidence: contract.confidence,
-            gaps: contract.gaps.clone(),
-        }
-    }
-
-    /// A name the body calls that nothing defines. The call raises
-    /// `unknownWord` when it is reached — a `repair: program` category — so
-    /// the Word is `partial` by the registry's own derivation, as a builtin
-    /// that declares such a condition is. It used to stay `total` with the
-    /// gap noted beside it: a contract that promised no failure for a body
-    /// `check` rejects and `compute` fails on the moment the Word runs.
-    pub(crate) fn note_unresolved_word(&mut self) {
-        self.partiality = self.partiality.max(ContractPartiality::Partial);
-        self.gaps.push(GapCode::UnresolvedWord);
-    }
-
-    pub(crate) fn widen_with(&mut self, other: &WordContract) {
-        self.purity = self.purity.max(other.purity);
-        for effect in &other.effects {
-            if !self.effects.contains(effect) {
-                self.effects.push(effect.clone());
+/// For every token, whether it sits inside a `[ ... ]` some Word runs as
+/// code: a group whose close a code-running Word follows, inside no group
+/// that is data. Every other group is data and none of its Words run.
+fn code_positions(tokens: &[Token]) -> Vec<bool> {
+    let mut close_of = vec![None; tokens.len()];
+    let mut opens = Vec::new();
+    for (i, token) in tokens.iter().enumerate() {
+        match token {
+            Token::VectorStart => opens.push(i),
+            Token::VectorEnd => {
+                if let Some(open) = opens.pop() {
+                    close_of[open] = Some(i);
+                }
             }
+            _ => {}
         }
-        self.determinism = self.determinism.max(other.determinism);
-        self.partiality = self.partiality.max(other.partiality);
-        self.field = self.field.max(other.field);
-        self.confidence = self.confidence.max(other.confidence);
-        // Incompleteness propagates like a NIL reason; canonicalized once at
-        // the end of accumulation, not per widen.
-        self.gaps.extend(other.gaps.iter().copied());
+    }
+    let mut code = vec![false; tokens.len()];
+    let mut levels: Vec<bool> = Vec::new();
+    for (i, token) in tokens.iter().enumerate() {
+        let enclosing = levels.last().copied();
+        match token {
+            Token::VectorStart => {
+                let runs = enclosing != Some(false)
+                    && close_of[i]
+                        .and_then(|close| tokens.get(close + 1))
+                        .is_some_and(|next| {
+                            matches!(next, Token::Symbol(s) if runs_code(&canonical_word_name(s)))
+                        });
+                code[i] = enclosing.unwrap_or(false);
+                levels.push(runs);
+            }
+            Token::VectorEnd => code[i] = levels.pop().unwrap_or(false),
+            _ => code[i] = enclosing.unwrap_or(false),
+        }
+    }
+    code
+}
+
+/// Whether a literal token pushes one of the two points over zero, at any
+/// depth. A lexeme that does not parse is not counted: running it raises
+/// before anything is pushed.
+fn pushes_point_over_zero(token: &Token) -> bool {
+    fn holds(value: &Value) -> bool {
+        match &value.data {
+            ValueData::Scalar(f) => !f.is_finite(),
+            ValueData::Vector(items) => items.iter().any(holds),
+            ValueData::Tensor { data, .. } => !data.all_finite(),
+            ValueData::Record(record) => record.keys().iter().chain(record.values()).any(holds),
+            _ => false,
+        }
+    }
+    match token {
+        Token::Number(literal) => literal.value().is_some_and(|f| !f.is_finite()),
+        Token::Value(value) => holds(value),
+        _ => false,
     }
 }
 
-pub(crate) fn static_word_contract(name: &str, def: &WordDefinition) -> WordContract {
-    let key = leaf_cache_key(format!("static:{}:{}", name, def.registration_order));
-    let Some(meta) = get_coreword_metadata(name) else {
-        return WordContract::conservative(key);
+/// Whether a call of the `leaving` Word `name` stays in the field because the
+/// literal written right before it is the operand that would have taken it
+/// out: a `DIV` by a finite non-zero literal, a `POW` to a finite
+/// non-negative one. Nothing can come between that literal and the call.
+fn literal_keeps_field(name: &str, prev: Option<&Token>) -> bool {
+    let Some(Token::Number(literal)) = prev else {
+        return false;
     };
-    let (space, space_exact) = super::word_space::builtin_space_for(name);
-    let cost = super::word_cost::builtin_cost_for(name);
-    let shapes = core_word_shapes(name);
-    WordContract {
-        flow: meta.mass.into(),
-        purity: meta.purity.into(),
-        effects: meta.effects,
-        determinism: meta.determinism.into(),
-        partiality: meta.partiality.into(),
-        field: meta.field,
-        field_exits: Vec::new(),
-        shapes,
-        zero_answers: shapes,
-        shapes_inferred: true,
-        space,
-        space_exact,
-        cost,
-        confidence: ContractConfidence::Complete,
-        gaps: Vec::new(),
-        cache_key: key,
+    let Some(operand) = literal.value().filter(|f| f.is_finite()) else {
+        return false;
+    };
+    match name {
+        "DIV" => !operand.is_zero(),
+        "POW" => operand.signum() != std::cmp::Ordering::Less,
+        _ => false,
+    }
+}
+
+fn note_exit(exits: &mut Vec<String>, exit: &str) {
+    if !exits.iter().any(|e| e == exit) {
+        exits.push(exit.to_string());
     }
 }
 
 impl Interpreter {
-    pub fn infer_word_contract(&mut self, name: &str) -> Option<Arc<WordContract>> {
-        let (resolved_name, def) = self.resolve_word_entry(name)?;
-        let mut visiting = HashSet::new();
-        self.infer_word_contract_inner(&resolved_name, &def, &mut visiting)
+    /// The contract of the Word `name` resolves to, or `None` when it names
+    /// none.
+    pub fn infer_word_contract(&self, name: &str) -> Option<Arc<WordContract>> {
+        let (resolved, def) = self.resolve_word_entry(name)?;
+        Some(self.contract_of(&resolved, &def, &mut Memo::new()))
     }
 
-    pub(crate) fn clear_word_contract_cache(&mut self) {
-        self.runtime_scratch.remove(WORD_CONTRACT_CACHE_STATE_KEY);
+    /// The contract of a block, as `CONTRACT` reads it: never run.
+    pub(crate) fn infer_contract_for_block(&self, tokens: &[Token]) -> WordContract {
+        self.infer_body(tokens, &mut Memo::new())
     }
 
-    #[cfg(test)]
-    pub(crate) fn word_contract_cache_len(&self) -> usize {
-        self.word_contract_cache_ref()
-            .map_or(0, WordContractCache::len)
-    }
-
-    fn word_contract_cache_ref(&self) -> Option<&WordContractCache> {
-        self.runtime_scratch
-            .get(WORD_CONTRACT_CACHE_STATE_KEY)
-            .and_then(|cache| cache.downcast_ref::<WordContractCache>())
-    }
-
-    fn word_contract_cache_mut(&mut self) -> &mut WordContractCache {
-        self.runtime_scratch
-            .entry(WORD_CONTRACT_CACHE_STATE_KEY.to_string())
-            .or_insert_with(|| Box::<WordContractCache>::default())
-            .downcast_mut::<WordContractCache>()
-            .expect("word contract cache state must keep its concrete type")
-    }
-
-    pub(crate) fn infer_word_contract_inner(
-        &mut self,
-        resolved_name: &str,
-        def: &Arc<WordDefinition>,
-        visiting: &mut HashSet<String>,
-    ) -> Option<Arc<WordContract>> {
+    fn contract_of(
+        &self,
+        name: &Arc<str>,
+        def: &WordDefinition,
+        memo: &mut Memo,
+    ) -> Arc<WordContract> {
         if def.is_builtin {
-            return Some(Arc::new(static_word_contract(resolved_name, def)));
+            return Arc::new(WordContract::core(name));
         }
-
-        let key = self.contract_cache_key(resolved_name, def);
-        if let Some(cached) = self.word_contract_cache_ref().and_then(|c| c.get(&key)) {
-            return Some(cached.clone());
+        if let Some(known) = memo.get(name) {
+            return known.clone();
         }
+        // `DEF` refuses a cycle (LANG.DICTIONARY.ACYCLIC); the placeholder
+        // keeps the walk finite regardless.
+        memo.insert(name.clone(), Arc::new(WordContract::unread()));
+        let contract = Arc::new(self.infer_body(&def.body, memo));
+        memo.insert(name.clone(), contract.clone());
+        contract
+    }
 
-        if !visiting.insert(resolved_name.to_string()) {
-            let contract = Arc::new(WordContract::conservative(key));
-            self.word_contract_cache_mut()
-                .insert(contract.cache_key.clone(), contract.clone());
-            return Some(contract);
-        }
-
+    fn infer_body(&self, body: &[Token], memo: &mut Memo) -> WordContract {
         let mut flow = FlowSim::new();
-        let seed = WordContract::identity(resolved_name);
-        let mut acc = AccumulatedContract::from_contract(&seed);
-        let mut sim = SpaceSim::new();
-        let mut cost_sim = CostSim::new();
-        let mut complete = true;
         let mut bound = BoundNames::new();
-
-        let contexts = classify_vector_positions(&def.body);
-        'body: for (idx, token) in def.body.iter().enumerate() {
-            match token {
-                Token::Number(_) | Token::String(_) | Token::Value(_) => {
-                    if pushes_point_over_zero(token) {
-                        acc.note_literal_over_zero(token);
-                    }
-                    flow.feed_literal();
-                    sim.feed_literal();
-                }
-                // A vector-literal interior pushes one opaque value as
-                // far as arity/space/cost are concerned, whatever it
-                // contains (`word_contract_widen.rs`). Whether the
-                // Symbol itself ever runs — and so contributes to `acc`
-                // — depends on whether this `[ ]` is inert data or a
-                // higher-order Word's code operand.
-                Token::Symbol(symbol) if contexts[idx].in_vector_literal() => {
-                    flow.feed_literal();
-                    sim.feed_literal();
-                    if contexts[idx] == LiteralContext::Code {
-                        let canonical = crate::word_name::canonical_word_name(symbol);
-                        if runs_unread_code(&def.body, &contexts, idx, &canonical) {
-                            self.widen_with_unread_code_operand(&mut acc, &mut complete);
-                        }
-                        self.widen_with_code_operand_symbol(
-                            symbol,
-                            idx.checked_sub(1).map(|i| &def.body[i]),
-                            visiting,
-                            &mut acc,
-                            &mut complete,
-                        );
-                    }
-                }
-                // A name a `BIND` made: one value of unknown size, no call.
-                Token::Symbol(symbol) if bound.contains(&symbol.to_uppercase()) => {
-                    flow.feed_literal();
-                    sim.feed_bound();
-                }
-                Token::Symbol(symbol) => {
-                    let canonical = crate::word_name::canonical_word_name(symbol);
-                    note_bound_names(&mut bound, &canonical, &def.body, idx);
-                    if runs_unread_code(&def.body, &contexts, idx, &canonical) {
-                        self.widen_with_unread_code_operand(&mut acc, &mut complete);
-                    }
-                    let Some((dep_name, dep_def)) = self.resolve_word_entry(&canonical) else {
-                        complete = false;
-                        flow.go_dynamic();
-                        sim.feed_unresolved();
-                        cost_sim.feed_unresolved();
-                        acc.note_unresolved_word();
-                        continue;
+        let mut exits = Vec::new();
+        let mut unread = false;
+        let code = code_positions(body);
+        for (idx, token) in body.iter().enumerate() {
+            let prev = idx.checked_sub(1).map(|i| &body[i]);
+            let Token::Symbol(symbol) = token else {
+                if pushes_point_over_zero(token) {
+                    let spelled = match token {
+                        Token::Number(literal) => literal.lexeme(),
+                        _ => "a literal over zero",
                     };
-                    let Some(dep_contract) = self.dependency_contract(
-                        &dep_name,
-                        &dep_def,
-                        visiting,
-                        &mut acc,
-                        &mut complete,
-                    ) else {
-                        flow.abandon();
-                        sim.abandon();
-                        cost_sim.abandon();
-                        continue 'body;
-                    };
-                    flow.feed_word(&dep_contract.flow);
-                    let builtin = dep_def.is_builtin;
-                    // One slot model, two bounds: the space walk computes
-                    // the operand provenance and the cost walk refines
-                    // against the very same reading.
-                    let operands = sim.feed_word(&if builtin {
-                        DepSpace::of_builtin(&dep_name, &dep_contract)
-                    } else {
-                        DepSpace::of_user_word(&dep_contract)
-                    });
-                    cost_sim.feed_word(&DepCost::of(&dep_contract, builtin), operands);
-                    acc.widen_with_call(
-                        &dep_name,
-                        &dep_contract,
-                        idx.checked_sub(1).map(|i| &def.body[i]),
-                    );
+                    note_exit(&mut exits, spelled);
                 }
-                Token::VectorStart | Token::VectorEnd => {
-                    flow.feed_structural(token);
-                    sim.feed_structural(token);
+                match token {
+                    Token::VectorStart | Token::VectorEnd => flow.feed_structural(token),
+                    _ => flow.feed_literal(),
+                }
+                continue;
+            };
+            let canonical = canonical_word_name(symbol);
+            let top_level = !flow.in_literal();
+            if top_level {
+                // A name a `BIND` made: one value, no call.
+                if bound.contains(canonical.as_ref()) {
+                    flow.feed_literal();
+                    continue;
+                }
+                note_bound_names(&mut bound, &canonical, body, idx);
+            } else if !code[idx] {
+                continue;
+            }
+            // Code that is not the literal written right before the Word that
+            // runs it was never read here.
+            if runs_code(&canonical) && !(prev == Some(&Token::VectorEnd) && code[idx - 1]) {
+                unread = true;
+            }
+            let Some((name, def)) = self.resolve_word_entry(&canonical) else {
+                if top_level {
+                    flow.go_dynamic();
+                }
+                continue;
+            };
+            let callee = self.contract_of(&name, &def, memo);
+            if top_level {
+                flow.feed_word(&callee.flow);
+            }
+            if callee.field == FieldClosure::Leaving && !literal_keeps_field(&name, prev) {
+                if callee.field_unread {
+                    unread = true;
+                } else {
+                    note_exit(&mut exits, &name);
                 }
             }
         }
-
-        let (shapes, zero_answers, shapes_inferred) =
-            self.settle_zero_shapes(&mut acc, &def.body, visiting);
-        visiting.remove(resolved_name);
-        let (inferred_flow, flow_unmodelled) = flow.finish();
-        acc.flow = inferred_flow;
-        if flow_unmodelled {
-            // A `Dynamic` the simulation *gave up* on, unlike one derived
-            // from a dependency's own mass contract: it may only ever produce
-            // a "cannot verify" note, never a proven violation.
-            complete = false;
-            acc.gaps.push(GapCode::UnmodelledControlFlow);
-        }
-        let SpaceBound {
-            class: space,
-            exact: space_exact,
-        } = sim.finish();
-        let cost = cost_sim.finish();
-        if !complete {
-            acc.confidence = ContractConfidence::Conservative;
-        }
-        // The gap set is a set, not a log: canonical order, not visit order.
-        acc.gaps.sort();
-        acc.gaps.dedup();
-        let contract = Arc::new(WordContract {
-            flow: acc.flow,
-            purity: acc.purity,
-            effects: acc.effects,
-            determinism: acc.determinism,
-            partiality: acc.partiality,
-            field: acc.field,
-            field_exits: acc.field_exits,
-            shapes,
-            zero_answers,
-            shapes_inferred,
-            space,
-            space_exact,
-            cost,
-            confidence: acc.confidence,
-            gaps: acc.gaps,
-            cache_key: key,
-        });
-        self.word_contract_cache_mut()
-            .insert(contract.cache_key.clone(), contract.clone());
-        Some(contract)
-    }
-
-    pub(crate) fn contract_cache_key(
-        &self,
-        name: &str,
-        def: &WordDefinition,
-    ) -> WordContractCacheKey {
-        let mut dependency_identities: Vec<String> = def
-            .dependencies
-            .iter()
-            .map(|dep| {
-                self.word_identity(dep)
-                    .cloned()
-                    .unwrap_or_else(|| format!("static:{dep}"))
-            })
-            .collect();
-        dependency_identities.sort();
-        WordContractCacheKey {
-            word_identity: self
-                .word_identity(name)
-                .cloned()
-                .unwrap_or_else(|| format!("unidentified:{name}:{}", def.registration_order)),
-            dependency_identities,
-            core_schema_version: WORD_CONTRACT_CORE_SCHEMA_VERSION,
-            inference_schema_version: WORD_CONTRACT_SCHEMA_VERSION,
+        let field = if exits.is_empty() && !unread {
+            FieldClosure::Closed
+        } else {
+            FieldClosure::Leaving
+        };
+        WordContract {
+            flow: flow.finish(),
+            field,
+            field_unread: unread && exits.is_empty(),
+            field_exits: exits,
         }
     }
 }

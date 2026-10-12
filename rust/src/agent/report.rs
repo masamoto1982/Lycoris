@@ -2,23 +2,16 @@
 //! `ajisai` CLI (`--json`).
 //!
 //! Assembly is I/O-free, so the typed agent API and the terminal CLI observe
-//! the same stack, NIL flow, diagnostics, output and runtime metrics.
-//! Rendering serializes the *existing* diagnostic structures — `DebugDiagnosis`,
-//! `AiDiagnosticPayload`, `ErrorFlowEvent`, and the shared
-//! value protocol (`types::value_protocol`) — into the camelCase wire format
-//! documented in `docs/dev/agent-cli-output-contract.md`. Field names follow
-//! the same protocol-string convention as the WASM boundary
-//! (`diagnosis_to_js` / `value_to_protocol`); no new diagnostic concepts are
-//! introduced here.
+//! the same stack, NIL reasons, error, output and resource usage. Rendering
+//! serializes the shared value protocol (`types::value_protocol`) and the
+//! error (LANG.OBSERVATION.DIAGNOSIS: a category, a message, the Word and the
+//! source position) into the camelCase wire format documented in
+//! `docs/dev/agent-cli-output-contract.md`.
 
 use super::execution_receipt::build_receipt;
 use super::observation_digest::{observation_digest, ObservationDigestInput};
 use super::{error_report, user_word_identities};
 use crate::error::ErrorCategory;
-use crate::interpreter::debug_diagnosis::{AiDiagnosticPayload, DebugDiagnosis};
-use crate::interpreter::error_flow_trace::{ErrorFlowEvent, ErrorFlowEventKind};
-use crate::interpreter::trace_diagnosis::EventDiagnosis;
-use crate::interpreter::upstream_nil_link::link_upstream_nil;
 use crate::interpreter::{Interpreter, ResourceUsage};
 use crate::semantic::AbsenceMetadata;
 use crate::types::value_protocol::{exact_terms, value_to_protocol, ProtocolNode, ProtocolValue};
@@ -29,12 +22,66 @@ use serde_json::{json, Map, Value as Json};
 /// change (field removal or rename); purely additive fields keep the same
 /// version. See `docs/dev/agent-cli-output-contract.md`.
 ///
-/// 3: `aiDiagnostic` classifies only (`category`, `repair`, `word`,
-/// `family`) — `kind` became `category`, `recoverability` gave way to the
-/// registry's `repair`, and the copies of `nextChecks`/`candidates`/
-/// `resourceLimit` went; an error's trace event no longer repeats the
-/// top-level `diagnosis`.
-pub(crate) const SCHEMA_VERSION: u64 = 3;
+/// 4: `diagnosis`, `aiDiagnostic` and `errorFlowTrace` gave way to one
+/// `error` object — `category`, `resource` for a ceiling, `word`, `line`,
+/// `column` — the whole of what LANG.OBSERVATION.DIAGNOSIS asks an error to
+/// carry beside its message.
+pub(crate) const SCHEMA_VERSION: u64 = 4;
+
+/// What an error report says about the failure beside its message: its
+/// category, the ceiling that refused it, the Word it is attributed to
+/// (`failure_site`), and the top-level source position that reached it.
+#[derive(Debug, Clone, Default)]
+pub(crate) struct ErrorInfo {
+    pub category: Option<ErrorCategory>,
+    pub resource: Option<&'static str>,
+    pub word: Option<String>,
+    pub position: Option<crate::tokenizer::SourceSpan>,
+}
+
+impl ErrorInfo {
+    pub(crate) fn of(category: ErrorCategory, word: Option<String>) -> Self {
+        ErrorInfo {
+            category: Some(category),
+            word,
+            ..ErrorInfo::default()
+        }
+    }
+
+    /// The error a run ended in, as `interp` attributes it.
+    pub(crate) fn of_run(interp: &Interpreter, err: &crate::error::AjisaiError) -> Self {
+        let resource = match err {
+            crate::error::AjisaiError::ResourceLimitExceeded { resource, .. } => {
+                Some(resource.as_protocol_str())
+            }
+            _ => None,
+        };
+        ErrorInfo {
+            category: ErrorCategory::from_error(err),
+            resource,
+            word: interp.failed_word_for(err).map(str::to_string),
+            position: interp.current_source_position(),
+        }
+    }
+}
+
+pub(crate) fn error_json(error: &ErrorInfo) -> Json {
+    let mut obj = Map::new();
+    if let Some(category) = &error.category {
+        obj.insert("category".into(), json!(category.as_protocol_str()));
+    }
+    if let Some(resource) = error.resource {
+        obj.insert("resource".into(), json!(resource));
+    }
+    if let Some(word) = &error.word {
+        obj.insert("word".into(), json!(word));
+    }
+    if let Some(span) = error.position {
+        obj.insert("line".into(), json!(span.line));
+        obj.insert("column".into(), json!(span.column));
+    }
+    Json::Object(obj)
+}
 
 pub(crate) struct Report {
     pub status: &'static str,
@@ -48,9 +95,7 @@ pub(crate) struct Report {
     pub stack_display: Vec<String>,
     pub output: Vec<String>,
     pub message: Option<String>,
-    pub diagnosis: Option<DebugDiagnosis>,
-    pub ai_diagnostic: Option<AiDiagnosticPayload>,
-    pub error_flow_trace: Vec<ErrorFlowEvent>,
+    pub error: Option<ErrorInfo>,
     /// What the run spent of the budgets that can refuse it. Read from the
     /// counters the ceilings read, so it cannot disagree with them.
     pub resource_usage: ResourceUsage,
@@ -86,31 +131,22 @@ pub(crate) struct Report {
 }
 
 impl Report {
-    /// The outcome id this report names, in the vocabulary `outcomes`
-    /// predicts in, so a prediction and a run compare by membership.
+    /// The outcome id this report names (`spec/outcomes.json`).
     ///
     /// `status` separates a value from an error but folds a reasoned absence
     /// into `ok`, so LANG.FAILURE's three results were reconstructable only by
     /// reading the top stack node's `semantics.absence.reason`. An error is its
-    /// category (`aiDiagnostic.category`, else `diagnosis.why`), a NIL on top
-    /// is its reason, anything else — an empty stack included — is a value. A
-    /// report this cannot classify (a NIL with no reason, an error naming no
-    /// category) has no id rather than a guessed one.
+    /// category, a NIL on top is its reason, anything else — an empty stack
+    /// included — is a value. A report this cannot classify (a NIL with no
+    /// reason, an error naming no category) has no id rather than a guessed
+    /// one.
     pub(crate) fn outcome_id(&self) -> Option<String> {
         match self.status {
-            "error" => {
-                let category = match self
-                    .ai_diagnostic
-                    .as_ref()
-                    .and_then(|ai| ai.category.as_deref())
-                {
-                    Some(category) => Some(category),
-                    None => self.diagnosis.as_ref().map(|d| d.why.as_protocol_str()),
-                };
-                category
-                    .filter(|category| !category.is_empty())
-                    .map(|category| format!("error:{category}"))
-            }
+            "error" => self
+                .error
+                .as_ref()
+                .and_then(|error| error.category.as_ref())
+                .map(|category| format!("error:{}", category.as_protocol_str())),
             "ok" => match self.stack.as_array().and_then(|stack| stack.last()) {
                 Some(top) if top["type"] == "nil" => top["semantics"]["absence"]["reason"]
                     .as_str()
@@ -141,8 +177,7 @@ impl Report {
             "stackDisplay": self.stack_display,
             "output": self.output,
             "message": self.message,
-            "diagnosis": self.diagnosis.as_ref().map(diagnosis_json),
-            "aiDiagnostic": self.ai_diagnostic.as_ref().map(ai_payload_json),
+            "error": self.error.as_ref().map(error_json),
             "resourceUsage": resource_usage_json(&self.resource_usage),
             "contractDecls": self.contract_decls,
             "stackElided": self.stack_elided,
@@ -150,12 +185,6 @@ impl Report {
             "receipt": self.receipt,
         });
         doc["stack"] = stack;
-        let (trace, trace_elided) =
-            super::error_stack::bounded_error_flow_trace_json(&self.error_flow_trace);
-        doc["errorFlowTrace"] = trace;
-        if let Some(elided) = trace_elided {
-            doc["errorFlowTraceElided"] = elided;
-        }
         if let Some(outcome) = &self.outcome {
             doc["outcome"] = json!(outcome);
         }
@@ -172,68 +201,6 @@ pub(crate) fn stack_json(interp: &Interpreter) -> Json {
     Json::Array(nodes)
 }
 
-pub(crate) fn diagnosis_json(diagnosis: &DebugDiagnosis) -> Json {
-    let mut where_obj = Map::new();
-    where_obj.insert(
-        "kind".into(),
-        json!(diagnosis.where_.kind.as_protocol_str()),
-    );
-    if let Some(word) = &diagnosis.where_.word {
-        where_obj.insert("word".into(), json!(word));
-    }
-    json!({
-        "when": diagnosis.when.as_protocol_str(),
-        "why": diagnosis.why.as_protocol_str(),
-        "summary": diagnosis.summary,
-        "where": Json::Object(where_obj),
-        "evidence": diagnosis.evidence,
-        "nextChecks": diagnosis.next_checks.iter().map(check_json).collect::<Vec<_>>(),
-        "candidates": diagnosis.candidates,
-        "resourceLimit": diagnosis.resource_limit.as_ref().map(resource_limit_json),
-    })
-}
-
-fn check_json(check: &crate::interpreter::debug_diagnosis::DebugCheck) -> Json {
-    json!({
-        "code": check.code,
-        "title": { "en": check.title.en, "ja": check.title.ja },
-        "detail": { "en": check.detail.en, "ja": check.detail.ja },
-    })
-}
-
-fn resource_limit_json(facts: &crate::interpreter::debug_diagnosis::ResourceLimitFacts) -> Json {
-    let mut out = json!({
-        "resource": facts.resource,
-        "limit": facts.limit,
-        "observed": facts.observed,
-    });
-    // Emitted only where it exists, never as a null. A ceiling whose `observed`
-    // is a real size says everything it has to say without it, and a key that
-    // is present-but-empty invites a reader to treat "no progress recorded" as
-    // "no progress made".
-    if let Some(progress) = facts.progress {
-        out["progress"] = json!({
-            "completed": progress.completed,
-            "total": progress.total,
-            "unit": progress.unit,
-        });
-    }
-    out
-}
-
-pub(crate) fn ai_payload_json(payload: &AiDiagnosticPayload) -> Json {
-    let mut obj = Map::new();
-    obj.insert("category".into(), json!(payload.category));
-    // As in spec/outcomes.json: present only as `program`; absent means the
-    // operand is what is wrong.
-    if let Some(repair) = payload.repair {
-        obj.insert("repair".into(), json!(repair));
-    }
-    obj.insert("word".into(), json!(payload.word));
-    obj.insert("family".into(), json!(payload.family));
-    Json::Object(obj)
-}
-
 fn absence_json(absence: &AbsenceMetadata) -> Json {
     let mut obj = Map::new();
     if let Some(reason) = &absence.reason {
@@ -241,36 +208,6 @@ fn absence_json(absence: &AbsenceMetadata) -> Json {
     }
     if let Some(detail) = &absence.detail {
         obj.insert("detail".into(), json!(detail.as_str()));
-    }
-    obj.insert("origin".into(), json!(absence.origin.as_protocol_str()));
-    obj.insert(
-        "recoverability".into(),
-        json!(absence.recoverability.as_protocol_str()),
-    );
-    if let Some(diagnosis) = &absence.diagnosis {
-        obj.insert("diagnosis".into(), diagnosis_json(diagnosis));
-    }
-    Json::Object(obj)
-}
-
-pub(crate) fn error_flow_event_json(event: &ErrorFlowEvent) -> Json {
-    let mut obj = Map::new();
-    obj.insert("kind".into(), json!(event.kind.as_protocol_str()));
-    if let Some(word) = &event.word {
-        obj.insert("word".into(), json!(word));
-    }
-    if let Some(absence) = &event.absence {
-        obj.insert("absence".into(), absence_json(absence));
-    }
-    obj.insert("stackLenBefore".into(), json!(event.stack_len_before));
-    obj.insert("stackLenAfter".into(), json!(event.stack_len_after));
-    obj.insert("message".into(), json!(event.message));
-    // A NIL has no diagnosis anywhere else, so its event carries one. An
-    // ERROR's is the report's top-level `diagnosis` — built from this very
-    // event (`failed_run_diagnosis`) — and sending it here as well
-    // doubled every error report for no information.
-    if let (ErrorFlowEventKind::NilProduced, Some(diagnosis)) = (&event.kind, &event.diagnosis) {
-        obj.insert("diagnosis".into(), diagnosis_json(diagnosis));
     }
     Json::Object(obj)
 }
@@ -363,7 +300,6 @@ pub(crate) fn semantics_json(value: &Value) -> Json {
 pub(crate) fn completed_run_report(
     interp: &Interpreter,
     result: crate::error::Result<()>,
-    trace: Vec<ErrorFlowEvent>,
     output: Vec<String>,
     source: &str,
     stack_budget: Option<usize>,
@@ -400,9 +336,7 @@ pub(crate) fn completed_run_report(
                 stack_display: residue.stack_display,
                 output,
                 message: None,
-                diagnosis: None,
-                ai_diagnostic: None,
-                error_flow_trace: trace,
+                error: None,
                 resource_usage,
                 contract_decls: None,
                 stack_elided: residue.elided,
@@ -412,42 +346,10 @@ pub(crate) fn completed_run_report(
             }
         }
         Err(err) => {
-            let message = err.to_string();
-            let diagnosis = failed_run_diagnosis(interp, &err, &trace);
-            let category = ErrorCategory::from_error(&err);
-            error_report(
-                interp,
-                &diagnosis,
-                category.as_ref(),
-                message,
-                output,
-                trace,
-                Some(source),
-            )
+            let error = ErrorInfo::of_run(interp, &err);
+            error_report(interp, error, err.to_string(), output, Some(source))
         }
     }
-}
-
-/// The top-level diagnosis of a run that ended in `err`: the last one the
-/// trace carries, else one built from the error itself. Shared with the WASM
-/// boundary, so the GUI's `aiDiagnostic` names the failure the CLI's does.
-pub(crate) fn failed_run_diagnosis(
-    interp: &Interpreter,
-    err: &crate::error::AjisaiError,
-    trace: &[ErrorFlowEvent],
-) -> DebugDiagnosis {
-    let stack_len = interp.get_stack().len();
-    let mut diagnosis = trace
-        .iter()
-        .rev()
-        .find_map(|event| event.diagnosis.as_ref().map(EventDiagnosis::to_diagnosis))
-        .unwrap_or_else(|| DebugDiagnosis::from_error(err, None, stack_len, stack_len));
-    // A NIL that flowed downstream fails at the Word that *received* it, so
-    // the top-level diagnosis names that Word and not the cause. Give the top
-    // level a link back to the producing node rather than leaving the cause
-    // reachable only by walking `errorFlowTrace`.
-    link_upstream_nil(&mut diagnosis, trace);
-    diagnosis
 }
 
 #[cfg(test)]

@@ -3,7 +3,6 @@ use crate::interpreter::exact_work::charge_comparison;
 use crate::interpreter::lane_lift::lift_lanes;
 use crate::interpreter::value_extraction_helpers::nil_passthrough_binary;
 use crate::interpreter::Interpreter;
-use crate::semantic::Recoverability;
 use crate::types::exact::ExactReal;
 use crate::types::fraction::Fraction;
 use crate::types::{Value, ValueData};
@@ -12,7 +11,7 @@ use crate::types::{Value, ValueData};
 /// order (LANG.VALUES.EXACT): a well-formed operand outside the operation's
 /// domain, `domainMiss`, as a negative radicand is to `SQRT`.
 pub(crate) fn unordered_projection() -> Value {
-    Value::nil_with_reason(NilReason::DomainMiss, Recoverability::Recoverable)
+    Value::nil_with_reason(NilReason::DomainMiss)
 }
 
 fn push_boolean_result(interp: &mut Interpreter, result: bool) {

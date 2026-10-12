@@ -8,7 +8,7 @@
 //   - curated snippet data in this file  (§6 examples, §7 errors, §8 forbidden)
 //
 // Every snippet is executed through the real `ajisai` CLI and the *actual*
-// `--json` output (stackDisplay / output / diagnosis fields) is embedded.
+// `--json` output (stackDisplay / output / error fields) is embedded.
 // If language behavior changes, regeneration changes SKILL.md and the
 // `check:skill` CI step fails until the committed copy is refreshed — the
 // guide cannot drift from the implementation.
@@ -62,8 +62,8 @@ function expectCheckOk(code) {
 function expectError(code) {
   const { exit, json } = runSnippet(code);
   if (exit !== 1) fail(`snippet must fail with exit 1 but exited ${exit}: ${code}`);
-  if (!json.diagnosis || !Array.isArray(json.diagnosis.nextChecks)) {
-    fail(`error snippet missing diagnosis/nextChecks: ${code}`);
+  if (!json.error || typeof json.error.category !== 'string') {
+    fail(`error snippet missing error.category: ${code}`);
   }
   return json;
 }
@@ -155,7 +155,7 @@ const contractDeclarations = [
   {
     id: 'contract-verified',
     title: 'Declare what your Word does; check verifies it before anything runs',
-    code: "#:contract DOUBLE inputs=1 outputs=1 purity=pure partiality=total\n[ 2 MUL ] 'DOUBLE' DEF 21 DOUBLE",
+    code: "#:contract DOUBLE inputs=1 outputs=1 field=closed\n[ 2 MUL ] 'DOUBLE' DEF 21 DOUBLE",
   },
 ];
 
@@ -315,7 +315,7 @@ function renderContractDeclarations() {
         '  ```ajisai',
         ...entry.code.split('\n').map((line) => `  ${line}`),
         '  ```',
-        `  \`check\` → exit 0, \`contractDecls: { outcome: "value", gapSummary: ${JSON.stringify(decls.gapSummary)} }\`; \`compute\` → ${renderResult(run)}, with the same \`contractDecls\`.`,
+        `  \`check\` → exit 0, \`contractDecls: { outcome: "value" }\`; \`compute\` → ${renderResult(run)}, with the same \`contractDecls\`.`,
       ].join('\n');
     })
     .join('\n');
@@ -325,17 +325,9 @@ function renderCommonErrors() {
   return commonErrors
     .map((entry) => {
       const json = expectError(entry.code);
-      const d = json.diagnosis;
-      // The stable half of a next-check is its code; the display text is
-      // localized and free to be reworded.
-      const firstCheck = d.nextChecks[0]?.code ?? '';
-      const candidates = d.candidates?.length
-        ? ` \`diagnosis.candidates: ${JSON.stringify(d.candidates)}\`.`
-        : '';
       return [
         `- **${entry.title}** — \`${entry.code}\``,
-        `  → exit 1, \`message: ${JSON.stringify(json.message)}\`, \`diagnosis: { when: "${d.when}", why: "${d.why}" }\`,`,
-        `  \`aiDiagnostic: { category: "${json.aiDiagnostic.category}"${json.aiDiagnostic.repair ? `, repair: "${json.aiDiagnostic.repair}"` : ''} }\`, first nextCheck code: \`${firstCheck}\`.${candidates}`,
+        `  → exit 1, \`message: ${JSON.stringify(json.message)}\`, \`error: ${JSON.stringify(json.error)}\`.`,
         `  Fix: ${entry.fix}`,
       ].join('\n');
     })
@@ -373,8 +365,8 @@ function verifiedNilSection() {
   // Verify the documented NIL behavior against the real CLI before writing it.
   const projected = expectOk('-1 SQRT');
   if (projected.stackDisplay.join(' ') !== 'NIL') fail('a negative radicand must project to NIL');
-  const event = projected.errorFlowTrace.find((e) => e.kind === 'nilProduced');
-  if (!event || event.absence?.reason !== 'domainMiss') fail('nilProduced trace event missing');
+  const reason = projected.stack[0]?.semantics?.absence?.reason;
+  if (reason !== 'domainMiss') fail('a negative radicand must carry the reason domainMiss');
   const fallback = expectOk("-1 SQRT 'S' BIND 99 S S NIL? SELECT");
   if (fallback.stackDisplay.join(' ') !== '99/1') fail('the fallback must replace NIL');
   // Lifted over a vector the same law projects lane by lane, so the top stays
@@ -388,7 +380,7 @@ function verifiedNilSection() {
   const byZero = expectOk('100 0 DIV -5 0 DIV 0 0 DIV');
   if (byZero.stackDisplay.join(' ') !== '1/0 1/0 0/0') fail('a quotient by zero is a point over zero');
   return {
-    reason: event.absence.reason,
+    reason,
     fallbackStack: fallback.stackDisplay[0],
     liftedStack: lifted.stackDisplay[0],
     byZeroStack: byZero.stackDisplay.join(' '),
@@ -437,8 +429,8 @@ ajisai agent check program.ajisai     # parse + resolve only, no execution
 
 Read the JSON in this order (contract: docs/dev/agent-cli-output-contract.md):
 1. \`status\` / exit code. On ok: \`stackDisplay\` (final stack, bottom→top) and \`output\` (PRINT lines).
-2. On error: \`diagnosis.why\` + \`diagnosis.where\` locate the failure; follow \`diagnosis.nextChecks\` in order; \`aiDiagnostic.category\` is the spec/outcomes.json error category, and \`aiDiagnostic.repair: "program"\` says the program is what to change (absent: an operand is wrong).
-3. Even on ok, scan \`errorFlowTrace\` for \`nilProduced\` events if a NIL surprised you.
+2. On error: \`message\`, and \`error\` — \`category\` (the spec/outcomes.json error category), \`resource\` for a ceiling, \`word\` (the Word it is attributed to) and \`line\`/\`column\` locate the failure.
+3. A NIL on the stack carries its reason in \`semantics.absence.reason\`.
 
 ## 2. Minimal syntax
 
@@ -449,7 +441,7 @@ Read the JSON in this order (contract: docs/dev/agent-cli-output-contract.md):
 - Code blocks are quoted programs passed to MAP / FILTER / FOLD / DEF, written as an ordinary Vector (§6) — there is no separate block bracket. SELECT is not among them: it takes values, not code.
 - Named data is a Record, built by \`RECORD\` from a Vector of keys and a Vector of values: \`${canonicalExampleCode('record-basic')}\`. It is not a Vector and is never code. It displays as \`${canonicalExampleDisplay('record-basic')}\` — the keys, the values and the Word that joins them, which is also valid source that rebuilds it.
 - Define a user word with a body Vector, then a \`'NAME'\` string, then \`DEF\`, then call \`NAME\`: \`${canonicalExampleCode('def-basic')}\` (§6). Words are case-insensitive (canonicalized to upper case).
-- Declare a user word's contract on a \`#:contract\` comment line — \`#:contract DOUBLE inputs=1 outputs=1 purity=pure\` — and \`check\` verifies it against the body before anything runs; \`compute\` runs the same check first and refuses a program whose declaration is violated (§2a).
+- Declare a user word's contract on a \`#:contract\` comment line — \`#:contract DOUBLE inputs=1 outputs=1 field=closed\` — and \`check\` verifies it against the body before anything runs; \`compute\` runs the same check first and refuses a program whose declaration is violated (§2a).
 - Comments: \`#\` to end of line.
 - Every Word consumes the operands it reads. To use a value more than once, name it with \`BIND\` and read the name: \`5 'N' BIND N N 1 ADD\` leaves \`5/1  6/1\`.
 - One word does one thing to the stack; there are **no** DUP/SWAP-style shufflers (§8).
@@ -457,24 +449,21 @@ Read the JSON in this order (contract: docs/dev/agent-cli-output-contract.md):
 ## 2a. Declaring a contract (\`#:contract\`)
 
 One comment line per Word, written in the keys and values of a contract Record
-(the same vocabulary \`word_contract\` / \`CONTRACT\` answer in):
+(the same vocabulary \`CONTRACT\` answers in):
 
-\`#:contract NAME [inputs=N] [outputs=N] [purity=pure|effectful] [partiality=total|partial|projecting] [field=closed|leaving] [shapes=zero,nonzero,infinite,nullity] [determinism=deterministic|stateRelative|hostRelative] [cost steps=C numeric=C collection=C]\`
-with each cost class \`C\` one of \`const\` \`linear\` \`superlinear\` \`unbounded\`.
+\`#:contract NAME [inputs=N] [outputs=N] [field=closed|leaving]\`
+
 \`field=closed\` promises the Word never answers a point over zero (\`1/0\`
 \`0/0\`) from operands holding none — only \`DIV\`, \`POW\`, \`NUM\` and a literal over
-zero leave the field, and a \`DIV\` by a divisor that cannot be zero (\`2 DIV\`,
-\`LENGTH 1 ADD DIV\`) or a \`POW\` to an exponent that cannot be negative (\`2 POW\`)
-does not. Inside \`closed\` code the field laws (distributivity, \`x x SUB\` = 0)
+zero leave the field, and a \`DIV\` by a non-zero literal (\`2 DIV\`) or a \`POW\`
+to a non-negative literal (\`2 POW\`) does not; a divisor the body computes is
+not read. Inside \`closed\` code the field laws (distributivity, \`x x SUB\` = 0)
 hold; a \`leaving\` report's \`fieldExits\` names where the body leaves.
-\`shapes\` says which zero shapes its numbers may take — \`zero\`, \`nonzero\`,
-\`infinite\` (\`±1/0\`), \`nullity\` (\`0/0\`) — and declaring it bounds them:
-without \`nullity\` no comparison in the body can meet \`0/0\` (LANG.CONTRACT.FIELD).
 
-\`inputs\`/\`outputs\` must equal what the body does; every other key is an upper
-bound the body must not exceed; a key left out is not checked. The check is
-conservative: a body inference cannot read is reported as *cannot verify*
-(a \`note\` with a \`gap.*\` code), never as a false violation. To write a
+\`inputs\`/\`outputs\` must equal what the body does; \`field=closed\` is a bound the
+body must not exceed; a key left out is not checked. The check is conservative:
+a body the inference cannot read is reported as *cannot verify* (a \`note\`),
+never as a false violation. To write a
 declaration without guessing, run \`infer_contracts\` first and paste its
 \`suggested\` line.
 
@@ -490,9 +479,8 @@ ${renderContractDeclarations()}
 ## 4. NIL — absence is a value, not an exception
 
 Failed partial operations *project to NIL*: \`-1 SQRT\` succeeds (exit 0) and
-pushes \`NIL\` (reason: \`${nil.reason}\`). The projection is recorded in
-\`errorFlowTrace\` as a \`nilProduced\` event with a full diagnosis, and the NIL
-value itself carries \`semantics.absence.reason\` on the stack.
+pushes \`NIL\` (reason: \`${nil.reason}\`). The NIL value itself carries
+\`semantics.absence.reason\` on the stack.
 
 Division by zero is **not** a projection: every number is a pair over a
 non-negative denominator, taken up to a nonzero factor (the wheel of fractions),

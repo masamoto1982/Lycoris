@@ -63,37 +63,13 @@ async fn digest_is_a_word_identity_or_a_denotation_digest() {
 
 #[tokio::test]
 async fn contract_answers_the_registered_record_of_a_core_word() {
-    assert_eq!(top("[ DIV ] 0 GET CONTRACT 'name' GET").await, "'DIV'");
     assert_eq!(top("[ DIV ] 0 GET CONTRACT 'inputs' GET").await, "2/1");
     assert_eq!(top("[ DIV ] 0 GET CONTRACT 'outputs' GET").await, "1/1");
-    assert_eq!(
-        top("[ SQRT ] 0 GET CONTRACT 'projection' GET").await,
-        "[ 'domainMiss' ]"
-    );
-    assert_eq!(
-        top("[ DIV ] 0 GET CONTRACT 'errorWhen' GET").await,
-        "[ 'nonNumeric' 'shapeMismatch' ]"
-    );
-    assert_eq!(
-        top("[ DIV ] 0 GET CONTRACT 'cost' GET KEYS").await,
-        "[ 'steps' 'numeric' 'collection' ]"
-    );
-    assert_eq!(
-        top("[ MAP ] 0 GET CONTRACT 'cost' GET 'steps' GET").await,
-        "'unbounded'"
-    );
-    assert_eq!(
-        top("[ PRINT ] 0 GET CONTRACT 'effects' GET").await,
-        "[ 'consoleWrite' ]"
-    );
+    assert_eq!(top("[ DIV ] 0 GET CONTRACT 'field' GET").await, "'leaving'");
     assert_eq!(top("[ MAP ] 0 GET CONTRACT 'inputs' GET").await, "2/1");
     assert_eq!(
         top("[ SORT ] 0 GET CONTRACT KEYS").await,
-        "[ 'name' 'vocabularyTier' 'inputs' 'outputs' 'nilPolicy' 'projection' 'errorWhen' 'partiality' 'field' 'zeroShapes' 'shapes' 'purity' 'determinism' 'cost' 'effects' ]"
-    );
-    assert_eq!(
-        top("[ SORT ] 0 GET CONTRACT 'vocabularyTier' GET").await,
-        "'standard'"
+        "[ 'inputs' 'outputs' 'field' ]"
     );
 }
 
@@ -109,75 +85,17 @@ async fn contract_infers_a_user_word_and_a_block_in_one_shape() {
     );
     assert_eq!(
         top("[ 42 PRINT ] CONTRACT KEYS").await,
-        "[ 'inputs' 'outputs' 'partiality' 'field' 'shapes' 'purity' 'determinism' 'cost' 'effects' 'confidence' 'gaps' ]"
+        "[ 'inputs' 'outputs' 'field' ]"
     );
-    // The zero shapes a body's numbers may take, read off the stack it builds
-    // (LANG.CONTRACT.FIELD): a product of zeros stays zero, a quotient of it
-    // by zero is `0/0` and never a signed point.
-    assert_eq!(
-        top("[ 0 MUL 0 DIV ] CONTRACT 'shapes' GET").await,
-        "[ 'zero' 'nullity' ]"
-    );
-    assert_eq!(
-        top("[ DIV ] 0 GET CONTRACT 'shapes' GET").await,
-        "[ 'zero' 'nonzero' 'infinite' 'nullity' ]"
-    );
-    assert_eq!(
-        top("[ POW ] 0 GET CONTRACT 'shapes' GET").await,
-        "[ 'zero' 'nonzero' 'infinite' ]"
-    );
-    assert_eq!(top("[ STR ] CONTRACT 'shapes' GET").await, "[ ]");
-    assert_eq!(top("[ 1 2 ADD ] CONTRACT 'purity' GET").await, "'pure'");
-    // A key both shapes carry is answered in one vocabulary, so a block
-    // compares directly with the Core Word it calls.
-    for key in ["partiality", "purity", "determinism"] {
-        for (core, block) in [
-            ("DIV", "[ 1 0 DIV ]"),
-            ("PRINT", "[ 42 PRINT ]"),
-            ("MAP", "[ [ 1 ] MAP ]"),
-        ] {
-            if key == "purity" && core == "MAP" {
-                // `conditional` is MAP's own purity: as pure as the block
-                // it runs. A block whose body is known is never
-                // conditional, so here the two rightly differ.
-                continue;
-            }
-            assert_eq!(
-                top(&format!("[ {core} ] 0 GET CONTRACT '{key}' GET")).await,
-                top(&format!("{block} CONTRACT '{key}' GET")).await,
-                "{key} of {core} and of {block}"
-            );
-        }
+    // A key both carry is answered in one vocabulary, so a block compares
+    // directly with the Core Word it calls.
+    for key in ["inputs", "outputs", "field"] {
+        assert_eq!(
+            top(&format!("[ DIV ] 0 GET CONTRACT '{key}' GET")).await,
+            top(&format!("[ DIV ] CONTRACT '{key}' GET")).await,
+            "{key}"
+        );
     }
-    assert_eq!(
-        top("[ 1 2 ADD ] CONTRACT 'confidence' GET").await,
-        "'complete'"
-    );
-    assert_eq!(top("[ 1 2 ADD ] CONTRACT 'inputs' GET").await, "0/1");
-    assert_eq!(top("[ ADD ] CONTRACT 'inputs' GET").await, "2/1");
-    assert_eq!(top("[ ] CONTRACT 'purity' GET").await, "'pure'");
-    assert_eq!(
-        top("[ 42 PRINT ] CONTRACT 'effects' GET").await,
-        "[ 'consoleWrite' ]"
-    );
-    assert_eq!(
-        top("[ 42 PRINT ] CONTRACT 'purity' GET").await,
-        "'effectful'"
-    );
-    assert_eq!(
-        top("[ NOPE ] CONTRACT 'confidence' GET [ NOPE ] CONTRACT 'gaps' GET").await,
-        "'conservative' [ 'gap.unresolvedWord' ]"
-    );
-    // Nothing ran: the effect was reported, not performed, for the
-    // named body and for the bare block alike.
-    let interp =
-        run("[ 42 PRINT ] 'SHOUT' DEF [ SHOUT ] 0 GET CONTRACT [ 42 PRINT ] CONTRACT").await;
-    assert!(interp.host_effects().is_empty());
-    // Inferring never mutates the dictionary.
-    let before = run("[ 2 MUL ] 'TWICE' DEF").await;
-    let after = run("[ 2 MUL ] 'TWICE' DEF [ TWICE 1 ADD ] CONTRACT").await;
-    assert_eq!(before.dictionary_epoch, after.dictionary_epoch);
-    assert_eq!(before.user_words.len(), after.user_words.len());
 }
 
 #[tokio::test]

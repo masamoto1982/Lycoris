@@ -126,10 +126,9 @@ impl TruthColumn {
 mod tests {
     use super::*;
     use crate::error::NilReason;
-    use crate::semantic::Recoverability;
 
     fn nil(reason: NilReason) -> Value {
-        Value::nil_with_reason(reason, Recoverability::Recoverable)
+        Value::nil_with_reason(reason)
     }
 
     #[test]

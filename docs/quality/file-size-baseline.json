@@ -13,12 +13,11 @@
   "limit": 500,
   "growthAllowance": 0.1,
   "files": {
-    "rust/src/types/fraction.rs": 763,
-    "rust/src/types/fraction_mcdc_tests.rs": 730,
+    "rust/src/types/fraction.rs": 795,
+    "rust/src/types/fraction_mcdc_tests.rs": 784,
     "rust/src/interpreter/dictionary_operation_tests.rs": 660,
-    "rust/src/interpreter/arithmetic.rs": 624,
-    "rust/src/interpreter/interpreter_core.rs": 568,
-    "rust/src/interpreter/debug_diagnosis.rs": 559,
+    "rust/src/interpreter/arithmetic.rs": 597,
+    "rust/src/interpreter/interpreter_core.rs": 527,
     "rust/src/arithmetic_operation_tests.rs": 511
   }
 }

@@ -17,7 +17,7 @@ mod word_registry;
 
 pub use word_registry::{
     Arity, CostAxis, CostClass, Determinism, Family, FieldClosure, GeneratedWord, NilPolicy,
-    OperandRole, Partiality, Purity, ValueDomain, VocabularyTier, WordCost, WordId, ZeroShapeLaw,
+    OperandRole, Partiality, Purity, ValueDomain, VocabularyTier, WordCost, WordId,
     GENERATED_WORDS,
 };
 

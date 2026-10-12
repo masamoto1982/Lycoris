@@ -221,20 +221,8 @@ jobs:
         # observed somewhere, both registry-wide. Neither asks whether ADD
         # fails with a category ADD's own contract declares. MIN and MAX raised
         # a length-mismatch category their contracts did not name, with
-        # every gate green, and the static predictor's soundness argument
-        # (rust/src/interpreter/word_outcome_vocabulary.rs) assumed exactly the
-        # property nothing was checking.
+        # every gate green.
         run: npm run word-outcome-containment:check
-
-      - name: Static outcome prediction contains what actually runs
-        # `ajisai agent outcomes` predicts a program's outcome set without
-        # executing it (Phase 5 pitfall D: the predictor doesn't run the
-        # program, but verification does). For every witness in
-        # spec/outcome-witnesses.json, checks that the predicted set contains
-        # the outcome that witness's own execution actually observed — an
-        # under-approximating predictor is a predictor that lies.
-        # See scripts/check-outcome-prediction.mjs.
-        run: npm run outcome-prediction:check
 
       - name: A NIL lane keeps its reason through the element-wise lift
         # LANG.COLLECTIONS.LIFT: "each lane preserves the exactness, truth,

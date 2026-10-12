@@ -115,7 +115,7 @@ impl Interpreter {
         self.body_store.clear();
         self.defer_identity_recompute = false;
         self.next_registration_order = 1;
-        self.error_flow_trace_log.clear();
+        self.failed_word = None;
         self.symbol_cache.clear();
         crate::builtins::register_builtins(&mut self.core_vocabulary);
     }

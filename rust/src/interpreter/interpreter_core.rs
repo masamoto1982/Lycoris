@@ -138,7 +138,8 @@ pub struct Interpreter {
     pub(crate) global_epoch: u64,
     pub(crate) dictionary_epoch: u64,
 
-    pub(crate) error_flow_trace_log: Vec<super::error_flow_trace::ErrorFlowEvent>,
+    /// The Word this run's failure is attributed to (`failure_site`).
+    pub(crate) failed_word: Option<super::failure_site::FailedWord>,
 
     /// Content identity of each user word, keyed by name. Derived state:
     /// recomputed whenever the user-word graph changes.
@@ -251,7 +252,7 @@ impl Interpreter {
             next_registration_order: 1,
             global_epoch: 0,
             dictionary_epoch: 0,
-            error_flow_trace_log: Vec::new(),
+            failed_word: None,
 
             // Elastic Engine
             word_identities: HashMap::new(),
@@ -282,13 +283,8 @@ impl Interpreter {
         self.global_epoch
     }
 
-    pub(crate) fn invalidate_execution_artifacts(&mut self) {
-        self.clear_word_contract_cache();
-    }
-
     pub(crate) fn bump_dictionary_epoch(&mut self) {
         self.dictionary_epoch = self.next_epoch();
-        self.invalidate_execution_artifacts();
     }
 
     /// One Word dispatch against the execution-step ceiling.
@@ -331,48 +327,6 @@ impl Interpreter {
             .max()
             .unwrap_or(0);
         self.runtime_limits.check_nesting_depth(deepest as usize)
-    }
-
-    pub fn push_error_flow_trace(&mut self, event: super::error_flow_trace::ErrorFlowEvent) {
-        self.error_flow_trace_log.push(event);
-    }
-
-    pub fn drain_error_flow_trace(&mut self) -> Vec<super::error_flow_trace::ErrorFlowEvent> {
-        std::mem::take(&mut self.error_flow_trace_log)
-    }
-
-    /// Record `word` as the Word a failure happened *inside*, when the frame
-    /// below already recorded that same failure under the name of the Word
-    /// that raised it. Answers whether it did.
-    ///
-    /// An error unwinds through every frame it passed through, and each of
-    /// those frames used to record it again under its own name — so the last
-    /// event, the one every reader takes, named the outermost Word. For
-    /// `[ 1 2 ] { 'x' 1 ADD } MAP` that was `MAP`, and the reader was told to
-    /// check `MAP`'s expected shape for a failure `ADD` raised about its own
-    /// operand. Keeping the innermost attribution and folding the outer frames
-    /// into `insideWords` says both things: what failed, and where it was
-    /// written.
-    pub(crate) fn attribute_enclosing_word(&mut self, word: &str, error_text: &str) -> bool {
-        let Some(last) = self.error_flow_trace_log.last_mut() else {
-            return false;
-        };
-        if last.kind != super::error_flow_trace::ErrorFlowEventKind::WordError
-            || last.error_text != error_text
-        {
-            return false;
-        }
-        // The frame that raised it and the frame recording it are the same
-        // Word: a User Word records its own failure at the call boundary, and
-        // the loop that ran the call then reaches here. Nothing to add — it is
-        // not written inside itself.
-        if last.word.as_deref() == Some(word) {
-            return true;
-        }
-        if let Some(diagnosis) = last.diagnosis.as_mut() {
-            diagnosis.with_enclosing_word(word);
-        }
-        true
     }
 
     pub fn current_epoch_snapshot(&self) -> EpochSnapshot {

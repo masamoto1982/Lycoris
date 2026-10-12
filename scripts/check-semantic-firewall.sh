@@ -54,7 +54,7 @@ check_absent "top-level errorCategory external field" 'errorCategory' rust/src s
 check_absent \
   'Debug formatting in external protocol payload code' \
   'format!\("\{:\?' \
-  rust/src/wasm_interpreter_bindings/wasm_interpreter_state.rs rust/src/interpreter/debug_diagnosis.rs src
+  rust/src/wasm_interpreter_bindings/wasm_interpreter_state.rs src
 
 # TypeScript and the WASM boundary must not depend on Rust Debug variant names.
 check_absent \

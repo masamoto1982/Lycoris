@@ -20,11 +20,9 @@ use crate::agent::observation_digest::value_digest;
 use crate::builtins::lookup_builtin_spec;
 use crate::error::{AjisaiError, NilReason, Result};
 use crate::interpreter::collection_meter;
-use crate::interpreter::contract_record::{inferred_contract_record, registered_contract_record};
+use crate::interpreter::contract_record::contract_record;
 use crate::interpreter::word_identity::content_digest;
 use crate::interpreter::Interpreter;
-use crate::kernel::generated::generated_word;
-use crate::semantic::Recoverability;
 use crate::types::{Value, ValueData};
 use crate::word_name::canonical_word_name;
 
@@ -121,7 +119,7 @@ pub(crate) fn op_contract(interp: &mut Interpreter) -> Result<()> {
             }
         };
         let contract = interp.infer_contract_for_block(&tokens);
-        interp.stack.push(inferred_contract_record(&contract));
+        interp.stack.push(contract_record(&contract));
         return Ok(());
     }
     let Some(name) = symbol_name(&operand) else {
@@ -130,19 +128,14 @@ pub(crate) fn op_contract(interp: &mut Interpreter) -> Result<()> {
         return Err(not_a_symbol("CONTRACT", got));
     };
     let canonical = canonical_name(&name);
-    let answer = match resolve(interp, &canonical) {
-        Some(Resolved::Core) => generated_word(&canonical).map(registered_contract_record),
-        Some(Resolved::User) => interp
-            .infer_word_contract(&canonical)
-            .map(|contract| inferred_contract_record(&contract)),
-        None => None,
-    };
+    let answer = resolve(interp, &canonical)
+        .and_then(|_| interp.infer_word_contract(&canonical))
+        .map(|contract| contract_record(&contract));
     match answer {
         Some(record) => interp.stack.push(record),
-        None => interp.stack.push(Value::nil_with_reason(
-            NilReason::NotFound,
-            Recoverability::Recoverable,
-        )),
+        None => interp
+            .stack
+            .push(Value::nil_with_reason(NilReason::NotFound)),
     }
     Ok(())
 }

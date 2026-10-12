@@ -9,7 +9,7 @@ use std::sync::Arc;
 /// name. `#:contract` is a tooling-only directive (an ordinary comment to the
 /// interpreter, stripped before tokenization — `docs/dev/cost-contract-
 /// design.md`); this does not parse or check its fields the way the CLI's
-/// `agent::contract_decl` does (that module is `std`-only and unavailable to
+/// `agent::contract` does (that module is `std`-only and unavailable to
 /// the browser build). It only recovers the line's text, verbatim, so `DEF`
 /// can attach it to the Word it names as a `description` for the host to
 /// show — e.g. the Dictionary panel's hover — never as a checked contract.
@@ -91,7 +91,7 @@ pub fn op_def(interp: &mut Interpreter) -> Result<()> {
     // `def_val` through `value_as_code.rs` always re-expands a nested Vector
     // as `[ ]`, which is fine for *running* the body (either spelling
     // executes identically) but loses exactly the bracket-spelling fact the
-    // contract engine's vector-depth gate (`word_contract_widen.rs`) reads to
+    // contract inference's code-or-data reading (`word_contract.rs`) reads to
     // tell code from data. `None` here just means the body came from a
     // computed Vector rather than a literal, and the bridge is the only way
     // to get tokens from it — the source-writing bridge, since a definition

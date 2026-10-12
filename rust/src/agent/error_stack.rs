@@ -1,15 +1,15 @@
 //! What a report keeps when its stack is too large to send.
 //!
 //! An error report carries two different things, and they are not equally
-//! important. The **diagnosis** is the answer: why the program stopped, which
-//! ceiling it met, what to do next. The **stack** is residual state: whatever
+//! important. The **error** is the answer: why the program stopped and which
+//! ceiling it met. The **stack** is residual state: whatever
 //! the program happened to be holding when it stopped. Serializing the residue
 //! in full and letting the whole envelope exceed a host's response ceiling
 //! trades the answer for the residue, which is backwards.
 //!
 //! It was not hypothetical. `1 21000 RANGE 1 [ MUL ] FOLD` is refused by the
 //! work meter with `numericWork of 10000573 exceeds the limit of 10000000` —
-//! precisely the diagnosis an agent needs — but the failing stack holds a
+//! precisely the error an agent needs — but the failing stack holds a
 //! 21,000-element vector and an 81,649-digit partial product, so the envelope
 //! came to 5,773,682 bytes of which 5,571,973 were the stack. Against the MCP
 //! adapter's 1 MiB `responseBytes` ceiling that became
@@ -29,13 +29,12 @@
 //! of what it was, which is what lets the caller fix the program. Three rules
 //! make either case honest:
 //!
-//! 1. **Values are dropped, never reasons.** `diagnosis`, `aiDiagnostic`,
-//!    `errorFlowTrace`, `message` and `output` are never touched here (the
-//!    trace has a byte budget of its own, `bounded_error_flow_trace_json`).
+//! 1. **Values are dropped, never reasons.** `error`, `message` and `output`
+//!    are never touched here.
 //! 2. **Every slot stays in place.** An elided slot keeps its index, `type`,
 //!    `semantics` (less an algebraic value's `exactTerms`), and gains an
 //!    `elided` record naming what was dropped. Positions stay meaningful, so a
-//!    diagnosis that points at stack depth still points at the same thing.
+//!    reader that points at stack depth still points at the same thing.
 //! 3. **The reason says which budget.** `errorStackBudget` is the fixed
 //!    [`MAX_ERROR_STACK_BYTES`] every error report applies;
 //!    `valueStackBudget` is the host-chosen one a success was sent under
@@ -50,12 +49,11 @@
 
 use serde_json::{json, Map, Value as Json};
 
-use crate::interpreter::error_flow_trace::ErrorFlowEvent;
 use crate::interpreter::Interpreter;
 use crate::types::value_protocol::{value_to_protocol, ProtocolNode, ProtocolValue};
 use crate::types::ValueData;
 
-use super::report::{error_flow_event_json, protocol_node_json, semantics_json};
+use super::report::{protocol_node_json, semantics_json};
 
 /// Byte budget for an error report's `stack` and `stackDisplay` payload,
 /// together.
@@ -345,68 +343,4 @@ fn element_count(node: &ProtocolNode) -> Option<usize> {
         ProtocolValue::Children(children) => Some(children.len()),
         _ => None,
     }
-}
-
-/// Byte budget for the rendered `errorFlowTrace`: the same sixteenth of the
-/// MCP host profile's 1 MiB `responseBytes` an error report's stack gets
-/// (`error_stack::MAX_ERROR_STACK_BYTES`).
-///
-/// The trace grows with the run, not with the source: every reasoned NIL is
-/// an event carrying its own diagnosis, so `0 45000 RANGE [ 0 DIV ] MAP` —
-/// 45,004 steps, well inside the step budget — rendered 45,001 events into a
-/// 76 MB response that took 9 s to build. The step budget bounds how many
-/// events a run records; this bounds how many are sent.
-const MAX_ERROR_FLOW_TRACE_BYTES: usize = MAX_ERROR_STACK_BYTES;
-
-/// The `errorFlowTrace` array, and the `errorFlowTraceElided` record when the
-/// events did not all fit [`MAX_ERROR_FLOW_TRACE_BYTES`]. The first events
-/// that fit half the budget and the last that fit the other half are kept in
-/// order — where the absences started, and what the run did last, the
-/// failing Word's event among them — and the record says how many between
-/// them were dropped. Only the kept events are rendered, so the time spent
-/// is bounded too. A trace that fits is sent whole, with no record.
-pub(super) fn bounded_error_flow_trace_json(events: &[ErrorFlowEvent]) -> (Json, Option<Json>) {
-    let half = MAX_ERROR_FLOW_TRACE_BYTES / 2;
-    let rendered = |event: &ErrorFlowEvent| {
-        let json = error_flow_event_json(event);
-        let bytes = serde_json::to_vec(&json).map_or(0, |b| b.len());
-        (json, bytes)
-    };
-    let mut head = Vec::new();
-    let mut spent = 0;
-    let mut front = 0;
-    while front < events.len() {
-        let (json, bytes) = rendered(&events[front]);
-        if spent + bytes > half {
-            break;
-        }
-        spent += bytes;
-        head.push(json);
-        front += 1;
-    }
-    let mut tail = Vec::new();
-    spent = 0;
-    let mut back = events.len();
-    while back > front {
-        let (json, bytes) = rendered(&events[back - 1]);
-        // The last event is kept whatever its size: it is what the run did
-        // last, an error's own event when there is one.
-        if spent + bytes > half && !tail.is_empty() {
-            break;
-        }
-        spent += bytes;
-        tail.push(json);
-        back -= 1;
-    }
-    let omitted = back - front;
-    head.extend(tail.into_iter().rev());
-    let elided = (omitted > 0).then(|| {
-        json!({
-            "reason": "errorFlowTraceBudget",
-            "events": events.len(),
-            "omittedFrom": front,
-            "omitted": omitted,
-        })
-    });
-    (Json::Array(head), elided)
 }

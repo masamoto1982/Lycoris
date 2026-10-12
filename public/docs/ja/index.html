@@ -1212,7 +1212,7 @@ FILTER</code></td>
                     <p>これは検査漏れではなく設計上の選択です。名前は呼び出し時に解決されます。これにより、あるワードが自分より後に定義される別のワードを呼び出すことができ、定義を依存関係に合わせて並べ替える必要は決してありません。</p>
                     <p class="ref-note">その代償として、本体の中の誤字は、何かがそれを呼び出すまで静かに潜んでいます。これを事前に検出できるのがヘッドレスCLIです。<code>ajisai check</code>は何も実行せずにファイル中のすべての名前を解決し、未知のものを報告します。<code>ajisai check --contract</code>はさらに宣言されたワード契約も検証します。Playgroundにはこれに相当するものがなく、アプリの中では、ワードを呼び出すこと自体が検査になります。</p>
                     <h3 id="declare-contract">ワードの契約を宣言する: <code>#:contract</code></h3>
-                    <p>定義は自分の契約をコメント行に書いて宣言でき、その宣言は<strong>何かが実行される前に</strong>本体と照合されます。行は<code>#:contract</code>、ワード名、そして契約Record（<a href="#reflection"><code>CONTRACT</code></a>を参照）が持つキーのうち任意のものを、そのキーが許す値と共に並べます。<code>inputs=N</code>と<code>outputs=N</code>は本体の実際の個数と一致しなければなりません。<code>purity=pure|effectful</code>、<code>partiality=total|partial|projecting</code>、<code>determinism=deterministic|stateRelative|hostRelative</code>は本体が超えてはならない上界です。<code>cost steps=const numeric=linear collection=const</code>の各軸のクラスは<code>const</code>、<code>linear</code>、<code>superlinear</code>、<code>unbounded</code>のいずれかです。書かなかったキーは検査されません。インタプリタにとってこの行は普通のコメントですが、<code>ajisai check</code>、<code>ajisai agent compute</code>、そしてMCPサーバーの<code>check</code>・<code>compute</code>ツールにとっては宣言であり、本体が宣言に反するプログラムは実行されずにエラー（<code>contractViolation</code>）として拒否されます。推論が読めない本体——データから取り出して<code>EXEC</code>に渡すブロックなど——は<em>検証不能</em>として報告され、偽の違反にはなりません。</p>
+                    <p>定義は自分の契約をコメント行に書いて宣言でき、その宣言は<strong>何かが実行される前に</strong>本体と照合されます。行は<code>#:contract</code>、ワード名、そして契約Record（<a href="#reflection"><code>CONTRACT</code></a>を参照）が持つキーのうち任意のものを、そのキーが許す値と共に並べます。<code>inputs=N</code>と<code>outputs=N</code>は本体の実際の個数と一致しなければならず、<code>field=closed|leaving</code>は本体が超えてはならない上界です。書かなかったキーは検査されず、それ以外のキーを書いた行は不正な宣言です。インタプリタにとってこの行は普通のコメントですが、<code>ajisai check</code>、<code>ajisai agent compute</code>、そしてMCPサーバーの<code>check</code>・<code>compute</code>ツールにとっては宣言であり、本体が宣言に反するプログラムは実行されずにエラー（<code>contractViolation</code>）として拒否されます。推論が読めない本体——データから取り出して<code>EXEC</code>に渡すブロックなど——は<em>検証不能</em>として報告され、偽の違反にはなりません。</p>
                     <div class="sample">
                         <div class="ref-table-wrap">
                         <table class="ref-table">
@@ -1221,7 +1221,7 @@ FILTER</code></td>
                             </thead>
                             <tbody>
                                 <tr>
-                                    <td><code>#:contract DOUBLE inputs=1 outputs=1 purity=pure
+                                    <td><code>#:contract DOUBLE inputs=1 outputs=1 field=closed
 [ 2 MUL ] 'DOUBLE' DEF
 21 DOUBLE</code></td>
                                     <td><code>42/1</code></td>
@@ -1251,7 +1251,7 @@ FILTER</code></td>
                     <p>すべてのワードは<strong>コンテンツ同一性</strong>を持ちます。これは、正規化された定義と、それが呼び出すワードたちの同一性にわたるダイジェストです。同じ同一性を持つ2つの定義は、名前が何であれ同じワードであり、定義を変更すると、それに依存するすべてのものの同一性が変わります。これが、<code>DEF</code>と<code>DEL</code>が、他の何かがまだ参照しているワードを乱すことを拒否する理由です。依存しているのはワードに対してであって、綴りに対してではないからです。</p>
                     <h3 id="reflection">辞書と契約を言語の中から読む: <code>DIGEST</code>・<code>CONTRACT</code></h3>
                     <p>2つのワードが、機械がすでに辞書について知っていることを言語の中から読みます。ワードを名指すオペランドは<strong>Symbol</strong>、つまり<code>[ ]</code>の中に書いた裸の名前であって、文字列ではありません（<code>CONTRACT</code>はコードブロックも受けます）。<code>'ADD' CONTRACT</code>は<code>notASymbol</code>のエラーです。テキストから名前を引けるワードがあると、「どのワードもテキストをSymbolに変えない」という、<code>DEF</code>時の循環検査が依拠している事実が崩れるからです。</p>
-                    <p><code>DIGEST</code>は、ワードを名指すSymbolにはそのコンテンツ同一性を、それ以外の値にはその意味内容のダイジェストを、テキストで答えます。同じダイジェストは同じもの、違うダイジェストは何も意味しません。<code>CONTRACT</code>は、ワードの契約をRecordで答えます。Coreワードなら登録済みの契約（<code>inputs</code>・<code>outputs</code>・<code>nil</code>・<code>projection</code>・<code>errors</code>・<code>purity</code>・<code>cost</code>など）、自分で定義したワードなら本体から推論した契約です。コードブロックをそのまま渡せば、その契約を<strong>走らせずに</strong>推論します——実行前検査（<code>ajisai check --contract</code>）を言語の中から呼ぶ形であり、<code>confidence</code>と<code>gaps</code>が「検証できた／できない」を値として運びます。走らせる前に費用級を問える、という性質はここから来ます。</p>
+                    <p><code>DIGEST</code>は、ワードを名指すSymbolにはそのコンテンツ同一性を、それ以外の値にはその意味内容のダイジェストを、テキストで答えます。同じダイジェストは同じもの、違うダイジェストは何も意味しません。<code>CONTRACT</code>は、ワードの契約をキー<code>inputs</code>・<code>outputs</code>・<code>field</code>のRecordで答えます。Coreワードなら登録済みの契約、自分で定義したワードなら本体から推論した契約です。コードブロックをそのまま渡せば、その契約を<strong>走らせずに</strong>推論します——実行前検査（<code>ajisai check --contract</code>）を言語の中から呼ぶ形であり、決められないところでは弱い主張、<code>'variable'</code>または<code>'leaving'</code>を答えます。</p>
                     <p class="ref-note">Symbolが<code>Core</code>か<code>User</code>のワードとして解決するかは、<code>CONTRACT</code>が契約を答えるかどうかで分かります。ワードでない名前には理由付きの<code>NIL</code>が返るので、<code>sym CONTRACT NIL? NOT</code>がその問いになります。<code>NIL?</code>はオペランドを消費するので、残るのは真偽値だけです。</p>
                     <div class="sample">
                         <div class="ref-table-wrap">
@@ -1281,13 +1281,13 @@ FILTER</code></td>
                                     <td class="notes">値は意味内容でダイジェストされる。</td>
                                 </tr>
                                 <tr>
-                                    <td><code>[ SQRT ] 0 GET CONTRACT 'projection' GET</code></td>
-                                    <td><code>[ 'domainMiss' ]</code></td>
+                                    <td><code>[ SQRT ] 0 GET CONTRACT 'inputs' GET</code></td>
+                                    <td><code>1/1</code></td>
                                     <td class="notes">登録済みの契約を、走らせずに読む。</td>
                                 </tr>
                                 <tr>
-                                    <td><code>[ 42 PRINT ] CONTRACT 'effects' GET</code></td>
-                                    <td><code>[ 'consoleWrite' ]</code></td>
+                                    <td><code>[ 42 PRINT ] CONTRACT 'outputs' GET</code></td>
+                                    <td><code>0/1</code></td>
                                     <td class="notes">ブロックを渡すと走らせずに契約を推論する。何も出力されない。</td>
                                 </tr>
                                 <tr>
@@ -1328,7 +1328,7 @@ FILTER</code></td>
 <h3 id="family-dictionary">契約: 辞書と名前</h3>
 <div class="word-entry" id="word-CONTRACT">
 <h4><code>CONTRACT</code> <span class="word-tier">Semantic Kernel</span></h4>
-<p>ワードまたはブロックの契約をRecordで答える。<code>[ SQRT ] 0 GET CONTRACT 'partiality' GET</code>は<code>'projecting'</code>。CoreワードをSymbolで名指せば、<code>spec/words.json</code>に登録された記録で(LANG.CONTRACT.REGISTRY)、キーはレジストリ自身のフィールド名<code>name</code> <code>vocabularyTier</code> <code>inputs</code> <code>outputs</code> <code>nilPolicy</code> <code>projection</code> <code>errorWhen</code> <code>partiality</code> <code>field</code> <code>zeroShapes</code> <code>shapes</code> <code>purity</code> <code>determinism</code> <code>cost</code> <code>effects</code>。だから<code>[ DIV ] 0 GET CONTRACT 'cost' GET</code>は実行する前にワードの費用級を問い、<code>[ 0 DIV ] CONTRACT 'field' GET</code>は<code>'leaving'</code>になる。三点を含まない被演算子から0の上の点を答えうるかどうかは、実行する前に読める。<code>[ 0 MUL 0 DIV ] CONTRACT 'shapes' GET</code>は<code>[ 'zero' 'nullity' ]</code>で、数がとりうる零形を答えるので、<code>0/0</code>を持たない本体はその順序を問わない(LANG.CONTRACT.FIELD)。UserワードをSymbolで名指すか、コードのブロックを渡せば、何も実行せずに推論した契約で(言語の外から<code>ajisai check --contract</code>が行うのと同じ推論)、キーは<code>inputs</code> <code>outputs</code> <code>partiality</code> <code>field</code> <code>shapes</code> <code>purity</code> <code>determinism</code> <code>cost</code> <code>effects</code>(同じキーで同じ語彙なので両者を直接比べられる)と<code>confidence</code> <code>gaps</code>。<code>confidence</code>と<code>gaps</code>は検査自身の三分法(LANG.CONTRACT.CHECK)をデータとして運ぶので、解決できない依存はERRORではなく答えの中の欠落になる。ブロックは決して評価されないので、<code>[ 42 PRINT ] CONTRACT</code>は出力せずに<code>effects</code>の下に<code>consoleWrite</code>を報告する。どのワードも名指さないSymbolは<code>notFound</code>を投影し、SymbolでもブロックでもないオペランドはERROR(<code>notASymbol</code>)。</p>
+<p>ワードまたはブロックの契約を、キー <code>inputs</code> <code>outputs</code> <code>field</code> のRecordで答える。<code>[ SQRT ] 0 GET CONTRACT 'inputs' GET</code>は<code>1</code>。<code>inputs</code>と<code>outputs</code>は個数、データで決まる引数なら<code>'variable'</code>。<code>field</code>は<code>'closed'</code>か<code>'leaving'</code>を名指す（LANG.CONTRACT.FIELD）ので、<code>[ 0 DIV ] CONTRACT 'field' GET</code>は<code>'leaving'</code>：零の上の点を零の上の点を含まない被演算子から答えうるかを実行前に読む。CoreワードをSymbolで名指せば<code>spec/words.json</code>の登録された契約（LANG.CONTRACT.REGISTRY）、UserワードのSymbolやコードのブロックなら何も実行せずに推論した契約——外から<code>ajisai check --contract</code>が行うのと同じ推論——を、同じキーと同じ語彙で答えるので、両者は直接比べられる。ブロックは評価されないので、<code>[ 42 PRINT ] CONTRACT</code>は何も印字しない。どのワードも名指さないSymbolは<code>notFound</code>を射影し、SymbolでもブロックでもないオペランドはERROR（<code>notASymbol</code>）。</p>
 <dl class="word-contract">
 <dt>構文</dt><dd><code>[ ADD ] 0 GET CONTRACT</code></dd>
 <dt>スタック効果</dt><dd><span class="notation">[ symbol | code ] -&gt; [ record ]</span></dd>

@@ -78,11 +78,9 @@ async fn the_reported_steps_are_the_ones_the_ceiling_judged() {
     )
     .await;
     assert_eq!(report["status"], "error");
-    let limit = report["diagnosis"]["resourceLimit"]["limit"]
-        .as_u64()
-        .expect("the step ceiling names its limit");
+    let limit = MCP_PROFILE.step_limit.unwrap() as u64;
     assert_eq!(
-        report["diagnosis"]["resourceLimit"]["resource"], "executionSteps",
+        report["error"]["category"], "executionLimitExceeded",
         "the step ceiling must be what fired"
     );
     assert!(

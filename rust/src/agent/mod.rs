@@ -3,22 +3,17 @@
 //! that enables the `std` feature (native and wasm32 alike). The native CLI
 //! (`crate::cli`) and the WASM one-shot entry point
 //! (`crate::wasm_interpreter_bindings`) both render through this module so
-//! they observe the identical stack, NIL flow, diagnostics, output and
-//! runtime-metrics envelope (`docs/dev/agent-cli-output-contract.md`).
+//! they observe the identical stack, NIL reasons, error, output and
+//! resource-usage envelope (`docs/dev/agent-cli-output-contract.md`).
 
 pub mod api;
 #[cfg(test)]
 mod api_tests;
 #[cfg(test)]
 mod check_locals_tests;
-pub(crate) mod contract_decl;
+pub(crate) mod contract;
 #[cfg(test)]
 mod contract_decl_tests;
-mod contract_directive;
-pub(crate) mod contract_gap;
-pub(crate) mod contract_report;
-#[cfg(test)]
-mod contract_shapes_tests;
 pub(crate) mod contract_violation;
 mod error_stack;
 #[cfg(test)]
@@ -27,7 +22,6 @@ pub(crate) mod execution_receipt;
 pub(crate) mod observation_digest;
 #[cfg(test)]
 mod observation_digest_tests;
-pub(crate) mod outcome_report;
 #[cfg(test)]
 mod profile_liveness_tests;
 pub(crate) mod report;
@@ -39,13 +33,11 @@ pub(crate) mod stack_view;
 #[cfg(test)]
 mod stack_view_tests;
 
-use crate::error::ErrorCategory;
-use crate::interpreter::debug_diagnosis::DebugDiagnosis;
 use crate::interpreter::{HostEffect, Interpreter, RuntimeLimits};
 use crate::types::Token;
 use crate::word_name::canonical_word_name;
 use observation_digest::{observation_digest, ObservationDigestInput};
-use report::Report;
+use report::{ErrorInfo, Report};
 use std::collections::HashMap;
 
 /// Options shared across agent operations. `json` only matters to the native
@@ -77,31 +69,25 @@ pub(crate) enum LimitProfile {
 
 pub(crate) fn error_report(
     interp: &Interpreter,
-    diagnosis: &DebugDiagnosis,
-    category: Option<&ErrorCategory>,
+    mut error: ErrorInfo,
     message: String,
     output: Vec<String>,
-    trace: Vec<crate::interpreter::error_flow_trace::ErrorFlowEvent>,
     // `Some(source)` builds an execution receipt (`compute`'s callers);
     // `None` skips it (`check`'s callers, which never execute and so have
     // nothing to receipt — see `Report::receipt`'s doc comment).
     source: Option<&str>,
 ) -> Report {
-    // Every error gets the position, not only the ones raised by a Word: the
-    // execution loop attaches it to the traced diagnosis, and this covers the
-    // rest (a malformed vector literal, a source-entry limit) from the cursor
-    // the interpreter still holds.
-    let diagnosis = diagnosis
-        .clone()
-        .with_source_position(interp.current_source_position());
-    let ai = diagnosis.ai_payload(category);
-    // The residue a failed run was holding is not worth the diagnosis that
+    // Every error gets the position of the top-level token that reached it.
+    if error.position.is_none() {
+        error.position = interp.current_source_position();
+    }
+    // The residue a failed run was holding is not worth the error that
     // explains it — see `agent::error_stack`.
     let residue = error_stack::elided_error_stack(interp);
     // The digest is taken over the real stack, not the wire-budgeted residue:
     // `stack`/`stackDisplay` may elide values for `responseBytes`, but the
     // observation itself is what the interpreter actually holds.
-    let error_category = category.map(ErrorCategory::as_protocol_str);
+    let error_category = error.category.as_ref().map(|c| c.as_protocol_str());
     let digest = observation_digest(ObservationDigestInput {
         status: "error",
         stack: interp.get_stack(),
@@ -126,9 +112,7 @@ pub(crate) fn error_report(
         stack_display: residue.stack_display,
         output,
         message: Some(message),
-        diagnosis: Some(diagnosis),
-        ai_diagnostic: Some(ai),
-        error_flow_trace: trace,
+        error: Some(error),
         resource_usage,
         contract_decls: None,
         stack_elided: residue.elided,
@@ -178,11 +162,6 @@ pub(crate) fn stack_display(interp: &Interpreter) -> Vec<String> {
 pub(crate) struct ResolvedWords {
     /// Unknown words in first-appearance order, deduplicated.
     pub unknown: Vec<String>,
-    /// Names this file defines for itself. Carried out alongside the unknown
-    /// list so a "did you mean" for a misspelled call can consider the very
-    /// definitions the same source introduces — nothing else knows them, since
-    /// static checking never executes the `DEF`.
-    pub locally_defined: Vec<String>,
     /// Unknown words that some *other* frame of the same file binds: a name
     /// written inside a DEF body but bound at the top level, or the reverse.
     /// The runtime refuses these with its "bound in another frame" message,
@@ -291,15 +270,8 @@ pub(crate) fn resolve_words(interp: &Interpreter, tokens: &[Token]) -> ResolvedW
             unknown.push(canonical.into_owned());
         }
     }
-    let mut locally_defined: Vec<String> = defined
-        .into_iter()
-        .chain(bound.into_values().flatten())
-        .collect();
-    locally_defined.sort();
-    locally_defined.dedup();
     ResolvedWords {
         unknown,
-        locally_defined,
         bound_elsewhere,
     }
 }

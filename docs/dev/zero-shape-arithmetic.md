@@ -53,7 +53,7 @@ IEEE 754 流に ±0 を足すと 1 と 2 が取れ、3 が 14〜48 件破れる�
 `field: closed / leaving` は零形を二値（{F, B} にとどまるか、{T, N} に出うるか）に
 潰したものだった。これを零形のまま推論するよう改めた（LANG.CONTRACT.FIELD）。
 
-- 各 Core Word は `spec/words.json` の `zeroShapes` に零形の法則を宣言する
+- 各 Core Word の零形の法則は、2026-10 の契約推論の縮小で `spec/words.json` の `zeroShapes` とともに廃止した（`field` はその射影だけが残る）
   （`none` `carry` `count` `carryCount` `finite` `parse`、和・差・積・商・冪・根・丸めの
   表、ブロックを走らせる `map` `filter` `fold` と追わない `exec`）。`field` はその射影で、
   `zero_shape_contract_laws.rs` が一致と健全性（全 Word を全零形の被演算子で実行し、答えが法則の
@@ -90,8 +90,8 @@ IEEE 754 流に ±0 を足すと 1 と 2 が取れ、3 が 14〜48 件破れる�
 
 ## SUB を退役候補の列の先頭へ（採用）
 
-`SUB` は零形の読みでは固有の法則を持たない唯一の導出可能語である（`zeroShapes` の
-`difference` は符号を反転した被演算子に和の表を当てたもので、`x y -1 MUL ADD` と同じ）。
+`SUB` は零形の読みでは固有の法則を持たない唯一の導出可能語である（その零形の表は
+符号を反転した被演算子に和の表を当てたもので、`x y -1 MUL ADD` と同じ）。
 車輪の演算にも減算はなく、和と逆数だけがある。一方で最も使われる導出可能語でもあるので、
 今すぐ退役させる（既存のプログラムが壊れ、高速化経路の削除も伴う）のではなく、
 退役候補の列（`scripts/check-minimal-core.mjs`）の先頭へ移した。次に語を一つ採用する

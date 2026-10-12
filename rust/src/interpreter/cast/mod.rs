@@ -11,7 +11,6 @@ use crate::error::{AjisaiError, NilReason, Result};
 use crate::interpreter::cast::cast_conversions::is_string_value;
 use crate::interpreter::value_extraction_helpers::{extract_operands, value_as_string};
 use crate::interpreter::Interpreter;
-use crate::semantic::Recoverability;
 use crate::types::Value;
 
 pub fn op_chars(interp: &mut Interpreter) -> Result<()> {
@@ -196,10 +195,9 @@ pub fn op_search(interp: &mut Interpreter) -> Result<()> {
             let position = haystack[..byte_offset].chars().count();
             interp.stack.push(Value::from_int(position as i64));
         }
-        None => interp.stack.push(Value::nil_with_reason(
-            NilReason::NotFound,
-            Recoverability::Recoverable,
-        )),
+        None => interp
+            .stack
+            .push(Value::nil_with_reason(NilReason::NotFound)),
     }
     Ok(())
 }

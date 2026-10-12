@@ -1,13 +1,12 @@
 import { WORKER_MANAGER } from '../workers/execution-worker-manager';
 import type { AjisaiInterpreter, ExecuteResult } from '../wasm-interpreter-types';
 import {
-    checkRunLeftOwnNil,
     createExecutionSnapshot,
     collectUserWords,
     describeFailedRunOutput,
     detectExecutionSurfaceChanges,
     isFailure,
-    renderDiagnosisReport,
+    renderErrorReport,
     syncInterpreterState,
     resolveExecutionException,
     toError,
@@ -41,7 +40,6 @@ export interface ExecutionCallbacks {
     readonly readEditorValue: () => string;
     readonly clearEditor: (switchView?: boolean) => void;
     readonly showInfo: (text: string, append: boolean) => void;
-    readonly showFoldedInfo: (label: string, text: string) => void;
     readonly highlightSourceRange: (start: number, end: number) => void;
     readonly showDocumentation: (text: string) => void;
     readonly showError: (error: Error | string, precedingOutput?: string) => void;
@@ -86,7 +84,6 @@ export const createExecutionController = (
         readEditorValue,
         clearEditor,
         showInfo,
-        showFoldedInfo,
         highlightSourceRange,
         showDocumentation,
         showError,
@@ -120,67 +117,23 @@ export const createExecutionController = (
         updateView('output');
     };
 
-    // The word that failed, where in the source it failed, the stack depth at
-    // that point, and what to check — written *under* the error rather than
-    // before it, because `showError` clears the area and would erase anything
-    // drawn ahead of it.
-    //
-    // Selecting the diagnosis is this controller's job; presenting one belongs
-    // to `renderDiagnosisReport`, which every diagnosis in the playground goes
-    // through (see that module's header).
-    const describeDiagnosis = (
-        result: ExecuteResult
-    ): { readonly text: string; readonly aboutNil: boolean } | null => {
-        // An ERROR's diagnosis is the result's own; its trace event says only
-        // where the stack stood when the Word was called.
-        if (result.diagnosis) {
-            const event = result.errorFlowTrace
-                ?.filter((candidate) => candidate.kind === 'wordError')
-                .at(-1);
-            return {
-                text: renderDiagnosisReport(result.diagnosis, { stackLenBefore: event?.stackLenBefore }),
-                aboutNil: false
-            };
-        }
-        // A reasoned NIL is one of the three outcomes, not a failure, and the
-        // trace event that produced it is the only place its diagnosis lives —
-        // so the presentation can follow the language instead of reporting
-        // every NIL as though something went wrong.
-        const event = result.errorFlowTrace
-            ?.filter((candidate) => candidate.kind === 'nilProduced' && Boolean(candidate.diagnosis))
-            .at(-1);
-        if (!event?.diagnosis) return null;
-        return {
-            text: renderDiagnosisReport(event.diagnosis, { stackLenBefore: event.stackLenBefore }),
-            aboutNil: true
-        };
-    };
-
     // The report half of a run's answer: what it printed or the error it
-    // stopped with, then the diagnosis. A "Why NIL" is offered only for a NIL
-    // this run left on the stack (`leftOwnNil`); the trace also names the Word
-    // that merely left an older NIL on top, which is not this run's to explain.
-    const reportExecutionResult = (result: ExecuteResult, leftOwnNil: boolean): void => {
-        const diagnosis = describeDiagnosis(result);
+    // stopped with, and under the error its category, Word and position —
+    // written *under* the error rather than before it, because `showError`
+    // clears the area and would erase anything drawn ahead of it.
+    const reportExecutionResult = (result: ExecuteResult): void => {
         if (isFailure(result)) {
             // Keep whatever the run printed before it failed: the host reports
             // it on the error path, and the error is written below it.
             showError(result.message || 'Unknown error', describeFailedRunOutput(result));
-            // A run that failed: its diagnosis is the report, so it is open.
-            if (diagnosis) showInfo(diagnosis.text, true);
+            if (result.errorInfo) showInfo(renderErrorReport(result.errorInfo), true);
             return;
         }
         showExecutionResult(result);
-        if (!diagnosis) return;
-        if (!diagnosis.aboutNil) {
-            showInfo(diagnosis.text, true);
-        } else if (leftOwnNil) {
-            showFoldedInfo('Why NIL', diagnosis.text);
-        }
     };
 
     // Everything a run's answer does to the page, in one place: the report in
-    // Output, its diagnosis or "Why NIL", the redraw, the move to the surfaces
+    // Output, the redraw, the move to the surfaces
     // the run changed, and the save. Run and Step both come through here, and
     // so does a run that never answered — stopped by the wall-clock guard or by
     // Abort — so each of them is reported and surfaced the same way.
@@ -222,7 +175,7 @@ export const createExecutionController = (
                 stack: interpreter.collect_stack(),
                 userWords: collectUserWords(interpreter)
             };
-            reportExecutionResult(result, checkRunLeftOwnNil(before, after));
+            reportExecutionResult(result);
             succeeded = !isFailure(result);
             if (succeeded && submittedSource !== null && readEditorValue() === submittedSource) {
                 clearEditor(false);

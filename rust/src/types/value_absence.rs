@@ -1,9 +1,5 @@
 //! Operational absence and the truth observation for [`Value`].
 //!
-//! Invariant: a [`NilReason`] chooses its [`AbsenceOrigin`] in exactly one
-//! place, and every reasoned NIL constructor routes through that exhaustive
-//! mapping.
-//!
 //! `try_collect_dense` is test-only: `dense_columns::try_promote_columns`
 //! writes the same lanes straight into the tensor's columns and is the one
 //! promotion route the runtime takes, while this walk remains as the
@@ -13,26 +9,7 @@
 use super::fraction::Fraction;
 use super::{Value, ValueData};
 use crate::error::NilReason;
-use crate::semantic::{AbsenceMetadata, AbsenceOrigin, Recoverability};
-
-/// The single derivation of an absence origin from a NIL reason.
-///
-/// Nothing else may compute one. Call sites used to pass an origin alongside a
-/// reason, which gave the pairing two sources and let them disagree:
-/// `INDEX-OF` reported `reason = notFound` with `origin = executionFailure`.
-/// Deriving here means a new reason gets its origin by adding one arm, and
-/// gets it everywhere at once.
-fn absence_origin_for_reason(reason: &NilReason) -> AbsenceOrigin {
-    match reason {
-        NilReason::NotFound => AbsenceOrigin::NotFound,
-        NilReason::InvalidEncoding => AbsenceOrigin::InvalidEncoding,
-        NilReason::IndexOutOfBounds => AbsenceOrigin::IndexOutOfBounds,
-        NilReason::DomainMiss => AbsenceOrigin::DomainMiss,
-        NilReason::Literal => AbsenceOrigin::Literal,
-        NilReason::UserDeclared => AbsenceOrigin::UserDeclared,
-        NilReason::Conflict => AbsenceOrigin::Conflict,
-    }
-}
+use crate::semantic::AbsenceMetadata;
 
 impl Value {
     #[inline]
@@ -49,16 +26,6 @@ impl Value {
     #[inline]
     pub fn nil_with_absence(absence: AbsenceMetadata) -> Self {
         Self::new(ValueData::Nil(None), Some(absence))
-    }
-
-    #[inline]
-    pub fn nil_with_reason_unknown(reason: NilReason) -> Self {
-        let origin = absence_origin_for_reason(&reason);
-        Self::nil_with_absence(AbsenceMetadata::with_reason(
-            reason,
-            origin,
-            Recoverability::Unknown,
-        ))
     }
 
     /// The observable `truthValue` axis (LANG.VALUES.TRUTH,
@@ -84,18 +51,11 @@ impl Value {
         }
     }
 
-    /// Create a reasoned NIL for the NIL Projection Rule (the specification's
-    /// "NIL Projection Rule"): well-formed operations that cannot produce a value
-    /// return a reasoned NIL directly with an explicit reason.
-    ///
-    /// The origin follows from the reason via [`absence_origin_for_reason`] and
-    /// is deliberately not a parameter. Recoverability is, because it genuinely
-    /// varies for one reason — a disconnected port is `Fatal` while an empty
-    /// read buffer is `Retryable` — and cannot be read off the reason alone.
+    /// A reasoned NIL for the NIL Projection Rule (LANG.FAILURE.PROJECT): a
+    /// well-formed operation that cannot produce a value answers its reason.
     #[inline]
-    pub fn nil_with_reason(reason: NilReason, recoverability: Recoverability) -> Self {
-        let origin = absence_origin_for_reason(&reason);
-        Self::nil_with_absence(AbsenceMetadata::with_reason(reason, origin, recoverability))
+    pub fn nil_with_reason(reason: NilReason) -> Self {
+        Self::nil_with_absence(AbsenceMetadata::with_reason(reason))
     }
 
     /// The NIL `ABSENT` produces: reason `userDeclared`, carrying `detail`.

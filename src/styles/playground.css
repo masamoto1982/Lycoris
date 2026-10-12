@@ -1017,24 +1017,6 @@ footer {
     font-weight: var(--weight-bold);
 }
 
-/* A report kept out of the reader's way: a reasoned NIL is a value the
-   language promised, so its diagnosis is offered rather than announced. */
-.folded-info {
-    margin-top: var(--space-xs);
-    font-size: var(--text-xs);
-    color: var(--color-text-light);
-
-    & summary {
-        cursor: pointer;
-        user-select: none;
-    }
-}
-
-.folded-info-body {
-    white-space: pre-wrap;
-    padding: var(--space-2xs) 0 0 var(--space-md);
-}
-
 .output-area,
 .stack-area {
     /* Both count double-taps to move to the next surface — the gesture the

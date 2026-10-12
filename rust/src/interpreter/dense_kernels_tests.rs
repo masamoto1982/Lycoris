@@ -33,7 +33,7 @@ pub(super) fn observe(source: &str, dense: bool, bits: Option<u64>) -> Observati
         // re-pushes operands the kernel never touched.
         values: crate::test_support::representation(interp.get_stack().as_slice()),
         usage: interp.resource_usage(),
-        trace: format!("{:?}", interp.error_flow_trace_log),
+        trace: format!("{:?}", interp.failed_word),
     }
 }
 

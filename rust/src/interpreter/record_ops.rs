@@ -18,7 +18,6 @@ use crate::error::{AjisaiError, NilReason, Result};
 use crate::interpreter::collection_meter::ScanMeter;
 use crate::interpreter::value_extraction_helpers::extract_operands;
 use crate::interpreter::Interpreter;
-use crate::semantic::Recoverability;
 use crate::types::{RecordBuildError, RecordData, Value};
 
 fn push_record(interp: &mut Interpreter, record: RecordData) {
@@ -37,7 +36,7 @@ fn non_record(position: &str, got: &Value) -> AjisaiError {
 /// The `notFound` absence `WITHOUT` projects for a key the
 /// Record does not hold.
 fn not_found() -> Value {
-    Value::nil_with_reason(NilReason::NotFound, Recoverability::Recoverable)
+    Value::nil_with_reason(NilReason::NotFound)
 }
 
 /// Charge for hashing every key of a Record being built or rebuilt: one

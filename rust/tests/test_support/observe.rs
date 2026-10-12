@@ -29,23 +29,9 @@ pub fn render(v: &Value) -> String {
     v.to_string()
 }
 
-/// The protocol-level observation of one value: the LANG.OBSERVATION.FIREWALL semantic axes as
-/// canonical lower-camel-case protocol strings. Capabilities are sorted so the
-/// observation is order-insensitive.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct DiagnosisObservation {
-    pub when: &'static str,
-    pub where_kind: &'static str,
-    pub word: Option<String>,
-    pub why: &'static str,
-}
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AbsenceObservation {
     pub reason: Option<&'static str>,
-    pub origin: &'static str,
-    pub recoverability: &'static str,
-    pub diagnosis: Option<DiagnosisObservation>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -74,17 +60,6 @@ pub fn observe_axes(v: &Value) -> AxisObservation {
             .reason
             .as_ref()
             .map(|reason| reason.as_protocol_str()),
-        origin: absence.origin.as_protocol_str(),
-        recoverability: absence.recoverability.as_protocol_str(),
-        diagnosis: absence
-            .diagnosis
-            .as_ref()
-            .map(|diagnosis| DiagnosisObservation {
-                when: diagnosis.when.as_protocol_str(),
-                where_kind: diagnosis.where_.kind.as_protocol_str(),
-                word: diagnosis.where_.word.clone(),
-                why: diagnosis.why.as_protocol_str(),
-            }),
     });
     AxisObservation {
         truth_value: v.truth_value(),
@@ -93,7 +68,7 @@ pub fn observe_axes(v: &Value) -> AxisObservation {
 }
 
 /// Observe a value as the structured stack payload used by law tests: stable
-/// render text plus protocol-level semantic axes, including absence/diagnosis
+/// render text plus protocol-level semantic axes, including absence
 /// metadata when present.
 pub fn observe_value(v: &Value) -> ValueObservation {
     ValueObservation {

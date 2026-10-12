@@ -266,8 +266,8 @@
       "summary": "ブロックをその場で実行し、結果をスタックに残す。`[ 1 2 ADD ] EXEC`は`3`。他のコードと同じくスタックを読み書きするので、`2 [ 3 MUL ] EXEC`は`6`。ブロックでないものは`notExecutable`。"
     },
     "CONTRACT": {
-      "source": "6d2779132129e917",
-      "summary": "ワードまたはブロックの契約をRecordで答える。`[ SQRT ] 0 GET CONTRACT 'partiality' GET`は`'projecting'`。CoreワードをSymbolで名指せば、`spec/words.json`に登録された記録で(LANG.CONTRACT.REGISTRY)、キーはレジストリ自身のフィールド名`name` `vocabularyTier` `inputs` `outputs` `nilPolicy` `projection` `errorWhen` `partiality` `field` `zeroShapes` `shapes` `purity` `determinism` `cost` `effects`。だから`[ DIV ] 0 GET CONTRACT 'cost' GET`は実行する前にワードの費用級を問い、`[ 0 DIV ] CONTRACT 'field' GET`は`'leaving'`になる。三点を含まない被演算子から0の上の点を答えうるかどうかは、実行する前に読める。`[ 0 MUL 0 DIV ] CONTRACT 'shapes' GET`は`[ 'zero' 'nullity' ]`で、数がとりうる零形を答えるので、`0/0`を持たない本体はその順序を問わない(LANG.CONTRACT.FIELD)。UserワードをSymbolで名指すか、コードのブロックを渡せば、何も実行せずに推論した契約で(言語の外から`ajisai check --contract`が行うのと同じ推論)、キーは`inputs` `outputs` `partiality` `field` `shapes` `purity` `determinism` `cost` `effects`(同じキーで同じ語彙なので両者を直接比べられる)と`confidence` `gaps`。`confidence`と`gaps`は検査自身の三分法(LANG.CONTRACT.CHECK)をデータとして運ぶので、解決できない依存はERRORではなく答えの中の欠落になる。ブロックは決して評価されないので、`[ 42 PRINT ] CONTRACT`は出力せずに`effects`の下に`consoleWrite`を報告する。どのワードも名指さないSymbolは`notFound`を投影し、SymbolでもブロックでもないオペランドはERROR(`notASymbol`)。"
+      "source": "cd09e880111aa897",
+      "summary": "ワードまたはブロックの契約を、キー `inputs` `outputs` `field` のRecordで答える。`[ SQRT ] 0 GET CONTRACT 'inputs' GET`は`1`。`inputs`と`outputs`は個数、データで決まる引数なら`'variable'`。`field`は`'closed'`か`'leaving'`を名指す（LANG.CONTRACT.FIELD）ので、`[ 0 DIV ] CONTRACT 'field' GET`は`'leaving'`：零の上の点を零の上の点を含まない被演算子から答えうるかを実行前に読む。CoreワードをSymbolで名指せば`spec/words.json`の登録された契約（LANG.CONTRACT.REGISTRY）、UserワードのSymbolやコードのブロックなら何も実行せずに推論した契約——外から`ajisai check --contract`が行うのと同じ推論——を、同じキーと同じ語彙で答えるので、両者は直接比べられる。ブロックは評価されないので、`[ 42 PRINT ] CONTRACT`は何も印字しない。どのワードも名指さないSymbolは`notFound`を射影し、SymbolでもブロックでもないオペランドはERROR（`notASymbol`）。"
     },
     "FAIL": {
       "source": "a5802c10ab833aaf",
