@@ -1,13 +1,6 @@
-//! The integer tier's block as register code, and the two loops that run it.
-//!
-//! `fused_block_int` checks a block against its input types and hands over
-//! its ops still in stack form. A straight-line block's stack depth at every
-//! op is known before it runs, so the stack itself can be compiled away: each
-//! value it would have held becomes a register written once (SSA), a literal
-//! becomes a constant operand, and a `BIND` or a bound name becomes nothing
-//! at all — the name simply refers to whichever operand was bound. What is
-//! left is a short list of three-address instructions with no push, no pop
-//! and no bounds to check.
+//! The integer tier's program on machine words, and the two loops that run
+//! it: a short list of three-address instructions (`fused_block`'s register
+//! form, its constants inlined) with no push, no pop and no bounds to check.
 //!
 //! `run_columns` runs that list for `MAP` and `FILTER`, whose runs are
 //! independent of one another: a column at a time, each instruction applied
@@ -15,10 +8,10 @@
 //! chunk and each inner loop is a plain array loop the compiler can vectorise.
 //! Arithmetic is wrapping with an overflow flag accumulated across the chunk;
 //! a set flag (or a zero divisor) abandons the tier, as a checked operation
-//! would have, so no wrapped value is ever kept. `run_scalar` runs it once per
+//! would have, so no wrapped value is ever kept. `run_accumulating` runs it once per
 //! element for `FOLD` and `SCAN`, where each run needs the last one's result.
 
-use crate::interpreter::fused_block_int::{IntOp, POISON};
+use crate::interpreter::fused_block_int::POISON;
 use crate::types::small_rational::overflowing_mul;
 
 mod accumulating;
@@ -33,7 +26,7 @@ pub(crate) enum Src {
 }
 
 #[derive(Debug, Clone, Copy)]
-enum Kind {
+pub(crate) enum Kind {
     Add,
     Sub,
     Mul,
@@ -54,12 +47,12 @@ enum Kind {
 /// register its operands read, which is what lets `run_columns` borrow the
 /// operands and the destination out of one buffer at once.
 #[derive(Debug, Clone, Copy)]
-struct Instr {
-    kind: Kind,
-    dst: usize,
-    a: Src,
-    b: Src,
-    c: Src,
+pub(crate) struct Instr {
+    pub(crate) kind: Kind,
+    pub(crate) dst: usize,
+    pub(crate) a: Src,
+    pub(crate) b: Src,
+    pub(crate) c: Src,
 }
 
 #[derive(Debug, Clone)]
@@ -232,71 +225,12 @@ fn exec_column(ins: &Instr, regs: &mut [i64], width: usize, len: usize) -> bool 
 }
 
 impl RegProgram {
-    /// Compile stack-form `ops`, which start on `inputs` values and bind
-    /// `slots` names, to register code. `None` only for ops that would
-    /// underflow, which `fused_block_int::typed` has already ruled out.
-    pub(crate) fn lower(ops: &[IntOp], inputs: usize, slots: usize) -> Option<Self> {
-        let mut stack: Vec<Src> = (0..inputs).map(Src::Reg).collect();
-        let mut bound: Vec<Option<Src>> = vec![None; slots];
-        let mut instrs = Vec::new();
-        let mut emit = |stack: &mut Vec<Src>, kind, a, b, c| {
-            let dst = inputs + instrs.len();
-            instrs.push(Instr { kind, dst, a, b, c });
-            stack.push(Src::Reg(dst));
-        };
-        let none = Src::Const(0);
-        for op in ops {
-            match *op {
-                IntOp::Push(n) => stack.push(Src::Const(n)),
-                IntOp::Load(slot) => stack.push(bound[slot]?),
-                IntOp::Store(slot) => bound[slot] = Some(stack.pop()?),
-                IntOp::Not => {
-                    let a = stack.pop()?;
-                    emit(&mut stack, Kind::Not, a, none, none);
-                }
-                IntOp::Select => {
-                    let mask = stack.pop()?;
-                    let when_false = stack.pop()?;
-                    let when_true = stack.pop()?;
-                    emit(&mut stack, Kind::Select, when_true, when_false, mask);
-                }
-                IntOp::Add
-                | IntOp::Sub
-                | IntOp::Mul
-                | IntOp::FloorDiv
-                | IntOp::ExactDiv
-                | IntOp::Min
-                | IntOp::Max
-                | IntOp::Lt
-                | IntOp::Gt
-                | IntOp::Eq
-                | IntOp::Pow
-                | IntOp::And => {
-                    let b = stack.pop()?;
-                    let a = stack.pop()?;
-                    let kind = match *op {
-                        IntOp::Add => Kind::Add,
-                        IntOp::Sub => Kind::Sub,
-                        IntOp::Mul => Kind::Mul,
-                        IntOp::FloorDiv => Kind::FloorDiv,
-                        IntOp::ExactDiv => Kind::ExactDiv,
-                        IntOp::Min => Kind::Min,
-                        IntOp::Max => Kind::Max,
-                        IntOp::Lt => Kind::Lt,
-                        IntOp::Gt => Kind::Gt,
-                        IntOp::Eq => Kind::Eq,
-                        IntOp::Pow => Kind::Pow,
-                        _ => Kind::And,
-                    };
-                    emit(&mut stack, kind, a, b, none);
-                }
-            }
-        }
-        let out = stack.pop()?;
-        let regs = inputs + instrs.len();
+    /// The program `instrs`, which start on `inputs` registers, answering
+    /// `out`. Every `dst` is numbered above every register its operands read.
+    pub(crate) fn new(instrs: Vec<Instr>, inputs: usize, out: Src) -> Self {
         let mut program = Self {
+            regs: inputs + instrs.len(),
             instrs,
-            regs,
             inputs,
             out,
             acc: None,
@@ -304,7 +238,7 @@ impl RegProgram {
         if inputs == 2 {
             program.acc = Some(program.accumulating_plan());
         }
-        Some(program)
+        program
     }
 
     /// Run a one-input block over every element, a chunk at a time, handing

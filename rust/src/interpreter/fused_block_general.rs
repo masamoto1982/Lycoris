@@ -24,12 +24,13 @@
 //! diagnostics.
 
 use crate::interpreter::arithmetic::ExactArithmeticSchema;
-use crate::interpreter::fused_block::{Charges, Compare, FusedBlock, FusedWalk, Op, Plain};
+use crate::interpreter::fused_block::{Charges, Compare, FusedBlock, FusedWalk, Op, Plain, Src};
 use crate::interpreter::runtime_limits::{
     binary_numeric_work, fraction_result_bits, fraction_work_bits,
 };
 use crate::interpreter::Interpreter;
-use crate::types::fraction::Fraction;
+use crate::types::fraction::{Fraction, FractionRepr};
+use crate::types::small_rational::{self, add_total, div_total, mul_total, order_total, Pair};
 use crate::types::{DenseTensor, Value, ValueData};
 use std::sync::Arc;
 
@@ -38,17 +39,133 @@ use std::sync::Arc;
 /// A one-dimensional dense Tensor — what `RANGE` and every arithmetic Word
 /// over a Vector build — is read straight from its columns; `Value::child`
 /// would box each lane as a `Value` only for this to unbox it again.
-fn elements(target: &Value) -> Option<Vec<Plain>> {
-    if let ValueData::Tensor { data, shape } = &target.data {
-        if shape.len() == 1 {
-            return (0..data.len())
-                .map(|i| Some(Plain::Num(data.fraction_at(i))))
-                .collect();
+pub(crate) enum Elements<'a> {
+    Columns(&'a [i64], &'a [i64]),
+    Plains(Vec<Plain>),
+}
+
+impl Elements<'_> {
+    pub(crate) fn of(target: &Value) -> Option<Elements<'_>> {
+        if let ValueData::Tensor { data, shape } = &target.data {
+            if shape.len() == 1 {
+                return Some(Elements::Columns(&data.numerators, &data.denominators));
+            }
+        }
+        (0..target.len())
+            .map(|i| target.child(i).and_then(|v| Plain::of(&v)))
+            .collect::<Option<_>>()
+            .map(Elements::Plains)
+    }
+
+    pub(crate) fn len(&self) -> usize {
+        match self {
+            Elements::Columns(nums, _) => nums.len(),
+            Elements::Plains(plains) => plains.len(),
         }
     }
-    (0..target.len())
-        .map(|i| target.child(i).and_then(|v| Plain::of(&v)))
-        .collect()
+
+    #[inline]
+    pub(crate) fn at(&self, i: usize) -> Plain {
+        match self {
+            Elements::Columns(nums, dens) => small((nums[i], dens[i])),
+            Elements::Plains(plains) => plains[i].clone(),
+        }
+    }
+}
+
+/// The answers of a `MAP` or the kept elements of a `FILTER`: the two
+/// columns a dense Tensor stores while every one is a machine-word rational,
+/// the truth values while every one is a Boolean, and plain values once they
+/// are neither.
+pub(crate) enum Gather {
+    Pairs(Vec<i64>, Vec<i64>),
+    Truths(Vec<bool>),
+    Plains(Vec<Plain>),
+}
+
+impl Gather {
+    pub(crate) fn with_capacity(n: usize) -> Self {
+        Gather::Pairs(Vec::with_capacity(n), Vec::with_capacity(n))
+    }
+
+    #[inline(always)]
+    pub(crate) fn push_pair(&mut self, (n, d): Pair) {
+        match self {
+            Gather::Pairs(nums, dens) => {
+                nums.push(n);
+                dens.push(d);
+            }
+            _ => self.push_plain(small((n, d))),
+        }
+    }
+
+    #[inline(always)]
+    pub(crate) fn push_truth(&mut self, b: bool) {
+        match self {
+            Gather::Truths(truths) => truths.push(b),
+            Gather::Pairs(nums, _) if nums.is_empty() => *self = Gather::Truths(vec![b]),
+            _ => self.push_plain(Plain::Bool(b)),
+        }
+    }
+
+    #[inline]
+    pub(crate) fn push(&mut self, value: Plain) {
+        match (&value, num_pair(&value)) {
+            (_, Some(pair)) => self.push_pair(pair),
+            (Plain::Bool(b), _) => self.push_truth(*b),
+            _ => self.push_plain(value),
+        }
+    }
+
+    #[cold]
+    fn push_plain(&mut self, value: Plain) {
+        let plains = match std::mem::replace(self, Gather::Plains(Vec::new())) {
+            Gather::Pairs(nums, dens) => nums.into_iter().zip(dens).map(small).collect(),
+            Gather::Truths(truths) => truths.into_iter().map(Plain::Bool).collect(),
+            Gather::Plains(plains) => plains,
+        };
+        *self = Gather::Plains(plains);
+        if let Gather::Plains(plains) = self {
+            plains.push(value);
+        }
+    }
+
+    /// `Value::from_vector_promoted` of what was gathered. Booleans are
+    /// never promoted: a Vector of them is what `from_truths` builds.
+    pub(crate) fn finish(self) -> Value {
+        match self {
+            Gather::Plains(plains) => promote(plains),
+            Gather::Truths(truths) => Value::from_truths(truths.into_iter()),
+            Gather::Pairs(nums, _) if nums.is_empty() => Value::from_vector(Vec::new()),
+            Gather::Pairs(nums, dens) => {
+                let shape = vec![nums.len()];
+                let integer = dens.iter().all(|d| *d == 1);
+                let tensor = DenseTensor::from_columns(nums, dens, shape.clone(), integer);
+                Value::new(
+                    ValueData::Tensor {
+                        data: Arc::new(tensor),
+                        shape: Arc::new(shape),
+                    },
+                    None,
+                )
+            }
+        }
+    }
+}
+
+#[inline(always)]
+pub(crate) fn num_pair(p: &Plain) -> Option<Pair> {
+    match p {
+        Plain::Num(Fraction {
+            repr: FractionRepr::Small(n, d),
+        }) => Some((*n, *d)),
+        _ => None,
+    }
+}
+
+#[inline(always)]
+pub(crate) fn small((n, d): Pair) -> Plain {
+    Plain::Num(Fraction::from_repr(FractionRepr::Small(n, d)))
 }
 
 /// `Value::from_vector_promoted` of plain values. A non-empty run of
@@ -79,165 +196,205 @@ pub(crate) fn promote(values: Vec<Plain>) -> Value {
     Value::from_vector_promoted(values.into_iter().map(Plain::into_value).collect())
 }
 
-/// `a schema b` by `small_rational`'s pair laws when both are rationals whose
-/// halves fit a machine word and the answer does too: the value
-/// `schema.fraction` reaches (a lowest-terms form with a positive denominator
-/// is unique), without its `i128` normalisation, a software division on
-/// WebAssembly. `None` for anything else, which `Fraction` answers.
-#[inline]
-fn small_pair_law(schema: ExactArithmeticSchema, a: &Fraction, b: &Fraction) -> Option<Fraction> {
-    use crate::types::small_rational;
-    let (x, y) = (a.extract_i64_pair()?, b.extract_i64_pair()?);
-    if x.1 == 0 || y.1 == 0 {
-        return None;
-    }
-    let (n, d) = match schema {
-        ExactArithmeticSchema::Add => small_rational::add(x, y, false),
-        ExactArithmeticSchema::Sub => small_rational::add(x, y, true),
-        ExactArithmeticSchema::Mul => small_rational::mul(x, y),
-        ExactArithmeticSchema::Div => small_rational::div(x, y),
-    }?;
-    Some(Fraction::from_repr(
-        crate::types::fraction::FractionRepr::Small(n, d),
-    ))
-}
-
 struct Meter<'a> {
     interp: &'a Interpreter,
     work: u64,
     work_budget: u64,
+    /// Whether the size ceiling admits every machine-word rational, so the
+    /// pair laws may answer without asking it.
+    pairs_fit: bool,
 }
 
 impl Meter<'_> {
-    fn arith(&mut self, op: Op, a: Plain, b: Plain) -> Option<Plain> {
-        let (Op::Arith(schema), Plain::Num(a), Plain::Num(b)) = (op, a, b) else {
-            return None;
-        };
-        self.work = self.work.saturating_add(binary_numeric_work(
-            fraction_work_bits(&a),
-            fraction_work_bits(&b),
-        ));
-        if self.work > self.work_budget {
-            return None;
-        }
-        let r = small_pair_law(schema, &a, &b).unwrap_or_else(|| schema.fraction(&a, &b));
+    fn charge(&mut self, work: u64) -> Option<()> {
+        self.work = self.work.saturating_add(work);
+        (self.work <= self.work_budget).then_some(())
+    }
+
+    fn arith(
+        &mut self,
+        schema: ExactArithmeticSchema,
+        a: &Fraction,
+        b: &Fraction,
+    ) -> Option<Fraction> {
+        self.charge(binary_numeric_work(
+            fraction_work_bits(a),
+            fraction_work_bits(b),
+        ))?;
+        let r = schema.fraction(a, b);
         self.interp
             .runtime_limits
             .check_algebraic_size(0, fraction_result_bits(&r))
             .ok()?;
-        Some(Plain::Num(r))
+        Some(r)
     }
 
-    fn compare(&mut self, kind: Compare, a: Plain, b: Plain) -> Option<Plain> {
-        Some(Plain::Bool(match (kind, a, b) {
-            (Compare::Lt, Plain::Num(a), Plain::Num(b)) => a.order(&b)? == std::cmp::Ordering::Less,
-            (Compare::Gt, Plain::Num(a), Plain::Num(b)) => {
-                a.order(&b)? == std::cmp::Ordering::Greater
+    /// One instruction on two machine-word rationals, by `small_rational`'s
+    /// pair laws: the value `Fraction` reaches (a lowest-terms form with a
+    /// positive denominator is unique, and the `_total` laws answer the points
+    /// over zero as `Fraction` does), charged as the meter prices a machine
+    /// word, one limb. `None` for anything else, or an answer past a pair,
+    /// which `Fraction` answers.
+    #[inline(always)]
+    fn pairs(&mut self, op: Op, a: &Plain, b: &Plain) -> Option<Plain> {
+        use std::cmp::Ordering::{Greater, Less};
+        let x = num_pair(a)?;
+        let floor = |(n, d): Pair| if d == 0 { (n, d) } else { (n.div_euclid(d), 1) };
+        match op {
+            Op::Floor => return Some(small(floor(x))),
+            Op::Round if x.1 == 0 => return Some(small(x)),
+            Op::Round => {
+                return Some(small((
+                    small_rational::round_half_away_from_zero(x.0, x.1),
+                    1,
+                )))
             }
-            (Compare::Eq, Plain::Num(a), Plain::Num(b)) => a == b,
-            (Compare::Eq, a, b) => a == b,
-            (Compare::Lt | Compare::Gt, _, _) => return None,
-        }))
-    }
-}
-
-/// Run the block once on `stack`, answering its top value.
-fn run_block(
-    block: &FusedBlock,
-    meter: &mut Meter,
-    stack: &mut Vec<Plain>,
-    slots: &mut [Option<Plain>],
-) -> Option<Plain> {
-    for op in &block.ops {
-        let value = match op {
-            Op::Push(p) | Op::Const(p) => p.clone(),
-            Op::PushWord(b) => Plain::Bool(*b),
-            Op::Pow => {
-                let b = stack.pop()?;
-                let a = stack.pop()?;
-                let (Plain::Num(x), Plain::Num(y)) = (&a, &b) else {
-                    return None;
+            _ => {}
+        }
+        let y = num_pair(b)?;
+        let answer = match op {
+            Op::Arith(ExactArithmeticSchema::Add) => add_total(x, y, false)?,
+            Op::Arith(ExactArithmeticSchema::Sub) => add_total(x, y, true)?,
+            Op::Arith(ExactArithmeticSchema::Mul) => mul_total(x, y)?,
+            Op::Arith(ExactArithmeticSchema::Div) => div_total(x, y)?,
+            Op::FloorDiv => floor(div_total(x, y)?),
+            Op::Compare(Compare::Lt) => return Some(Plain::Bool(order_total(x, y)? == Less)),
+            Op::Compare(Compare::Gt) => return Some(Plain::Bool(order_total(x, y)? == Greater)),
+            // The left operand on a tie, as MIN and MAX keep it.
+            Op::Extremum { max } => {
+                let take_right = if max {
+                    order_total(x, y)? == Less
+                } else {
+                    order_total(y, x)? == Less
                 };
+                return Some(small(if take_right { y } else { x }));
+            }
+            _ => return None,
+        };
+        self.charge(binary_numeric_work(1, 1))?;
+        Some(small(answer))
+    }
+
+    /// One instruction on plain operands.
+    fn apply(&mut self, op: Op, a: Plain, b: Plain, c: Plain) -> Option<Plain> {
+        use std::cmp::Ordering::{Greater, Less};
+        if self.pairs_fit {
+            if let Some(answer) = self.pairs(op, &a, &b) {
+                return Some(answer);
+            }
+        }
+        Some(match (op, a, b) {
+            (Op::Arith(schema), Plain::Num(a), Plain::Num(b)) => {
+                Plain::Num(self.arith(schema, &a, &b)?)
+            }
+            (Op::FloorDiv, Plain::Num(a), Plain::Num(b)) => {
+                Plain::Num(self.arith(ExactArithmeticSchema::Div, &a, &b)?.floor())
+            }
+            (Op::Pow, Plain::Num(x), Plain::Num(y)) => {
                 let r = crate::interpreter::quickened::small_power(
                     x.extract_i64_pair()?,
                     y.extract_i64_pair()?,
                 )?;
-                if meter.interp.runtime_limits.max_bigint_bits < 64 {
+                if self.interp.runtime_limits.max_bigint_bits < 64 {
                     return None;
                 }
-                meter.work = meter.work.saturating_add(binary_numeric_work(1, 1));
-                if meter.work > meter.work_budget {
-                    return None;
-                }
+                self.charge(binary_numeric_work(1, 1))?;
                 Plain::Num(Fraction::from_repr(
                     crate::types::fraction::FractionRepr::Small(r.0, r.1),
                 ))
             }
-            Op::Kernel(kernel) => {
-                let at = stack.len().checked_sub(kernel.arity)?;
-                let answer = (kernel.apply)(&stack[at..], meter.interp)?;
-                stack.truncate(at);
-                meter.work = meter.work.saturating_add(answer.work);
-                if meter.work > meter.work_budget {
-                    return None;
-                }
+            (Op::Kernel(kernel), a, b) => {
+                let operands = [a, b, c];
+                let answer = (kernel.apply)(&operands[..kernel.arity], self.interp)?;
+                self.charge(answer.work)?;
                 answer.value
             }
-            Op::Load(slot) => slots[*slot].clone()?,
-            Op::Bind(slot) => {
-                slots[*slot] = Some(stack.pop()?);
-                continue;
-            }
-            Op::Floor | Op::Round | Op::Not => match (op, stack.pop()?) {
-                (Op::Floor, Plain::Num(f)) => Plain::Num(f.floor()),
-                (Op::Round, Plain::Num(f)) => Plain::Num(f.round()),
-                (Op::Not, Plain::Bool(b)) => Plain::Bool(!b),
-                _ => return None,
+            (Op::Floor, Plain::Num(f), _) => Plain::Num(f.floor()),
+            (Op::Round, Plain::Num(f), _) => Plain::Num(f.round()),
+            (Op::Not, Plain::Bool(x), _) => Plain::Bool(!x),
+            (Op::And, Plain::Bool(x), Plain::Bool(y)) => Plain::Bool(x && y),
+            (Op::Select, when_true, when_false) => match c {
+                Plain::Bool(true) => when_true,
+                Plain::Bool(false) => when_false,
+                Plain::Num(_) => return None,
             },
-            Op::Select => {
-                let mask = stack.pop()?;
-                let when_false = stack.pop()?;
-                let when_true = stack.pop()?;
-                match mask {
-                    Plain::Bool(true) => when_true,
-                    Plain::Bool(false) => when_false,
-                    Plain::Num(_) => return None,
-                }
-            }
-            Op::Extremum { max } => {
-                let b = stack.pop()?;
-                let a = stack.pop()?;
-                let (Plain::Num(x), Plain::Num(y)) = (&a, &b) else {
-                    return None;
-                };
-                // The left operand on a tie, as MIN and MAX keep it.
-                let take_right = if *max {
-                    x.order(y)? == std::cmp::Ordering::Less
+            // The left operand on a tie, as MIN and MAX keep it.
+            (Op::Extremum { max }, Plain::Num(x), Plain::Num(y)) => {
+                let take_right = if max {
+                    x.order(&y)? == Less
                 } else {
-                    y.order(x)? == std::cmp::Ordering::Less
+                    y.order(&x)? == Less
                 };
-                if take_right {
-                    b
-                } else {
-                    a
-                }
+                Plain::Num(if take_right { y } else { x })
             }
-            Op::Arith(_) | Op::Compare(_) | Op::And => {
-                let b = stack.pop()?;
-                let a = stack.pop()?;
-                match op {
-                    Op::Arith(_) => meter.arith(op.clone(), a, b)?,
-                    Op::Compare(kind) => meter.compare(*kind, a, b)?,
-                    _ => match (a, b) {
-                        (Plain::Bool(a), Plain::Bool(b)) => Plain::Bool(a && b),
-                        _ => return None,
-                    },
-                }
+            (Op::Compare(Compare::Lt), Plain::Num(x), Plain::Num(y)) => {
+                Plain::Bool(x.order(&y)? == Less)
             }
-        };
-        stack.push(value);
+            (Op::Compare(Compare::Gt), Plain::Num(x), Plain::Num(y)) => {
+                Plain::Bool(x.order(&y)? == Greater)
+            }
+            (Op::Compare(Compare::Eq), x, y) => Plain::Bool(x == y),
+            _ => return None,
+        })
     }
-    stack.pop()
+}
+
+/// For each instruction, which of its operands (bit 0 for `a`, 1 for `b`, 2
+/// for `c`) is the last read of its register: that one is moved out rather
+/// than cloned, so a growing accumulator is not copied every run.
+fn last_reads(block: &FusedBlock) -> Vec<u8> {
+    let mut read = vec![false; block.inputs + block.instrs.len()];
+    if let Src::Reg(r) = block.out {
+        read[r] = true;
+    }
+    let mut moves = vec![0u8; block.instrs.len()];
+    for (at, ins) in block.instrs.iter().enumerate().rev() {
+        for i in (0..ins.op.arity()).rev() {
+            if let Src::Reg(r) = [ins.a, ins.b, ins.c][i] {
+                if !read[r] {
+                    read[r] = true;
+                    moves[at] |= 1 << i;
+                }
+            }
+        }
+    }
+    moves
+}
+
+/// Run the program once on `regs`, whose first registers hold the inputs,
+/// answering its result.
+#[inline]
+fn run_once(
+    block: &FusedBlock,
+    moves: &[u8],
+    meter: &mut Meter,
+    regs: &mut [Plain],
+) -> Option<Plain> {
+    let inputs = block.inputs;
+    for (at, (ins, &moved)) in block.instrs.iter().zip(moves).enumerate() {
+        let mut read = |s: Src, bit: u8| match s {
+            Src::Reg(r) if moved & bit != 0 => std::mem::replace(&mut regs[r], Plain::Bool(false)),
+            Src::Reg(r) => regs[r].clone(),
+            Src::Const(k) => block.consts[k].clone(),
+        };
+        let arity = ins.op.arity();
+        let a = read(ins.a, 1);
+        let b = if arity > 1 {
+            read(ins.b, 2)
+        } else {
+            Plain::Bool(false)
+        };
+        let c = if arity > 2 {
+            read(ins.c, 4)
+        } else {
+            Plain::Bool(false)
+        };
+        regs[inputs + at] = meter.apply(ins.op, a, b, c)?;
+    }
+    Some(match block.out {
+        Src::Reg(r) => std::mem::replace(&mut regs[r], Plain::Bool(false)),
+        Src::Const(k) => block.consts[k].clone(),
+    })
 }
 
 pub(crate) fn run(
@@ -247,7 +404,7 @@ pub(crate) fn run(
     target: &Value,
     seed: Option<&Plain>,
 ) -> Option<(Value, Charges)> {
-    let elements = elements(target)?;
+    let elements = Elements::of(target)?;
     let runs = elements.len() as u64;
     let steps = block.steps_within_ceiling(interp, runs)?;
     let mut meter = Meter {
@@ -257,29 +414,36 @@ pub(crate) fn run(
             .runtime_limits
             .max_numeric_work
             .checked_sub(interp.numeric_work_used)?,
+        pairs_fit: interp.runtime_limits.max_bigint_bits >= 64,
     };
 
+    let moves = last_reads(block);
     let mut accumulator = seed.cloned();
-    let mut results: Vec<Plain> = Vec::new();
-    let mut stack: Vec<Plain> = Vec::with_capacity(block.ops.len() + 2);
-    let mut slots: Vec<Option<Plain>> = vec![None; block.slots];
-    for element in elements {
-        stack.clear();
-        if let Some(acc) = accumulator.take() {
-            stack.push(acc);
+    let mut gathered = Gather::with_capacity(match walk {
+        FusedWalk::Map | FusedWalk::Filter => elements.len(),
+        _ => 0,
+    });
+    let mut visited: Vec<Value> = Vec::new();
+    let mut regs: Vec<Plain> = vec![Plain::Bool(false); block.inputs + block.instrs.len()];
+    for i in 0..elements.len() {
+        match accumulator.take() {
+            Some(acc) => {
+                regs[0] = acc;
+                regs[1] = elements.at(i);
+            }
+            None => regs[0] = elements.at(i),
         }
-        stack.push(element.clone());
-        let result = run_block(block, &mut meter, &mut stack, &mut slots)?;
+        let result = run_once(block, &moves, &mut meter, &mut regs)?;
         match walk {
-            FusedWalk::Map => results.push(result),
+            FusedWalk::Map => gathered.push(result),
             FusedWalk::Filter => match result {
-                Plain::Bool(true) => results.push(element),
+                Plain::Bool(true) => gathered.push(elements.at(i)),
                 Plain::Bool(false) => {}
                 // A predicate must decide in the truth domain.
                 Plain::Num(_) => return None,
             },
             FusedWalk::Scan => {
-                results.push(result.clone());
+                visited.push(result.clone().into_value());
                 accumulator = Some(result);
             }
             FusedWalk::Fold => accumulator = Some(result),
@@ -287,8 +451,8 @@ pub(crate) fn run(
     }
 
     let value = match walk {
-        FusedWalk::Map | FusedWalk::Filter => promote(results),
-        FusedWalk::Scan => Value::from_vector(results.into_iter().map(Plain::into_value).collect()),
+        FusedWalk::Map | FusedWalk::Filter => gathered.finish(),
+        FusedWalk::Scan => Value::from_vector(visited),
         FusedWalk::Fold => accumulator?.into_value(),
     };
     let charges = Charges {

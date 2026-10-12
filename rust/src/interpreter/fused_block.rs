@@ -1,11 +1,10 @@
-//! Fused execution of a straight-line block over a Vector — the `MAP`,
-//! `FILTER`, `FOLD` and `SCAN` inner loop without the dispatcher.
+//! The column walk: `MAP`, `FILTER`, `FOLD` and `SCAN` run a straight-line
+//! block over a Vector's elements without the dispatcher.
 //!
 //! A higher-order Word runs its block once per element, and each run pays for
 //! the whole dispatch apparatus: a scratch stack of boxed `Value`s, a binding
-//! frame, the declared NIL contract, the lift check, the meter, the NIL trace.
-//! For a block like `[ 2 MUL 1 ADD ]` that apparatus is almost all of the time
-//! — about 1,450 instructions per element for one integer addition.
+//! frame, the declared NIL contract, the lift check, the meter. For a block
+//! like `[ 2 MUL 1 ADD ]` that apparatus is almost all of the time.
 //!
 //! A block made only of the Words below can do none of the things that
 //! apparatus exists for, so long as every operand it meets is a plain
@@ -19,42 +18,44 @@
 //! - `POW` on a plain base and a non-negative integer exponent whose answer
 //!   stays in a machine word, and `[ ... ] LENGTH` on a literal Vector (a
 //!   constant): each one step and nothing else, as `quickened` charges them;
-//! - any other Word whose contract admits it to a fused block and that has a
-//!   plain law there (`fusion_contract`): `GCD`, `NIL?`, `DEPTH`;
+//! - any other Word whose contract admits it and that has a plain law
+//!   (`fusion_contract`): `GCD`, `NIL?`, `DEPTH`;
 //! - in a `MAP` block, one-lane Vector literals (`[ 1 ]`) that meet only
 //!   `ADD` `SUB` `MUL` `DIV` and `BIND`, walked as their lane (`lane_flow`);
-//! - User Words whose bodies are made of these (`fused_block_lower`).
+//! - User Words whose bodies are made of these, inlined.
 //!
-//! Such a block is lowered here and run against the elements directly, in one
-//! of three tiers: `fused_block_int` when every value is a machine-word
-//! integer or a Boolean, `fused_block_rat` when every number is a rational
-//! whose halves each fit a machine word (types known before the walk starts
-//! in both), and `fused_block_general` for anything else in the subset.
+//! Such a block is lowered once, here, from its compiled code to one program
+//! in register form: every value the block's stack would have held is a
+//! register written once, a literal is a constant, and a `BIND` or a bound
+//! name is nothing at all — the name refers to whichever operand was bound.
+//! Every walk runs that one program, on the first lane representation that
+//! holds the elements: machine-word integers a column at a time
+//! (`fused_block_int`), rationals whose halves fit machine words
+//! (`fused_block_rat`), or any plain value (`fused_block_general`).
 //!
-//! The fused run is *speculative*. It touches no interpreter state while it
-//! runs; it computes what the interpreted walk would have charged — the same
-//! steps, the same numeric work, the same metrics, the same epochs — and
-//! commits all of it only if the whole walk finishes without anything the
-//! fused form cannot reproduce exactly. A number over zero — `1/0` or
-//! `0/0`, met as an element, a literal or the quotient of a zero divisor —
-//! is a number like any other, answered by the `Fraction`'s total arithmetic
-//! (LANG.VALUES.EXACT). An integer overflow falls to the general tier; an
-//! order asked of a point (a `domainMiss` NIL), an operand of the wrong domain
-//! (an ERROR), a result past the size ceiling or a budget the walk would
-//! exhaust answers `None`, and the caller runs the ordinary walk from the
-//! start. Because a block is pure (LANG.DICTIONARY.ACYCLIC, no
-//! effects), running it twice — once abandoned — is unobservable; and because
-//! the committed charges are the interpreted walk's own, which route ran is
-//! unobservable too (LANG.AUTHORITY.FREEDOM). `fused_block_tests` holds the
-//! routes equal.
+//! The walk is *speculative*. It touches no interpreter state while it runs;
+//! it computes what the interpreted walk would have charged — the same steps
+//! and the same numeric work — and commits it only if the whole walk finishes
+//! without anything it cannot reproduce exactly. A number over zero is a
+//! number like any other, answered by the `Fraction`'s total arithmetic
+//! (LANG.VALUES.EXACT). An order asked of `0/0` (a `domainMiss` NIL), an
+//! operand of the wrong domain (an ERROR), a result past the size ceiling or a
+//! budget the walk would exhaust answers `None`, and the caller runs the
+//! ordinary walk from the start. Because a block is pure
+//! (LANG.DICTIONARY.ACYCLIC, no effects), running it twice — once abandoned —
+//! is unobservable; and because the committed charges are the interpreted
+//! walk's own, which route ran is unobservable too (LANG.AUTHORITY.FREEDOM).
+//! `fused_block_tests` holds the routes equal.
 
 use crate::interpreter::arithmetic::ExactArithmeticSchema;
+use crate::interpreter::engine::Code;
+use crate::interpreter::runtime_limits::binary_numeric_work;
 use crate::interpreter::Interpreter;
 use crate::types::fraction::Fraction;
 use crate::types::{Value, ValueData};
 
-/// A plain value: the only kind the fused form reproduces exactly. Each one
-/// is rebuilt by the constructor that built it on the interpreted route
+/// A plain value: the only kind the walk reproduces exactly. Each one is
+/// rebuilt by the constructor that built it on the interpreted route
 /// (`Value::from_fraction`, `Value::from_bool`), so nothing is lost by holding
 /// it unboxed.
 #[derive(Debug, Clone, PartialEq)]
@@ -69,10 +70,6 @@ impl Plain {
             return None;
         }
         match &value.data {
-            // A point over zero is a number like any other: whatever meets
-            // one answers it by the `Fraction`'s own total arithmetic, as the
-            // dispatch does, and a tier whose pair laws assume a positive
-            // denominator answers the two points the same way.
             ValueData::Scalar(f) => Some(Plain::Num(f.clone())),
             ValueData::Boolean(b) => Some(Plain::Bool(*b)),
             _ => None,
@@ -94,19 +91,16 @@ pub(crate) enum Compare {
     Eq,
 }
 
-/// One op of a lowered block. Every op but `Push` and `Load` is one
-/// dispatched Word, and so one execution step.
-#[derive(Debug, Clone)]
+/// What one instruction computes. Each is one dispatched Word, and so one
+/// execution step, except `FloorDiv`, which is the two Words `DIV FLOOR`.
+#[derive(Debug, Clone, Copy)]
 pub(crate) enum Op {
-    /// A literal, or the value of a name bound outside the block: free.
-    Push(Plain),
-    /// `TRUE`/`FALSE`: a Word, so a step (`CompiledOp::PushWordLiteral`).
-    PushWord(bool),
     Arith(ExactArithmeticSchema),
+    /// `DIV FLOOR`: charged as the two Words, the work the `DIV`'s.
+    FloorDiv,
     Compare(Compare),
     /// `MIN` (`max: false`) or `MAX`: the operand the order picks, the left
-    /// on a tie. A step, and no fast-path hit or work, as the interpreted
-    /// route charges it.
+    /// on a tie. A step, and no work.
     Extremum {
         max: bool,
     },
@@ -114,31 +108,39 @@ pub(crate) enum Op {
     Round,
     Not,
     And,
+    /// `when_true when_false mask SELECT`: operands `a`, `b`, `c`.
     Select,
-    /// `'NAME' BIND` into the block's own frame, slot-numbered.
-    Bind(usize),
-    /// A name the block bound earlier in the same run: free, as a binding
-    /// read is (the engine reads it without charging).
-    Load(usize),
-    /// A Word whose answer is a constant — `[ ... ] LENGTH` on a literal
-    /// Vector. A step (the LENGTH), no work, no fast-path hit, as
-    /// `quickened` charges it.
-    Const(Plain),
-    /// `POW` on plain operands (`quickened::small_power`): a step, one unit
-    /// of work, no fast-path hit; any power that function declines — a negative or
-    /// fractional exponent, an answer past a machine word, an exponent the
-    /// dispatch refuses as too large — declines the walk.
+    /// `POW` on plain operands (`quickened::small_power`): a step and one
+    /// unit of work; any power that function declines declines the walk.
     Pow,
     /// Any other Word the contract admits (`fusion_contract`): its plain law,
-    /// a step, and the work and fast-path hits that law reports. Run by the
-    /// general tier only; the typed tiers decline a block that has one.
+    /// a step, and the work that law reports. Run by the general tier only.
     Kernel(&'static crate::interpreter::fusion_contract::PlainKernel),
 }
 
-impl Op {
-    pub(crate) fn is_word(&self) -> bool {
-        !matches!(self, Op::Push(_) | Op::Load(_))
-    }
+/// An operand: a register (the inputs first, then one per instruction) or a
+/// constant.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Src {
+    Reg(usize),
+    Const(usize),
+}
+
+/// `register[inputs + index] = op(a, b, c)`; unused operands are `Const(0)`.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct Instr {
+    pub(crate) op: Op,
+    pub(crate) a: Src,
+    pub(crate) b: Src,
+    pub(crate) c: Src,
+}
+
+/// A number or a truth value: what each register holds, the same for every
+/// run once the inputs' kinds are known.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Ty {
+    Num,
+    Bool,
 }
 
 /// Which higher-order Word is walking, and so what it answers.
@@ -155,47 +157,78 @@ pub(crate) enum FusedWalk {
     Scan,
 }
 
-/// A block lowered to straight-line ops.
-#[derive(Debug, Clone)]
+/// A block lowered to one program in register form.
+#[derive(Debug)]
 pub(crate) struct FusedBlock {
-    pub(crate) ops: Vec<Op>,
-    /// How many names the block binds.
-    pub(crate) slots: usize,
+    pub(crate) instrs: Vec<Instr>,
+    pub(crate) consts: Vec<Plain>,
+    /// Which constants are one-lane Vector literals (`[ 1 ]`), walked as their
+    /// lane: the walk computes on the lane and accounts for each as a
+    /// one-lane Tensor (`lane_flow`).
+    pub(crate) lane_consts: Vec<bool>,
+    /// How many values a run starts from: the element, or the accumulator and
+    /// the element.
+    pub(crate) inputs: usize,
+    pub(crate) out: Src,
     /// Words dispatched per run, User Word calls included.
     pub(crate) steps_per_run: u64,
     /// Whether a name bound outside the block was read into it as a
-    /// constant (`Op::Push`), which ties the lowering to that binding.
+    /// constant, which ties the lowering to that binding.
     pub(crate) reads_outer: bool,
-    /// The `ops` indices of one-lane Vector literals (`[ 1 ]`), pushed as
-    /// their lane: the walk computes on the lane and accounts for each as a
-    /// one-lane Tensor (`lane_flow`).
-    pub(crate) lane_pushes: Vec<usize>,
     /// `lane_flow` for a run that starts from a plain element (`MAP` with
     /// lane literals) and from a lane accumulator beside one (a one-lane
-    /// seed): fixed by the ops, so worked out once when the block is lowered.
-    pub(crate) lanes_from_element: Option<bool>,
-    pub(crate) lanes_from_seed: Option<bool>,
-    /// The integer tier's compiled forms of the block.
+    /// seed): fixed by the program, so worked out once.
+    lanes_from_element: Option<bool>,
+    lanes_from_seed: Option<bool>,
+    /// The integer tier's compiled forms of the program, per input kinds.
     pub(crate) int_programs: crate::interpreter::fused_block_int::IntPrograms,
 }
 
-/// What a fused walk would charge, committed only once it has finished.
+/// What a walk would charge, committed only once it has finished.
 pub(crate) struct Charges {
     pub(crate) steps: usize,
     pub(crate) work: u64,
 }
 
+impl Op {
+    pub(crate) fn arity(self) -> usize {
+        match self {
+            Op::Floor | Op::Round | Op::Not => 1,
+            Op::Select => 3,
+            Op::Kernel(kernel) => kernel.arity,
+            _ => 2,
+        }
+    }
+}
+
 impl FusedBlock {
     /// Lower `code` for a walk that starts the block on `inputs` values, or
-    /// `None` when any op is outside the fused subset or the block would
-    /// underflow (an ERROR the ordinary route reports). See
-    /// `fused_block_lower`, which also inlines the User Words it calls.
-    pub(crate) fn compile(
-        code: &crate::interpreter::engine::Code,
-        interp: &Interpreter,
-        inputs: usize,
-    ) -> Option<Self> {
-        crate::interpreter::fused_block_lower::lower(code, interp, inputs)
+    /// `None` when any op is outside the subset or the block would underflow
+    /// or leave other than one value (an ERROR the ordinary route reports).
+    pub(crate) fn compile(code: &Code, interp: &Interpreter, inputs: usize) -> Option<Self> {
+        let lowering = crate::interpreter::fused_block_lower::lower(code, interp, inputs)?;
+        let [out] = lowering.stack[..] else {
+            return None;
+        };
+        let mut block = FusedBlock {
+            instrs: lowering.instrs,
+            consts: lowering.consts,
+            lane_consts: lowering.lane_consts,
+            inputs,
+            out,
+            steps_per_run: lowering.words,
+            reads_outer: lowering.reads_outer,
+            lanes_from_element: None,
+            lanes_from_seed: None,
+            int_programs: Default::default(),
+        };
+        block.lanes_from_element = block.lane_flow(&[false]);
+        block.lanes_from_seed = block.lane_flow(&[true, false]);
+        Some(block)
+    }
+
+    fn has_lanes(&self) -> bool {
+        self.lane_consts.contains(&true)
     }
 
     /// Run the walk over `target`, starting from `seed` for `Fold`/`Scan`.
@@ -213,34 +246,29 @@ impl FusedBlock {
         if !interp.scalar_fastpath_enabled || !interp.fused_block_enabled {
             return None;
         }
-        // A one-lane seed (`[ 0 ]`) is walked as its lane (`one_lane_seed`).
-        //
-        // A block that pushes one-lane literals is walked the same way, for
-        // `MAP` alone: each run then starts from a plain element, and a lane
-        // answer is one per element.
+        // A block that pushes one-lane literals is walked on the lanes, for
+        // `MAP` alone: each run starts from a plain element, and a lane answer
+        // is one per element. A one-lane seed (`[ 0 ]`) is walked as its lane.
         let mut lane_answer = false;
-        if !self.lane_pushes.is_empty() {
+        if self.has_lanes() {
             if walk != FusedWalk::Map || !interp.dense_kernels_enabled {
                 return None;
             }
             lane_answer = self.lanes_from_element?;
         }
-        let seed = match walk {
-            FusedWalk::Map | FusedWalk::Filter => None,
-            FusedWalk::Fold | FusedWalk::Scan => {
-                let seed = seed?;
-                match Plain::of(seed) {
-                    Some(plain) => Some(plain),
-                    None => {
-                        let lane = one_lane_seed(interp, seed)?;
-                        if !self.lanes_from_seed? {
-                            return None;
-                        }
-                        lane_answer = true;
-                        Some(lane)
+        let seed = match (walk, seed) {
+            (FusedWalk::Map | FusedWalk::Filter, _) => None,
+            (_, None) => return None,
+            (_, Some(seed)) => match Plain::of(seed) {
+                Some(plain) => Some(plain),
+                None => {
+                    if !interp.dense_kernels_enabled || !self.lanes_from_seed? {
+                        return None;
                     }
+                    lane_answer = true;
+                    Some(one_lane_of(seed)?)
                 }
-            }
+            },
         };
         let (mut value, charges) =
             crate::interpreter::fused_block_int::run(self, interp, walk, target, seed.as_ref())
@@ -268,18 +296,56 @@ impl FusedBlock {
 
         #[cfg(test)]
         FUSED_RUNS.with(|c| c.set(c.get() + 1));
-        // Commit what the interpreted walk would have charged: a step per
-        // dispatched Word and the work.
         interp.execution_step_count += charges.steps;
         interp.numeric_work_used += charges.work;
         Some(value)
     }
 
+    /// The kind of every register and of the answer for inputs of kinds
+    /// `inputs`, and the work one run charges when every number is a machine
+    /// word (each arithmetic Word `binary_numeric_work(1, 1)`), or `None` when
+    /// some op meets the wrong kind or is a kernel, which only the general
+    /// tier runs.
+    pub(crate) fn types(&self, inputs: &[Ty]) -> Option<(Vec<Ty>, u64)> {
+        let mut types = inputs.to_vec();
+        let mut work = 0u64;
+        for ins in &self.instrs {
+            let ty = |s: Src| match s {
+                Src::Reg(r) => types[r],
+                Src::Const(k) => match self.consts[k] {
+                    Plain::Num(_) => Ty::Num,
+                    Plain::Bool(_) => Ty::Bool,
+                },
+            };
+            let arity = ins.op.arity();
+            let a = ty(ins.a);
+            let b = if arity > 1 { ty(ins.b) } else { a };
+            let c = if arity > 2 { ty(ins.c) } else { a };
+            use Ty::{Bool, Num};
+            let out = match (ins.op, a, b) {
+                (Op::Arith(_) | Op::FloorDiv | Op::Pow, Num, Num) => {
+                    work += binary_numeric_work(1, 1);
+                    Num
+                }
+                (Op::Extremum { .. }, Num, Num) => Num,
+                (Op::Floor | Op::Round, Num, _) => Num,
+                (Op::Not, Bool, _) => Bool,
+                (Op::And, Bool, Bool) => Bool,
+                (Op::Compare(Compare::Eq), x, y) if x == y => Bool,
+                (Op::Compare(_), Num, Num) => Bool,
+                (Op::Select, x, y) if x == y && c == Bool => x,
+                _ => return None,
+            };
+            types.push(out);
+        }
+        Some((types, work))
+    }
+
     /// For a walk that holds one-lane Tensors — a one-lane accumulator, or
     /// one-lane literals the block pushes — whether the run's result is a
-    /// lane; `None` when a lane reaches anything but `ADD`/`SUB`/`MUL`/`DIV`,
-    /// `BIND` and a bound name. `inputs` says which of the values the run
-    /// starts from are lanes, bottom first.
+    /// lane; `None` when a lane reaches anything but `ADD`/`SUB`/`MUL`/`DIV`
+    /// and a binding. `inputs` says which of the values the run starts from
+    /// are lanes.
     ///
     /// Those four Words lift over the lane and answer a one-lane Tensor, so
     /// the walk computes on the lane alone; the work is the same, since a
@@ -287,50 +353,24 @@ impl FusedBlock {
     /// limb (`measure_operand`). Every other Word treats a one-lane Tensor
     /// differently from its lane — `EQ` compares whole values, `LT` answers a
     /// Vector of Booleans — so the walk declines it.
-    pub(crate) fn lane_flow(&self, inputs: &[bool]) -> Option<bool> {
-        let mut stack = inputs.to_vec();
-        let mut slots = vec![false; self.slots];
-        for (at, op) in self.ops.iter().enumerate() {
-            match op {
-                Op::Push(_) => stack.push(self.lane_pushes.contains(&at)),
-                Op::PushWord(_) | Op::Const(_) => stack.push(false),
-                Op::Load(slot) => stack.push(slots[*slot]),
-                Op::Bind(slot) => slots[*slot] = stack.pop()?,
-                Op::Arith(_) => {
-                    let (b, a) = (stack.pop()?, stack.pop()?);
-                    stack.push(a || b);
-                }
-                Op::Compare(_) | Op::And | Op::Extremum { .. } | Op::Pow => {
-                    let (b, a) = (stack.pop()?, stack.pop()?);
-                    if a || b {
-                        return None;
-                    }
-                    stack.push(false);
-                }
-                Op::Floor | Op::Round | Op::Not => {
-                    if stack.pop()? {
-                        return None;
-                    }
-                    stack.push(false);
-                }
-                Op::Select => {
-                    let (m, f, t) = (stack.pop()?, stack.pop()?, stack.pop()?);
-                    if m || f || t {
-                        return None;
-                    }
-                    stack.push(false);
-                }
-                Op::Kernel(kernel) => {
-                    for _ in 0..kernel.arity {
-                        if stack.pop()? {
-                            return None;
-                        }
-                    }
-                    stack.push(false);
-                }
+    fn lane_flow(&self, inputs: &[bool]) -> Option<bool> {
+        if inputs.len() != self.inputs {
+            return None;
+        }
+        let mut lanes = inputs.to_vec();
+        let lane = |lanes: &[bool], s: Src| match s {
+            Src::Reg(r) => lanes[r],
+            Src::Const(k) => self.lane_consts.get(k).copied().unwrap_or(false),
+        };
+        for ins in &self.instrs {
+            let any = (0..ins.op.arity()).any(|i| lane(&lanes, [ins.a, ins.b, ins.c][i]));
+            match ins.op {
+                Op::Arith(_) => lanes.push(any),
+                _ if any => return None,
+                _ => lanes.push(false),
             }
         }
-        stack.last().copied()
+        Some(lane(&lanes, self.out))
     }
 
     /// The steps `runs` runs take, if the step ceiling lets all of them run.
@@ -340,16 +380,6 @@ impl FusedBlock {
         (interp.execution_step_count.checked_add(steps)? <= interp.max_execution_steps)
             .then_some(steps)
     }
-}
-
-/// The lane of a one-lane seed — a dense Tensor of shape `[1]`, which is
-/// what `[ 0 ]` is — when the column kernels
-/// that answer the interpreted walk's lane arithmetic are on.
-fn one_lane_seed(interp: &Interpreter, seed: &Value) -> Option<Plain> {
-    if !interp.dense_kernels_enabled {
-        return None;
-    }
-    one_lane_of(seed)
 }
 
 /// The lane of `value` when it is a one-lane Tensor, as `[ 0 ]` is; a lane

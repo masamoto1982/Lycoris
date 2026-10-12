@@ -1,25 +1,18 @@
-//! Lowering a block's compiled code (`engine`) to the straight-line ops of a
-//! fused walk (`fused_block`), User Word calls included.
-//!
-//! A User Word called from a block is inlined: its body's code is lowered in
-//! place, in a frame of its own, and the call costs the one execution step the
-//! engine charges for it, carried in `steps_per_run`. The call stack, the
-//! depth counter and failure attribution exist for runs that fail, and a fused
-//! walk that meets a failure is abandoned. A Word body is a barrier frame: it
-//! reads only the names it binds itself, so a name it did not bind is the
-//! ordinary walk's to report, and the call depth is bounded exactly as
-//! `execute_unbound_word` bounds it.
+//! Lowering a block's compiled code (`engine`) to the register form of a
+//! column walk (`fused_block`), User Word calls inlined.
 
 use std::collections::HashMap;
 
 use crate::interpreter::arithmetic::ExactArithmeticSchema;
 use crate::interpreter::engine::{Code, Op as CodeOp};
-use crate::interpreter::fused_block::{Compare, FusedBlock, Op, Plain};
+use crate::interpreter::fused_block::{one_lane_of, Compare, Instr, Op, Plain, Src};
 use crate::interpreter::interpreter_core::MAX_USER_WORD_DEPTH;
 use crate::interpreter::Interpreter;
 use crate::kernel::generated::WordId;
+use crate::types::fraction::Fraction;
 use crate::types::Value;
 
+/// The instruction a Core Word compiles to, when it has one.
 pub(crate) fn word_op(id: WordId) -> Option<Op> {
     Some(match id {
         WordId::Add => Op::Arith(ExactArithmeticSchema::Add),
@@ -43,7 +36,7 @@ pub(crate) fn word_op(id: WordId) -> Option<Op> {
 
 /// The one name a `BIND` of `value` would make, when it makes exactly one
 /// name it may make.
-pub(crate) fn bindable_name(interp: &Interpreter, value: &Value) -> Option<String> {
+fn bindable_name(interp: &Interpreter, value: &Value) -> Option<String> {
     let names = crate::interpreter::bindings::binding_names(value).ok()?;
     let [name] = names.as_slice() else {
         return None;
@@ -52,138 +45,119 @@ pub(crate) fn bindable_name(interp: &Interpreter, value: &Value) -> Option<Strin
     Some(name.to_uppercase())
 }
 
-struct Lowering<'a> {
+/// Lowering a block's code to register form, User Word calls inlined.
+///
+/// A User Word called from the block is lowered in place, in a frame of its
+/// own, and the call costs the one step the engine charges for it. A Word
+/// body is a barrier frame: it reads only the names it binds itself, so a
+/// name it did not bind is the ordinary walk's to report, and the call depth
+/// is bounded exactly as `call_user_word` bounds it.
+pub(crate) struct Lowering<'a> {
     interp: &'a Interpreter,
-    ops: Vec<Op>,
-    slots: usize,
-    depth: usize,
-    calls: u64,
-    reads_outer: bool,
-    lane_pushes: Vec<usize>,
-}
-
-pub(crate) fn lower(code: &Code, interp: &Interpreter, inputs: usize) -> Option<FusedBlock> {
-    let mut lowering = Lowering {
-        interp,
-        ops: Vec::with_capacity(code.ops.len()),
-        slots: 0,
-        depth: inputs,
-        calls: 0,
-        reads_outer: false,
-        lane_pushes: Vec::new(),
-    };
-    lowering.line(&code.ops, &mut HashMap::new(), true, interp.call_depth)?;
-    if lowering.depth != 1 {
-        return None;
-    }
-    let words = lowering.ops.iter().filter(|op| op.is_word()).count() as u64;
-    let mut block = FusedBlock {
-        ops: lowering.ops,
-        slots: lowering.slots,
-        steps_per_run: words + lowering.calls,
-        reads_outer: lowering.reads_outer,
-        lane_pushes: lowering.lane_pushes,
-        lanes_from_element: None,
-        lanes_from_seed: None,
-        int_programs: Default::default(),
-    };
-    block.lanes_from_element = block.lane_flow(&[false]);
-    block.lanes_from_seed = block.lane_flow(&[true, false]);
-    Some(block)
+    pub(crate) stack: Vec<Src>,
+    pub(crate) instrs: Vec<Instr>,
+    pub(crate) consts: Vec<Plain>,
+    pub(crate) lane_consts: Vec<bool>,
+    inputs: usize,
+    pub(crate) words: u64,
+    pub(crate) reads_outer: bool,
 }
 
 impl Lowering<'_> {
+    fn constant(&mut self, value: Plain, lane: bool) {
+        self.consts.push(value);
+        self.lane_consts.push(lane);
+        self.stack.push(Src::Const(self.consts.len() - 1));
+    }
+
+    fn emit(&mut self, op: Op) -> Option<()> {
+        if op.arity() > 3 {
+            return None;
+        }
+        let at = self.stack.len().checked_sub(op.arity())?;
+        let mut operands = [Src::Const(0); 3];
+        operands[..op.arity()].copy_from_slice(&self.stack[at..]);
+        self.stack.truncate(at);
+        let [a, b, c] = operands;
+        self.instrs.push(Instr { op, a, b, c });
+        self.stack
+            .push(Src::Reg(self.inputs + self.instrs.len() - 1));
+        Some(())
+    }
+
     fn line(
         &mut self,
         source: &[CodeOp],
-        frame: &mut HashMap<String, usize>,
+        frame: &mut HashMap<String, Src>,
         sees_outer: bool,
         call_depth: usize,
     ) -> Option<()> {
         let mut i = 0;
         while i < source.len() {
             let next_is = |id: WordId| matches!(source.get(i + 1), Some(CodeOp::Word(w) | CodeOp::Scalar(_, w)) if w.id == id);
-            let (op, pops, pushes) = match &source[i] {
+            match &source[i] {
                 CodeOp::Push(value) => match Plain::of(value) {
-                    Some(plain) => (Op::Push(plain), 0, 1),
-                    None => {
-                        if !next_is(WordId::Bind) {
-                            return None;
-                        }
+                    Some(plain) => self.constant(plain, false),
+                    None if next_is(WordId::Bind) => {
                         let name = bindable_name(self.interp, value)?;
+                        frame.insert(name, self.stack.pop()?);
+                        self.words += 1;
                         i += 1;
-                        (Op::Bind(self.slot(frame, name)), 1, 0)
                     }
+                    None => return None,
                 },
                 CodeOp::Bracket { value, .. } if next_is(WordId::Length) => {
                     if value.absence_metadata().is_some() || !value.is_vector() || value.is_nil() {
                         return None;
                     }
-                    let len = crate::types::fraction::Fraction::from(value.len() as i64);
+                    self.constant(Plain::Num(Fraction::from(value.len() as i64)), false);
+                    self.words += 1;
                     i += 1;
-                    (Op::Const(Plain::Num(len)), 0, 1)
                 }
-                CodeOp::Bracket { value, .. } => {
-                    let lane = crate::interpreter::fused_block::one_lane_of(value)?;
-                    self.lane_pushes.push(self.ops.len());
-                    (Op::Push(lane), 0, 1)
-                }
+                CodeOp::Bracket { value, .. } => self.constant(one_lane_of(value)?, true),
                 CodeOp::Constant(value, _) => match value.as_truth() {
-                    Some(b) if value.absence_metadata().is_none() => (Op::PushWord(b), 0, 1),
+                    Some(b) if value.absence_metadata().is_none() => {
+                        self.constant(Plain::Bool(b), false);
+                        self.words += 1;
+                    }
                     _ => return None,
                 },
                 CodeOp::Bind { name, .. } => {
                     let name = bindable_name(self.interp, name)?;
-                    (Op::Bind(self.slot(frame, name)), 1, 0)
+                    frame.insert(name, self.stack.pop()?);
+                    self.words += 1;
                 }
                 CodeOp::Word(word) | CodeOp::Scalar(_, word) => {
-                    let op = word_op(word.id)?;
-                    let pops = match op {
-                        Op::Floor | Op::Round | Op::Not => 1,
-                        Op::Select => 3,
-                        Op::Kernel(kernel) => kernel.arity,
-                        _ => 2,
-                    };
-                    (op, pops, 1)
+                    let mut op = word_op(word.id)?;
+                    self.words += 1;
+                    if matches!(op, Op::Arith(ExactArithmeticSchema::Div)) && next_is(WordId::Floor)
+                    {
+                        op = Op::FloorDiv;
+                        self.words += 1;
+                        i += 1;
+                    }
+                    self.emit(op)?;
                 }
                 CodeOp::Name(name) | CodeOp::Load { key: name, .. } => {
                     let name = crate::word_name::canonical_word_name(name);
-                    match frame.get(name.as_ref()) {
-                        Some(slot) => (Op::Load(*slot), 0, 1),
-                        None => match self.interp.lookup_binding(name.as_ref()) {
+                    if let Some(src) = frame.get(name.as_ref()) {
+                        self.stack.push(*src);
+                    } else {
+                        match self.interp.lookup_binding(name.as_ref()) {
                             Some(value) if sees_outer => {
                                 self.reads_outer = true;
-                                (Op::Push(Plain::of(&value)?), 0, 1)
+                                self.constant(Plain::of(&value)?, false);
                             }
                             Some(_) => return None,
-                            None => {
-                                self.call(name.as_ref(), call_depth)?;
-                                i += 1;
-                                continue;
-                            }
-                        },
+                            None => self.call(name.as_ref(), call_depth)?,
+                        }
                     }
                 }
                 CodeOp::Raise(_) => return None,
-            };
-            if self.depth < pops {
-                return None;
             }
-            self.depth = self.depth - pops + pushes;
-            self.ops.push(op);
             i += 1;
         }
         Some(())
-    }
-
-    /// The slot `name` is bound in, a fresh one the first time.
-    fn slot(&mut self, frame: &mut HashMap<String, usize>, name: String) -> usize {
-        let fresh = self.slots;
-        let slot = *frame.entry(name).or_insert(fresh);
-        if slot == fresh {
-            self.slots += 1;
-        }
-        slot
     }
 
     fn call(&mut self, name: &str, call_depth: usize) -> Option<()> {
@@ -195,7 +169,27 @@ impl Lowering<'_> {
             return None;
         }
         let code = self.interp.body_code(&def);
-        self.calls += 1;
+        self.words += 1;
         self.line(&code.ops, &mut HashMap::new(), false, call_depth + 1)
     }
+}
+
+/// The block's code lowered for a walk that starts it on `inputs` values.
+pub(crate) fn lower<'a>(
+    code: &Code,
+    interp: &'a Interpreter,
+    inputs: usize,
+) -> Option<Lowering<'a>> {
+    let mut lowering = Lowering {
+        interp,
+        stack: (0..inputs).map(Src::Reg).collect(),
+        instrs: Vec::with_capacity(code.ops.len()),
+        consts: Vec::new(),
+        lane_consts: Vec::new(),
+        inputs,
+        words: 0,
+        reads_outer: false,
+    };
+    lowering.line(&code.ops, &mut HashMap::new(), true, interp.call_depth)?;
+    Some(lowering)
 }
