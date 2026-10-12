@@ -69,7 +69,6 @@ impl Value {
     pub fn truth_value(&self) -> Option<&'static str> {
         match &self.data {
             ValueData::Boolean(b) => Some(if *b { "true" } else { "false" }),
-            ValueData::Both => Some("both"),
             _ => None,
         }
     }
@@ -201,7 +200,6 @@ fn append_dense_value(value: &Value, data: &mut Vec<Fraction>) -> Option<Vec<usi
         | ValueData::ExactScalar(_)
         | ValueData::Record(_)
         | ValueData::Boolean(_)
-        | ValueData::Both
         | ValueData::Text(_)
         | ValueData::Symbol(_) => None,
     }

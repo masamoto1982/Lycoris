@@ -2,7 +2,7 @@
 import { existsSync } from 'node:fs';
 import { readJson, reporter, words as wordsDocument } from './lib/common.mjs';
 
-const KERNEL = new Set(`TRUE FALSE BOTH AND NOT RECONCILE EQ LT GT
+const KERNEL = new Set(`TRUE FALSE AND NOT RECONCILE EQ LT GT
 ADD MUL DIV FLOOR SQRT POW
 GET LENGTH CONCAT COLLECT RANGE FOLD MAP SHAPE RESHAPE FLATTEN DEPTH
 RECORD KEYS VALUES WITHOUT HAS? MERGE PUT
@@ -35,7 +35,8 @@ const OPERATIONAL = new Set('FILTER SCAN FILL SORT ORDER UNIQUE TALLY ZIP GROUP 
 
 // The order in which the vocabulary would give up Words, cheapest to lose first.
 //
-// The vocabulary is held at 78, so an addition has to take a slot from
+// The vocabulary is held at 77 (78 until BOTH retired with the three-valued
+// truth domain, 2026-10), so an addition has to take a slot from
 // something, and a candidate takes the head of this list. Every entry is a
 // derivable Standard, checked below: an operational Word cannot be written in
 // the language at all (LANG.AUTHORITY.FREEDOM's consequence for a total,
@@ -77,10 +78,10 @@ for (const name of setDifference(KERNEL, kernelWords)) fail(`${name}: missing Se
 for (const name of setDifference(kernelWords, KERNEL)) fail(`${name}: unexpected Semantic Kernel classification`);
 for (const name of setDifference(STANDARD, standardWords)) fail(`${name}: missing Standard classification`);
 for (const name of setDifference(standardWords, STANDARD)) fail(`${name}: unexpected Standard classification`);
-if (kernelWords.size !== 50) fail(`Semantic Kernel has ${kernelWords.size} Words; expected 50`);
+if (kernelWords.size !== 49) fail(`Semantic Kernel has ${kernelWords.size} Words; expected 49`);
 if (standardWords.size !== 28) fail(`Standard vocabulary has ${standardWords.size} Words; expected 28`);
 
-if (words.length !== 78) fail(`canonical inventory has ${words.length} Words; expected 78`);
+if (words.length !== 77) fail(`canonical inventory has ${words.length} Words; expected 77`);
 for (const name of REMOVED) if (wordNames.has(name)) fail(`${name}: removed Word remains canonical`);
 if (REMOVED.size !== REMOVED_LIST.length) fail('spec/retired-words.json names the same Word twice');
 

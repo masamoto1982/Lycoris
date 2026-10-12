@@ -8,14 +8,13 @@ use crate::error::NilReason;
 use crate::types::TruthColumn;
 use proptest::prelude::*;
 
-/// The lane every index names: the three truths and two different NILs.
+/// The lane every index names: the two Booleans and two different NILs.
 fn lane(index: u8) -> Value {
     let unknown = |reason| Value::nil_with_reason(reason, Recoverability::Recoverable);
-    match index % 5 {
+    match index % 4 {
         0 => Value::from_bool(false),
         1 => Value::from_bool(true),
-        2 => Value::both(),
-        3 => unknown(NilReason::DomainMiss),
+        2 => unknown(NilReason::DomainMiss),
         _ => unknown(NilReason::NotFound),
     }
 }

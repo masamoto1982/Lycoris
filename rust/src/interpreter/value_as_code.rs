@@ -51,7 +51,6 @@ fn push_value_as_tokens(value: &Value, out: &mut Vec<Token>) -> Result<()> {
         ValueData::Scalar(f) => out.push(Token::number_from_value(f.clone())),
         ValueData::Boolean(true) => out.push(Token::Symbol("TRUE".into())),
         ValueData::Boolean(false) => out.push(Token::Symbol("FALSE".into())),
-        ValueData::Both => out.push(Token::Symbol("BOTH".into())),
         // A value no source text denotes is carried across whole: a NIL
         // keeps its reason (the `NIL` name would denote a literal NIL, a
         // different value), and a Record has no literal of its own.
@@ -121,9 +120,7 @@ pub(crate) fn value_elements_to_source_tokens(elements: &[Value]) -> Result<Vec<
 fn writes_as_literal(value: &Value) -> bool {
     match &value.data {
         ValueData::Truths(t) => writes_as_literal(&t.to_vector()),
-        ValueData::Symbol(_) | ValueData::Scalar(_) | ValueData::Boolean(_) | ValueData::Both => {
-            true
-        }
+        ValueData::Symbol(_) | ValueData::Scalar(_) | ValueData::Boolean(_) => true,
         ValueData::Text(text) => crate::tokenizer::is_string_token_content(text),
         ValueData::ExactScalar(exact) => matches!(**exact, ExactReal::Rational(_)),
         ValueData::Nil(_) => value
@@ -150,7 +147,6 @@ fn push_literal(value: &Value, out: &mut Vec<Token>) {
         },
         ValueData::Boolean(true) => out.push(Token::Symbol("TRUE".into())),
         ValueData::Boolean(false) => out.push(Token::Symbol("FALSE".into())),
-        ValueData::Both => out.push(Token::Symbol("BOTH".into())),
         ValueData::Nil(_) => out.push(Token::Symbol("NIL".into())),
         ValueData::Vector(_) | ValueData::Tensor { .. } => {
             out.push(Token::VectorStart);
@@ -248,11 +244,7 @@ fn push_source_expression(value: &Value, out: &mut Vec<Token>) -> Result<()> {
                 .expect("a Vector or Tensor has a Vector view");
             push_vector_expression(&children, out)
         }
-        ValueData::Nil(_)
-        | ValueData::Text(_)
-        | ValueData::Scalar(_)
-        | ValueData::Boolean(_)
-        | ValueData::Both => {
+        ValueData::Nil(_) | ValueData::Text(_) | ValueData::Scalar(_) | ValueData::Boolean(_) => {
             unreachable!("written as a literal above")
         }
     }
@@ -285,7 +277,6 @@ pub(crate) fn algebraic_radicands(elements: &[Value], out: &mut Vec<BigInt>) {
             | ValueData::Truths(_)
             | ValueData::Scalar(_)
             | ValueData::Boolean(_)
-            | ValueData::Both
             | ValueData::Text(_)
             | ValueData::Symbol(_)
             | ValueData::Nil(_) => {}

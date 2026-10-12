@@ -297,11 +297,10 @@ impl Interpreter {
             // One arm, one temporary: this match sits on every nested
             // call's native frame, and an unoptimized build gives each
             // arm's `Value` its own slot.
-            WordId::True | WordId::False | WordId::Both | WordId::Nil => {
+            WordId::True | WordId::False | WordId::Nil => {
                 self.stack.push(match id {
                     WordId::True => Value::from_bool(true),
                     WordId::False => Value::from_bool(false),
-                    WordId::Both => Value::both(),
                     _ => Value::nil(),
                 });
                 Ok(())

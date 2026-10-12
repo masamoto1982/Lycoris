@@ -98,11 +98,6 @@ describe('a Vector of ordinary values is a literal', () => {
     test('the empty Vector is spaced, because a bracket must stand alone', () => {
         expect(render(vec())).toBe('[ ]');
     });
-
-    test('a Boolean with no value is BOTH', () => {
-        const both = { type: 'boolean', value: null } as unknown as Parameters<typeof render>[0];
-        expect(render(vec({ type: 'boolean', value: true }, both))).toBe('[ TRUE BOTH ]');
-    });
 });
 
 describe('an irrational renders as the engine writes it', () => {

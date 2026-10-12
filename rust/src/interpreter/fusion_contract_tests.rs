@@ -25,12 +25,8 @@ const ADMITTED_WITHOUT_OP: &[(&str, &str)] = &[
         "a Word literal: lowered as `Op::PushWord`, never called by id",
     ),
     (
-        "BOTH",
-        "a Word literal, and not a plain value: a walk that meets it declines",
-    ),
-    (
         "RECONCILE",
-        "two different plain values reconcile to BOTH or a NIL, neither plain, \
+        "two different plain values reconcile to a NIL, which is not plain, \
          so a walk would decline whenever the Word had anything to decide",
     ),
     (
@@ -114,7 +110,6 @@ fn the_admitted_words_are_these() {
         [
             "ADD",
             "AND",
-            "BOTH",
             "DEPTH",
             "DIV",
             "EQ",

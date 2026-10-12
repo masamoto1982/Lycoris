@@ -4,7 +4,7 @@
     {
       "id": "conflict",
       "projectable": true,
-      "documentation": "Two sources RECONCILE compared hold different values that are not both truth values, so there is no one value they agree on — `'Tokyo' 'Osaka' RECONCILE`. Two different truth values are not this: they reconcile to BOTH (LANG.VALUES.TRUTH). The one absorbing absence: a conflict already found is not settled by a third source."
+      "documentation": "Two sources RECONCILE compared hold different values, so there is no one value they agree on — `'Tokyo' 'Osaka' RECONCILE`, and `TRUE FALSE RECONCILE` alike: in truth position it reads as UNKNOWN, and this reason says the sources disagreed (LANG.VALUES.TRUTH). The one absorbing absence: a conflict already found is not settled by a third source."
     },
     {
       "id": "domainMiss",

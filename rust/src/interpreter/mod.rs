@@ -166,8 +166,6 @@ mod route_differential_tests;
 #[cfg(test)]
 mod arithmetic_meter_tests;
 #[cfg(test)]
-mod belnap_truth_conformance_tests;
-#[cfg(test)]
 mod collection_meter_tests;
 #[cfg(test)]
 mod debug_diagnosis_tests;
@@ -215,6 +213,8 @@ mod nil_contract_conformance_tests;
 mod nil_diagnostics_tests;
 #[cfg(test)]
 mod nil_reason_tests;
+#[cfg(test)]
+mod reconcile_conformance_tests;
 
 pub use interpreter_core::*;
 pub use runtime_limits::RuntimeLimits;

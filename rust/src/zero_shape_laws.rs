@@ -1,17 +1,18 @@
 //! LANG.VALUES.SHAPE, held against the implementation.
 //!
 //! A number read as whether its numerator and its denominator are nonzero
-//! takes one of four zero shapes — `0` (F), the point `1/0` (T), `0/0` (N)
-//! and every other number (B) — and the wheel's arithmetic is graded by them.
+//! takes one of four zero shapes — `0` (Z), the point `1/0` (P), `0/0` (N)
+//! and every other number (F, finite and nonzero) — and the wheel's
+//! arithmetic is graded by them.
 //! Each law is checked here by running programs, never by consulting the
 //! implementation's own representation:
 //!
-//! 1. the shape of a product is the meet of the operands' shapes (FOUR's
-//!    knowledge meet ⊗), and the reciprocal exchanges F and T as `NOT` does;
+//! 1. the shape of a product is the halfwise AND of the operands' shapes,
+//!    and the reciprocal exchanges the halves, swapping Z and P;
 //! 2. each shape is a group under `MUL` — the field's units, `{1/0}`, `{0}`
-//!    and `{0/0}` — so the numbers form a Clifford monoid over FOUR;
+//!    and `{0/0}` — so the numbers form a Clifford monoid over the shapes;
 //! 3. the shape of a sum is the Boolean-fraction sum `(ad ∨ bc, bd)`, exact
-//!    except where two B operands cancel to `0`;
+//!    except where two F operands cancel to `0`;
 //! 4. every axiom of a wheel holds at every point, the reciprocal's
 //!    involution and its respect for products included;
 //! 5. the distributive law fails only with `1/0` as the multiplier.
@@ -24,14 +25,14 @@ use num_traits::Zero;
 /// irrational, and `-1/0`, which is spelled with a sign and is `1/0`.
 const SAMPLE: &[&str] = &["0", "1", "-2", "1/2", "2 SQRT", "1/0", "-1/0", "0/0"];
 
-/// `(numerator ≠ 0, denominator ≠ 0)`: F = (false, true), T = (true, false),
-/// N = (false, false), B = (true, true).
+/// `(numerator ≠ 0, denominator ≠ 0)`: Z = (false, true), P = (true, false),
+/// N = (false, false), F = (true, true).
 type Shape = (bool, bool);
 
-const F: Shape = (false, true);
-const T: Shape = (true, false);
+const Z: Shape = (false, true);
+const P: Shape = (true, false);
 const N: Shape = (false, false);
-const B: Shape = (true, true);
+const F: Shape = (true, true);
 
 fn meet(a: Shape, b: Shape) -> Shape {
     (a.0 && b.0, a.1 && b.1)
@@ -50,7 +51,7 @@ fn shape_of(value: &Value) -> Shape {
     match &value.data {
         ValueData::Scalar(f) => (!f.numerator().is_zero(), f.is_finite()),
         // An irrational is a nonzero finite number.
-        ValueData::ExactScalar(_) => B,
+        ValueData::ExactScalar(_) => F,
         other => panic!("expected a number, got {other:?}"),
     }
 }
@@ -88,7 +89,7 @@ async fn product_shape_is_the_knowledge_meet_and_reciprocal_is_not() {
         assert_eq!(
             shape(&format!("1 {x} DIV")).await,
             swap(sx),
-            "the reciprocal of {x} exchanges its halves' shape, as NOT does"
+            "the reciprocal of {x} exchanges its halves' shape"
         );
         for y in SAMPLE {
             let sy = shape(y).await;
@@ -103,22 +104,22 @@ async fn product_shape_is_the_knowledge_meet_and_reciprocal_is_not() {
 
 #[tokio::test]
 async fn each_shape_is_a_group_under_mul() {
-    // T is the one point at infinity: `-1/0` is spelled with a sign and is it.
-    assert_eq!(shape("1/0").await, T);
+    // P is the one point at infinity: `-1/0` is spelled with a sign and is it.
+    assert_eq!(shape("1/0").await, P);
     assert!(holds("-1/0 1/0 EQ").await);
     assert!(holds("1/0 1/0 MUL 1/0 EQ").await);
-    // F and N are trivial groups, idempotent under MUL.
+    // Z and N are trivial groups, idempotent under MUL.
     assert!(holds("0 0 MUL 0 EQ").await);
     assert!(holds("0/0 0/0 MUL 0/0 EQ").await);
-    // B is the field's multiplicative group: closed, with inverses.
+    // F is the field's multiplicative group: closed, with inverses.
     for x in ["1", "-2", "1/2", "2 SQRT"] {
         assert!(
             holds(&format!("{x} 1 {x} DIV MUL 1 EQ")).await,
-            "{x} has an inverse in B"
+            "{x} has an inverse in F"
         );
     }
-    // A shape's identity acts on a lower shape as the meet says: B's identity
-    // fixes every number, T's sends all of B to T, whatever its sign.
+    // A shape's identity acts on a lower shape as the meet says: F's identity
+    // fixes every number, P's sends all of F to P, whatever its sign.
     assert!(holds("2 1/0 MUL 1/0 EQ").await);
     assert!(holds("-2 1/0 MUL 1/0 EQ").await);
 }
@@ -130,19 +131,19 @@ async fn sum_shape_is_the_boolean_fraction_sum_except_for_cancellation() {
         for y in SAMPLE {
             let sy = shape(y).await;
             let actual = shape(&format!("{x} {y} ADD")).await;
-            if sx == B && sy == B {
+            if sx == F && sy == F {
                 assert!(
-                    actual == B || actual == F,
-                    "two finite nonzero numbers sum to B or, by cancellation, F: {x} + {y}"
+                    actual == F || actual == Z,
+                    "two finite nonzero numbers sum to F or, by cancellation, Z: {x} + {y}"
                 );
             } else {
                 assert_eq!(actual, boolean_sum(sx, sy), "shape({x} + {y})");
             }
         }
     }
-    // T + T is N, as the table says: `(1·0 + 1·0)/(0·0)`.
+    // P + P is N, as the table says: `(1·0 + 1·0)/(0·0)`.
     assert_eq!(shape("1/0 1/0 ADD").await, N);
-    assert_eq!(shape("1 -1 ADD").await, F);
+    assert_eq!(shape("1 -1 ADD").await, Z);
 }
 
 /// Carlström's axioms for a wheel, each written as one program comparing its

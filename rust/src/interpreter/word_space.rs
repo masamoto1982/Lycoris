@@ -95,7 +95,7 @@ fn builtin_space(id: WordId) -> (SpaceClass, bool) {
         // `Digest` a fixed-length text after walking its operand once.
         Contract | Digest => (Const, false),
         NilCheck | NilReason | Absent | Fail => (Const, false),
-        True | False | Both | Nil => (Const, false),
+        True | False | Nil => (Const, false),
         // Structure builders bounded by their operands' total size.
         Concat | Reverse | Flatten | Reshape => (Linear, true),
         // Shape observations: an answer bounded by the operand's rank.

@@ -5,20 +5,19 @@ use crate::interpreter::Interpreter;
 use crate::semantic::Recoverability;
 use crate::types::{Value, ValueData};
 
-/// One of the four truth values of LANG.VALUES.TRUTH, read from a lane in
+/// One of the three truth values of LANG.VALUES.TRUTH, read from a lane in
 /// truth position.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Truth {
     True,
     False,
-    Both,
     /// A NIL read in truth position, whatever its reason.
     Unknown,
 }
 
 /// The truth value of a truth-order connective's operand.
 ///
-/// TRUE, FALSE and BOTH are the Boolean data values and NIL reads as UNKNOWN
+/// TRUE and FALSE are the Boolean data values and NIL reads as UNKNOWN
 /// (LANG.VALUES.TRUTH); nothing else is a truth value, so a scalar, a String
 /// or a Vector standing in truth position is the `nonTruthValue` every Word
 /// of the family registers. `0` and `1` are not truth values
@@ -32,7 +31,6 @@ fn operand_truth(value: &Value) -> Result<Truth> {
     match &value.data {
         ValueData::Boolean(true) => Ok(Truth::True),
         ValueData::Boolean(false) => Ok(Truth::False),
-        ValueData::Both => Ok(Truth::Both),
         ValueData::Nil(_) => Ok(Truth::Unknown),
         _ => Err(AjisaiError::declared(
             "nonTruthValue",
@@ -41,18 +39,17 @@ fn operand_truth(value: &Value) -> Result<Truth> {
     }
 }
 
-/// Conjunction under Belnap's table (LANG.VALUES.TRUTH), the meet of the
-/// truth order FALSE < UNKNOWN, BOTH < TRUE. FALSE absorbs everything, TRUE
-/// is the identity, and UNKNOWN and BOTH, neither below the other, meet at
-/// FALSE. Restricted to TRUE, FALSE and UNKNOWN it is the strong Kleene
-/// table. Where the answer is an operand it is that operand whole, so an
-/// UNKNOWN keeps its reason — the left one's, when both are UNKNOWN.
+/// Conjunction under the strong Kleene table (LANG.VALUES.TRUTH), the meet
+/// of the truth order FALSE < UNKNOWN < TRUE — SQL's `AND`. FALSE absorbs
+/// everything and TRUE is the identity. Where the answer is an operand it is
+/// that operand whole, so an UNKNOWN keeps its reason — the left one's, when
+/// both are UNKNOWN.
 fn compute_conjunction(a: &Value, b: &Value) -> Result<Value> {
     use Truth::*;
     Ok(match (operand_truth(a)?, operand_truth(b)?) {
-        (False, _) | (_, False) | (Unknown, Both) | (Both, Unknown) => Value::from_bool(false),
-        (True, _) | (Both, Both) | (Unknown, Unknown) => b.clone(),
-        (_, True) => a.clone(),
+        (False, _) | (_, False) => Value::from_bool(false),
+        (True, _) | (Unknown, Unknown) => b.clone(),
+        (Unknown, True) => a.clone(),
     })
 }
 
@@ -63,8 +60,7 @@ fn lifted_conjunction(a: &Value, b: &Value) -> Result<Value> {
 }
 
 /// `SELECT`'s scalar law: TRUE and FALSE choose one of the two values it was
-/// handed, UNKNOWN chooses neither, and BOTH chooses both — the two
-/// candidates reconciled, so they answer what they agree on.
+/// handed, and UNKNOWN chooses neither.
 ///
 /// Nothing is evaluated here. Both candidates are values the program already
 /// built, so the work that produced them happened before `SELECT` ran, once
@@ -78,7 +74,6 @@ pub(crate) fn compute_selection(
     Ok(match operand_truth(mask)? {
         Truth::True => when_true.clone(),
         Truth::False => when_false.clone(),
-        Truth::Both => reconcile(when_true, when_false),
         // UNKNOWN chooses neither: the answer is the absence the truth
         // operand carried, reason intact, so `NIL-REASON` can still say why.
         Truth::Unknown => mask.clone(),
@@ -86,13 +81,12 @@ pub(crate) fn compute_selection(
 }
 
 fn compute_inverted_value(val: &Value) -> Result<Value> {
-    // NOT swaps TRUE and FALSE and leaves the two values between them where
-    // they are: UNKNOWN flows out unchanged, keeping its reason, and BOTH
-    // stays BOTH (LANG.VALUES.TRUTH's NOT row).
+    // NOT swaps TRUE and FALSE and leaves UNKNOWN where it is, flowing out
+    // unchanged with its reason (LANG.VALUES.TRUTH's NOT row).
     Ok(match operand_truth(val)? {
         Truth::True => Value::from_bool(false),
         Truth::False => Value::from_bool(true),
-        Truth::Both | Truth::Unknown => val.clone(),
+        Truth::Unknown => val.clone(),
     })
 }
 
@@ -100,14 +94,14 @@ fn compute_inverted_value(val: &Value) -> Result<Value> {
 ///
 /// It is the join of the information order — an absence knows least, a
 /// conflict most. A conflict absorbs, an absence yields to the other source,
-/// equal values agree, two different truth values are BOTH, and any other
-/// two different values project NIL(conflict). Making the conflict absorbing
+/// equal values agree, and any two different values — two truth values
+/// included — project NIL(conflict). Making the conflict absorbing
 /// rather than one more absence that yields is what keeps the Word
 /// associative: `1 2 RECONCILE 3 RECONCILE` and `1 2 3 RECONCILE RECONCILE`
 /// are both the conflict.
 ///
 /// Among numbers `0/0` knows least, as UNKNOWN does among truth values: its
-/// zero shape is FOUR's bottom (LANG.VALUES.SHAPE), so it yields to the
+/// zero shape is the bottom of the shapes (LANG.VALUES.SHAPE), so it yields to the
 /// other number as an absence yields to any source. It yields only to a
 /// number — a String or a truth value tells nothing about which number is
 /// meant — so the order stays a join semilattice and the Word associative.
@@ -127,12 +121,7 @@ pub(crate) fn reconcile(a: &Value, b: &Value) -> Value {
     if is_nullity(a) && is_number(b) {
         return b.clone();
     }
-    let is_truth = |v: &Value| matches!(v.data, ValueData::Boolean(_) | ValueData::Both);
-    if is_truth(a) && is_truth(b) {
-        Value::both()
-    } else {
-        Value::nil_with_reason(NilReason::Conflict, Recoverability::Recoverable)
-    }
+    Value::nil_with_reason(NilReason::Conflict, Recoverability::Recoverable)
 }
 
 /// `RECONCILE` — what two sources agree on. Like `EQ` it reads its

@@ -2,8 +2,8 @@
 //!
 //! A mask — what `GT` answers over a Vector of numbers, what `AND`, `NOT`
 //! and `SELECT` read — is the commonest Vector a program builds, and as
-//! `Value`s it is four words a lane to say one of four things. Held here it
-//! is one byte: FALSE, TRUE, BOTH, or UNKNOWN, where every UNKNOWN lane is
+//! `Value`s it is four words a lane to say one of three things. Held here it
+//! is one byte: FALSE, TRUE or UNKNOWN, where every UNKNOWN lane is
 //! the same NIL, kept once beside the bytes. It is a representation and
 //! nothing more (LANG.AUTHORITY.FREEDOM): it is equal to, hashes as and
 //! displays as the Vector of `Value`s it stands for, and anything that does
@@ -22,9 +22,8 @@ impl Value {
 /// The byte a lane holds.
 pub(crate) const FALSE: u8 = 0;
 pub(crate) const TRUE: u8 = 1;
-pub(crate) const BOTH: u8 = 2;
 /// The column's one NIL, whatever its reason.
-pub(crate) const UNKNOWN: u8 = 3;
+pub(crate) const UNKNOWN: u8 = 2;
 
 /// The lanes of a flat truth Vector, and the NIL its UNKNOWN lanes all are.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -35,8 +34,8 @@ pub struct TruthColumn {
 }
 
 impl TruthColumn {
-    /// A column of FALSE, TRUE and BOTH lanes. Every code must be one of
-    /// those three: a lane that is UNKNOWN needs the NIL it stands for.
+    /// A column of FALSE and TRUE lanes. Every code must be one of those
+    /// two: a lane that is UNKNOWN needs the NIL it stands for.
     pub(crate) fn known(codes: Vec<u8>) -> Self {
         debug_assert!(codes.iter().all(|&c| c < UNKNOWN));
         Self {
@@ -59,7 +58,7 @@ impl TruthColumn {
         })
     }
 
-    /// The column `lanes` are, when each is a Boolean, BOTH or one NIL
+    /// The column `lanes` are, when each is a Boolean or one NIL
     /// shared by every NIL among them — the same reason, origin and detail.
     pub(crate) fn pack(lanes: &[Value]) -> Option<Self> {
         let mut unknown: Option<&Value> = None;
@@ -68,7 +67,6 @@ impl TruthColumn {
             codes.push(match &lane.data {
                 ValueData::Boolean(false) => FALSE,
                 ValueData::Boolean(true) => TRUE,
-                ValueData::Both => BOTH,
                 ValueData::Nil(_) => {
                     match unknown {
                         None => unknown = Some(lane),
@@ -108,7 +106,6 @@ impl TruthColumn {
         match self.codes[index] {
             FALSE => Value::from_bool(false),
             TRUE => Value::from_bool(true),
-            BOTH => Value::both(),
             _ => self.unknown.clone().expect("an UNKNOWN lane has its NIL"),
         }
     }
@@ -140,13 +137,12 @@ mod tests {
         let lanes = vec![
             Value::from_bool(true),
             Value::from_bool(false),
-            Value::both(),
             nil(NilReason::DomainMiss),
             nil(NilReason::DomainMiss),
         ];
         let column = TruthColumn::pack(&lanes).expect("one shared NIL");
         assert_eq!(column.to_values(), lanes);
-        assert_eq!(column.codes(), &[TRUE, FALSE, BOTH, UNKNOWN, UNKNOWN]);
+        assert_eq!(column.codes(), &[TRUE, FALSE, UNKNOWN, UNKNOWN]);
 
         let mixed = [nil(NilReason::DomainMiss), nil(NilReason::NotFound)];
         assert!(TruthColumn::pack(&mixed).is_none(), "two reasons");

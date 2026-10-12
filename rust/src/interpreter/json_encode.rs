@@ -120,8 +120,7 @@ fn encode(out: &mut String, value: &Value) -> Option<()> {
             // An irrational has no JSON image.
             ExactReal::Algebraic(_) => return None,
         },
-        // JSON has two truth values; BOTH has no image.
-        ValueData::Symbol(_) | ValueData::Both => return None,
+        ValueData::Symbol(_) => return None,
         ValueData::Vector(_) | ValueData::Tensor { .. } => {
             out.push('[');
             for i in 0..value.len() {

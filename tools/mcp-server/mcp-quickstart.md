@@ -18,12 +18,12 @@ which call to make.
 ## 0. What it does, in one table
 
 Ajisai is more than arithmetic, and a caller who assumes otherwise stops
-reaching for it exactly where it would have helped. The 78 Words are:
+reaching for it exactly where it would have helped. The 77 Words are:
 
 | you need | Words |
 |---|---|
 | arithmetic | `ADD` `SUB` `MUL` `DIV` `FLOOR` `ROUND` `MIN` `MAX` `SQRT` `POW` `GCD` `RATIO` (negate with `-1 MUL`) |
-| comparison and logic | `EQ` `LT` `GT` (not-equal is `EQ NOT`, at-most is `GT NOT`) · `AND` `NOT` (or is `a NOT b NOT AND NOT`) `SELECT` `TRUE` `FALSE` `BOTH` · `RECONCILE` (two sources joined: agreement stays, NIL yields, TRUE with FALSE is `BOTH`, any other mismatch is a `conflict` NIL) |
+| comparison and logic | `EQ` `LT` `GT` (not-equal is `EQ NOT`, at-most is `GT NOT`) · `AND` `NOT` (or is `a NOT b NOT AND NOT`) `SELECT` `TRUE` `FALSE` — SQL's three-valued logic, a NIL read as UNKNOWN · `RECONCILE` (two sources joined: agreement stays, NIL yields, any mismatch, TRUE with FALSE included, is a `conflict` NIL) |
 | vectors | arithmetic broadcasts element-wise; no separate vector Words |
 | collections | `SORT` `ORDER` `UNIQUE` `ZIP` `RANGE` `FILL` `TAKE` `DROP` `CONCAT` `REVERSE` `LENGTH` `GET` `PUT` `BSEARCH` `COLLECT` · `SHAPE` `RESHAPE` `FLATTEN` `DEPTH` |
 | records (keyed data) | `RECORD` `KEYS` `VALUES` `WITHOUT` `HAS?` `MERGE` · read and written by key with `GET` `PUT` · `TALLY` `GROUP` answer Records |

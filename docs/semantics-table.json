@@ -97,11 +97,6 @@
       "outcome": "value"
     },
     {
-      "word": "BOTH",
-      "inputs": [],
-      "outcome": "value"
-    },
-    {
       "word": "AND",
       "inputs": [
         "scalarOne",

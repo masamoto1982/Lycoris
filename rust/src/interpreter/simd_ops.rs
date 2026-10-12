@@ -51,7 +51,6 @@ pub(crate) fn extract_integer_lane(val: &Value) -> Option<Cow<'_, [i64]>> {
             Some(Cow::Owned(result))
         }
         ValueData::Boolean(_)
-        | ValueData::Both
         | ValueData::Scalar(_)
         | ValueData::ExactScalar(_)
         | ValueData::Nil(_)
@@ -103,7 +102,6 @@ fn extract_integer_scalar(value: &Value) -> Option<i64> {
         ValueData::Truths(t) => extract_integer_scalar(&t.to_vector()),
         ValueData::Scalar(f) if f.is_integer() => f.to_i64(),
         ValueData::Boolean(_)
-        | ValueData::Both
         | ValueData::Text(_)
         | ValueData::Scalar(_)
         | ValueData::ExactScalar(_)

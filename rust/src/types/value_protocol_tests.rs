@@ -111,7 +111,7 @@ fn a_truth_column_serializes_as_its_vector() {
     use crate::types::TruthColumn;
     let lanes = vec![
         Value::from_bool(true),
-        Value::both(),
+        Value::from_bool(false),
         Value::nil_with_reason(NilReason::DomainMiss, Recoverability::Recoverable),
     ];
     let column = Value::from_truth_column(TruthColumn::pack(&lanes).unwrap());
@@ -338,21 +338,11 @@ fn a_nested_vector_reads_the_same_dense_or_boxed() {
 
 // --- the decisions the rows above leave out ---
 //
-// `value_to_protocol` arms with no row above: BOTH and Record.
+// `value_to_protocol` arms with no row above: Record.
 // `number_protocol_value`, `if let Small(n, d)`: T (the pair from the words),
 //   F (the pair from the `BigInt`s) — one spelling either way.
 // `tensor_to_protocol`, `shape.is_empty() || shape.len() == 1` (E, O):
 //   (T, *) leaves for every lane;  (F, T) leaves;  (F, F) a row per index.
-
-#[test]
-fn both_is_a_boolean_with_no_two_valued_image() {
-    let node = value_to_protocol(&Value::both());
-    assert_eq!(node.type_str, "boolean");
-    assert_eq!(node.value, ProtocolValue::Null);
-    let truth = value_to_protocol(&Value::from_bool(true));
-    assert_eq!(truth.type_str, "boolean");
-    assert_eq!(truth.value, ProtocolValue::Bool(true));
-}
 
 #[test]
 fn a_record_crosses_as_its_two_aligned_sequences() {
