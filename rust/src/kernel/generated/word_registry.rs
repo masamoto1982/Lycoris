@@ -2649,7 +2649,7 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         effects: &[],
         error_when: &["nonVector", "notExecutable", "blockContractViolation", "nonTruthValue"],
         syntax: Some("[ 1 2 3 ] [ 2 EQ ] FILTER"),
-        summary: "The elements of a Vector for which a predicate block answers TRUE, in order: `[ 1 2 3 4 ] [ 2 GT ] FILTER` is `[ 3 4 ]`. The block's answer is read as a truth value, and an UNKNOWN drops the element as FALSE does, as SQL's `WHERE` drops a row whose condition is unknown: `[ 1 0/0 2 ] [ 0 GT ] FILTER` is `[ 1 2 ]`. A non-Vector is `nonVector`, a non-block `notExecutable`, a block that leaves other than exactly one value `blockContractViolation`, and an answer that is not a truth value `nonTruthValue`.",
+        summary: "The elements of a Vector for which a predicate block answers TRUE, in order: `[ 1 2 3 4 ] [ 2 GT ] FILTER` is `[ 3 4 ]`. The block's answer is read as a truth value, and an UNKNOWN drops the element as FALSE does, as an SQL WHERE clause drops a row whose condition is unknown: `[ 1 0/0 2 ] [ 0 GT ] FILTER` is `[ 1 2 ]`. A non-Vector is `nonVector`, a non-block `notExecutable`, a block that leaves other than exactly one value `blockContractViolation`, and an answer that is not a truth value `nonTruthValue`.",
         stack_effect: "[ vec ] [ pred ] -> [ kept ]",
         hover_summary: "FILTER — keep elements matching predicate",
         hover_syntax: "[ 1 2 3 ] [ 2 EQ ] FILTER",
