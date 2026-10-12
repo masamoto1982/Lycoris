@@ -9,11 +9,11 @@
 //! Both now run the same check first, and both answer a violation in the one
 //! shape every other error has.
 
-use super::contract_decl::{check_contract_decls, ContractDeclCheck, DeclFinding, Severity};
-use super::contract_gap::CheckOutcome;
-use super::report::Report;
+use super::contract::{
+    check_contract_decls, CheckOutcome, ContractDeclCheck, DeclFinding, Severity,
+};
+use super::report::{ErrorInfo, Report};
 use crate::error::ErrorCategory;
-use crate::interpreter::debug_diagnosis::{DebugDiagnosis, ErrorLocusKind, ErrorPhase};
 use crate::interpreter::Interpreter;
 
 /// Whether `source` carries any `#:contract` directive — well-formed or not —
@@ -36,25 +36,18 @@ pub(crate) fn declared_contract_check(source: &str) -> Option<ContractDeclCheck>
 /// error has (LANG.FAILURE.TRICHOTOMY), with the declaration findings beside
 /// it as `contractDecls`.
 ///
-/// `check` and `compute` both answer with this. `check` used to answer a
-/// violation with `status: error` and nothing else at the top level — no
-/// `message`, no `diagnosis`, no `aiDiagnostic` — so a reader following the
-/// documented order ("on error, read `diagnosis.why`") found nothing, and
-/// the information sat only in `contractDecls.findings[].message`.
-/// `source` is `Some` for `compute`, which receipts the refusal as it would
+/// `check` and `compute` both answer with this. `source` is `Some` for `compute`, which receipts the refusal as it would
 /// any error, and `None` for `check`, which never executes.
 pub(crate) fn violation_report(
     interp: &Interpreter,
     check: &ContractDeclCheck,
     source: Option<&str>,
 ) -> Report {
-    let (message, diagnosis) = violation_diagnosis(check);
+    let (message, word) = violation_message(check);
     let mut report = super::error_report(
         interp,
-        &diagnosis,
-        Some(&ErrorCategory::ContractViolation),
+        ErrorInfo::of(ErrorCategory::ContractViolation, word),
         message,
-        Vec::new(),
         Vec::new(),
         source,
     );
@@ -62,10 +55,10 @@ pub(crate) fn violation_report(
     report
 }
 
-/// The message and diagnosis a violated declaration answers with, shared by
-/// every host that refuses to run it: the agent report above and the
-/// playground's `execute`.
-pub(crate) fn violation_diagnosis(check: &ContractDeclCheck) -> (String, DebugDiagnosis) {
+/// The message a violated declaration answers with, and the Word it names,
+/// shared by every host that refuses to run it: the agent report above and
+/// the playground's `execute`.
+pub(crate) fn violation_message(check: &ContractDeclCheck) -> (String, Option<String>) {
     let violations: Vec<&DeclFinding> = check
         .findings
         .iter()
@@ -87,24 +80,5 @@ pub(crate) fn violation_diagnosis(check: &ContractDeclCheck) -> (String, DebugDi
             .collect::<Vec<_>>()
             .join(" ")
     );
-    let category = ErrorCategory::ContractViolation;
-    let mut diagnosis = DebugDiagnosis::from_error_category(
-        ErrorPhase::CheckContract,
-        word.as_deref(),
-        Some(&category),
-        None,
-        0,
-        0,
-        Some(message.clone()),
-    );
-    if word.is_some() {
-        // The registry cannot know a User Word; the declaration names one.
-        diagnosis.where_.kind = ErrorLocusKind::UserWord;
-    }
-    for finding in &violations {
-        diagnosis
-            .evidence
-            .push(format!("violation={}", finding.message));
-    }
-    (message, diagnosis)
+    (message, word)
 }

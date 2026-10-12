@@ -76,7 +76,6 @@ pub(crate) fn admits(word: &GeneratedWord) -> bool {
 pub(crate) struct Answer {
     pub(crate) value: Plain,
     pub(crate) work: u64,
-    pub(crate) fastpath: u64,
 }
 
 /// A Word's law on plain operands, first-pushed first.
@@ -126,7 +125,6 @@ fn uncharged(value: Value) -> Option<Answer> {
     Some(Answer {
         value: Plain::of(&value)?,
         work: 0,
-        fastpath: 0,
     })
 }
 
@@ -153,7 +151,6 @@ fn gcd(operands: &[Plain], _: &Interpreter) -> Option<Answer> {
                 return Some(Answer {
                     value: Plain::Num(crate::types::fraction::Fraction::from(g)),
                     work,
-                    fastpath: 0,
                 });
             }
         }

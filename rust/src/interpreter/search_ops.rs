@@ -10,7 +10,6 @@ use crate::error::{AjisaiError, NilReason, Result};
 use crate::interpreter::collection_meter;
 use crate::interpreter::value_extraction_helpers::extract_operands;
 use crate::interpreter::Interpreter;
-use crate::semantic::Recoverability;
 use crate::types::{Value, ValueData};
 
 fn non_vector(got: &Value) -> AjisaiError {
@@ -186,7 +185,7 @@ fn bsearch_answer(interp: &mut Interpreter, sorted: &Value, keys: &Value) -> Res
 
     let lane = |found: Found| match found {
         Found::At(index) => Value::from_int(index as i64),
-        Found::Absent => Value::nil_with_reason(NilReason::NotFound, Recoverability::Recoverable),
+        Found::Absent => Value::nil_with_reason(NilReason::NotFound),
         Found::Unordered => crate::interpreter::comparison::unordered_projection(),
     };
     Ok(match keys.as_vector_view() {

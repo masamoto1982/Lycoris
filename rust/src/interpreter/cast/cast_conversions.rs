@@ -3,7 +3,6 @@
 
 use crate::error::{AjisaiError, NilReason, Result};
 use crate::interpreter::Interpreter;
-use crate::semantic::Recoverability;
 use crate::types::fraction::Fraction;
 use crate::types::{Value, ValueData};
 
@@ -140,10 +139,7 @@ fn convert_value_to_string(val: &Value) -> Result<Value> {
     // `10000 MUL ROUND 10000 DIV` — where the denominator is the caller's
     // choice and the approximation is visible in the source.
     if has_no_exact_lexeme(val) {
-        return Ok(Value::nil_with_reason(
-            NilReason::DomainMiss,
-            Recoverability::Recoverable,
-        ));
+        return Ok(Value::nil_with_reason(NilReason::DomainMiss));
     }
 
     let string_repr = format_value_to_string_repr(val);
@@ -187,7 +183,7 @@ fn convert_value_to_number(val: &Value) -> Result<Value> {
 fn number_from_text(text: &str, is_lexeme: bool) -> Value {
     match is_lexeme.then(|| Fraction::from_str(text).ok()).flatten() {
         Some(fraction) => Value::from_fraction(fraction),
-        None => Value::nil_with_reason(NilReason::InvalidEncoding, Recoverability::Recoverable),
+        None => Value::nil_with_reason(NilReason::InvalidEncoding),
     }
 }
 

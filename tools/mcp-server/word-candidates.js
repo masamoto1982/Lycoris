@@ -1,16 +1,10 @@
 // "Did you mean" for a Word name the packaged registry does not hold.
 //
-// The engine answers this for an unknown Word at runtime (`diagnosis
-// .candidates`, from `rust/src/interpreter/word_candidates.rs`). The registry
-// lookup tool needs the same answer for the same reason — a caller that
-// mistypes a name is the overwhelmingly likely cause of an empty result, and
-// the complete name list is sitting in the same process.
-//
-// Deliberately the same ranking rules as the engine's: distance ceiling by
-// name length, at most three suggestions, ties broken alphabetically so the
-// same misspelling always produces the same list. word-candidates.test.js
-// runs both this and the real engine over the same inputs and asserts they
-// agree, so this is not just a claim of agreement — it is checked.
+// A caller that mistypes a name is the overwhelmingly likely cause of an empty
+// `word_contract` result, and the complete name list is sitting in the same
+// process. The ranking is fixed so the same misspelling always produces the
+// same list: a distance ceiling by name length, at most three suggestions,
+// ties broken alphabetically. word-candidates.test.js pins it.
 
 const MAX_CANDIDATES = 3;
 
@@ -41,19 +35,18 @@ function editDistance(left, right) {
 }
 
 /**
- * Registry names within a plausible typo distance of `word`, best match first.
- * `entries` are `spec/words.json` entries, and a Word is considered under its
- * one name.
- */
-/**
  * Full-width ASCII (U+FF01–U+FF5E, what a Japanese input method produces for
- * `ＡＤＤ`) folded to its ASCII form — the same folding the engine applies
- * (`word_candidates.rs::fold_full_width`), so `ＬＥＮＧＨＴ` suggests `LENGTH`.
+ * `ＡＤＤ`) folded to its ASCII form, so `ＬＥＮＧＨＴ` suggests `LENGTH`.
  */
 function foldFullWidth(text) {
   return text.replace(/[\uFF01-\uFF5E]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xff01 + 0x21));
 }
 
+/**
+ * Registry names within a plausible typo distance of `word`, best match first.
+ * `entries` are `spec/words.json` entries, and a Word is considered under its
+ * one name.
+ */
 export function suggestWords(word, entries) {
   const written = String(word ?? "").trim().toUpperCase();
   const needle = foldFullWidth(written);

@@ -515,7 +515,6 @@ export const createGUI = (interpreter: AjisaiInterpreter): GUI => {
             readEditorValue: () => editor.extractValue(),
             clearEditor: (switchView) => { editor.clear(switchView); },
             showInfo,
-            showFoldedInfo: (label, text) => display.renderFoldedInfo(label, text),
             highlightSourceRange: (start, end) => editor.revealRange(start, end),
             showDocumentation: (text) => display.renderDocumentation(text),
             showError: (error, precedingOutput) => display.renderError(error, precedingOutput),

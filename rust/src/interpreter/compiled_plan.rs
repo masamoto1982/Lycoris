@@ -323,14 +323,13 @@ fn execute_compiled_line(interp: &mut Interpreter, line: &CompiledLine) -> Resul
                 // check, exactly as the Symbol dispatch the interpreted route
                 // takes for it is — and a refusal by the ceiling is that Word's
                 // failure, recorded like any other.
-                let stack_len_before = interp.stack.len();
                 let mut outcome = interp.charge_execution_step();
                 if outcome.is_ok() {
                     interp.stack.push(v.clone());
                     outcome = interp.check_fresh_nesting();
                 }
                 if let Err(err) = outcome {
-                    interp.record_word_dispatch_failure(name, &err, stack_len_before);
+                    interp.record_word_dispatch_failure(name, &err);
                     return Err(err);
                 }
             }
@@ -345,22 +344,14 @@ fn execute_compiled_line(interp: &mut Interpreter, line: &CompiledLine) -> Resul
                 // own refusal escape unattributed — and the ceiling firing on a
                 // Word *is* that Word failing, which is what the interpreted
                 // route records when its charge, made inside the dispatch, fails.
-                let witness = interp.begin_dispatch();
                 let mut outcome = interp.charge_execution_step();
                 if outcome.is_ok() {
                     outcome = execute_compiled_call(interp, call)
                         .and_then(|()| interp.check_fresh_nesting());
                 }
-                match outcome {
-                    Ok(()) => interp.trace_nil_outcome(&call.name, &witness),
-                    Err(err) => {
-                        interp.record_word_dispatch_failure(
-                            &call.name,
-                            &err,
-                            witness.stack_len_before,
-                        );
-                        return Err(err);
-                    }
+                if let Err(err) = outcome {
+                    interp.record_word_dispatch_failure(&call.name, &err);
+                    return Err(err);
                 }
             }
             // A User Word call is a dispatch like the Symbol dispatch the

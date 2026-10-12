@@ -18,12 +18,10 @@
 //! 5. a `DIV` by a finite non-zero literal and a `POW` to a finite
 //!    non-negative literal exponent are inferred `closed`, and running every
 //!    such call over finite operands confirms it never leaves the field;
-//! 6. a `leaving` body names where it leaves;
-//! 7. an operand the body computes, whose zero shapes cannot reach past the
-//!    field, keeps the call `closed` as a literal does.
+//! 6. a `leaving` body names where it leaves.
 
 use crate::agent::api::check;
-use crate::agent::contract_report::report_contracts;
+use crate::agent::contract::contracts_json;
 use crate::coreword_registry::FieldClosure;
 use crate::interpreter::Interpreter;
 use crate::kernel::generated::{Arity, Family, GENERATED_WORDS};
@@ -122,10 +120,7 @@ async fn closed_arithmetic_stays_in_the_field_over_finite_operands() {
 #[tokio::test]
 async fn a_one_word_block_infers_the_field_its_word_declares() {
     for word in GENERATED_WORDS {
-        let code = format!(
-            "[ {name} ] CONTRACT 'field' GET [ {name} ] CONTRACT 'confidence' GET",
-            name = word.name
-        );
+        let code = format!("[ {name} ] CONTRACT 'field' GET", name = word.name);
         let stack = stack_of(&code)
             .await
             .unwrap_or_else(|| panic!("`{code}` must run"));
@@ -137,9 +132,8 @@ async fn a_one_word_block_infers_the_field_its_word_declares() {
             })
             .collect();
         // A Word that runs a block it is handed knows nothing of that block
-        // here, so the inference stays conservative and claims the weaker
-        // bound: it may leave the field.
-        let expected = if texts[1] == "conservative" {
+        // here, so the inference claims the weaker bound: it may leave.
+        let expected = if matches!(word.name, "MAP" | "FILTER" | "FOLD" | "SCAN" | "EXEC") {
             "leaving"
         } else {
             word.field.as_spec_str()
@@ -261,59 +255,30 @@ async fn a_literal_operand_that_cannot_leave_the_field_keeps_the_call_closed() {
     }
 }
 
-/// The zero shapes decide an operand the body computes as well as one it
-/// writes: a positive root and a length plus one are never zero, and a sum of
-/// two positive numbers is never negative, so dividing by the first two and
-/// raising to the third stay in the field — and running each over finite
-/// operands confirms it.
-#[tokio::test]
-async fn a_computed_operand_whose_shapes_cannot_leave_keeps_the_call_closed() {
-    for (block, operands) in [
-        ("[ 2 SQRT DIV ]", FINITE_OPERANDS),
-        ("[ 1 1 ADD POW ]", FINITE_OPERANDS),
-        (
-            "[ LENGTH 1 ADD DIV ]",
-            &["5 [ ]", "-2 [ 1 2 ]", "0 [ 0 ]"][..],
-        ),
-    ] {
-        let stack = stack_of(&format!("{block} CONTRACT 'field' GET"))
-            .await
-            .expect("CONTRACT runs");
-        assert!(
-            matches!(&stack[0].data, ValueData::Text(t) if &**t == "closed"),
-            "{block} must infer closed"
-        );
-        for operand in operands {
-            let code = format!("{operand} {block} EXEC");
-            if let Some(stack) = stack_of(&code).await {
-                assert!(
-                    !stack.iter().any(holds_point_over_zero),
-                    "`{code}` left the field although {block} is inferred closed"
-                );
-            }
-        }
-    }
-}
-
 #[test]
 fn a_leaving_body_names_where_it_leaves() {
-    let reports = report_contracts(
+    let reports = contracts_json(
         "[ 'xs' BIND xs 0 [ ADD ] FOLD xs LENGTH DIV ] 'MEAN' DEF\n\
          [ 2 DIV ] 'HALF' DEF\n\
          [ MEAN HALF 1/0 MIN ] 'SPREAD' DEF",
     );
     let exits = |name: &str| {
-        reports
+        let r = reports
+            .as_array()
+            .unwrap()
             .iter()
-            .find(|r| r.name == name)
-            .map(|r| (r.field, r.field_exits.clone()))
-            .unwrap_or_else(|| panic!("no report for {name}"))
+            .find(|r| r["name"] == name)
+            .unwrap_or_else(|| panic!("no report for {name}"));
+        (r["field"].clone(), r["fieldExits"].clone())
     };
-    assert_eq!(exits("MEAN"), ("leaving", vec!["DIV".to_string()]));
-    assert_eq!(exits("HALF"), ("closed", Vec::new()));
+    assert_eq!(
+        exits("MEAN"),
+        ("leaving".into(), serde_json::json!(["DIV"]))
+    );
+    assert_eq!(exits("HALF"), ("closed".into(), serde_json::json!([])));
     assert_eq!(
         exits("SPREAD"),
-        ("leaving", vec!["MEAN".to_string(), "1/0".to_string()])
+        ("leaving".into(), serde_json::json!(["MEAN", "1/0"]))
     );
     let decls = field_decls("[ [ 1 ] LENGTH DIV ] 'W' DEF\n#:contract W field=closed");
     assert!(

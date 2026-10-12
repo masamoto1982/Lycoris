@@ -3,13 +3,9 @@
 //! Host adapters should consume this API instead of reproducing interpreter
 //! execution and report assembly. It performs no filesystem or terminal I/O.
 
-use super::report::{completed_run_report, Report};
-use super::{
-    contract_decl, contract_report, contract_violation, error_report, outcome_report,
-    print_payloads, resolve_words,
-};
+use super::report::{completed_run_report, ErrorInfo, Report};
+use super::{contract, contract_violation, error_report, print_payloads, resolve_words};
 use crate::error::ErrorCategory;
-use crate::interpreter::debug_diagnosis::{DebugDiagnosis, ErrorPhase};
 use crate::interpreter::runtime_limits::DEFAULT_MAX_NESTING_DEPTH;
 use crate::interpreter::{Interpreter, RuntimeLimits};
 
@@ -194,25 +190,14 @@ impl AgentResponse {
 /// CLI emits, without creating a file or writing stdout/stderr.
 pub async fn compute(source: &str, options: ComputeOptions) -> AgentResponse {
     if let Err(message) = crate::tokenizer::tokenize(source) {
-        let diagnosis = DebugDiagnosis::from_error_category(
-            ErrorPhase::Tokenize,
-            None,
-            Some(&ErrorCategory::MalformedSource),
-            None,
-            0,
-            0,
-            Some(message.clone()),
-        );
         // Applied even though tokenization never gets far enough to spend any
         // of it: the receipt names the profile the caller asked for, not the
         // interpreter's built-in default, and the two can differ.
         let interp = options.interpreter();
         return AgentResponse::computed(error_report(
             &interp,
-            &diagnosis,
-            Some(&ErrorCategory::MalformedSource),
+            ErrorInfo::of(ErrorCategory::MalformedSource, None),
             message,
-            Vec::new(),
             Vec::new(),
             Some(source),
         ));
@@ -238,16 +223,9 @@ pub async fn compute(source: &str, options: ComputeOptions) -> AgentResponse {
         }
     }
     let result = interp.execute(source).await;
-    let trace = interp.drain_error_flow_trace();
     let output = print_payloads(&interp);
-    let mut report = completed_run_report(
-        &interp,
-        result,
-        trace,
-        output,
-        source,
-        options.stack_budget_bytes,
-    );
+    let mut report =
+        completed_run_report(&interp, result, output, source, options.stack_budget_bytes);
     // A verified (or unverifiable) declaration is reported too, so the caller
     // sees the check happened and what it decided; a source with no
     // directive carries no `contractDecls` at all.
@@ -277,23 +255,11 @@ fn tokens_of_well_formed(
         Err(message) => message,
     };
     // The same category `run` reports for an unbalanced bracket.
-    let category = ErrorCategory::MalformedSource;
-    let diagnosis = DebugDiagnosis::from_error_category(
-        ErrorPhase::Tokenize,
-        None,
-        Some(&category),
-        None,
-        0,
-        0,
-        Some(message.clone()),
-    );
     Err(Box::new(AgentResponse {
         report: error_report(
             interp,
-            &diagnosis,
-            Some(&category),
+            ErrorInfo::of(ErrorCategory::MalformedSource, None),
             message,
-            Vec::new(),
             Vec::new(),
             None,
         ),
@@ -319,40 +285,22 @@ pub fn check(source: &str, verify_contracts: bool) -> AgentResponse {
                 resolved.bound_elsewhere.join(", ")
             ));
         }
-        let category = ErrorCategory::UnknownWord;
-        let mut diagnosis = DebugDiagnosis::from_error_category(
-            ErrorPhase::ResolveWord,
-            Some(first),
-            Some(&category),
-            None,
-            0,
-            0,
-            Some(format!("Unknown word: {first}")),
-        );
-        diagnosis
-            .evidence
-            .push(format!("unknownWords={}", unknown.join(",")));
-        diagnosis.with_user_vocabulary(resolved.locally_defined.iter().map(String::as_str));
         return AgentResponse {
             report: error_report(
                 &interp,
-                &diagnosis,
-                Some(&category),
+                ErrorInfo::of(ErrorCategory::UnknownWord, Some(first.clone())),
                 message,
-                Vec::new(),
                 Vec::new(),
                 None,
             ),
         };
     }
 
-    let contract_decls = verify_contracts.then(|| contract_decl::check_contract_decls(source));
+    let contract_decls = verify_contracts.then(|| contract::check_contract_decls(source));
     if let Some(check) = contract_decls.as_ref().filter(|result| result.violated) {
-        // The same shape every other error has — `message`, `diagnosis`,
-        // `aiDiagnostic.category: contractViolation` — so a reader following
-        // the documented order ("on error, read diagnosis.why") finds the
-        // violation where every other failure is, not only in
-        // `contractDecls.findings`.
+        // The same shape every other error has — `message` and
+        // `error.category: contractViolation` — so the violation is where
+        // every other failure is, not only in `contractDecls.findings`.
         return AgentResponse {
             report: contract_violation::violation_report(&interp, check, None),
         };
@@ -377,10 +325,7 @@ pub fn check(source: &str, verify_contracts: bool) -> AgentResponse {
             stack_display: Vec::new(),
             output: Vec::new(),
             message: None,
-            diagnosis: None,
-            ai_diagnostic: None,
-            error_flow_trace: Vec::new(),
-            runtime_metrics: crate::interpreter::RuntimeMetrics::default(),
+            error: None,
             resource_usage: crate::interpreter::ResourceUsage::default(),
             contract_decls: contract_decls.as_ref().map(|result| result.to_json()),
             stack_elided: None,
@@ -400,31 +345,7 @@ pub fn infer_contracts(source: &str) -> ContractResponse {
             result: Err(report),
         };
     }
-    let reports = contract_report::report_contracts(source);
     ContractResponse {
-        result: Ok(contract_report::reports_json(&reports)),
-    }
-}
-
-pub struct OutcomesResponse {
-    report: outcome_report::OutcomeReport,
-}
-
-impl OutcomesResponse {
-    pub fn to_json(&self) -> serde_json::Value {
-        self.report.to_json()
-    }
-}
-
-/// Predict the finite set of outcome ids `source` could produce without
-/// executing it (`docs/dev/auditable-kernel-work-order-2026-09.md` Phase 5).
-/// Always succeeds — an unresolvable program still has an exact, single
-/// predicted outcome (`error:malformedSource` or `error:unknownWord`); see `outcome_report::predict_outcomes`.
-/// Predict `source`'s outcome set under `options`' ceilings, without
-/// executing it. The reported `limitProfile` is the profile the prediction
-/// assumed, so it must be the one the caller would compute under.
-pub fn predict_outcomes(source: &str, options: ComputeOptions) -> OutcomesResponse {
-    OutcomesResponse {
-        report: outcome_report::predict_outcomes(source, &options),
+        result: Ok(contract::contracts_json(source)),
     }
 }

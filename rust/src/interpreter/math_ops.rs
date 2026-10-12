@@ -14,7 +14,6 @@ use crate::interpreter::value_extraction_helpers::{
     exact_real_of, extract_operands, nil_passthrough_binary,
 };
 use crate::interpreter::Interpreter;
-use crate::semantic::Recoverability;
 use crate::types::exact::{ExactReal, PowOutcome, PowPlan};
 use crate::types::fraction::Fraction;
 use crate::types::Value;
@@ -186,7 +185,7 @@ fn sqrt_scalar(
     // `from_exact_real` collapses a rational result back to Scalar.
     Ok(match budget.sqrt(f.clone())? {
         Some(er) => Value::from_exact_real(er),
-        None => Value::nil_with_reason(NilReason::DomainMiss, Recoverability::Recoverable),
+        None => Value::nil_with_reason(NilReason::DomainMiss),
     })
 }
 
@@ -206,8 +205,8 @@ fn non_numeric(operands: &[&Value]) -> AjisaiError {
     AjisaiError::declared("nonNumeric", format!("expected a Scalar, got {got}"))
 }
 
-fn nil(reason: NilReason, recoverability: Recoverability) -> Value {
-    Value::nil_with_reason(reason, recoverability)
+fn nil(reason: NilReason) -> Value {
+    Value::nil_with_reason(reason)
 }
 
 /// The scalar law of `POW`, lifted by [`lift_binary_numeric`].
@@ -250,7 +249,7 @@ fn pow_scalar(
     Ok(match outcome {
         PowOutcome::WorkExhausted => return Err(budget.exhausted_error()),
         PowOutcome::Value(er) => Value::from_exact_real(er),
-        PowOutcome::DomainMiss => nil(NilReason::DomainMiss, Recoverability::Recoverable),
+        PowOutcome::DomainMiss => nil(NilReason::DomainMiss),
         // Sized against `bigintBits` above, which is never wider than the
         // bound `power_by_integer` keeps for itself.
         PowOutcome::TooWide => {
@@ -270,7 +269,7 @@ fn pow_scalar(
 fn integer_of(value: &Value) -> std::result::Result<BigInt, Value> {
     match exact_real_of(value) {
         Some(ExactReal::Rational(q)) if q.is_integer() => Ok(q.numerator()),
-        Some(_) => Err(nil(NilReason::DomainMiss, Recoverability::Recoverable)),
+        Some(_) => Err(nil(NilReason::DomainMiss)),
         None => Err(non_numeric_value()),
     }
 }
@@ -304,7 +303,7 @@ fn ratio_scalar(value: &Value) -> Result<Value> {
                 Value::from_fraction(Fraction::new(d, BigInt::from(1))),
             ])
         }
-        Some(ExactReal::Algebraic(_)) => nil(NilReason::DomainMiss, Recoverability::Recoverable),
+        Some(ExactReal::Algebraic(_)) => nil(NilReason::DomainMiss),
         None => return Err(non_numeric(&[value])),
     })
 }

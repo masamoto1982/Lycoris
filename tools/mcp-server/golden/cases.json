@@ -6,8 +6,8 @@
       "source": "[ 1 ] [ 2 ] ADD",
       "expect": {
         "/status": "ok",
-        "/stackDisplay/0": "[ 3/1 ]",
-        "/errorFlowTrace": []
+        "/outcome": "value",
+        "/stackDisplay/0": "[ 3/1 ]"
       }
     },
     {
@@ -15,10 +15,9 @@
       "source": "-1 SQRT",
       "expect": {
         "/status": "ok",
+        "/outcome": "nil:domainMiss",
         "/stackDisplay/0": "NIL",
-        "/errorFlowTrace/0/kind": "nilProduced",
-        "/errorFlowTrace/0/word": "SQRT",
-        "/errorFlowTrace/0/absence/reason": "domainMiss"
+        "/stack/0/semantics/absence/reason": "domainMiss"
       }
     },
     {
@@ -26,13 +25,13 @@
       "source": "100 0 DIV -5 0 DIV 0 0 DIV",
       "expect": {
         "/status": "ok",
+        "/outcome": "value",
         "/stackDisplay/0": "1/0",
         "/stackDisplay/1": "1/0",
         "/stackDisplay/2": "0/0",
         "/stack/0/type": "number",
         "/stack/0/value/numerator": "1",
-        "/stack/0/value/denominator": "0",
-        "/errorFlowTrace": []
+        "/stack/0/value/denominator": "0"
       }
     },
     {
@@ -40,29 +39,23 @@
       "source": "FROBNICATE",
       "expect": {
         "/status": "error",
-        "/diagnosis/why": "typoOrUnknownName",
-        "/aiDiagnostic/category": "unknownWord",
-        "/errorFlowTrace/0/kind": "wordError",
-        "/diagnosis/nextChecks/0/code": "checkSpelling",
-        "/diagnosis/candidates": []
+        "/outcome": "error:unknownWord",
+        "/error/category": "unknownWord",
+        "/error/word": "FROBNICATE",
+        "/error/line": 1,
+        "/error/column": 1,
+        "/message": "Unknown word: FROBNICATE"
       }
     },
     {
-      "name": "a misspelled Word names its likely correction",
+      "name": "a misspelled Word is an error naming it where it was written",
       "source": "[ 1 2 3 ] LENGHT",
       "expect": {
         "/status": "error",
-        "/diagnosis/why": "typoOrUnknownName",
-        "/diagnosis/candidates/0": "LENGTH"
-      }
-    },
-    {
-      "name": "a misspelled user Word is matched against the live dictionary",
-      "source": "[ [ 2 ] MUL ] 'DOUBLE' DEF [ 3 ] DOUBEL",
-      "expect": {
-        "/status": "error",
-        "/diagnosis/why": "typoOrUnknownName",
-        "/diagnosis/candidates/0": "DOUBLE"
+        "/error/category": "unknownWord",
+        "/error/word": "LENGHT",
+        "/error/line": 1,
+        "/error/column": 11
       }
     },
     {
@@ -149,7 +142,7 @@
         "/status": "ok",
         "/stackDisplay/0": "NIL",
         "/stack/0/semantics/absence/reason": "domainMiss",
-        "/errorFlowTrace/0/word": "LT"
+        "/outcome": "nil:domainMiss"
       }
     },
     {
@@ -157,13 +150,10 @@
       "source": "1 200 RANGE 0 [ ADD 1 999 RANGE 0 [ ADD ] FOLD ADD ] FOLD",
       "expect": {
         "/status": "error",
-        "/diagnosis/why": "resourceLimit",
-        "/aiDiagnostic/category": "executionLimitExceeded",
-        "/errorFlowTrace/0/kind": "wordError",
-        "/errorFlowTrace/0/word": "ADD",
-        "/diagnosis/resourceLimit/resource": "executionSteps",
-        "/diagnosis/resourceLimit/limit": 100000,
-        "/diagnosis/resourceLimit/observed": 100001
+        "/outcome": "error:executionLimitExceeded",
+        "/error/category": "executionLimitExceeded",
+        "/error/word": "ADD",
+        "/message": "Execution step limit (100000) exceeded"
       }
     },
     {
@@ -171,13 +161,11 @@
       "source": "0 100001 RANGE",
       "expect": {
         "/status": "error",
-        "/diagnosis/why": "resourceLimit",
-        "/aiDiagnostic/category": "resourceLimitExceeded",
-        "/errorFlowTrace/0/kind": "wordError",
-        "/errorFlowTrace/0/word": "RANGE",
-        "/diagnosis/resourceLimit/resource": "materializedElements",
-        "/diagnosis/resourceLimit/limit": 100000,
-        "/diagnosis/resourceLimit/observed": 100002,
+        "/outcome": "error:resourceLimitExceeded",
+        "/error/category": "resourceLimitExceeded",
+        "/error/resource": "materializedElements",
+        "/error/word": "RANGE",
+        "/message": "materializedElements of 100002 exceeds the limit of 100000",
         "/stackDisplay/0": "0/1",
         "/stackDisplay/1": "100001/1"
       },
@@ -187,45 +175,32 @@
       }
     },
     {
-      "name": "a declared projection condition reaches the caller as its own cause class",
-      "source": "-4 SQRT",
-      "expect": {
-        "/status": "ok",
-        "/stackDisplay/0": "NIL",
-        "/stack/0/semantics/absence/reason": "domainMiss",
-        "/errorFlowTrace/0/diagnosis/why": "domain",
-        "/errorFlowTrace/0/diagnosis/nextChecks/0/code": "checkDeclaredProjection"
-      }
-    },
-    {
-      "name": "a stack underflow names the Word's declared arity, what was missing, and a correct call",
+      "name": "a stack underflow names the Word it is attributed to",
       "source": "'hello world' TOKENIZE",
       "expect": {
         "/status": "error",
-        "/diagnosis/why": "stackShape",
-        "/diagnosis/nextChecks/0/code": "checkDeclaredArity",
-        "/diagnosis/nextChecks/0/detail/en": "TOKENIZE declares ( 2 -- 1 ): it needs 2 values, the stack held 1. Push 1 more before calling it.",
-        "/diagnosis/nextChecks/1/code": "checkDeclaredSyntax",
-        "/diagnosis/nextChecks/1/detail/en": "One correct call is `'a,b,c' ',' TOKENIZE`."
+        "/outcome": "error:stackUnderflow",
+        "/error/word": "TOKENIZE",
+        "/message": "TOKENIZE: stack underflow"
       }
     },
     {
-      "name": "SELECT's truth-operand failure names the declared condition it fired",
+      "name": "SELECT's truth-operand failure is its own category",
       "source": "[ 'y' ] [ 'n' ] 1 SELECT",
       "expect": {
         "/status": "error",
-        "/diagnosis/why": "valueShape",
-        "/diagnosis/nextChecks/0/code": "checkFiredCondition",
-        "/diagnosis/nextChecks/0/detail/en": "SELECT raised the condition `nonTruthValue`, one of the conditions its contract declares: nonTruthValue, shapeMismatch."
+        "/outcome": "error:nonTruthValue",
+        "/error/word": "SELECT",
+        "/message": "SELECT: expected a truth value, got Scalar"
       }
     },
     {
-      "name": "a huge failing stack does not cost the diagnosis",
+      "name": "a huge failing stack does not cost the error",
       "source": "0 99999 RANGE LENGHT",
       "expect": {
         "/status": "error",
-        "/diagnosis/why": "typoOrUnknownName",
-        "/diagnosis/candidates/0": "LENGTH",
+        "/error/category": "unknownWord",
+        "/error/word": "LENGHT",
         "/stackElided/reason": "errorStackBudget",
         "/stackElided/slots/0/index": 0,
         "/stackElided/slots/0/elements": 100000,
@@ -244,7 +219,7 @@
       "expectAbsent": [
         "/runtimeMetrics"
       ],
-      "comment": "RANGE and FOLD are one step each and the block's `MUL` runs twenty times: 22. The step count is a budget, reported once under resourceUsage; the engine's optimizer counters (`runtimeMetrics`) are not sent at all. Pinned as an exact number because the defect was a constant — every program reported 0 — so only an exact expectation catches a regression to one."
+      "comment": "RANGE and FOLD are one step each and the block's `MUL` runs twenty times: 22. The step count is a budget, reported once under resourceUsage; the engine reports no optimizer counters (`runtimeMetrics` is gone). Pinned as an exact number because the defect was a constant — every program reported 0 — so only an exact expectation catches a regression to one."
     },
     {
       "name": "a violated #:contract declaration stops compute before anything runs",
@@ -252,12 +227,8 @@
       "expect": {
         "/status": "error",
         "/outcome": "error:contractViolation",
-        "/diagnosis/when": "checkContract",
-        "/diagnosis/why": "contractViolation",
-        "/diagnosis/where/word": "DOUBLE",
-        "/aiDiagnostic/category": "contractViolation",
-        "/aiDiagnostic/repair": "program",
-        "/diagnosis/nextChecks/0/code": "checkDeclaredContract",
+        "/error/category": "contractViolation",
+        "/error/word": "DOUBLE",
         "/contractDecls/outcome": "error",
         "/contractDecls/findings/0/message": "`#:contract DOUBLE`: declared `inputs=2` but inferred `inputs=1`.",
         "/output": [],
@@ -267,13 +238,18 @@
     },
     {
       "name": "a verified #:contract declaration is reported beside the run",
-      "source": "#:contract DOUBLE inputs=1 outputs=1 purity=pure partiality=total\n[ 2 MUL ] 'DOUBLE' DEF 21 DOUBLE",
+      "source": "#:contract DOUBLE inputs=1 outputs=1 field=closed\n[ 2 MUL ] 'DOUBLE' DEF 21 DOUBLE",
       "expect": {
         "/status": "ok",
         "/outcome": "value",
         "/stackDisplay/0": "42/1",
         "/contractDecls/outcome": "value",
-        "/contractDecls/gapSummary/verified": 1
+        "/contractDecls/declarations": [
+          {
+            "outcome": "value",
+            "word": "DOUBLE"
+          }
+        ]
       }
     },
     {
@@ -294,31 +270,13 @@
       "comment": "A success is its stack, so the budget is generous (440 KiB, sized against responseBytes with the response's two copies in mind) and the trusted profile sets none. The answer that fits (`3/1`) is whole; the 7,001-element intermediate arrives as a record of what it was, which is what tells the caller to drop it."
     },
     {
-      "name": "a Forth stack word is diagnosed as the mistake it is",
-      "source": "1 2 DUP",
-      "expect": {
-        "/status": "error",
-        "/aiDiagnostic/category": "unknownWord",
-        "/diagnosis/nextChecks/0/code": "checkNoStackShufflers"
-      }
-    },
-    {
-      "name": "a full-width name suggests its ASCII spelling",
-      "source": "ＬＥＮＧＨＴ",
-      "expect": {
-        "/status": "error",
-        "/diagnosis/nextChecks/0/code": "checkCharacterWidth",
-        "/diagnosis/candidates/0": "LENGTH"
-      }
-    },
-    {
       "name": "a block that leaves more than its one result is a contract violation",
       "source": "[ 1 2 3 ] [ 2 MUL 7 ] MAP",
       "expect": {
         "/status": "error",
         "/outcome": "error:blockContractViolation",
-        "/aiDiagnostic/category": "blockContractViolation",
-        "/diagnosis/why": "contractViolation",
+        "/error/category": "blockContractViolation",
+        "/error/word": "MAP",
         "/message": "MAP: expected the block to leave one value, and it left 2"
       },
       "comment": "The surplus used to be discarded and the top taken, so this answered `[ 7 7 7 ]` without a word about the `2 MUL` it threw away (LANG.COLLECTIONS.HIGHER). A block owes exactly one value; none and a surplus are the one violation."

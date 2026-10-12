@@ -17,7 +17,6 @@ use crate::error::{AjisaiError, NilReason, Result};
 use crate::interpreter::collection_meter::charge_materialization;
 use crate::interpreter::value_extraction_helpers::{extract_position_from_value, normalize_index};
 use crate::interpreter::Interpreter;
-use crate::semantic::Recoverability;
 use crate::types::fraction::saturating_narrow;
 use crate::types::{Value, ValueData};
 
@@ -132,7 +131,7 @@ pub fn op_shape(interp: &mut Interpreter) -> Result<()> {
         ),
         // A ragged Vector is well-formed data that the question does not fit:
         // the trichotomy's middle case, not a malformed program.
-        None => Value::nil_with_reason(NilReason::DomainMiss, Recoverability::Recoverable),
+        None => Value::nil_with_reason(NilReason::DomainMiss),
     };
     interp.stack.push(answer);
     Ok(())
@@ -440,10 +439,9 @@ pub fn op_put(interp: &mut Interpreter) -> Result<()> {
         // it answers with the whole Vector and so has no single slot to empty
         // — but the absence is of the *answer*, not of a slot, and that is
         // what a reasoned NIL says.
-        interp.stack.push(Value::nil_with_reason(
-            NilReason::IndexOutOfBounds,
-            Recoverability::Recoverable,
-        ));
+        interp
+            .stack
+            .push(Value::nil_with_reason(NilReason::IndexOutOfBounds));
         return Ok(());
     };
 

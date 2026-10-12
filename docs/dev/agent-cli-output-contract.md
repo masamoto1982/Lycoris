@@ -10,7 +10,7 @@ only commands and fields emitted by the current native CLI.
 ajisai run <file.ajisai> [--step-limit <N>]
 ajisai check <file.ajisai> [--contract]
 ajisai contract <file.ajisai>
-ajisai agent <compute|check|infer-contracts|outcomes> <file.ajisai|-> [--limits <agent|trusted>] [--step-limit <N>] [--compact]
+ajisai agent <compute|check|infer-contracts> <file.ajisai|-> [--limits <agent|trusted>] [--step-limit <N>] [--compact]
 ajisai test <file-or-dir> [--json]
 ajisai repl [--json]
 ajisai version [--json]
@@ -41,11 +41,10 @@ not read is a usage error (exit 2), never silently ignored. `agent` (and
 Program `PRINT` effects are captured in the document rather than mixed into
 stdout.
 
-`--limits` chooses the resource ceilings `agent compute` runs under and
-`agent outcomes` predicts under: `agent` (the default) is the tighter profile
+`--limits` chooses the resource ceilings `agent compute` runs under: `agent` (the default) is the tighter profile
 for untrusted, generated programs (`agent::api::LOCAL_AGENT_RUNTIME_LIMITS`);
 `trusted` is the interpreter default that `run` uses. `--step-limit` is a
-positive integer and applies to `run`, `agent compute` and `agent outcomes`;
+positive integer and applies to `run` and `agent compute`;
 the default is the profile's own budget: 100,000 under `agent`
 (`agent::api::LOCAL_AGENT_EXECUTION_STEPS`, the budget the MCP server
 applies) and the host's derived budget under `trusted`
@@ -62,20 +61,17 @@ measure the same bytes and reject at the same result.
 
 ## `agent compute` and `agent check`
 
-Both operations emit schema version 3:
+Both operations emit schema version 4:
 
 ```json
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "status": "ok",
   "stack": [],
   "stackDisplay": [],
   "output": [],
   "message": null,
-  "diagnosis": null,
-  "errorFlowTrace": [],
-  "aiDiagnostic": null,
-  "runtimeMetrics": {},
+  "error": null,
   "resourceUsage": {},
   "contractDecls": null,
   "stackElided": null,
@@ -91,43 +87,47 @@ best-effort static Word resolution, and never executes the program. With
 conservative result of comparing `#:contract` declarations with inferred
 contracts.
 
+An error carries `message` and one `error` object, the whole of what
+LANG.OBSERVATION.DIAGNOSIS asks an ERROR to carry:
+
+```json
+{ "category": "resourceLimitExceeded", "resource": "numericWork", "word": "MUL", "line": 1, "column": 25 }
+```
+
+`category` is the `spec/outcomes.json` error category; `resource` names the
+ceiling a `resourceLimitExceeded` crossed, a key of the host's limit profile;
+`word` is the Word the failure is attributed to — the innermost Word that
+raised it, or the User Word whose body did, since from the caller's side that
+Word is what failed; `line` and `column` are the top-level token that reached
+it. A key with nothing to say is absent. Schema version 3 carried `diagnosis`,
+`aiDiagnostic` and `errorFlowTrace` here; they were removed in 2026-10, with
+their next-check suggestions and spelling candidates.
+
 `compute` runs the same declaration check **before executing anything**
 (LANG.CONTRACT.CHECK is a pre-execution check, and `compute` is where
 execution happens): a source that carries a `#:contract` directive gets
 `contractDecls` in its envelope whatever the run does, and a declaration
 inference disproves stops the run — `status: error`, `outcome:
 error:contractViolation`, nothing executed and nothing printed. A source with
-no directive carries no `contractDecls` and is untouched.
-
-A violated declaration is reported in the shape every other error has, by
-`check` and `compute` alike: `message` ("Contract declaration violated: …"),
-`diagnosis` with `when: checkContract`, `why: contractViolation` and
-`where.word` naming the declared Word, `aiDiagnostic.category:
-contractViolation` (a structural category of `spec/outcomes.json`, `repair:
-program`), and a `checkDeclaredContract` next-check pointing at
-`infer-contracts`' `suggested` line. `contractDecls.findings[]` still carries
-each finding; it used to be the only place the violation was written, so a
-reader following "on error, read `diagnosis.why`" found nothing. `outcomes`
-predicts `error:contractViolation` exactly when the source carries a
-directive.
+no directive carries no `contractDecls` and is untouched. A violated
+declaration is reported in the shape every other error has, by `check` and
+`compute` alike: `message` ("Contract declaration violated: …") and `error`
+with `category: contractViolation` and `word` naming the declared Word.
 
 `compute` also carries a top-level `outcome` string: which of LANG.FAILURE's
-three results the run produced, as a `spec/outcomes.json` id — the vocabulary
-`agent outcomes` predicts in, so a run is checked against its prediction with
-one membership test. `status` alone folds a reasoned absence into `ok`;
-`outcome` keeps the three apart (`Report::outcome_id` in
-`rust/src/agent/report.rs`):
+three results the run produced, as a `spec/outcomes.json` id. `status` alone
+folds a reasoned absence into `ok`; `outcome` keeps the three apart
+(`Report::outcome_id` in `rust/src/agent/report.rs`):
 
 | run | `status` | `outcome` |
 |---|---|---|
 | top of stack is not NIL (an empty stack included) | `ok` | `value` |
 | top of stack is NIL | `ok` | `nil:<reason>`, the top node's `semantics.absence.reason` |
-| a language error | `error` | `error:<category>`, `aiDiagnostic.category`, else `diagnosis.why` |
+| a language error | `error` | `error:<category>`, `error.category` |
 
 The field is absent when the run cannot be classified (a NIL with no reason,
 an error naming no category) rather than carrying a guessed id, and `check`
-never carries it: it does not run the program. Purely additive, so the schema
-version stays 3.
+never carries it: it does not run the program.
 
 Native `run` obtains this document from the typed, source-only Rust
 `agent::api::compute` boundary. Terminal formatting is a consumer of that
@@ -141,141 +141,23 @@ adapter's `worker_threads` backend) renders the identical envelope; the
 native CLI (`rust/src/cli`) is a thin file/terminal adapter over the same
 module.
 
-### `contractDecls`: gap identifiers
-
-`LANG.CONTRACT.CHECK` fixes exactly three results for `check --contract`:
-verified, cannot verify, violated. A `code` on a finding is the stable *reason*
-behind a cannot-verify result — the breakdown of that one result, not a fourth
-result of its own. Each finding's `severity` is computed exactly as before;
-gap identifiers add information, they do not change what counts as a
-violation.
+### `contractDecls`
 
 ```json
 {
-  "findings": [
-    {
-      "severity": "note",
-      "message": "`#:contract NORMALIZE`: declared `pure` but inferred `effectful` (unverified).",
-      "code": "gap.recursiveDependency"
-    }
-  ],
-  "gapSummary": {
-    "declarationsChecked": 3,
-    "verified": 1,
-    "cannotVerify": 1,
-    "violated": 1,
-    "byGap": { "gap.recursiveDependency": 1 }
-  }
+  "findings": [ { "severity": "error", "message": "`#:contract W`: declared `inputs=2` but inferred `inputs=1`." } ],
+  "outcome": "error",
+  "declarations": [ { "word": "W", "outcome": "error" } ]
 }
 ```
 
-- `code` is present (a string) only on a `"severity": "note"` finding, and is
-  `null` for every `"severity": "error"` finding: a proven violation is not
-  something inference merely failed to decide, so it carries no gap.
-- The five gap ids, and no others: `gap.unresolvedWord` (a symbol the body
-  calls does not resolve to any word), `gap.recursiveDependency` (inference
-  re-entered a word that is already being inferred — direct or mutual
-  recursion), `gap.dependencyUnknown` (a dependency's own inference could not
-  complete), `gap.conservativeSeed` (inference fell back to the maximally
-  cautious contract without going through one of the other reasons),
-  `gap.unmodelledControlFlow` (the body runs code inference never read — a
-  code operand that is not the `[ ... ]` literal written before the Word that
-  runs it, such as `[ [ [ 42 PRINT ] ] 0 GET EXEC ]` — or no fixed arity
-  describes its stack flow). `gap.opaqueReflection` was
-  retired along with `REFLECT` (the 2026-08 CodeBlock/Vector unification;
-  its work order has since been retired): every Vector is executable now,
-  so there is no separate crossing whose contents inference cannot trust.
-- `gapSummary.declarationsChecked` counts successfully-parsed `#:contract`
-  declarations; `verified + cannotVerify + violated` always equals it. A
-  malformed directive (one that never became a checkable declaration) still
-  contributes an `error` finding and still makes `outcome` `error`, but is not
-  one of the three counted here.
-- `gapSummary.byGap` keys are sorted ascending and the object is always
-  present (empty when nothing is unverifiable), so a caller can read it
-  without a presence check.
-
-### `contractDecls`: `outcome` and `declarations`
-
-`verified` / `cannot verify` / `violated` are `LANG.FAILURE.TRICHOTOMY`
-(value / reasoned absence / error) applied at check time instead of run time
-(`spec/language-semantics.md`, `LANG.CONTRACT.CHECK`) — not by analogy, but
-because a gap identifier already has the same character as a NIL reason, and
-`ajisai contract` already returns the "value" case (the inferred contract
-itself) as its own tool. `contractDecls.outcome` and `.declarations` state
-that correspondence directly, in the runtime's own vocabulary:
-
-```json
-{
-  "findings": [ ... ],
-  "gapSummary": { ... },
-  "outcome": "nil",
-  "declarations": [
-    { "word": "INC",       "outcome": "value" },
-    { "word": "NORMALIZE", "outcome": "nil", "reason": "gap.recursiveDependency" },
-    { "word": "BAD",       "outcome": "error", "category": "contractViolation" }
-  ]
-}
-```
-
-- `declarations` has one entry per successfully-parsed `#:contract`
-  declaration, in source order, each carrying exactly the fields its outcome
-  has: `reason` (a gap id) only for `"outcome": "nil"`; `category` (always
-  the literal string `"contractViolation"` — not an `ErrorCategory`, which is
-  the *runtime* error registry, and a contract violation is not a runtime
-  error) only for `"outcome": "error"`.
-- The file-level `outcome` is a fold of `declarations[].outcome`, derived from
-  `LANG.FAILURE` rather than chosen: `error` propagates and halts, so one
-  `error` anywhere decides the whole file; `nil` flows downstream only once
-  nothing halted first, so it decides the file only when no `error` is
-  present; a file with no declarations (or none outstanding) is `value`. A
-  malformed directive belongs to no declaration but fails the check, so it
-  makes the file-level `outcome` `error` as well.
-- **This does not make `check` evaluate the program.** The correspondence
-  classifies outcomes, not mechanisms — division by zero, a failed parse and
-  an out-of-range index already share one *outcome* (NIL) while sharing no
-  *mechanism*, and an inference that could not decide joins that list on the
-  same terms.
-- `outcome` is the only spelling of a violation: schema version 2 removed the
-  boolean `violated` that repeated `outcome == "error"`. `findings` stays, as
-  the place each declaration's message is written. The exit code is `1` when
-  `outcome` is `error` and `0` otherwise — `outcome: "nil"` (cannot verify)
-  never fails the check.
-- Merging gap identifiers into the NIL reason registry so a gap could be read
-  back through `NIL-REASON` is deliberately **not** done here. See
-  `docs/dev/trichotomy-unification.md` for why, and the condition under which
-  it is worth revisiting.
-
-### `contractDecls`: the `cost` declaration axis
-
-A `#:contract` directive may also declare `cost`, one or more
-`steps=CLASS`/`numeric=CLASS`/`collection=CLASS` terms (`CLASS` one of
-`const`/`linear`/`superlinear`/`unbounded`), checked against the same three
-counters `resourceUsage` reports (`executionSteps`/`numericWork`/
-`collectionWork` respectively — see below). Design rationale, the class
-lattice, and why this axis deliberately does not refine per call site are in
-`docs/dev/cost-contract-design.md`.
-
-```text
-#:contract SUM-ALL cost steps=unbounded numeric=linear
-```
-
-- Each axis is checked only when declared; an omitted axis is not checked, the
-  same rule the other declaration parts already follow.
-- Unlike arity/purity/nil-free, a cost mismatch's `severity` is driven by
-  *that axis's own* exactness witness, not the word's overall
-  `ContractConfidence`: `error` only when the tighter class is proven
-  attained, `note` otherwise. A `note` here can carry `code: null` even though
-  it is a `note` — a cost bound can be a sound-but-unproven upper bound by the
-  classification's own design (e.g. `MAP`'s step count), not because
-  inference gave up on the word, so it is not always one of the six gap ids.
-- The inferred class depends on **what actually feeds the word**, not on the
-  word's name alone. A built-in's class is a function of its operands, so a
-  compile-time-literal operand collapses it: `{ RANGE }` is `unbounded` on the
-  collection axis (its charge is set by the operand's *value*, not its size),
-  while `{ [ 0 10 ] RANGE }` is `const`. Likewise `{ ADD }` is `linear` on the
-  numeric axis but `{ 1 2 ADD }` is `const`. Two words calling the same
-  built-in can therefore verify different declarations — declaring the class
-  the *call site* actually has is what makes the axis worth declaring.
+A directive declares only `inputs=N`, `outputs=N` and `field=closed|leaving`;
+any other term makes it malformed, which is a violation. Each declaration's
+`outcome` is the check-time trichotomy (LANG.CONTRACT.CHECK): `value` when
+verified, `nil` when the inference cannot verify it (a `note` finding — a
+`variable` arity, a `leaving` resting only on code the walk could not read, a
+Word defined twice), `error` when violated. The top-level `outcome` is the
+worst of them.
 
 ### What the run cost, and what the runtime did
 
@@ -296,14 +178,11 @@ checked per result and never accumulated, so there is no peak to report, and
 none is invented: a field carrying a number nothing measured is exactly the
 defect this object exists to fix.
 
-`runtimeMetrics` is **how the runtime went about it** — which cache answered,
-which fast path fired, how often a plan was rebuilt. Optimizer observations,
-useful for understanding a slowdown and useless for planning against a limit.
+How the runtime went about the work — which cache answered, which fast path
+fired — is not reported. Those optimizer counters (`runtimeMetrics`) were
+removed in 2026-10: they described no fact about the program, and keeping every
+fast path's count equal to the plain route's cost code and time on each one.
 
-`executionSteps` is a budget, so it is reported in `resourceUsage` alone.
-Schema version 1 also carried it in `runtimeMetrics`, where it went unnoticed
-for a long time that nothing ever wrote it — two counters for one fact, and the
-reported one was always zero — so version 2 removed that copy.
 
 ### `observationDigest`
 
@@ -316,9 +195,8 @@ category. It lets a caller compare two implementations, two runs, or a run
 against a recorded expectation, without transferring or diffing the values
 themselves.
 
-It does **not** include `stackDisplay`, `message`, `diagnosis`,
-`aiDiagnostic`, `errorFlowTrace`, `runtimeMetrics`, `resourceUsage`, or
-`contractDecls` — none of those are the observation; several of them
+It does **not** include `stackDisplay`, `message`, the `error` object beyond
+its category, `resourceUsage`, or `contractDecls` — none of those are the observation; several of them
 (`stackDisplay` in particular) are renderings of a value rather than the value
 itself. A value's
 `hint` (display role) is excluded the same way `PartialEq for Value` excludes
@@ -371,18 +249,18 @@ execute and so have nothing to receipt.
 
 Two runs of the same `source` under the same profile receipt identically; a
 one-character change to either the source or the profile changes `digest`.
-`runtimeMetrics` is deliberately absent from the bundle for the same reason it
-is absent from `observationDigest`: it is optimizer state, not a fact about
-what the program does (`LANG.AUTHORITY.FREEDOM` — which path ran is
+Nothing about which route ran is in the bundle: that is optimizer state, not a
+fact about what the program does (`LANG.AUTHORITY.FREEDOM` — which path ran is
 unobservable). The byte grammar carries its own schema tag (`AJISAI-RECEIPT-2`,
 `rust/src/agent/execution_receipt.rs`), distinct from `observationDigest`'s,
 since a receipt is a superset of a digest and the two must be free to version
 independently.
 
+
 ### A report that cannot afford its stack
 
-An error report carries two different things. The **diagnosis** is the answer:
-why the program stopped and what to do about it. The **stack** is residual
+An error report carries two different things. The **error** is the answer:
+why the program stopped, and where. The **stack** is residual
 state — whatever the program happened to be holding at the time. When the two
 together exceed what a host will accept, sending the residue and losing the
 answer is the wrong trade.
@@ -435,17 +313,15 @@ Four rules make this safe to rely on.
 - **The reason names the budget.** `errorStackBudget` is the fixed error
   budget; `valueStackBudget` is the agent profile's success budget, and a host
   that sets none never sees it.
-- **Values are dropped, never reasons.** `diagnosis`, `aiDiagnostic`,
-  `errorFlowTrace`, `message`, `output` and `runtimeMetrics` are never elided
-  by the stack budget. (`errorFlowTrace` has a budget of its own, below.)
+- **Values are dropped, never reasons.** `error`, `message` and `output` are
+  never elided by the stack budget.
 - **Slots keep their index.** A dropped slot is replaced, never removed, so
   `stack` and `stackDisplay` stay the same length as the real stack and a
-  diagnosis that points at stack depth still points at the same thing.
+  reader that points at stack depth still points at the same thing.
   `stackDisplay` carries a matching `<elided …>` marker, so a text-only reader
   learns the same facts.
 - **An ordinary result is untouched.** The error budget is 64 KiB — one
-  sixteenth of the MCP adapter's 1 MiB `responseBytes` ceiling — and an
-  ordinary diagnosis is roughly 15 KiB in total; a 5,000-element vector of
+  sixteenth of the MCP adapter's 1 MiB `responseBytes` ceiling; a 5,000-element vector of
   small integers (433 KB) still fits the success budget. For both,
   `stackElided` is absent and nothing changes byte for byte. It appears as `null` here and is omitted entirely from the MCP
   envelope, which drops null top-level fields.
@@ -453,6 +329,7 @@ Four rules make this safe to rely on.
 Distinguishing an elided slot from a genuine `NIL`: a `NIL` has
 `type: "nil"` and carries `semantics.absence`; an elided slot keeps the real
 domain in `type` and carries `elided`.
+
 
 ### Stack value nodes
 
@@ -468,8 +345,9 @@ playground boundary:
 ```
 
 Arbitrary-precision integers are decimal strings, never JSON floating-point
-numbers. Vectors contain arrays of value nodes. NIL carries normalized absence
-metadata in `semantics.absence`. UNKNOWN is a NIL and is serialized as one; a
+numbers. Vectors contain arrays of value nodes. NIL carries its absence in
+`semantics.absence`: `reason`, and the `detail` text a `userDeclared` reason
+carries — nothing else. UNKNOWN is a NIL and is serialized as one; a
 Boolean carries `semantics.truthValue`. Every field of a node is derived from
 the value itself, never from the Word that produced it.
 
@@ -503,115 +381,26 @@ display `2/1*sqrt(2)`. There is no separate short-rendering
 field: an `exactDisplay` once carried this string when `stackDisplay` was a
 truncated continued fraction, and was removed once the two became the same.
 
-### Diagnosis and error flow
-
-`diagnosis` is a structured failure explanation with `when`, `why`, `summary`,
-`where`, `evidence`, `nextChecks`, `candidates`, and
-`resourceLimit`. It is the report's one copy of the diagnosis: the trace's
-`wordError` event does not repeat it, and `aiDiagnostic` does not copy its
-checks.
-
-`aiDiagnostic` classifies an ERROR and nothing more: `category` (the
-spec/outcomes.json error category — the id `error:<category>` names),
-`repair` (`"program"` exactly when spec/outcomes.json marks the category
-`repair: program`, absent otherwise, as in the registry), `word` and `family`.
-A NIL's reason is read from the value's `semantics.absence`, not from here; a
-NIL is never reported under an error category. Consumers must treat new
-protocol-string variants as opaque values rather than rejecting the report.
-
-`summary` is one display line in protocol spellings:
-`executeWord / ADD / stackShape (error:stackUnderflow) msg="…"`, or
-`(nil:domainMiss)` for a NIL's diagnosis. Read it; branch on the fields.
-
-Each `nextChecks` entry is `{ code, title: { en, ja }, detail: { en, ja } }`.
-`code` is the stable identifier — match on it. `title` and `detail` are display
-text, free to be reworded or to gain a locale; a consumer that matched on the
-old flat `label`/`detail` pair was matching on a mixed-language string that was
-neither stable nor localizable.
-
-`candidates` lists known Words closest to a name that did not resolve, best
-match first, and is empty for every other cause class. It considers the
-compiled-in vocabulary, the failing interpreter's own dictionary, and — for
-`check` — the Words the same source defines.
-
-`resourceLimit` is `{ resource, limit, observed }` (plus `progress` for a
-cumulative meter) when a declared ceiling fired, and `null` otherwise. A
-generative Word asked for a result past a ceiling (`RANGE`, `FILL`, `RESHAPE`,
-`JSON-DECODE`, `NUM`, `POW`) fails the same way, naming `materializedElements`,
-`nestingDepth`, `numericLiteralDigits`, `bigintBits` or `algebraicTerms` with
-the size it measured before building; a ceiling is never a value. `resource`
-is the ceiling's own name
-(`sourceBytes`, `numericLiteralDigits`, `numericWork`, `collectionWork`,
-`bigintBits`, `algebraicTerms`, `nestingDepth`, `materializedElements`,
-`executionSteps`) — the same identifier a host publishes in
-its limit profile, so "too big" says what was too big and against what. A size
-ceiling reports `aiDiagnostic.category: "resourceLimitExceeded"`; the step
-budget keeps `executionLimitExceeded`, because letting the program run longer
-fixes one and not the other.
-
-`errorFlowTrace` records Word errors and reason-carrying NIL production. A
-`nilProduced` event carries that NIL's `diagnosis`, which lives nowhere else;
-a `wordError` event carries none, since the report's top-level `diagnosis` is
-built from it. A successful run may therefore have a non-empty trace. The
-event is recorded at the Word whose contract projected the NIL and not at the
-Words it then passed through (LANG.FAILURE.PASSTHROUGH): `-1 SQRT 2 ADD` holds
-one `nilProduced` event, for `SQRT`. A Word inside whose run it was produced —
-a `MAP` applying the block, the User Word whose body ran `SQRT` — is named in
-that event's diagnosis evidence as `insideWords=`, innermost first, the same
-way a `wordError` names the frames a failure happened in. Neither NIL nor an Ajisai
-language `status: error` is a host transport failure.
-
-The trace grows with the run rather than the source — `0 45000 RANGE [ 1 ADD -1
-MUL SQRT ] MAP` records 45,001 `nilProduced` events — so it is sent under a byte budget,
-the same 64 KiB an error report's stack gets. When the events do not all fit,
-the first ones that fit half of it and the last ones that fit the other half
-are sent, in order (the last event always), and a top-level
-`errorFlowTraceElided` record says what was dropped:
-
-```json
-{ "reason": "errorFlowTraceBudget", "events": 45001, "omittedFrom": 15, "omitted": 44971 }
-```
-
-`omittedFrom` is the index, in the full trace, of the first event not sent.
-A trace that fits is sent whole and the record is absent.
 
 ## `contract`
 
 `agent infer-contracts` returns, under `contracts`, one entry per user Word
-(`contract` prints the same entries for a person). Each entry reports
-a user Word's inferred `name`, `inputs`, `outputs`, `partiality`, `field`
-(`"closed"`/`"leaving"`, LANG.CONTRACT.FIELD) with `fieldExits` naming where a
-`leaving` body leaves, `purity`, `determinism`, a `cost` object keyed by its three axes
-(`steps`/`numeric`/`collection`, each `"const"`/`"linear"`/`"superlinear"`/
-`"unbounded"`), `effects`, `confidence`, `gaps`, and a paste-ready `suggested`
-declaration — the same keys, in the same vocabulary, as a registered Word's
-contract.
-Inference registers definitions without executing their bodies.
+(`contract` prints the same entries for a person):
 
-Source that does not tokenize or balance its vector delimiters is answered
-exactly as `agent check` answers it — `status: "error"`, exit 1,
-`aiDiagnostic.category: "malformedSource"` — rather than as a success with no
-contracts. A body that calls a name nothing defines is `partiality: "partial"`
-with the `gap.unresolvedWord` gap: that call raises `unknownWord`, a
-`repair: program` category, so the Word is partial by the registry's own
-derivation.
+```json
+{ "name": "MEAN", "inputs": 1, "outputs": 1, "field": "leaving", "fieldExits": ["DIV"], "suggested": "#:contract MEAN inputs=1 outputs=1 field=leaving" }
+```
 
-`suggested` carries only terms the declaration checker can parse — arity,
-purity, NIL behavior and `cost`. The space class is reported but never
-suggested: there is no `space:` production in the declaration grammar, so a
-suggested line carrying one is rejected as malformed and fails
-`check --contract` outright.
-
-Within `cost`, `suggested` codifies an axis only when inference *proves* that
-axis's bound is attained (its `exact` witness); an axis whose bound is merely
-a plausible upper bound is reported but left out, since an unproven bound
-could only ever check as a note. When no axis is exact, the `cost` keyword
-itself is omitted rather than emitted with zero terms, since the declaration
-grammar rejects a bare `cost`.
-
-The entries are produced by `agent::api::infer_contracts` so native and
-other embedded hosts (including the WASM one-shot entry point) share inference
-rather than reimplementing it.
+`inputs` and `outputs` are counts, or `"variable"` where the walk cannot state
+one (a Word of variable arity, a name nothing defines); `field` is
+`"closed"`/`"leaving"` (LANG.CONTRACT.FIELD) with `fieldExits` naming where a
+`leaving` body leaves, in body order; `suggested` is a paste-ready declaration.
+Inference registers definitions without executing their bodies. Source that
+does not tokenize or balance its vector delimiters is answered exactly as
+`agent check` answers it — `status: "error"`, exit 1, `error.category:
+"malformedSource"` — rather than as a success with no contracts. The entries
+are produced by `agent::api::infer_contracts`, so native and embedded hosts
+(the WASM one-shot entry point included) share one inference.
 
 ## `test`
 
@@ -633,80 +422,16 @@ Ajisai Words.
 `version --json` emits:
 
 ```json
-{ "schemaVersion": 3, "status": "ok", "version": "1.0.0-beta.1" }
+{ "schemaVersion": 4, "status": "ok", "version": "1.0.0-beta.1" }
 ```
+
 
 ## `agent`
 
 `agent` is the one JSON host boundary, used by the MCP adapter and by the
-repository's own scripts. Its `compute`, `check`, `infer-contracts`, and
-`outcomes` operations call the typed Rust agent API and always return a
-schema-versioned object.
-
-### `outcomes`
-
-Predicts, without executing it, the finite set of outcome ids a program
-could produce (Phase 5 of the 2026-09 auditable-kernel work order, since
-retired; `rust/src/interpreter/predict_program_outcomes.rs` is the
-implementation). Never fails: a program
-that cannot even be read (a tokenize failure, an unbalanced vector) is
-settled before a single Word runs, so it has exactly one predicted outcome.
-
-```json
-{
-  "schemaVersion": 3,
-  "status": "ok",
-  "outcomes": ["value", "error:nonNumeric", "error:shapeMismatch"],
-  "exact": false,
-  "limitProfile": { "executionSteps": 12180000, "materializedElements": 1000000, "...": "..." }
-}
-```
-
-`outcomes` is the union, over every Word named anywhere in the program
-(including inside `DEF`'d bodies and inside `[ ... ]` literals — a block can
-be pushed by one Word and executed by another arbitrarily far away, so a
-literal that is inert where it is written may still run), of that Word's own
-declared vocabulary (`spec/words.json`'s `errorWhen` + `projection.reason` —
-sound by construction, per the outcome-bijection gate), plus
-`error:stackUnderflow` unless a flow-sensitive arity check proves the program
-never underflows its own starting stack, plus `error:unknownWord` when any
-name fails to resolve, plus every cross-cutting *structural* category
-(`executionLimitExceeded`, `resourceLimitExceeded`, `recursionLimitExceeded`,
-`condExhausted`, `nameConflict`, `builtinProtection`, and the rest — none of
-which is any specific Word's own declared condition) once the program does
-anything at all.
-
-Note that an unresolvable name joins the set rather than deciding it. Word
-resolution happens *during* execution, so an unknown word is the outcome only
-if execution reaches it: `ADD FROBNICATE` answers `stackUnderflow` and
-`'a' 1 ADD FROBNICATE` answers `nonNumeric`, both before `FROBNICATE` is ever
-looked up.
-
-`exact` is `true` only when the predicted set narrows to the single outcome
-id — which, since Ajisai is deterministic and total, is what the program
-actually produces when run. This holds for a program that calls no Word at
-all (a bare literal, or nothing); calling even one Word makes it `false`,
-since the structural floor above is added unconditionally rather than proven
-reachable or unreachable for that specific profile. `exact: false` never
-means the prediction is wrong — the true outcome is somewhere in the
-returned set, just not narrowed further. This is a deliberately coarse V1: it
-never under-approximates, but does not yet prove a specific declared
-condition unreachable for the operands that actually reach a call.
-
-That "never under-approximates" is a checked claim, not an aspiration.
-`scripts/check-outcome-prediction.mjs` verifies it two ways: against every
-witness in `spec/outcome-witnesses.json` (one per registry id), and against a
-list of adversarial *compositions* the script runs for real and compares —
-programs whose shape, rather than whose outcome id, is what threatens the
-property. The second list exists because the first could not see either of
-the two holes an Opus review pass found: every witness is a short program
-that fails at its first Word, so neither "an unknown word that execution
-never reaches" nor "a block executed somewhere other than where it is
-written" was represented.
-
-`limitProfile` (the same shape `receipt.limitProfile` reports) names the
-resource ceilings this prediction assumed: the profile `--limits` selects and
-the `--step-limit` budget, exactly as `agent compute` would run it.
+repository's own scripts. Its `compute`, `check` and `infer-contracts`
+operations call the typed Rust agent API and always return a schema-versioned
+object.
 
 ## Compatibility
 

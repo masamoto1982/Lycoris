@@ -152,7 +152,7 @@ pub enum ErrorCategory {
     ResourceLimitExceeded,
     RecursionLimitExceeded,
     /// A `#:contract` declaration the inferred contract contradicts
-    /// (`agent::contract_decl`). Raised before anything runs — by `check`,
+    /// (`agent::contract`). Raised before anything runs — by `check`,
     /// and by `compute`, which refuses to execute a program whose own
     /// declaration about itself is false — so it has no `AjisaiError`
     /// behind it: no Word ever raises it.

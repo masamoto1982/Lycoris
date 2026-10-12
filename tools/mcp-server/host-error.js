@@ -1,7 +1,7 @@
 // The host-failure half of the MCP boundary.
 //
 // Ajisai's own outcomes — a value, a reason-carrying `NIL`, a language `ERROR`
-// — are all *successful* tool calls carrying structured diagnosis. What was
+// — are all *successful* tool calls carrying a structured report. What was
 // left unstructured was the other half: a missing backend, an exhausted
 // budget, a timeout, a malformed backend response. Those arrived as prose, so
 // a caller wanting to tell "retry in a moment" from "this will never work"

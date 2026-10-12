@@ -5,40 +5,13 @@ import {
     it
 } from 'vitest';
 import type {
-    ErrorFlowTraceEvent,
     ProtocolAbsence,
-    ProtocolDiagnosis,
     Value
 } from './wasm-interpreter-types';
 import { parseHostProfile } from './wasm-interpreter-types';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
-
-const diagnosis: ProtocolDiagnosis = {
-    when: 'executeWord',
-    where: {
-        kind: 'coreWord',
-        word: 'DIV'
-    },
-    why: 'domain',
-    summary: 'Division by zero produced a reasoned NIL.',
-    evidence: ['right operand was zero'],
-    nextChecks: [
-        {
-            code: 'checkDivisor',
-            title: { en: 'Check divisor', ja: '除数を確認する' },
-            detail: {
-                en: 'Ensure the divisor is non-zero before division.',
-                ja: '除算の前に除数が 0 でないことを確認する'
-            }
-        }
-    ],
-    candidates: []
-};
 
 const absence: ProtocolAbsence = {
-    reason: 'domainMiss',
-    diagnosis
+    reason: 'domainMiss'
 };
 
 describe('Semantic Firewall protocol payload types', () => {
@@ -53,26 +26,8 @@ describe('Semantic Firewall protocol payload types', () => {
 
         expect(value.type).toBe('nil');
         expect(value.semantics?.absence?.reason).toBe('domainMiss');
-        expect(value.semantics?.absence?.diagnosis?.why).toBe('domain');
         expect(Object.hasOwn(value, ['nil', 'Reason'].join(''))).toBe(false);
         expect(Object.hasOwn(value, ['error', 'Category'].join(''))).toBe(false);
-    });
-
-    test('Error flow trace uses absence fields only', () => {
-        const event: ErrorFlowTraceEvent = {
-            kind: 'nilProduced',
-            word: 'DIV',
-            absence,
-            stackLenBefore: 2,
-            stackLenAfter: 3,
-            message: 'NIL produced by DIV stack_len_after=3',
-            diagnosis
-        };
-
-        expect(event.absence?.diagnosis?.when).toBe('executeWord');
-        expect(event.diagnosis?.where.kind).toBe('coreWord');
-        expect(Object.hasOwn(event, ['nil', 'Reason'].join(''))).toBe(false);
-        expect(Object.hasOwn(event, ['error', 'Category'].join(''))).toBe(false);
     });
 });
 
@@ -129,32 +84,5 @@ describe('parseHostProfile', () => {
         expect(parseHostProfile('{"profile":"p","limits":{"a":"5"}}')).toBeNull();
         expect(parseHostProfile('{"profile":"p","limits":{"a":null}}')).toBeNull();
         expect(parseHostProfile('{"profile":"p","limits":{"a":1e999}}')).toBeNull();
-    });
-});
-
-// DUT: the diagnosis vocabularies this file's types mirror from
-// rust/src/interpreter/debug_diagnosis.rs. A type cannot be enumerated at run
-// time, so both sides are read as text: each `as_protocol_str` arm the engine
-// can emit must be a member of the matching union, and each member must be
-// one the engine emits or one the playground adds itself.
-describe('diagnosis vocabularies match the engine', () => {
-    const rust = readFileSync(resolve(__dirname, '../rust/src/interpreter/debug_diagnosis.rs'), 'utf8');
-    const ts = readFileSync(resolve(__dirname, 'wasm-interpreter-types.ts'), 'utf8');
-    const engine = (rustType: string): string[] => {
-        const block = rust.match(new RegExp(`impl ${rustType} \\{[\\s\\S]*?as_protocol_str[\\s\\S]*?\\n\\s{4}\\}`))?.[0] ?? '';
-        return [...block.matchAll(/=> "([^"]+)"/g)].map(m => m[1]!).sort();
-    };
-    const mirror = (tsType: string): string[] => {
-        const union = ts.match(new RegExp(`export type ${tsType} =([^;]+);`))?.[1] ?? '';
-        return [...union.matchAll(/'([^']+)'/g)].map(m => m[1]!).sort();
-    };
-    it.each([
-        ['ErrorPhase', 'DiagnosisPhase', ['hostGuard']],
-        ['ErrorLocusKind', 'DiagnosisLocusKind', ['hostEnvironment']],
-        ['CauseClass', 'DiagnosisCauseClass', []]
-    ])('%s ↔ %s', (rustType, tsType, playgroundOnly) => {
-        const emitted = engine(rustType);
-        expect(emitted.length).toBeGreaterThan(0);
-        expect(mirror(tsType)).toEqual([...emitted, ...playgroundOnly].sort());
     });
 });

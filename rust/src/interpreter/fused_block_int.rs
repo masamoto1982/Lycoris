@@ -83,7 +83,6 @@ pub(crate) enum IntOp {
 struct Typed {
     ops: Vec<IntOp>,
     out: Ty,
-    fastpath_per_run: u64,
     work_per_run: u64,
 }
 
@@ -151,7 +150,7 @@ fn typed(block: &FusedBlock, inputs: &[Ty]) -> Option<Typed> {
     let mut stack: Vec<Ty> = inputs.to_vec();
     let mut slots: Vec<Option<Ty>> = vec![None; block.slots];
     let mut ops = Vec::with_capacity(block.ops.len());
-    let (mut fastpath, mut work) = (0u64, 0u64);
+    let mut work = 0u64;
     let pair = |stack: &mut Vec<Ty>| Some((stack.pop()?, stack.pop()?));
     let mut i = 0;
     while i < block.ops.len() {
@@ -216,7 +215,6 @@ fn typed(block: &FusedBlock, inputs: &[Ty]) -> Option<Typed> {
                     }
                     _ => return None,
                 };
-                fastpath += 1;
                 (op, Ty::Bool)
             }
             Op::Extremum { max } => {
@@ -225,7 +223,6 @@ fn typed(block: &FusedBlock, inputs: &[Ty]) -> Option<Typed> {
             }
             Op::Arith(schema) => {
                 (pair(&mut stack)? == (Ty::Int, Ty::Int)).then_some(())?;
-                fastpath += 1;
                 work += binary_numeric_work(1, 1);
                 let op = match schema {
                     ExactArithmeticSchema::Add => IntOp::Add,
@@ -255,7 +252,6 @@ fn typed(block: &FusedBlock, inputs: &[Ty]) -> Option<Typed> {
     Some(Typed {
         ops,
         out: *stack.last()?,
-        fastpath_per_run: fastpath,
         work_per_run: work,
     })
 }
@@ -384,11 +380,6 @@ pub(crate) fn run(
         }
         (FusedWalk::Fold | FusedWalk::Scan, None) => return None,
     };
-    let charges = Charges {
-        runs,
-        steps,
-        work,
-        fastpath: runs.checked_mul(typed.fastpath_per_run)?,
-    };
+    let charges = Charges { steps, work };
     Some((value, charges))
 }

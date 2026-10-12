@@ -8,7 +8,6 @@
 //! need it.
 
 use crate::error::{ErrorCategory, NilReason};
-use crate::interpreter::debug_diagnosis::DebugDiagnosis;
 use crate::interpreter::{Interpreter, RuntimeLimits};
 use crate::types::exact::ExactReal;
 use crate::types::fraction::Fraction;
@@ -141,21 +140,6 @@ pub(crate) async fn top_is_dense(code: &str) -> bool {
 pub(crate) async fn equals(left: &str, right: &str) -> Option<bool> {
     let interp = run_with_wide_materialization(&format!("{left} {right} EQ")).await;
     interp.get_stack().as_slice().last()?.as_truth()
-}
-
-/// The diagnosis of the failure `source` must end in.
-pub(crate) async fn diagnose(source: &str) -> DebugDiagnosis {
-    let mut interp = Interpreter::new();
-    assert!(
-        interp.execute(source).await.is_err(),
-        "`{source}` must fail"
-    );
-    interp
-        .drain_error_flow_trace()
-        .iter()
-        .rev()
-        .find_map(|event| event.diagnosis.as_ref().map(|d| d.to_diagnosis()))
-        .expect("a failed run records a diagnosis")
 }
 
 /// `n/d` as a `Fraction`.

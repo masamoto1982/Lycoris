@@ -53,15 +53,12 @@ async fn a_body_the_compiler_cannot_lower_is_compiled_once() {
         .execute("[ [ LATER ] ] 'QUOTE' DEF")
         .await
         .expect("must define");
-    let before = interp.runtime_metrics();
+    let before = crate::interpreter::session_lifecycle::plan_builds_on_this_thread();
     interp.execute("QUOTE QUOTE QUOTE").await.expect("must run");
-    let after = interp.runtime_metrics();
+    let after = crate::interpreter::session_lifecycle::plan_builds_on_this_thread();
     assert_eq!(
-        after.compiled_plan_build_count - before.compiled_plan_build_count,
-        1
-    );
-    assert_eq!(
-        after.compiled_plan_cache_hit_count - before.compiled_plan_cache_hit_count,
-        2
+        after - before,
+        1,
+        "built once, then reused by the other two calls"
     );
 }

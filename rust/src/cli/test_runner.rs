@@ -404,7 +404,7 @@ mod tests {
     /// before executing it, and the test runner runs what `run` runs.
     #[test]
     fn a_violated_contract_declaration_fails_like_run() {
-        let src = "#@ stack 2/1\n#:contract INC inputs=2 outputs=1 purity=pure\n\
+        let src = "#@ stack 2/1\n#:contract INC inputs=2 outputs=1 field=closed\n\
                    [ 1 ADD ] 'INC' DEF\n1 INC";
         let outcome = run_test_source("t", src);
         assert!(!outcome.passed());

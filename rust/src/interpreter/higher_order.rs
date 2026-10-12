@@ -182,9 +182,7 @@ pub(crate) fn execute_executable_code(
     exec: &ExecutableCode,
 ) -> Result<()> {
     let ExecutableCode { tokens, plan, .. } = exec;
-    interp.bump_execution_epoch();
-    // `bump_execution_epoch` moves the execution epoch, not the dictionary one,
-    // so a plan stays valid across the loop's elements; only a dictionary change
+    // A plan stays valid across the loop's elements; only a dictionary change
     // inside the block invalidates it.
     if crate::interpreter::is_plan_valid(plan, interp) {
         crate::interpreter::compiled_plan::execute_compiled_nested_block(interp, plan)

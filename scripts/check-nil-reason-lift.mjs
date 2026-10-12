@@ -139,7 +139,7 @@ function absenceReasons(source) {
       `the engine did not answer (exit ${result.status}) — no value, no NIL and no ERROR is ` +
       `no outcome under LANG.FAILURE.TRICHOTOMY: ${result.stderr.split('\n').slice(0, 3).join(' ')}`,
   });
-  if (json.status === 'error') return { raised: true, category: json.aiDiagnostic?.category ?? null, reasons: [] };
+  if (json.status === 'error') return { raised: true, category: json.error?.category ?? null, reasons: [] };
   const reasons = [];
   collectAbsenceReasons(json.stack ?? [], reasons);
   return { raised: false, reasons };

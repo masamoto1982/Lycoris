@@ -248,13 +248,13 @@ describe('what a stepped program means', () => {
     });
 
     test('runs a #:contract line with the DEF it describes', async () => {
-        const source = "#:contract DOUBLE inputs=1 outputs=1 purity=pure\n[ [ 2 ] MUL ] 'DOUBLE' DEF";
+        const source = "#:contract DOUBLE inputs=1 outputs=1 field=closed\n[ [ 2 ] MUL ] 'DOUBLE' DEF";
         const { executor, executed } = setup(source);
         for (let step = 0; step < 3; step++) await executor.executeStep();
         expect(executed).toEqual([
             '[ [ 2 ] MUL ]',
             "'DOUBLE'",
-            '#:contract DOUBLE inputs=1 outputs=1 purity=pure\nDEF'
+            '#:contract DOUBLE inputs=1 outputs=1 field=closed\nDEF'
         ]);
     });
 

@@ -2,7 +2,7 @@
  "$schema": "https://json-schema.org/draft/2020-12/schema",
  "$id": "ajisai://schema/result",
  "title": "Ajisai MCP result",
- "description": "One envelope for every Ajisai MCP tool result (compute, check, infer_contracts, outcomes, word_contract). `status` separates the three outcomes the boundary keeps distinct: a successful run (which includes a reason-carrying NIL), an Ajisai language error carrying its diagnosis, and a failure of the host rather than of the program. An optional field carrying no value is omitted rather than sent as `null`, so `diagnosis`, `aiDiagnostic` and `message` are simply absent from a plain success, and `contractDecls` from a source that declares no contract — test for presence, not for `null`. The text content block of a tool result carries this same object serialized, so a text-only client receives the whole result and not a summary of it.",
+ "description": "One envelope for every Ajisai MCP tool result (compute, check, infer_contracts, word_contract). `status` separates the three outcomes the boundary keeps distinct: a successful run (which includes a reason-carrying NIL), an Ajisai language error carrying its `message` and `error`, and a failure of the host rather than of the program. An optional field carrying no value is omitted rather than sent as `null`, so `message` and `error` are simply absent from a plain success, and `contractDecls` from a source that declares no contract — test for presence, not for `null`. The text content block of a tool result carries this same object serialized, so a text-only client receives the whole result and not a summary of it.",
  "type": "object",
  "additionalProperties": true,
  "required": [
@@ -63,7 +63,7 @@
     "object",
     "null"
    ],
-   "description": "Present when the stack was too large to send in full and the values of the slots that do not fit a byte budget were dropped; this record says which. On an `error` the budget is the fixed one every error report applies (`errorStackBudget`): the report's answer is its diagnosis, and the stack is residual state. On an `ok` it is the agent profile's stack budget (`valueStackBudget`): the values that fit arrive whole, and an oversized one arrives as this record rather than the whole result being refused as `responseTooLarge`, so a caller learns what it left on the stack and can fix the program. Absent whenever nothing was dropped, which is every ordinary result.",
+   "description": "Present when the stack was too large to send in full and the values of the slots that do not fit a byte budget were dropped; this record says which. On an `error` the budget is the fixed one every error report applies (`errorStackBudget`): the report's answer is its error, and the stack is residual state. On an `ok` it is the agent profile's stack budget (`valueStackBudget`): the values that fit arrive whole, and an oversized one arrives as this record rather than the whole result being refused as `responseTooLarge`, so a caller learns what it left on the stack and can fix the program. Absent whenever nothing was dropped, which is every ordinary result.",
    "properties": {
     "reason": {
      "type": "string",
@@ -85,7 +85,7 @@
        "index": {
         "type": "integer",
         "minimum": 0,
-        "description": "Position in `stack` and `stackDisplay`. Slots keep their index: a dropped slot is replaced in place, never removed, so a diagnosis that points at stack depth still points at the same thing."
+        "description": "Position in `stack` and `stackDisplay`. Slots keep their index: a dropped slot is replaced in place, never removed, so an index still points at the same thing."
        },
        "approxBytes": {
         "type": "integer",
@@ -111,29 +111,7 @@
   "outcome": {
    "type": "string",
    "pattern": "^(value|nil:[A-Za-z]+|error:[A-Za-z]+)$",
-   "description": "compute only. Which of the language’s three results (LANG.FAILURE) the run produced, as a spec/outcomes.json id: `value`, `nil:<reason>` for a reasoned absence on top of the stack (still `status: ok`), or `error:<category>` for a language ERROR (`status: error`). The same ids the `outcomes` tool predicts, so a run is checked against a prediction with one membership test. Absent only when the result cannot be classified (an unlabelled NIL, an error naming no category)."
-  },
-  "outcomes": {
-   "type": "array",
-   "items": {
-    "type": "string",
-    "pattern": "^(value|nil:[A-Za-z]+|error:[A-Za-z]+)$"
-   },
-   "uniqueItems": true,
-   "minItems": 1,
-   "description": "outcomes only. Every outcome id the program could produce, sorted; the actual run’s `outcome` is always a member."
-  },
-  "exact": {
-   "type": "boolean",
-   "description": "outcomes only. True exactly when `outcomes` holds one id — the single outcome the program produces (an empty program, or source that does not tokenize or balance its brackets). False means a sound superset, never a wrong answer."
-  },
-  "limitProfile": {
-   "type": "object",
-   "additionalProperties": {
-    "type": "integer",
-    "minimum": 0
-   },
-   "description": "outcomes only. The resource ceilings the prediction assumed, keyed like the `limits` of `ajisai://limits`."
+   "description": "compute only. Which of the language’s three results (LANG.FAILURE) the run produced, as a spec/outcomes.json id: `value`, `nil:<reason>` for a reasoned absence on top of the stack (still `status: ok`), or `error:<category>` for a language ERROR (`status: error`, whose `error.category` is the same category). Absent only when the result cannot be classified (an unlabelled NIL, an error naming no category)."
   },
   "contracts": {
    "type": "array",
@@ -152,7 +130,8 @@
        {
         "const": "variable"
        }
-      ]
+      ],
+      "description": "Values the Word consumes, or `variable` where the data decides."
      },
      "outputs": {
       "oneOf": [
@@ -163,22 +142,15 @@
        {
         "const": "variable"
        }
-      ]
-     },
-     "partiality": {
-      "enum": [
-       "total",
-       "partial",
-       "projecting"
       ],
-      "description": "The registry's derivation over the Words the body calls: `projecting` when one can answer a reasoned NIL of its own, `partial` when one can raise on operands of the right kind, `total` otherwise."
+      "description": "Values the Word leaves, or `variable` where the data decides."
      },
      "field": {
       "enum": [
        "closed",
        "leaving"
       ],
-      "description": "LANG.CONTRACT.FIELD: `leaving` when the body can answer a point over zero (`1/0` or `0/0`) from operands holding none — a DIV, POW or NUM whose operands' zero shapes can reach past the field, a literal over zero, or code the inference cannot read — and `closed` otherwise, in which case the field laws hold over finite operands. The projection of `shapes`: a `DIV` by a divisor that cannot be zero (`2 DIV`, `2 SQRT DIV`, `LENGTH 1 ADD DIV`) or a `POW` to an exponent that cannot be negative stays `closed`."
+      "description": "LANG.CONTRACT.FIELD: `leaving` when the body can answer a point over zero (`1/0` or `0/0`) from operands holding none — a DIV, POW or NUM whose operands can reach past the field, a literal over zero, or code the inference cannot read — and `closed` otherwise, in which case the field laws hold over finite operands. A `DIV` by a divisor that cannot be zero (`2 DIV`, `2 SQRT DIV`, `LENGTH 1 ADD DIV`) or a `POW` to an exponent that cannot be negative stays `closed`."
      },
      "fieldExits": {
       "type": "array",
@@ -187,138 +159,22 @@
       },
       "description": "Where a `leaving` body leaves the field, in body order: the Words it calls there and the literals it writes over zero. Empty for a `closed` body."
      },
-     "shapes": {
-      "type": "array",
-      "items": {
-       "enum": [
-        "zero",
-        "nonzero",
-        "infinite",
-        "nullity"
-       ]
-      },
-      "description": "LANG.CONTRACT.FIELD, read per zero shape (LANG.VALUES.SHAPE): the shapes every number the body pushes or answers may take when the numbers it reads lie in the field — `zero`, `nonzero` (every other number of the field), `infinite` (`1/0` or `-1/0`) and `nullity` (`0/0`). `field` is its projection: `closed` exactly when only `zero` and `nonzero` appear. `nullity` absent means no order Word in the body can be asked the order of `0/0`."
-     },
-     "purity": {
-      "enum": [
-       "pure",
-       "effectful"
-      ]
-     },
-     "determinism": {
-      "enum": [
-       "deterministic",
-       "stateRelative",
-       "hostRelative"
-      ]
-     },
-     "cost": {
-      "type": "object"
-     },
-     "effects": {
-      "type": "array",
-      "items": {
-       "type": "string"
-      }
-     },
-     "confidence": {
-      "enum": [
-       "complete",
-       "conservative"
-      ]
-     },
-     "gaps": {
-      "type": "array",
-      "items": {
-       "type": "string"
-      }
-     },
      "suggested": {
       "type": "string",
-      "description": "A paste-ready `#:contract` line for this Word, written in the keys and values of this same object, so pasting it back verifies exactly what was reported."
+      "description": "A paste-ready `#:contract` line for this Word (`#:contract W inputs=N outputs=N field=closed|leaving`), so pasting it back verifies exactly what was reported."
      }
-    }
+    },
+    "additionalProperties": false,
+    "required": [
+     "name",
+     "inputs",
+     "outputs",
+     "field",
+     "fieldExits",
+     "suggested"
+    ]
    },
-   "description": "Inferred contracts for the user-defined Words in the submitted source (`infer_contracts` only). Every key a registered Word's contract also has (`word_contract`, and `CONTRACT` inside the language) is spelled the same and takes the same values, so an inferred and a registered contract compare directly. Reports each cost axis as its class alone; exactness is observable through `suggested`, which names only the axes the declaration checker can verify."
-  },
-  "diagnosis": {
-   "oneOf": [
-    {
-     "$ref": "#/$defs/diagnosis"
-    },
-    {
-     "type": "null"
-    }
-   ]
-  },
-  "errorFlowTrace": {
-   "type": "array"
-  },
-  "errorFlowTraceElided": {
-   "type": "object",
-   "description": "Present when the trace's events did not all fit its byte budget (the same 64 KiB an error report's stack gets): the first events that fit half of it and the last that fit the other half are sent in `errorFlowTrace`, in order, and this record says how many between them were dropped. Absent whenever the whole trace was sent.",
-   "properties": {
-    "reason": {
-     "type": "string",
-     "enum": [
-      "errorFlowTraceBudget"
-     ]
-    },
-    "events": {
-     "type": "integer"
-    },
-    "omittedFrom": {
-     "type": "integer"
-    },
-    "omitted": {
-     "type": "integer"
-    }
-   },
-   "required": [
-    "reason",
-    "events",
-    "omittedFrom",
-    "omitted"
-   ]
-  },
-  "aiDiagnostic": {
-   "type": [
-    "object",
-    "null"
-   ],
-   "description": "On an `error`, its classification — and only that: the checks, candidates and ceiling facts are `diagnosis`'s, the report's one copy. A NIL never appears here; its reason is the value's `semantics.absence.reason`.",
-   "additionalProperties": false,
-   "required": [
-    "category",
-    "word",
-    "family"
-   ],
-   "properties": {
-    "category": {
-     "type": [
-      "string",
-      "null"
-     ],
-     "description": "The spec/outcomes.json error category — the id `outcome` names as `error:<category>`."
-    },
-    "repair": {
-     "const": "program",
-     "description": "Present exactly when spec/outcomes.json marks the category `repair: program`: the program is what to change. Absent, as in the registry, means an operand is what is wrong."
-    },
-    "word": {
-     "type": [
-      "string",
-      "null"
-     ]
-    },
-    "family": {
-     "type": [
-      "string",
-      "null"
-     ],
-     "description": "The failing Word's spec/words.json family, when a Core Word is at fault."
-    }
-   }
+   "description": "Inferred contracts for the user-defined Words in the submitted source (`infer_contracts` only). `inputs`, `outputs` and `field` are spelled as in the Record `CONTRACT` answers inside the language, so an inferred and a registered contract compare directly."
   },
   "resourceUsage": {
    "type": "object",
@@ -362,8 +218,85 @@
     }
    }
   },
+  "message": {
+   "type": "string",
+   "description": "On an `error`, what went wrong, as one line of text. Absent from a success."
+  },
+  "contractDecls": {
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "findings",
+    "outcome",
+    "declarations"
+   ],
+   "description": "check only, and only when the source declares a `#:contract` (`#:contract W inputs=N outputs=N field=closed|leaving`). Each declaration is compared with the contract inferred for its Word; a contradiction, or a malformed directive, is an `error` finding and makes the report a `contractViolation` error.",
+   "properties": {
+    "findings": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+       "severity",
+       "message"
+      ],
+      "properties": {
+       "severity": {
+        "enum": [
+         "error",
+         "note"
+        ]
+       },
+       "message": {
+        "type": "string"
+       }
+      }
+     }
+    },
+    "outcome": {
+     "enum": [
+      "value",
+      "nil",
+      "error"
+     ],
+     "description": "The worst outcome among the declarations: `error` when any is contradicted or malformed, `nil` when one cannot be verified, `value` when every one holds."
+    },
+    "declarations": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+       "word",
+       "outcome"
+      ],
+      "properties": {
+       "word": {
+        "type": "string"
+       },
+       "outcome": {
+        "enum": [
+         "value",
+         "nil",
+         "error"
+        ]
+       }
+      }
+     }
+    }
+   }
+  },
   "error": {
-   "$ref": "#/$defs/hostError"
+   "oneOf": [
+    {
+     "$ref": "#/$defs/languageError"
+    },
+    {
+     "$ref": "#/$defs/hostError"
+    }
+   ],
+   "description": "On `status: error`, the language error (`languageError`); on `status: hostError`, the host failure (`hostError`). Absent from a success."
   },
   "registrySchemaVersion": {
    "type": "integer",
@@ -433,12 +366,54 @@
     "limitProfile": {
      "type": "string",
      "minLength": 1,
-     "description": "The name of the host profile applied to this call — the `profile` of the `ajisai://limits` resource, which carries the twelve ceilings themselves. They are constants of the server, so they travel once, in that resource, rather than on every result; a ceiling that fires names itself and its value in `diagnosis.resourceLimit`, and a host failure about one names it in `error.limit`. Every entry is pinned by a case in `golden/limits.json`."
+     "description": "The name of the host profile applied to this call — the `profile` of the `ajisai://limits` resource, which carries the twelve ceilings themselves. They are constants of the server, so they travel once, in that resource, rather than on every result; a ceiling that fires names itself in `error.resource` and its value in `message`, and a host failure about one names it in `error.limit`. Every entry is pinned by a case in `golden/limits.json`."
     }
    }
   }
  },
  "$defs": {
+  "languageError": {
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "category"
+   ],
+   "description": "An Ajisai language ERROR, never a failure of the host. Branch on `category`; `message` beside it is the text.",
+   "properties": {
+    "category": {
+     "type": "string",
+     "minLength": 1,
+     "description": "The spec/outcomes.json error category — the id `outcome` names as `error:<category>`."
+    },
+    "resource": {
+     "type": "string",
+     "enum": [
+      "sourceBytes",
+      "numericLiteralDigits",
+      "numericWork",
+      "collectionWork",
+      "bigintBits",
+      "algebraicTerms",
+      "nestingDepth",
+      "materializedElements",
+      "executionSteps"
+     ],
+     "description": "For `resourceLimitExceeded`, the ceiling crossed — an entry of the `ajisai://limits` profile."
+    },
+    "word": {
+     "type": "string",
+     "description": "The Word the failure is attributed to."
+    },
+    "line": {
+     "type": "integer",
+     "minimum": 1
+    },
+    "column": {
+     "type": "integer",
+     "minimum": 1
+    }
+   }
+  },
   "hostError": {
    "type": "object",
    "additionalProperties": false,
@@ -482,170 +457,6 @@
       "wallTimeMs",
       "responseBytes",
       "concurrentExecutions"
-     ]
-    }
-   }
-  },
-  "localizedText": {
-   "type": "object",
-   "additionalProperties": false,
-   "required": [
-    "en",
-    "ja"
-   ],
-   "properties": {
-    "en": {
-     "type": "string"
-    },
-    "ja": {
-     "type": "string"
-    }
-   }
-  },
-  "debugCheck": {
-   "type": "object",
-   "additionalProperties": true,
-   "required": [
-    "code",
-    "title",
-    "detail"
-   ],
-   "description": "One repair step. Match on `code`; `title` and `detail` are display text and may be reworded or gain locales.",
-   "properties": {
-    "code": {
-     "type": "string",
-     "minLength": 1
-    },
-    "title": {
-     "$ref": "#/$defs/localizedText"
-    },
-    "detail": {
-     "$ref": "#/$defs/localizedText"
-    }
-   }
-  },
-  "resourceLimitFacts": {
-   "type": "object",
-   "additionalProperties": true,
-   "required": [
-    "resource",
-    "limit"
-   ],
-   "description": "Which declared ceiling a resource-limit failure crossed — a value or meter that grew past it, or a result a generative Word was asked to build past it (`materializedElements`, `nestingDepth`, `numericLiteralDigits`), measured before anything was built. `resource` names an entry of the `ajisai://limits` profile, and `limit` is its value, so no result needs the profile read to be acted on. `observed` is what crossed it — a real measured size for the size ceilings, but for a cumulative work ceiling only the budget spent at the moment of refusal, which sits a hair over `limit` however far over the request was. Where that is so, `progress` carries the number to act on instead.",
-   "properties": {
-    "resource": {
-     "type": "string",
-     "enum": [
-      "sourceBytes",
-      "numericLiteralDigits",
-      "numericWork",
-      "collectionWork",
-      "bigintBits",
-      "algebraicTerms",
-      "nestingDepth",
-      "materializedElements",
-      "executionSteps"
-     ]
-    },
-    "limit": {
-     "type": "integer",
-     "minimum": 0
-    },
-    "observed": {
-     "type": [
-      "integer",
-      "null"
-     ],
-     "minimum": 0
-    },
-    "progress": {
-     "type": "object",
-     "additionalProperties": false,
-     "required": [
-      "completed",
-      "total",
-      "unit"
-     ],
-     "description": "How far an operation charged as it goes had got when its budget ran out. Present only where `observed` cannot say how much smaller the input must be; absent for every ceiling whose `observed` is a real size. `completed` is the answer rather than a hint at it: the budget bought exactly that many units of this data, so retrying with that many is what fits.",
-     "properties": {
-      "completed": {
-       "type": "integer",
-       "minimum": 0
-      },
-      "total": {
-       "type": "integer",
-       "minimum": 0
-      },
-      "unit": {
-       "type": "string"
-      }
-     }
-    }
-   }
-  },
-  "diagnosis": {
-   "type": "object",
-   "additionalProperties": true,
-   "properties": {
-    "when": {
-     "type": "string"
-    },
-    "why": {
-     "type": "string"
-    },
-    "summary": {
-     "type": "string"
-    },
-    "where": {
-     "type": "object",
-     "description": "The locus the diagnosis is about: a Core Word, a User Word the live dictionary holds, or a name that resolved to nothing.",
-     "properties": {
-      "kind": {
-       "type": "string",
-       "enum": [
-        "coreWord",
-        "userWord",
-        "unknown"
-       ]
-      },
-      "word": {
-       "type": [
-        "string",
-        "null"
-       ]
-      }
-     },
-     "required": [
-      "kind"
-     ]
-    },
-    "evidence": {
-     "type": "array",
-     "items": {
-      "type": "string"
-     }
-    },
-    "nextChecks": {
-     "type": "array",
-     "items": {
-      "$ref": "#/$defs/debugCheck"
-     }
-    },
-    "candidates": {
-     "type": "array",
-     "description": "Known Words closest to an unrecognized name, best match first. Empty for every other cause class.",
-     "items": {
-      "type": "string"
-     }
-    },
-    "resourceLimit": {
-     "oneOf": [
-      {
-       "$ref": "#/$defs/resourceLimitFacts"
-      },
-      {
-       "type": "null"
-      }
      ]
     }
    }
@@ -973,7 +784,7 @@
    }
   },
   "protocolAbsence": {
-   "description": "Present only on a nil-type node. `reason` is the stable, machine-readable identifier LANG.VALUES.NIL calls the entire observable content of a NIL (one of spec/outcomes.json's NIL reasons); it is absent only for a NIL an implementation could not yet label. `detail` is the text a `userDeclared` reason carries, which is part of that reason. `origin` and `recoverability` are diagnostic state beyond the reason, informational only: a program cannot observe them, and two NILs with one reason are one value whatever their origin. `diagnosis` nests the structured diagnosis object docs/dev/agent-cli-output-contract.md describes, when the runtime produced one.",
+   "description": "Present only on a nil-type node. `reason` is the stable, machine-readable identifier LANG.VALUES.NIL calls the entire observable content of a NIL (one of spec/outcomes.json's NIL reasons); it is absent only for a NIL an implementation could not yet label. `detail` is the text a `userDeclared` reason carries, which is part of that reason.",
    "type": "object",
    "additionalProperties": false,
    "properties": {
@@ -982,15 +793,6 @@
     },
     "detail": {
      "type": "string"
-    },
-    "origin": {
-     "type": "string"
-    },
-    "recoverability": {
-     "type": "string"
-    },
-    "diagnosis": {
-     "type": "object"
     }
    }
   },

@@ -32,7 +32,6 @@ use super::ordering_ops::{restore, take_operand};
 use crate::error::{AjisaiError, NilReason, Result};
 use crate::interpreter::collection_meter;
 use crate::interpreter::Interpreter;
-use crate::semantic::Recoverability;
 use crate::types::fraction::Fraction;
 use crate::types::{RecordData, Value};
 
@@ -395,10 +394,9 @@ pub(crate) fn op_json_decode(interp: &mut Interpreter) -> Result<()> {
         Ok(value) => {
             interp.stack.push(value);
         }
-        Err(Reject::Malformed) => interp.stack.push(Value::nil_with_reason(
-            NilReason::InvalidEncoding,
-            Recoverability::Recoverable,
-        )),
+        Err(Reject::Malformed) => interp
+            .stack
+            .push(Value::nil_with_reason(NilReason::InvalidEncoding)),
         // A ceiling crossed while reading is a refusal, never a value
         // (LANG.MACHINE.LIMITS): the text goes back and the run stops by name.
         Err(Reject::TooManyDigits(digits)) => {

@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://ajisai.dev/spec/host-protocol.schema.json",
   "title": "Ajisai Host Protocol",
-  "description": "The value wire format shared by every host surface. The node is built by one mapping, rust/src/types/value_protocol.rs::value_to_protocol, and its `semantics` bag by one rendering, rust/src/agent/report.rs::semantics_json, which the WASM boundary converts rather than rebuilding (rust/src/wasm_interpreter_bindings/mod.rs::protocol_to_js). Both the CLI/MCP agent surface (the `stack` array inside `ajisai agent compute|check|infer-contracts --json`; the enclosing envelope is documented informally in docs/dev/agent-cli-output-contract.md, non-canonical) and the WASM/GUI boundary (each of AjisaiInterpreter's collect_stack/execute/... methods, with no enclosing envelope of its own) emit arrays of the observedValue node this schema defines. This file is enforced, not only described: tools/mcp-server/sync-assets.js copies its definitions into the MCP result schema (as protocolNode and its neighbours), and the MCP self-test validates every stack the live server returns against them. There is no protocol-version field on this shape today: the CLI envelope around it carries a plain integer `schemaVersion`; the WASM boundary carries no version signal at all. String-valued vocabularies inside `semantics` (a reason, an origin, a diagnosis phase) are left open (no enum) because they are owned by the Rust source and spec/outcomes.json, not duplicated here as a second, narrower list (the cause of a previous, now-corrected drift: see spec/language-semantics.md LANG.OBSERVATION.PROTOCOL).",
+  "description": "The value wire format shared by every host surface. The node is built by one mapping, rust/src/types/value_protocol.rs::value_to_protocol, and its `semantics` bag by one rendering, rust/src/agent/report.rs::semantics_json, which the WASM boundary converts rather than rebuilding (rust/src/wasm_interpreter_bindings/mod.rs::protocol_to_js). Both the CLI/MCP agent surface (the `stack` array inside `ajisai agent compute|check|infer-contracts --json`; the enclosing envelope is documented informally in docs/dev/agent-cli-output-contract.md, non-canonical) and the WASM/GUI boundary (each of AjisaiInterpreter's collect_stack/execute/... methods, with no enclosing envelope of its own) emit arrays of the observedValue node this schema defines. This file is enforced, not only described: tools/mcp-server/sync-assets.js copies its definitions into the MCP result schema (as protocolNode and its neighbours), and the MCP self-test validates every stack the live server returns against them. There is no protocol-version field on this shape today: the CLI envelope around it carries a plain integer `schemaVersion`; the WASM boundary carries no version signal at all. String-valued vocabularies inside `semantics` (a reason) are left open (no enum) because they are owned by the Rust source and spec/outcomes.json, not duplicated here as a second, narrower list (the cause of a previous, now-corrected drift: see spec/language-semantics.md LANG.OBSERVATION.PROTOCOL).",
   "$ref": "#/$defs/observedValue",
   "$defs": {
     "observedValue": {
@@ -70,15 +70,12 @@
       }
     },
     "absence": {
-      "description": "Present only on a nil-type node. `reason` is the stable, machine-readable identifier LANG.VALUES.NIL calls the entire observable content of a NIL (one of spec/outcomes.json's NIL reasons); it is absent only for a NIL an implementation could not yet label. `detail` is the text a `userDeclared` reason carries, which is part of that reason. `origin` and `recoverability` are diagnostic state beyond the reason, informational only: a program cannot observe them, and two NILs with one reason are one value whatever their origin. `diagnosis` nests the structured diagnosis object docs/dev/agent-cli-output-contract.md describes, when the runtime produced one.",
+      "description": "Present only on a nil-type node. `reason` is the stable, machine-readable identifier LANG.VALUES.NIL calls the entire observable content of a NIL (one of spec/outcomes.json's NIL reasons); it is absent only for a NIL an implementation could not yet label. `detail` is the text a `userDeclared` reason carries, which is part of that reason.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
         "reason": { "type": "string" },
-        "detail": { "type": "string" },
-        "origin": { "type": "string" },
-        "recoverability": { "type": "string" },
-        "diagnosis": { "type": "object" }
+        "detail": { "type": "string" }
       }
     },
     "exactTerm": {

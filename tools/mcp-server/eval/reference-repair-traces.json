@@ -2,7 +2,7 @@
  "schemaVersion": 1,
  "provenance": {
   "source": "referenceFixture",
-  "note": "Hand-written repair trace built to pass score-repairs.js in both languages. It proves the scorer requires the diagnosis before the repair counts; it is not a model result and says nothing about any model's repair rate."
+  "note": "Hand-written repair trace built to pass score-repairs.js in both languages. It proves the scorer requires the expected error before the repair counts; it is not a model result and says nothing about any model's repair rate."
  },
  "traces": [
   {

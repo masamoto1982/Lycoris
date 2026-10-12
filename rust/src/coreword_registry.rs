@@ -22,7 +22,7 @@ use serde::Serialize;
 use std::collections::HashSet;
 
 pub use crate::kernel::generated::{
-    Determinism, FieldClosure, GeneratedWord, NilPolicy, Partiality, Purity, ZeroShapeLaw,
+    Determinism, FieldClosure, GeneratedWord, NilPolicy, Partiality, Purity,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -73,19 +73,6 @@ pub fn get_coreword_metadata(name: &str) -> Option<CorewordMetadata> {
         .iter()
         .find(|m| m.name == upper)
         .cloned()
-}
-
-/// The declared contract row for a Word, by bare name.
-///
-/// [`CorewordMetadata`] is the runtime's *joined* view — the declaration plus
-/// the runtime-local classifications — and it is serialized to several
-/// surfaces. A caller that wants the declaration itself, in the
-/// specification's own spelling (the conditions the Word names for projecting
-/// and for raising, its declared arity, how one line of it is written), reads
-/// the generated row instead of widening that view.
-pub fn get_declared_word(name: &str) -> Option<&'static GeneratedWord> {
-    let upper = name.to_uppercase();
-    GENERATED_WORDS.iter().find(|word| word.name == upper)
 }
 
 /// Validates that no two registry entries share a `name`. Built-in words form
@@ -182,6 +169,39 @@ pub fn canonical_word_name(name: &str) -> std::borrow::Cow<'_, str> {
 
 #[cfg(test)]
 mod tests {
+    /// Every enum the registry generates spells each Word's value exactly as
+    /// `spec/words.json` writes it, so a renamed or reordered schema value
+    /// cannot drift from the Rust spelling unnoticed.
+    #[test]
+    fn generated_spellings_are_the_specifications() {
+        let spec: serde_json::Value =
+            serde_json::from_str(include_str!("../../spec/words.json")).unwrap();
+        for entry in spec["entries"].as_array().unwrap() {
+            let name = entry["name"].as_str().unwrap();
+            let word = crate::kernel::generated::generated_word(name).unwrap();
+            for (key, spelled) in [
+                ("partiality", word.partiality.as_spec_str()),
+                ("determinism", word.determinism.as_spec_str()),
+                ("vocabularyTier", word.vocabulary_tier.as_spec_str()),
+                ("purity", word.purity.as_spec_str()),
+                ("field", word.field.as_spec_str()),
+            ] {
+                assert_eq!(entry[key], spelled, "{name}.{key}");
+            }
+            for (axis, cost) in [
+                ("steps", word.cost.steps),
+                ("numeric", word.cost.numeric),
+                ("collection", word.cost.collection),
+            ] {
+                assert_eq!(
+                    entry["cost"][axis]["class"],
+                    cost.class.as_spec_str(),
+                    "{name}.cost.{axis}"
+                );
+            }
+        }
+    }
+
     use super::{
         collect_duplicate_entries, get_builtin_word_registry, get_coreword_metadata, Determinism,
         NilPolicy, Partiality, Purity,

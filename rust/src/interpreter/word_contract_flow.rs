@@ -16,48 +16,26 @@
 //! whose true arity is `( 1 -- 1 )`. Those inferences are reported at
 //! `ContractConfidence::Complete`, so a *correct* `#:contract` declaration was
 //! rejected as a proven violation — a false `error`, which
-//! `LANG.CONTRACT.CHECK` forbids and which `word_space.rs`'s module comment
-//! states as the module-wide "never a false error" invariant.
+//! `LANG.CONTRACT.CHECK` forbids.
 //!
-//! This simulation therefore tracks the two literal depths the way `SpaceSim`
-//! already does, and updates the height only at depth zero, where the tokens
-//! really are code.
+//! This simulation therefore tracks the literal depth and updates the height
+//! only at depth zero, where the tokens really are code. A flow it cannot
+//! state — a dependency of variable arity, a name nothing defines, an
+//! unbalanced body — is `Dynamic`, which a declared count reads as "cannot
+//! verify", never as a violation.
 //!
-//! # Why `OR-NIL` and `|` give up rather than guess
-//!
-//! `OR-NIL` and `|` (the COND clause separator) select between paths whose
-//! stack heights genuinely differ, so no single fixed arity describes them.
-//! Measured: `2 3 1 0 DIV OR-NIL ADD` leaves one value (the NIL is dropped and
-//! the fallback unit `ADD` runs), while `2 3 4 2 DIV OR-NIL ADD` leaves three
-//! (the value stands and the fallback unit is skipped). The old walk ignored
-//! both tokens outright and counted the fallback unit as an unconditional
-//! push, so `1 0 DIV OR-NIL 9` inferred `( 0 -- 2 )` for a body that leaves
-//! one value.
-//!
-//! `Dynamic` is the honest answer. The two ways to reach it are kept apart:
-//! `dynamic` records a flow *derived* from a dependency's own `Dynamic` mass
-//! contract, while `unmodelled` records that this simulation gave up (a gap
-//! the contract carries). Neither proves a declared fixed arity wrong — a
-//! dependency of variable arity can still be fed the same operands on every
-//! call (`[ 2 COLLECT ]` is 2 -> 1) — so the declaration check reads a
-//! `Dynamic` flow against a count as "cannot verify" either way
-//! (`agent::contract_decl`).
-
 use super::word_contract::ContractFlow;
 use crate::types::Token;
 
-/// Execution-free stack-flow simulation over a word body's token stream, fed
-/// by the contract-inference walk alongside `SpaceSim` and `CostSim`.
+/// Execution-free stack-flow simulation over a word body's token stream.
 #[derive(Default)]
 pub(crate) struct FlowSim {
     /// The flow is data-dependent because a dependency's own mass contract is
-    /// `Dynamic`. A *derived* fact, not a gap — but not a proof that this
+    /// `Dynamic`. A *derived* fact — but not a proof that this
     /// body's arity varies either.
     dynamic: bool,
-    /// This simulation could not model the body (a control directive whose
-    /// paths differ in height, an unbalanced delimiter, or a count past
-    /// `u16::MAX`, which a contract cannot state). Reported as a gap
-    /// so the declaration check can only ever produce a note.
+    /// This simulation could not model the body (an unbalanced delimiter, or
+    /// a count past `u16::MAX`, which a contract cannot state).
     unmodelled: bool,
     /// Values the body needs beneath what it pushed for itself.
     required: u16,
@@ -73,7 +51,7 @@ impl FlowSim {
 
     /// Inside a `[ ... ]`, where tokens are literal content
     /// rather than code and contribute nothing to the height.
-    fn in_literal(&self) -> bool {
+    pub(crate) fn in_literal(&self) -> bool {
         self.vector_depth > 0
     }
 
@@ -147,37 +125,25 @@ impl FlowSim {
         self.add_height(*produces);
     }
 
-    /// A symbol that did not resolve, or a dependency whose own inference
-    /// could not complete. Inside a literal the symbol is content, so the
-    /// height is unaffected; the caller still records its own gap either way.
+    /// A symbol that did not resolve. Inside a literal the symbol is content,
+    /// so the height is unaffected.
     pub(crate) fn go_dynamic(&mut self) {
         if !self.in_literal() {
             self.dynamic = true;
         }
     }
 
-    /// A dependency's contract could not be inferred, so the flow is dynamic
-    /// from here on: resynchronize for whatever follows, exactly as
-    /// `SpaceSim::abandon` does.
-    pub(crate) fn abandon(&mut self) {
-        self.dynamic = true;
-        self.vector_depth = 0;
-    }
-
-    /// The inferred flow, plus whether the simulation gave up reaching it. A
-    /// literal left open at the end of the body is unbalanced for the same
-    /// reason `close` treats a stray delimiter as one.
-    pub(crate) fn finish(self) -> (ContractFlow, bool) {
-        let unmodelled = self.unmodelled || self.in_literal();
-        let flow = if self.dynamic || unmodelled {
+    /// The inferred flow. A literal left open at the end of the body is
+    /// unbalanced for the same reason `close` treats a stray delimiter as one.
+    pub(crate) fn finish(self) -> ContractFlow {
+        if self.dynamic || self.unmodelled || self.in_literal() {
             ContractFlow::Dynamic
         } else {
             ContractFlow::Fixed {
                 consumes: self.required,
                 produces: self.height,
             }
-        };
-        (flow, unmodelled)
+        }
     }
 }
 

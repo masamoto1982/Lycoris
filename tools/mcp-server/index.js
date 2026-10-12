@@ -34,7 +34,7 @@ const resultSchemaPath = join(here, "result.schema.json");
 // numbering separately. The selftest compares a `word_contract` envelope
 // against a backend report, not this constant, so a bump in report.rs is
 // mirrored here by hand.
-const ENVELOPE_SCHEMA_VERSION = 3;
+const ENVELOPE_SCHEMA_VERSION = 4;
 
 export const LIMITS = Object.freeze({
   sourceBytes: 64 * 1024,
@@ -186,7 +186,7 @@ const sourceSchema = {
   },
   required: ["source"],
 };
-// Embedded once per tool, so without its `$id`: five copies of one schema
+// Embedded once per tool, so without its `$id`: four copies of one schema
 // under one `$id` make a client that caches validators by `$id` (Ajv, with a
 // single instance) refuse the second as a duplicate. The resource
 // `ajisai://schema/result` still serves the file as written, `$id` included.
@@ -235,7 +235,7 @@ export const TOOLS = [
       "higher-order blocks (MAP FILTER FOLD SCAN), text (CHARS JOIN TOKENIZE TRIM UPPER LOWER SEARCH REPLACE NUM STR FORMAT), JSON (JSON-DECODE JSON-ENCODE — objects are Records, numbers exact, nothing rounded), absence (NIL NIL? NIL-REASON ABSENT), control (SELECT EXEC FAIL), reflection (DIGEST CONTRACT — a Word's or a block's contract as a Record, inferred without running it), naming (DEF to name your own Word, BIND DEL) and output (PRINT). " +
       "That is the whole vocabulary. Word names are case-insensitive (`add` runs as ADD) but otherwise exact — a name not listed here does not exist under another spelling; word_contract answers a near-miss with suggestions, so look a name up rather than guessing it. " +
       "Each call runs one source in a fresh session with no User Words: a DEF lasts for that source only, so a program that needs a Word it defines carries the DEF in the same source. " +
-      "The result's `outcome` names which of the language's three results the run produced — `value`, `nil:<reason>` (a reasoned absence; the call still succeeds) or `error:<category>` — in the same ids the outcomes tool predicts. " +
+      "The result's `outcome` names which of the language's three results the run produced — `value`, `nil:<reason>` (a reasoned absence; the call still succeeds) or `error:<category>`; an error also carries `error` — its category, the ceiling it hit (`resource`), the Word it is attributed to and its source line and column. " +
       "Reach for this whenever the request is one of those operations and the answer should be exact and checkable rather than recalled. Out of domain: floats, file or network I/O, and general-purpose programming. " +
       "Ajisai also has no external or real-world reference data of its own — no exchange rates, no calendars, no reading speeds, no other language's syntax semantics. Do not invent a plausible-looking number for one of those and run it through this tool to dress a guess up as an exact answer; if the question needs a real-world fact rather than a value already given or derivable from first principles inside this domain, answer directly without a call, or say you don't know.",
     inputSchema: sourceSchema,
@@ -251,17 +251,7 @@ export const TOOLS = [
   },
   {
     name: "infer_contracts",
-    description: "Infer machine-readable contracts for user-defined Words without executing their bodies, under the same keys and in the same vocabulary as a registered Word's contract (`inputs`, `outputs`, `partiality`, `field`, `purity`, `determinism`, `cost`, `effects`) plus `confidence` and `gaps`. Source that does not parse is the same `malformedSource` error check reports; a body calling a Word nothing defines is `partial`, with a `gap.unresolvedWord` gap.",
-    inputSchema: sourceSchema,
-    outputSchema: envelopeSchema,
-    annotations: READ_ONLY_ANNOTATIONS,
-  },
-  {
-    name: "outcomes",
-    description:
-      "Predict, without executing it, the finite set of outcome ids an Ajisai program could produce: `value`, or one or more `nil:<reason>` / `error:<category>` ids. Ajisai is a total language (no loops, no unbounded recursion — DEF rejects every reference cycle), so this question is answerable in principle, unlike for a Turing-complete language. " +
-      "The response's `exact` field says whether the set narrows to the single outcome the program actually produces (true exactly when one id is returned — in practice an empty program, `value`, and source that does not tokenize or balance its brackets, `error:malformedSource`, which is decided before anything runs) or is a sound but coarser superset (false — every other program, a bare literal included, since a literal can already exceed a resource ceiling): the prediction unions each reachable Word's own declared error/NIL vocabulary rather than proving which specific condition applies to the actual operands, and always includes every cross-cutting structural ceiling (`stackUnderflow` narrowed by an arity check; `executionLimitExceeded`, `resourceLimitExceeded`, `recursionLimitExceeded`, and the rest included unconditionally once the program does anything) since none of those are any specific Word's own declared condition. `exact: false` never means wrong — it means the true single outcome is somewhere in the returned set, not narrowed further. `limitProfile` names the resource ceilings this prediction assumed. " +
-      "Use this to audit an untrusted or generated program's reachable failure modes before running it with compute, not as a substitute for running it to see the actual result.",
+    description: "Infer each user-defined Word's stack contract without executing its body: `inputs` and `outputs` (a count, or `variable`), `field` (`closed`, or `leaving` with the `fieldExits` that leave it) and a paste-ready `#:contract` line in `suggested`. Source that does not parse is the same `malformedSource` error check reports.",
     inputSchema: sourceSchema,
     outputSchema: envelopeSchema,
     annotations: READ_ONLY_ANNOTATIONS,
@@ -445,8 +435,8 @@ function provenance() {
     // read away (`ajisai://limits`) and never change between calls. They
     // used to travel on every result — 300 bytes of constants, repeated
     // again inside the engine's `receipt.limitProfile` — and a ceiling that
-    // fires names itself with its value in `diagnosis.resourceLimit`, so no
-    // result needs the table to be read.
+    // fires names itself in `error.resource` and its value in `message`, so
+    // no result needs the table to be read.
     limitProfile: LIMIT_PROFILE,
   };
 }
@@ -455,14 +445,14 @@ function provenance() {
  * Drop the envelope fields whose value is `null`.
  *
  * The backend fills every slot of the envelope on every answer, so a
- * successful `compute` used to advertise `message: null`, `diagnosis: null`,
- * `aiDiagnostic: null` and `contractDecls: null` — four diagnostic-sounding
- * fields inviting a reader to look at nothing. Absence says the same thing in
+ * successful `compute` used to advertise `message: null`, `error: null` and
+ * `contractDecls: null` — diagnostic-sounding fields inviting a reader to look
+ * at nothing. Absence says the same thing in
  * no bytes, and `result.schema.json` requires only `schemaVersion` and
  * `status`, so nothing that was promised stops being there.
  *
- * Top level only, and deliberately so. Recursing would save a further ~4% on
- * the largest diagnosis and would turn one stated rule into a transformation a
+ * Top level only, and deliberately so. Recursing would save a few more bytes
+ * and would turn one stated rule into a transformation a
  * reader has to apply mentally to every nested object; the rule is worth more
  * than the bytes. The backend's own envelope is untouched — this is the
  * adapter's presentation of it, which is why the native/WASM parity test,
@@ -478,9 +468,7 @@ function withoutEmptyFields(value) {
  *
  * `1 2 ADD` answered 3.7 KB, of which the answer (`stack`, `stackDisplay`)
  * was 85 bytes. The rest was constant metadata an agent cannot act on:
- * `runtimeMetrics` (eight optimizer counters — which cache answered, which
- * fast path fired — meaningful to the engine's author and to nobody calling
- * it; `resourceUsage` is the budget side and stays), and a `receipt` that
+ * a `receipt` that
  * repeated the limit profile `mcp.limits` already carried, the
  * `observationDigest` and `resourceUsage` the top level already carried, and
  * the engine version `mcp.engineVersion` already carried. Five calls in one
@@ -497,7 +485,7 @@ function withoutEmptyFields(value) {
  */
 const RECEIPT_FIELDS_KEPT = ["digest", "sourceDigest", "registryDigest"];
 function presented(report) {
-  const { runtimeMetrics: _runtimeMetrics, receipt, ...rest } = report;
+  const { receipt, ...rest } = report;
   if (receipt && typeof receipt === "object") {
     rest.receipt = Object.fromEntries(
       Object.entries(receipt).filter(([key]) => RECEIPT_FIELDS_KEPT.includes(key)),
@@ -617,7 +605,6 @@ async function runAgent(source, command) {
       run: "compute",
       check: "check",
       contract: "inferContracts",
-      outcomes: "outcomes",
     }[command];
     // A `compute` result already names its outcome id (`value`,
     // `nil:<reason>`, `error:<category>`): the engine classifies the run it
@@ -656,8 +643,7 @@ function wordContract(word) {
     matches,
     // An empty result used to be a bare success — technically correct and
     // practically a dead end, since the caller most likely mistyped a name the
-    // server holds the complete list of. The same edit-distance answer the
-    // engine gives an unknown Word at runtime is available here for free.
+    // server holds the complete list of.
     suggestions: matches.length === 0 ? suggestWords(needle, entries) : [],
     mcp,
   });
@@ -732,7 +718,6 @@ export function createServer() {
     if (params.name === "compute") return runAgent(args.source, "run");
     if (params.name === "check") return runAgent(args.source, "check");
     if (params.name === "infer_contracts") return runAgent(args.source, "contract");
-    if (params.name === "outcomes") return runAgent(args.source, "outcomes");
     if (params.name === "word_contract") return wordContract(args.word);
     return fail(new HostError("unknownTool", `No such tool: ${params.name}`), "tools/call");
   });

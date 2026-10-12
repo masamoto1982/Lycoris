@@ -15,7 +15,7 @@
 //! Should one ever fail anyway, console_error_panic_hook puts the stack trace
 //! in the browser console.
 
-use crate::agent::report::{ai_payload_json, diagnosis_json, failed_run_diagnosis};
+use crate::agent::report::{error_json, ErrorInfo};
 use crate::agent::{api, contract_violation};
 use crate::error::ErrorCategory;
 use crate::interpreter::Interpreter;
@@ -117,16 +117,13 @@ impl AjisaiInterpreter {
         // violated is not executed, here as in every other host.
         if let Some(check) = contract_violation::declared_contract_check(code) {
             if check.violated {
-                let (message, diagnosis) = contract_violation::violation_diagnosis(&check);
-                let category = ErrorCategory::ContractViolation;
-                let ai = ai_payload_json(&diagnosis.ai_payload(Some(&category)));
+                let (message, word) = contract_violation::violation_message(&check);
+                let info = ErrorInfo::of(ErrorCategory::ContractViolation, word);
                 set_js_prop(&obj, "status", &("ERROR".into()));
                 set_js_prop(&obj, "message", &(message.into()));
                 set_js_prop(&obj, "error", &(true.into()));
                 set_js_prop(&obj, "output", &("".into()));
-                set_js_prop(&obj, "diagnosis", &json_to_js(diagnosis_json(&diagnosis)));
-                set_js_prop(&obj, "aiDiagnostic", &json_to_js(ai));
-                set_js_prop(&obj, "errorFlowTrace", &js_sys::Array::new().into());
+                set_js_prop(&obj, "errorInfo", &json_to_js(error_json(&info)));
                 return Ok(obj.into());
             }
         }
@@ -141,7 +138,6 @@ impl AjisaiInterpreter {
                 self.interpreter.take_host_effects();
                 set_js_prop(&obj, "output", &(output.into()));
                 set_js_prop(&obj, "userWords", &(self.collect_user_words_for_state()));
-                set_js_prop(&obj, "errorFlowTrace", &(self.collect_error_flow_trace()));
             }
             Err(e) => {
                 let error_msg = e.to_string();
@@ -159,18 +155,11 @@ impl AjisaiInterpreter {
                 // orphaned output from surfacing at the head of the next run.
                 set_js_prop(&obj, "output", &(self.interpreter.collect_output().into()));
                 self.interpreter.take_host_effects();
-                // The failure's category travels where the CLI puts it,
-                // `aiDiagnostic.category`, built by the same functions — never
-                // parsed back out of `message`, which is display text. So does
-                // its diagnosis: the top-level `diagnosis`, the one copy, which
-                // the trace's error event no longer repeats.
-                let trace = self.interpreter.drain_error_flow_trace();
-                let diagnosis = failed_run_diagnosis(&self.interpreter, &e, &trace);
-                let category = ErrorCategory::from_error(&e);
-                let ai = ai_payload_json(&diagnosis.ai_payload(category.as_ref()));
-                set_js_prop(&obj, "diagnosis", &json_to_js(diagnosis_json(&diagnosis)));
-                set_js_prop(&obj, "aiDiagnostic", &json_to_js(ai));
-                set_js_prop(&obj, "errorFlowTrace", &error_flow_trace_to_js(&trace));
+                // The failure's category, Word and position travel in the
+                // shape the CLI's `error` has — never parsed back out of
+                // `message`, which is display text.
+                let info = ErrorInfo::of_run(&self.interpreter, &e);
+                set_js_prop(&obj, "errorInfo", &json_to_js(error_json(&info)));
                 // An ERROR result carries no `userWords`, which is the
                 // protocol's way of saying the run committed nothing to the
                 // dictionary. The run said otherwise while it was going: every
@@ -216,30 +205,6 @@ impl AjisaiInterpreter {
         }
         obj.into()
     }
-}
-
-/// Not part of the exported surface: every run folds the trace into its own
-/// result envelope (`errorFlowTrace`), so no host calls this directly.
-impl AjisaiInterpreter {
-    pub(crate) fn collect_error_flow_trace(&mut self) -> JsValue {
-        let events = self.interpreter.drain_error_flow_trace();
-        error_flow_trace_to_js(&events)
-    }
-}
-
-// Rendered by the CLI's own serializer and converted, so the trace a GUI
-// reads is the one an agent reads. A hand-built copy here was the third
-// spelling of a diagnosis (beside the CLI's and the value node's), and it had
-// already dropped a resource limit's `progress`.
-fn error_flow_trace_to_js(
-    events: &[crate::interpreter::error_flow_trace::ErrorFlowEvent],
-) -> JsValue {
-    json_to_js(serde_json::Value::Array(
-        events
-            .iter()
-            .map(crate::agent::report::error_flow_event_json)
-            .collect(),
-    ))
 }
 
 #[derive(Serialize, Deserialize)]
@@ -310,17 +275,6 @@ pub fn agent_check(source: &str) -> String {
 #[wasm_bindgen]
 pub fn agent_infer_contracts(source: &str) -> String {
     api::infer_contracts(source).to_json().to_string()
-}
-
-/// Predict the finite set of outcome ids `source` could produce without
-/// executing it, under the same agent-profile ceilings `agent_compute`
-/// applies, matching `ajisai agent outcomes`. `step_limit` as for
-/// `agent_compute`.
-#[wasm_bindgen]
-pub fn agent_predict_outcomes(source: &str, step_limit: Option<u32>) -> String {
-    api::predict_outcomes(source, agent_options(step_limit))
-        .to_json()
-        .to_string()
 }
 
 /// Benchmark hook for `scripts/bench/speed-bench-wasm.mjs`: run `source` on a fresh

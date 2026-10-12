@@ -48,4 +48,3 @@ Status: non-canonical. この索引を含め、`docs/dev/` 配下の全文書は
 | `three-valued-truth.md` | 真理値を Belnap の四値から SQL と同じ強 Kleene の三値にした判断（2026-10-12）。BOTH の廃止、真偽値の食い違いを `NIL(conflict)` で表す理由、零形の四分類と語の族名を残した理由、NIL の伝播は SQL と意図して違うこと | `[方針記録]` |
 | `rust-10k-reduction-plan.md` | Rust 実装を 1 万行程度に縮める計画。現状の内訳、実行経路を一本にする方針、段階ごとの見込み、作者の判断が必要なこと（無理数の扱い、契約推論の範囲、エージェント境界、速度の約束） | `[方針記録]` |
 | `trichotomy-unification.md` | 実行時三分法と静的検査三値の対応を統一した理由と、reason レジストリ統合（案(b)）を今やらない技術的理由・再検討条件 | `[方針記録]` |
-| `cost-contract-design.md` | `#:contract` のコスト軸（steps/numeric/collection）の設計根拠。クラス格子・join規則・多項式を今やらない理由・機械非依存性の正確な意味。**付録 A に SHA-256→BLAKE3 置換を採用しない根拠と再検討条件**（旧 `cost-discoverability-work-order-2026-08.md` 付録 A から移した） | `[設計根拠]` |

@@ -106,7 +106,6 @@ struct Meter<'a> {
     interp: &'a Interpreter,
     work: u64,
     work_budget: u64,
-    fastpath: u64,
 }
 
 impl Meter<'_> {
@@ -126,24 +125,16 @@ impl Meter<'_> {
             .runtime_limits
             .check_algebraic_size(0, fraction_result_bits(&r))
             .ok()?;
-        self.fastpath += 1;
         Some(Plain::Num(r))
     }
 
     fn compare(&mut self, kind: Compare, a: Plain, b: Plain) -> Option<Plain> {
         Some(Plain::Bool(match (kind, a, b) {
-            (Compare::Lt, Plain::Num(a), Plain::Num(b)) => {
-                self.fastpath += 1;
-                a.order(&b)? == std::cmp::Ordering::Less
-            }
+            (Compare::Lt, Plain::Num(a), Plain::Num(b)) => a.order(&b)? == std::cmp::Ordering::Less,
             (Compare::Gt, Plain::Num(a), Plain::Num(b)) => {
-                self.fastpath += 1;
                 a.order(&b)? == std::cmp::Ordering::Greater
             }
-            (Compare::Eq, Plain::Num(a), Plain::Num(b)) => {
-                self.fastpath += 1;
-                a == b
-            }
+            (Compare::Eq, Plain::Num(a), Plain::Num(b)) => a == b,
             (Compare::Eq, a, b) => a == b,
             (Compare::Lt | Compare::Gt, _, _) => return None,
         }))
@@ -190,7 +181,6 @@ fn run_block(
                 if meter.work > meter.work_budget {
                     return None;
                 }
-                meter.fastpath += answer.fastpath;
                 answer.value
             }
             Op::Load(slot) => slots[*slot].clone()?,
@@ -267,7 +257,6 @@ pub(crate) fn run(
             .runtime_limits
             .max_numeric_work
             .checked_sub(interp.numeric_work_used)?,
-        fastpath: 0,
     };
 
     let mut accumulator = seed.cloned();
@@ -303,10 +292,8 @@ pub(crate) fn run(
         FusedWalk::Fold => accumulator?.into_value(),
     };
     let charges = Charges {
-        runs,
         steps,
         work: meter.work,
-        fastpath: meter.fastpath,
     };
     Some((value, charges))
 }

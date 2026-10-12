@@ -118,7 +118,6 @@ pub(crate) fn lower(
         ops: lowering.ops,
         slots: lowering.slots,
         steps_per_run: words + lowering.calls,
-        calls_per_run: lowering.calls,
         builds: lowering.builds,
         reads_outer: lowering.reads_outer,
         lane_pushes: lowering.lane_pushes,

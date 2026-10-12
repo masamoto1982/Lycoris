@@ -1,321 +1,118 @@
-//! Regression tests for inferred user-word contracts.
+//! Tests for contract inference (`word_contract`): the arity a body has and
+//! the `field` it keeps, read without running it.
 
-use std::sync::Arc;
-
-use crate::interpreter::word_contract::*;
+use crate::coreword_registry::FieldClosure;
+use crate::interpreter::word_contract::{ContractFlow, WordContract};
 use crate::interpreter::Interpreter;
+use std::sync::Arc;
 
 async fn contract_for(src: &str, name: &str) -> Arc<WordContract> {
     let mut interp = Interpreter::new();
     interp.execute(src).await.unwrap();
-    interp.infer_word_contract(name).expect("contract")
+    interp.infer_word_contract(name).unwrap()
 }
-
-#[tokio::test]
-async fn pure_arithmetic_user_word_is_complete_and_pure() {
-    let contract = contract_for("[ [ 1 ] ADD ] 'INC' DEF", "INC").await;
-    assert_eq!(contract.purity, ContractPurity::Pure);
-    assert_eq!(contract.determinism, ContractDeterminism::Deterministic);
-    assert_eq!(contract.partiality, ContractPartiality::Total);
-    assert_eq!(
-        contract.flow,
-        ContractFlow::Fixed {
-            consumes: 1,
-            produces: 1
-        }
-    );
-    assert_eq!(contract.confidence, ContractConfidence::Complete);
-}
-
-#[tokio::test]
-async fn print_dependency_makes_user_word_effectful() {
-    let contract = contract_for("[ PRINT ] 'SAY' DEF", "SAY").await;
-    assert_eq!(contract.purity, ContractPurity::Effectful);
-}
-#[tokio::test]
-async fn dependency_chains_widen_monotonically() {
-    let pure = contract_for(
-        "[ [ 1 ] ADD ] 'INC' DEF [ INC ] 'INC2' DEF [ INC2 ] 'INC3' DEF",
-        "INC3",
-    )
-    .await;
-    assert_eq!(pure.purity, ContractPurity::Pure);
-
-    let impure = contract_for("[ PRINT ] 'A' DEF [ A ] 'B' DEF [ B ] 'C' DEF", "C").await;
-    assert_eq!(impure.purity, ContractPurity::Effectful);
-}
-
-// `recursive_words_are_conservative_without_looping` tested that contract
-// inference went conservative on re-entrant (direct or mutual) recursion.
-// LANG.DICTIONARY.ACYCLIC's DEF-time acyclicity check now refuses such a definition
-// outright — `[ REC ] 'REC' DEF` and `[ B ] 'A' DEF [ A ] 'B' DEF` both fail
-// before contract inference ever runs — so there is no longer a program that
-// reaches this path.
-
-#[tokio::test]
-async fn redefinition_invalidates_old_contract_cache_key() {
-    let mut interp = Interpreter::new();
-    interp.execute("[ [ 1 ] ADD ] 'W' DEF").await.unwrap();
-    let first = interp.infer_word_contract("W").unwrap();
-    interp.execute("[ SQRT ] 'W' DEF").await.unwrap();
-    let second = interp.infer_word_contract("W").unwrap();
-    assert_ne!(first.cache_key, second.cache_key);
-    assert_eq!(second.partiality, ContractPartiality::Projecting);
-}
-
-#[tokio::test]
-async fn identical_content_reuses_contract_cache_entry() {
-    let mut interp = Interpreter::new();
-    interp
-        .execute("[ [ 1 ] ADD ] 'A' DEF [ [ 1 ] ADD ] 'B' DEF")
-        .await
-        .unwrap();
-    let a = interp.infer_word_contract("A").unwrap();
-    let before = interp.word_contract_cache_len();
-    let b = interp.infer_word_contract("B").unwrap();
-    assert_eq!(a.cache_key, b.cache_key);
-    assert_eq!(before, interp.word_contract_cache_len());
-}
-
-#[tokio::test]
-async fn different_content_does_not_share_contract_cache_entry() {
-    let mut interp = Interpreter::new();
-    interp
-        .execute("[ [ 1 ] ADD ] 'A' DEF [ [ 2 ] ADD ] 'B' DEF")
-        .await
-        .unwrap();
-    let a = interp.infer_word_contract("A").unwrap();
-    let b = interp.infer_word_contract("B").unwrap();
-    assert_ne!(a.cache_key, b.cache_key);
-}
-
-#[tokio::test]
-async fn del_refuses_while_a_dependent_would_be_left_dangling() {
-    // A word's inferred contract cannot go stale by losing a dependency: DEL
-    // fails with ERROR while any definition still depends on the target
-    // (LANG.DICTIONARY.MUTATION), so there is no force path to a dangling
-    // reference.
-    let mut interp = Interpreter::new();
-    interp
-        .execute("[ SQRT ] 'DEP' DEF [ DEP ] 'USE' DEF")
-        .await
-        .unwrap();
-    let before = interp.infer_word_contract("USE").unwrap();
-    assert_eq!(before.partiality, ContractPartiality::Projecting);
-
-    interp
-        .execute("'DEP' DEL")
-        .await
-        .expect_err("DEL must refuse while USE still depends on DEP");
-
-    let after = interp.infer_word_contract("USE").unwrap();
-    assert_eq!(after.partiality, ContractPartiality::Projecting);
-}
-
-// ---------------------------------------------------------------------------
-// Literal-depth regression tests (`word_contract_flow.rs`).
-//
-// `[ ... ]` pushes exactly one value and consumes nothing; its interior is
-// content, not code. Inferring otherwise reported a *correct* `#:contract`
-// declaration as a proven violation.
-// ---------------------------------------------------------------------------
 
 fn fixed(consumes: u16, produces: u16) -> ContractFlow {
     ContractFlow::Fixed { consumes, produces }
 }
 
 #[tokio::test]
-async fn a_vector_literal_pushes_one_value_not_its_elements() {
-    let contract = contract_for("[ [ 1 2 ] ] 'PAIR' DEF", "PAIR").await;
-    assert_eq!(contract.flow, fixed(0, 1));
-    assert_eq!(contract.confidence, ContractConfidence::Complete);
+async fn arity_joins_along_the_body_and_through_dependencies() {
+    let contract = contract_for("[ 2 MUL 1 ADD ] 'F' DEF [ F F ADD ] 'G' DEF", "G").await;
+    assert_eq!(contract.flow, fixed(2, 1));
+    assert_eq!(contract.field, FieldClosure::Closed);
 }
 
+/// `[ ... ]` pushes exactly one value and consumes nothing; its interior is
+/// content, not code, so a Word inside it is never applied to the arity.
 #[tokio::test]
-async fn a_vector_literal_operand_is_consumed_like_any_other_value() {
-    let contract = contract_for("[ [ 10 20 ] ADD ] 'ADD-PAIR' DEF", "ADD-PAIR").await;
-    assert_eq!(contract.flow, fixed(1, 1));
-    assert_eq!(contract.confidence, ContractConfidence::Complete);
-}
-
-#[tokio::test]
-async fn a_code_block_literal_is_not_inlined_into_the_arity() {
-    // The block's `2 MUL` is evaluated only when MAP runs it, so it must not
-    // consume an operand at the point the block is written. Inlining it made
-    // this word's arity ( 2 -- 1 ).
-    let contract = contract_for("[ [ 2 MUL ] MAP ] 'DOUBLE-ALL' DEF", "DOUBLE-ALL").await;
-    assert_eq!(contract.flow, fixed(1, 1));
-    assert_eq!(contract.confidence, ContractConfidence::Complete);
-}
-
-#[tokio::test]
-async fn nested_literals_still_push_exactly_one_value() {
-    for source in [
-        "[ [ [ 1 ] [ 2 ] ] ] 'W' DEF",
-        "[ [ [ 1 ] ] ] 'W' DEF",
-        "[ [ [ [ 1 ] ] ] ] 'W' DEF",
+async fn a_vector_literal_pushes_one_value_whatever_it_holds() {
+    for (source, flow) in [
+        ("[ [ 1 2 ] ] 'W' DEF", fixed(0, 1)),
+        ("[ [ 10 20 ] ADD ] 'W' DEF", fixed(1, 1)),
+        ("[ [ 2 MUL ] MAP ] 'W' DEF", fixed(1, 1)),
+        ("[ [ [ 1 ] [ 2 ] ] ] 'W' DEF", fixed(0, 1)),
+        ("[ [ 'a' PRINT 'b' ] ] 'W' DEF", fixed(0, 1)),
     ] {
-        let contract = contract_for(source, "W").await;
-        assert_eq!(contract.flow, fixed(0, 1), "source: {source}");
+        assert_eq!(contract_for(source, "W").await.flow, flow, "{source}");
     }
 }
 
+/// A name a `BIND` in the body made reads as one value, not as a Word.
 #[tokio::test]
-async fn a_symbol_inside_a_vector_literal_is_content_not_a_call() {
-    // At run time `[ 'a' PRINT 'b' ]` is the three-element vector
-    // [ 'a' 'PRINT' 'b' ], so PRINT's arity must not be applied here.
-    let contract = contract_for("[ [ 'a' PRINT 'b' ] ] 'LABELS' DEF", "LABELS").await;
-    assert_eq!(contract.flow, fixed(0, 1));
-}
-
-/// A recovery phrase has a fixed arity, where the `OR-NIL` it replaced had
-/// none.
-///
-/// `OR-NIL` selected between paths of differing height — it either kept the
-/// top and skipped the following source unit, or discarded the top and ran
-/// that unit — so no fixed arity described it and inference gave up with
-/// `gap.unmodelledControlFlow`. `SELECT` chooses between two values that are
-/// both already on the stack, so the same recovery is three operands in and
-/// one out, and the walk models it exactly.
-#[tokio::test]
-async fn a_recovery_phrase_has_a_fixed_arity() {
-    let contract = contract_for(
-        "[ 1 0 DIV 'S' BIND 9 S S NIL? SELECT ] 'FALLBACK' DEF",
-        "FALLBACK",
-    )
-    .await;
-    assert_eq!(contract.flow, fixed(0, 1));
-    assert!(
-        !contract
-            .gaps
-            .contains(&crate::agent::contract_gap::GapCode::UnmodelledControlFlow),
-        "nothing in the body is unmodelled control flow: {:?}",
-        contract.gaps
-    );
-}
-
-// ---------------------------------------------------------------------------
-// Code-operand classification regression tests (`word_contract_widen.rs`).
-//
-// `{ }` spells a Record and never code, so a `[ ... ]` alone cannot say whether its
-// interior is inert data or a fixed-position code operand a higher-order
-// Word (`MAP`/`FILTER`/`FOLD`/`SCAN`/`EXEC`) will
-// actually run. `classify_vector_positions` answers this positionally: a
-// `[ ... ]` immediately followed by one of those Words is code, everything
-// else is data, and a `Data` ancestor forces `Data` all the way down. Every
-// expectation below is the `output` the body actually produces at run time.
-// ---------------------------------------------------------------------------
-
-#[tokio::test]
-async fn a_symbol_inside_a_vector_literal_never_widens_purity() {
-    // `[ 'a' PRINT 'b' ]` *is* `[ 'a' 'PRINT' 'b' ]` — PRINT never runs.
-    let contract = contract_for("[ [ 'a' PRINT 'b' ] ] 'LABELS' DEF", "LABELS").await;
-    assert_eq!(contract.purity, ContractPurity::Pure);
-    assert_eq!(contract.confidence, ContractConfidence::Complete);
-}
-
-#[tokio::test]
-async fn a_block_written_inside_a_vector_literal_is_quoted_but_never_run() {
-    // A `[ ... ]` nested inside inert data is inert data too, whatever it
-    // looks like and however deep it nests: building the outer vector never
-    // runs anything nested inside it, and nothing here is followed by a
-    // higher-order Word that would make it a code operand.
-    for body in [
-        "[ PRINT ]",
-        "[ [ PRINT ] ]",
-        "[ [ PRINT ] [ 1 ] ]",
-        "[ [ [ [ PRINT ] 0 GET EXEC ] ] 0 GET EXEC ]",
-    ] {
-        let source = format!("[ {body} ] 'W' DEF");
-        let contract = contract_for(&source, "W").await;
-        assert_eq!(contract.purity, ContractPurity::Pure, "body: {body}");
-        assert_eq!(
-            contract.confidence,
-            ContractConfidence::Complete,
-            "body: {body}"
-        );
-    }
-}
-
-#[tokio::test]
-async fn contracts_operand_block_is_read_not_run() {
-    // `CONTRACT` never evaluates its operand, so a Word that asks for the
-    // contract of a printing block prints nothing and is pure.
-    let source = "[ [ 'x' PRINT ] CONTRACT 'purity' GET ] 'W' DEF";
-    let contract = contract_for(source, "W").await;
-    assert_eq!(contract.purity, ContractPurity::Pure);
-    assert!(contract.effects.is_empty(), "{:?}", contract.effects);
-    assert_eq!(contract.confidence, ContractConfidence::Complete);
-    assert_eq!(
-        crate::test_support::run(&format!("{source} W"))
-            .await
-            .output_buffer,
-        "Defined word: W\n"
-    );
-}
-
-#[tokio::test]
-async fn a_code_operand_that_is_not_a_literal_is_a_gap_not_pure() {
-    // `classify_vector_positions` sees a code operand only when it is the
-    // `[ ... ]` written immediately before the Word that runs it. A Vector
-    // `COLLECT`ed, taken out of data by `GET`, or held by a binding reaches
-    // `EXEC` from somewhere the walk read as inert data, so the `PRINT`
-    // inside it is invisible. Inferring `pure`/`complete` there verified a
-    // false `purity=pure` declaration; the walk now says it cannot tell.
-    for body in [
-        "[ PRINT ] 1 COLLECT 0 GET EXEC",
-        "[ [ 42 PRINT ] ] 0 GET EXEC",
-        "[ 42 PRINT ] 'B' BIND B EXEC",
-        "[ 1 2 ] [ [ PRINT ] ] 0 GET MAP",
-    ] {
-        let source = format!("[ {body} ] 'W' DEF");
-        let contract = contract_for(&source, "W").await;
-        assert_eq!(contract.purity, ContractPurity::Effectful, "body: {body}");
-        assert_eq!(
-            contract.confidence,
-            ContractConfidence::Conservative,
-            "body: {body}"
-        );
-        assert!(
-            contract
-                .gaps
-                .contains(&crate::agent::contract_gap::GapCode::UnmodelledControlFlow),
-            "body: {body}"
-        );
-    }
-}
-
-#[tokio::test]
-async fn a_map_over_a_literal_block_still_widens_regardless_of_purity() {
-    // Sanity check that the code-operand classification leaves the ordinary,
-    // no-vector-involved case exactly as before.
-    let pure = contract_for("[ [ 2 MUL ] MAP ] 'DOUBLE-ALL' DEF", "DOUBLE-ALL").await;
-    assert_eq!(pure.purity, ContractPurity::Pure);
-    let effectful = contract_for("[ [ PRINT ] MAP ] 'PRINTALL' DEF", "PRINTALL").await;
-    assert_eq!(effectful.purity, ContractPurity::Effectful);
-}
-
-/// A name a `BIND` in the body made reads as one value, not as an unresolved
-/// Word: before this, every such body answered `inputs: variable` with an
-/// `unresolvedWord` gap (the lexicon-emergence pilot's finding M-2).
-#[tokio::test]
-async fn a_bound_name_reads_as_one_value_not_an_unresolved_word() {
+async fn a_bound_name_reads_as_one_value() {
     for (src, name) in [
         ("[ 'V' BIND V V LENGTH DIV ] 'M' DEF", "M"),
         ("[ [ 'A' 'B' ] BIND A B ADD ] 'S' DEF", "S"),
     ] {
-        let contract = contract_for(src, name).await;
-        assert_eq!(contract.flow, fixed(1, 1), "`{src}`");
-        assert!(contract.gaps.is_empty(), "`{src}`: {:?}", contract.gaps);
+        assert_eq!(contract_for(src, name).await.flow, fixed(1, 1), "`{src}`");
     }
 }
 
-/// A body pushing more values than `u16` counts has no statable arity:
-/// saturating reported `outputs=65535` as complete for 65,537 pushes.
 #[tokio::test]
-async fn an_arity_past_u16_is_a_gap_not_a_saturated_count() {
+async fn an_arity_the_walk_cannot_state_is_variable() {
     let body = vec!["1"; 65_537].join(" ");
-    let contract = contract_for(&format!("[ {body} ] 'W' DEF"), "W").await;
+    let past_u16 = contract_for(&format!("[ {body} ] 'W' DEF"), "W").await;
+    assert_eq!(past_u16.flow, ContractFlow::Dynamic);
+    let variable = contract_for("[ 2 COLLECT ] 'W' DEF", "W").await;
+    assert_eq!(variable.flow, ContractFlow::Dynamic);
+}
+
+/// Code a higher-order Word runs is read when it is the literal written right
+/// before it; any other code operand was never read, so the body may leave
+/// the field and the inference names no exit for it.
+#[tokio::test]
+async fn unread_code_is_the_weaker_claim() {
+    let read = contract_for("[ [ 0 DIV ] MAP ] 'W' DEF", "W").await;
+    assert_eq!(read.field, FieldClosure::Leaving);
+    assert_eq!(read.field_exits, vec!["DIV".to_string()]);
+    assert!(!read.field_unread);
+    for body in ["[ 2 MUL ] 'B' BIND B EXEC", "[ [ 1 ] ] 0 GET EXEC", "MAP"] {
+        let unread = contract_for(&format!("[ {body} ] 'W' DEF"), "W").await;
+        assert_eq!(unread.field, FieldClosure::Leaving, "{body}");
+        assert!(unread.field_unread, "{body}");
+        assert!(unread.field_exits.is_empty(), "{body}");
+    }
+    // A Word built on one inherits the weaker claim, not an exit.
+    let caller = contract_for("[ MAP ] 'APPLY' DEF [ APPLY ] 'W' DEF", "W").await;
+    assert!(caller.field_unread);
+    // Data is never run, whatever it spells.
+    let data = contract_for("[ [ 0 DIV ] ] 'W' DEF", "W").await;
+    assert_eq!(data.field, FieldClosure::Closed);
+}
+
+#[tokio::test]
+async fn a_name_nothing_defines_leaves_the_arity_variable() {
+    let mut interp = Interpreter::new();
+    interp.execute("[ 1 ADD ] 'W' DEF").await.unwrap();
+    let contract = interp.infer_contract_for_block(&crate::tokenizer::tokenize("1 NOPE").unwrap());
     assert_eq!(contract.flow, ContractFlow::Dynamic);
-    assert_eq!(contract.confidence, ContractConfidence::Conservative);
+    assert_eq!(contract.field, FieldClosure::Closed);
+}
+
+#[tokio::test]
+async fn contract_answers_one_record_shape_for_core_user_and_block() {
+    for (code, expected) in [
+        (
+            "[ ADD ] 0 GET CONTRACT",
+            "[ 'inputs' 'outputs' 'field' ] [ 2/1 1/1 'closed' ] RECORD",
+        ),
+        (
+            "[ DIV ] CONTRACT",
+            "[ 'inputs' 'outputs' 'field' ] [ 2/1 1/1 'leaving' ] RECORD",
+        ),
+        (
+            "[ 2 DIV ] 'H' DEF [ H ] 0 GET CONTRACT",
+            "[ 'inputs' 'outputs' 'field' ] [ 1/1 1/1 'closed' ] RECORD",
+        ),
+        (
+            "[ 2 COLLECT ] CONTRACT",
+            "[ 'inputs' 'outputs' 'field' ] [ 'variable' 'variable' 'closed' ] RECORD",
+        ),
+        ("[ NOPE ] 0 GET CONTRACT NIL-REASON", "'notFound'"),
+    ] {
+        let interp = crate::test_support::run(code).await;
+        let top = crate::types::display::render_stack(interp.get_stack());
+        assert_eq!(top.last().map(String::as_str), Some(expected), "{code}");
+    }
 }

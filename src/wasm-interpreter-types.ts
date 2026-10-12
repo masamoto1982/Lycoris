@@ -137,98 +137,29 @@ export function parseHostProfile(json: string): HostProfile | null {
     return { profile, limits: limits as Record<string, number> };
 }
 
-/** One display string in every locale the diagnosis vocabulary carries. */
-export interface LocalizedText {
-    en: string;
-    ja: string;
-}
-
 /**
- * One repair step. `code` is the stable identifier to match on; `title` and
- * `detail` are display text and may be reworded or gain a locale without
- * anything downstream changing.
+ * What an ERROR carries beside its message (LANG.OBSERVATION.DIAGNOSIS): its
+ * spec/outcomes.json category, the ceiling that refused it, the Word it is
+ * attributed to, and the top-level source position that reached it — the
+ * object the CLI reports as `error`.
  */
-export interface ProtocolDebugCheck {
-    code: string;
-    title: LocalizedText;
-    detail: LocalizedText;
-}
-
-/**
- * The diagnosis vocabularies, as the engine spells them on the wire
- * (rust/src/interpreter/debug_diagnosis.rs, each enum's `as_protocol_str`).
- * The engine owns these lists; this file mirrors the values it emits so a
- * misspelt comparison fails to compile rather than silently never matching.
- * `hostGuard` and `hostEnvironment` are the playground's own: the wall-clock
- * stop is decided by the page, not by a Word, and no engine diagnosis carries
- * them (gui/interpreter-execution-utils.ts).
- */
-export type DiagnosisPhase =
-    | 'tokenize'
-    | 'resolveWord'
-    | 'executeWord'
-    | 'checkContract'
-    | 'hostGuard';
-
-export type DiagnosisLocusKind = 'coreWord' | 'userWord' | 'unknown' | 'hostEnvironment';
-
-export type DiagnosisCauseClass =
-    | 'typoOrUnknownName'
-    | 'stackShape'
-    | 'valueShape'
-    | 'domain'
-    | 'index'
-    | 'shapeMismatch'
-    | 'nilFlow'
-    | 'userLogic'
-    | 'resourceLimit'
-    | 'sourceForm'
-    | 'contractViolation'
-    | 'unknown';
-
-export interface ProtocolDiagnosis {
-    when: DiagnosisPhase;
-    where: {
-        kind: DiagnosisLocusKind;
-        word?: string;
-    };
-    why: DiagnosisCauseClass;
-    summary: string;
-    evidence: string[];
-    nextChecks: ProtocolDebugCheck[];
-    /**
-     * Known Words closest to an unrecognized name, best match first. Empty
-     * for every cause class other than `typoOrUnknownName`.
-     */
-    candidates?: string[];
-    /**
-     * Which declared ceiling a resource-limit failure crossed. `resource`
-     * names an entry of the host's limit profile, so a reader can tell an
-     * exhausted step budget from an oversized value without parsing a
-     * message. `null` for every other cause class.
-     */
-    resourceLimit?: {
-        resource: string;
-        limit: number;
-        observed: number | null;
-        /** How far a cumulative meter had got; present only for one. */
-        progress?: { completed: number; total: number; unit: string };
-    } | null;
+export interface ProtocolError {
+    category?: string;
+    resource?: string;
+    word?: string;
+    line?: number;
+    column?: number;
 }
 
 /**
  * The absence envelope: the same one the CLI emits, since both hosts render
  * it with one serializer (spec/host-protocol.schema.json). `reason` is the
  * NIL's observable content (LANG.VALUES.NIL); `detail` is the text a
- * `userDeclared` reason carries; `origin` and `recoverability` are diagnostic
- * state beyond the reason.
+ * `userDeclared` reason carries.
  */
 export interface ProtocolAbsence {
     reason?: string;
     detail?: string;
-    origin?: string;
-    recoverability?: string;
-    diagnosis?: ProtocolDiagnosis;
 }
 
 export interface ProtocolValueSemantics {
@@ -258,44 +189,17 @@ export interface ProtocolValueSemantics {
     exactTerms?: ReadonlyArray<ExactTerm>;
 }
 
-export interface ErrorFlowTraceEvent {
-    /**
-     * `wordError` for a Word that failed; `nilProduced` for a Word that
-     * *produced* a reasoned NIL — the Word whose contract projected it, not
-     * the Words it then passed through (LANG.FAILURE.PASSTHROUGH). A Word
-     * inside which it was produced is named in the event's diagnosis
-     * evidence (`insideWords=`), innermost first.
-     */
-    kind: 'wordError' | 'nilProduced';
-    word?: string;
-    absence?: ProtocolAbsence;
-    stackLenBefore: number;
-    stackLenAfter: number;
-    message: string;
-    // Only on a `nilProduced` event: an ERROR's diagnosis is the result's
-    // top-level `diagnosis`, which the error event does not repeat.
-    diagnosis?: ProtocolDiagnosis;
-}
-
 export interface ExecuteResult {
     status: 'OK' | 'ERROR';
     output?: string;
     message?: string;
     error?: boolean;
     /**
-     * On an ERROR result, the same `aiDiagnostic` the CLI reports: `category`
-     * is the failure's spec/outcomes.json error category, the machine-readable
-     * name a host branches on instead of the display text in `message`;
-     * `repair` is `'program'` exactly when the registry says so.
+     * On an ERROR result, the same object the CLI reports as `error`:
+     * `category` is the machine-readable name a host branches on instead of
+     * the display text in `message`.
      */
-    aiDiagnostic?: {
-        category: string | null;
-        repair?: 'program';
-        word: string | null;
-        family: string | null;
-    } | null;
-    /** On an ERROR result, its diagnosis — the one copy the report carries. */
-    diagnosis?: ProtocolDiagnosis;
+    errorInfo?: ProtocolError;
 
     // The lossless snapshot (opaque string from `snapshot_stack`) attached by
     // the execution worker, and the only format used to sync the post-run stack
@@ -314,8 +218,6 @@ export interface ExecuteResult {
      * claims Words the session does not contain.
      */
     discardedDictionaryChanges?: string[];
-    errorFlowTrace?: ErrorFlowTraceEvent[];
-
 }
 
 export interface Fraction {

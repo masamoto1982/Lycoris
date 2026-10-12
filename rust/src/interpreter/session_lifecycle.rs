@@ -13,7 +13,6 @@ use crate::error::Result;
 use crate::types::WordDefinition;
 
 use super::compiled_plan::{arc_plan, compile_word_definition, CompiledPlan};
-use super::interpreter_core::RuntimeMetrics;
 use super::Interpreter;
 
 /// One saved definition that could not be restored, and why.
@@ -116,8 +115,7 @@ impl Interpreter {
         self.body_store.clear();
         self.defer_identity_recompute = false;
         self.next_registration_order = 1;
-        self.runtime_metrics = RuntimeMetrics::default();
-        self.error_flow_trace_log.clear();
+        self.failed_word = None;
         self.symbol_cache.clear();
         crate::builtins::register_builtins(&mut self.core_vocabulary);
     }
@@ -133,11 +131,21 @@ impl Interpreter {
     /// nothing, and cost a recompile and a copy of the definition on every
     /// call, since nothing remembered that the body had been declined.
     pub(crate) fn build_compiled_plan(&mut self, def: &Arc<WordDefinition>) -> Arc<CompiledPlan> {
-        let compiled = compile_word_definition(def, self);
-        self.bump_execution_epoch();
-        self.runtime_metrics.compiled_plan_build_count += 1;
-        arc_plan(compiled)
+        #[cfg(test)]
+        PLAN_BUILDS.with(|c| c.set(c.get() + 1));
+        arc_plan(compile_word_definition(def, self))
     }
+}
+
+#[cfg(test)]
+thread_local! {
+    static PLAN_BUILDS: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+}
+
+/// User Word plans built on this thread, for tests that pin how often.
+#[cfg(test)]
+pub(crate) fn plan_builds_on_this_thread() -> u64 {
+    PLAN_BUILDS.with(|c| c.get())
 }
 
 #[cfg(test)]

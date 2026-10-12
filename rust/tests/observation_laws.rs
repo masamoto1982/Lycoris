@@ -55,7 +55,9 @@ fn protocol_strings_are_lower_camel_case() {
         for v in run(src) {
             let o = observe_axes(&v);
             if let Some(absence) = &o.absence {
-                assert!(ok(absence.origin), "origin {:?}", absence.origin);
+                if let Some(reason) = absence.reason {
+                    assert!(ok(reason), "reason {reason:?}");
+                }
             }
             if let Some(tv) = o.truth_value {
                 assert!(ok(tv), "truthValue {tv:?}");

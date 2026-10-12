@@ -2,7 +2,6 @@ use crate::error::{AjisaiError, NilReason, Result};
 use crate::interpreter::lane_lift::lift_lanes;
 use crate::interpreter::truth_ops;
 use crate::interpreter::Interpreter;
-use crate::semantic::Recoverability;
 use crate::types::{Value, ValueData};
 
 /// One of the three truth values of LANG.VALUES.TRUTH, read from a lane in
@@ -121,7 +120,7 @@ pub(crate) fn reconcile(a: &Value, b: &Value) -> Value {
     if is_nullity(a) && is_number(b) {
         return b.clone();
     }
-    Value::nil_with_reason(NilReason::Conflict, Recoverability::Recoverable)
+    Value::nil_with_reason(NilReason::Conflict)
 }
 
 /// `RECONCILE` — what two sources agree on. Like `EQ` it reads its

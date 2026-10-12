@@ -12,42 +12,42 @@
   "files": {
     "rust/src/types/fraction.rs": {
       "branches": {
-        "covered": 166,
-        "count": 178
+        "covered": 174,
+        "count": 184
       },
       "lines": {
-        "covered": 457,
-        "count": 470
+        "covered": 459,
+        "count": 469
       }
     },
     "rust/src/types/fraction_arithmetic.rs": {
       "branches": {
-        "covered": 132,
-        "count": 138
+        "covered": 124,
+        "count": 124
       },
       "lines": {
-        "covered": 304,
-        "count": 310
+        "covered": 284,
+        "count": 284
       }
     },
     "rust/src/types/fraction_order.rs": {
       "branches": {
-        "covered": 18,
-        "count": 20
+        "covered": 10,
+        "count": 10
       },
       "lines": {
-        "covered": 41,
-        "count": 41
+        "covered": 27,
+        "count": 27
       }
     },
     "rust/src/types/small_divisor.rs": {
       "branches": {
-        "covered": 19,
-        "count": 20
+        "covered": 16,
+        "count": 16
       },
       "lines": {
-        "covered": 74,
-        "count": 74
+        "covered": 77,
+        "count": 77
       }
     },
     "rust/src/types/lehmer_gcd.rs": {
@@ -62,22 +62,22 @@
     },
     "rust/src/tokenizer.rs": {
       "branches": {
-        "covered": 129,
-        "count": 136
+        "covered": 116,
+        "count": 122
       },
       "lines": {
-        "covered": 244,
-        "count": 249
+        "covered": 243,
+        "count": 244
       }
     },
     "rust/src/types/value_protocol.rs": {
       "branches": {
-        "covered": 9,
-        "count": 10
+        "covered": 11,
+        "count": 12
       },
       "lines": {
-        "covered": 103,
-        "count": 108
+        "covered": 105,
+        "count": 110
       }
     },
     "src/platform/index.ts": {
@@ -96,8 +96,8 @@
         "count": 8
       },
       "lines": {
-        "covered": 169,
-        "count": 172
+        "covered": 186,
+        "count": 189
       }
     },
     "rust/src/kernel/generated/word_registry.rs": {
@@ -106,8 +106,8 @@
         "count": 0
       },
       "lines": {
-        "covered": 71,
-        "count": 78
+        "covered": 64,
+        "count": 64
       }
     }
   }

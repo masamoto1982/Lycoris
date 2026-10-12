@@ -1,4 +1,4 @@
-//! An error report must deliver its diagnosis, whatever the failing stack was
+//! An error report must deliver its error, whatever the failing stack was
 //! holding.
 //!
 //! The case these exist for: the work meter refuses
@@ -26,7 +26,7 @@ async fn a_refusal_reports_its_resource_rather_than_its_residue() {
     let report = agent_json(RUNAWAY_FOLD, ComputeOptions::agent(None)).await;
     assert_eq!(report["status"], "error");
     assert_eq!(
-        report["diagnosis"]["resourceLimit"]["resource"], "numericWork",
+        report["error"]["resource"], "numericWork",
         "the ceiling that fired must survive to the wire"
     );
     assert!(

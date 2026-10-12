@@ -21,7 +21,7 @@ it('leaves the stack as it was when DEL refuses a word other words call', async 
     const result = await deleteUserWord(interpreter, 'A');
 
     expect(result.status).toBe('ERROR');
-    expect(result.aiDiagnostic?.category).toBe('definitionConflict');
+    expect(result.errorInfo?.category).toBe('definitionConflict');
     expect(interpreter.collect_stack()).toEqual(stackBefore);
 });
 

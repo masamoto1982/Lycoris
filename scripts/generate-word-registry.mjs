@@ -70,11 +70,6 @@ const CONTRACT_ENUMS = [
       + '/// order a contract widens along (`closed` < `leaving`): one `leaving` Word in a\n'
       + '/// body makes the body `leaving`, which is what the derived `Ord` means here.',
   },
-  {
-    rustName: 'ZeroShapeLaw',
-    field: 'zeroShapes',
-    doc: 'What the Word does to the zero shapes of numbers (LANG.VALUES.SHAPE, LANG.CONTRACT.FIELD).',
-  },
   { rustName: 'Purity', field: 'purity', doc: 'Observational purity class (LANG.CONTRACT.REGISTRY).' },
   { rustName: 'Determinism', field: 'determinism', doc: 'What the Word\'s result may depend on beyond its operands.' },
   { rustName: 'VocabularyTier', field: 'vocabularyTier', doc: 'Where the Word sits in the public Core: the Semantic Kernel or the Standard vocabulary.' },
@@ -82,14 +77,6 @@ const CONTRACT_ENUMS = [
     rustName: 'CostClass',
     field: 'class',
     doc: 'Growth class of a Word\'s charge on one metered resource, as a function of its input.',
-    ordered: true,
-    parsed: true,
-    note:
-      'The variants are declared in the schema\'s own order, and that order **is** the\n'
-      + '/// lattice order the cost join widens along (`const` < `linear` < `superlinear` <\n'
-      + '/// `unbounded`), which is what the derived `Ord` means here. Reordering the\n'
-      + '/// schema enum would silently reorder the lattice, so `word_cost_tests.rs`\n'
-      + '/// asserts the chain directly.',
   },
 ];
 
@@ -238,7 +225,6 @@ const rows = entries
         projection_reasons: ${projectionReasons(word.projection.reason)},
         partiality: ${enumRef('Partiality', word.partiality)},
         field: ${enumRef('FieldClosure', word.field)},
-        zero_shapes: ${enumRef('ZeroShapeLaw', word.zeroShapes)},
         purity: ${enumRef('Purity', word.purity)},
         determinism: ${enumRef('Determinism', word.determinism)},
         cost: ${cost(word.cost)},
@@ -316,16 +302,6 @@ pub enum Arity {
     Variable,
 }
 
-impl Arity {
-    /// The exact count when the specification pins one.
-    pub const fn fixed(self) -> Option<u8> {
-        match self {
-            Arity::Fixed(n) => Some(n),
-            Arity::Variable => None,
-        }
-    }
-}
-
 /// A Word's declared charge on one metered resource.
 ///
 /// \`class\` is a **sound upper bound**: the charge never grows faster than this
@@ -395,17 +371,11 @@ pub struct GeneratedWord {
     pub partiality: Partiality,
     /// Whether the Word can answer a point over zero from operands that hold
     /// none (LANG.CONTRACT.FIELD). Read by \`interpreter::word_contract\`,
-    /// which joins it along a body as it joins partiality.
+    /// which joins it along a body.
     pub field: FieldClosure,
-    /// What the Word does to the zero shapes of numbers (LANG.VALUES.SHAPE).
-    /// Read by \`interpreter::word_contract_shape\`, which carries the shapes
-    /// a body's stack may hold through each call; \`field\` is its projection.
-    pub zero_shapes: ZeroShapeLaw,
     pub purity: Purity,
     pub determinism: Determinism,
-    /// What the Word charges on each metered resource. Read by
-    /// \`interpreter::word_cost\`, which joins these bounds along a phrase to
-    /// bound it without executing it.
+    /// What the Word charges on each metered resource.
     pub cost: WordCost,
     /// Which half of the public Core the Word belongs to. Both halves are
     /// ordinary sealed-Core Words reached by their plain names; the tier is a

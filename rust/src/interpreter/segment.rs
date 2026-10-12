@@ -99,9 +99,8 @@ pub(crate) struct Segment {
     pub(crate) binds: Vec<(crate::types::Name, u32)>,
     /// Words dispatched, User Word calls included.
     pub(crate) steps: usize,
-    /// Each User Word called, once, and how many calls in all.
+    /// Each User Word called, once.
     pub(crate) callees: Vec<String>,
-    pub(crate) calls: u64,
     /// How many User Word frames deep the inlined calls go.
     pub(crate) call_depth: usize,
     /// The dictionary the run was lowered against: the Words it inlined and
@@ -185,7 +184,7 @@ impl Segment {
             slots[*slot as usize] = Slot::of(&interp.lookup_binding(name.as_str())?)?;
         }
 
-        let (mut work, mut fastpath) = (0u64, 0u64);
+        let mut work = 0u64;
         // The stack's height after the last op the dispatch follows with the
         // nesting check (`check_fresh_nesting`), which marks everything
         // beneath it checked.
@@ -212,7 +211,6 @@ impl Segment {
                     stack.truncate(at);
                     stack.push(answer.value);
                     work += answer.work;
-                    fastpath += answer.fastpath;
                     checked_below = Some(stack.len());
                 }
                 SegOp::Kernel(kernel) => {
@@ -223,7 +221,6 @@ impl Segment {
                     stack.truncate(at);
                     stack.push(Slot::of_plain(&answer.value)?);
                     work += answer.work;
-                    fastpath += answer.fastpath;
                     checked_below = Some(stack.len());
                 }
             }
@@ -259,15 +256,7 @@ impl Segment {
 
         interp.execution_step_count += self.steps;
         interp.numeric_work_used += work;
-        let metrics = &mut interp.runtime_metrics;
-        metrics.scalar_fastpath_count = metrics.scalar_fastpath_count.saturating_add(fastpath);
-        let built = builds.as_ref().map_or(0, |builds| builds.len()) as u64;
-        metrics.compiled_plan_cache_miss_count += built;
-        metrics.compiled_plan_build_count += built;
-        metrics.compiled_plan_cache_hit_count += self.calls - built;
         if let Some(builds) = builds {
-            interp.global_epoch += built;
-            interp.execution_epoch = interp.global_epoch;
             for (name, plan) in builds {
                 interp.store_compiled_plan_for_word(name, plan);
             }

@@ -108,12 +108,7 @@ async fn a_failure_inside_a_compiled_block_still_names_its_word() {
         !rendered.is_empty(),
         "the failure must be reported, got {rendered}"
     );
-    // The trace is where the attribution lands; the diagnosis names ADD.
-    let trace = format!("{:?}", interp.drain_error_flow_trace());
-    assert!(
-        trace.contains("ADD"),
-        "the error-flow trace must name ADD: {trace}"
-    );
+    assert_eq!(interp.failed_word_for(&error), Some("ADD"));
 }
 
 /// One code Vector run again after the dictionary changed is compiled

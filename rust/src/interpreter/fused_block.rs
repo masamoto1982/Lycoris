@@ -163,11 +163,9 @@ pub(crate) struct FusedBlock {
     pub(crate) slots: usize,
     /// Words dispatched per run, User Word calls included.
     pub(crate) steps_per_run: u64,
-    /// User Word calls per run, each one a compiled-plan lookup.
-    pub(crate) calls_per_run: u64,
     /// The plans of called User Words that had none current: the interpreted
     /// walk builds each on its first call, so a committed fused walk stores
-    /// them and counts those builds.
+    /// them.
     pub(crate) builds: Vec<(String, std::sync::Arc<CompiledPlan>)>,
     /// Whether a name bound outside the block was read into it as a
     /// constant (`Op::Push`), which ties the lowering to that binding.
@@ -179,18 +177,16 @@ pub(crate) struct FusedBlock {
     /// `lane_flow` for a run that starts from a plain element (`MAP` with
     /// lane literals) and from a lane accumulator beside one (a one-lane
     /// seed): fixed by the ops, so worked out once when the block is lowered.
-    pub(crate) lanes_from_element: Option<(u64, bool)>,
-    pub(crate) lanes_from_seed: Option<(u64, bool)>,
+    pub(crate) lanes_from_element: Option<bool>,
+    pub(crate) lanes_from_seed: Option<bool>,
     /// The integer tier's compiled forms of the block.
     pub(crate) int_programs: crate::interpreter::fused_block_int::IntPrograms,
 }
 
 /// What a fused walk would charge, committed only once it has finished.
 pub(crate) struct Charges {
-    pub(crate) runs: u64,
     pub(crate) steps: usize,
     pub(crate) work: u64,
-    pub(crate) fastpath: u64,
 }
 
 impl FusedBlock {
@@ -221,22 +217,17 @@ impl FusedBlock {
         if !interp.scalar_fastpath_enabled || !interp.fused_block_enabled {
             return None;
         }
-        // A one-lane seed (`[ 0 ]`) is walked as its lane; `lane_mixed` is
-        // what that changes in the charges (`one_lane_seed`).
+        // A one-lane seed (`[ 0 ]`) is walked as its lane (`one_lane_seed`).
         //
         // A block that pushes one-lane literals is walked the same way, for
-        // `MAP` alone: each run then starts from a plain element, so what
-        // the lanes change is the same in every run, and a lane answer is
-        // one per element.
-        let mut lane_mixed: Option<u64> = None;
+        // `MAP` alone: each run then starts from a plain element, and a lane
+        // answer is one per element.
         let mut lane_answer = false;
         if !self.lane_pushes.is_empty() {
             if walk != FusedWalk::Map || !interp.dense_kernels_enabled {
                 return None;
             }
-            let (mixed, answer) = self.lanes_from_element?;
-            lane_mixed = Some(mixed);
-            lane_answer = answer;
+            lane_answer = self.lanes_from_element?;
         }
         let seed = match walk {
             FusedWalk::Map | FusedWalk::Filter => None,
@@ -246,18 +237,16 @@ impl FusedBlock {
                     Some(plain) => Some(plain),
                     None => {
                         let lane = one_lane_seed(interp, seed)?;
-                        let (mixed, answer) = self.lanes_from_seed?;
-                        if !answer {
+                        if !self.lanes_from_seed? {
                             return None;
                         }
-                        lane_mixed = Some(mixed);
                         lane_answer = true;
                         Some(lane)
                     }
                 }
             }
         };
-        let (mut value, mut charges) =
+        let (mut value, charges) =
             crate::interpreter::fused_block_int::run(self, interp, walk, target, seed.as_ref())
                 .or_else(|| {
                     crate::interpreter::fused_block_rat::run(
@@ -277,67 +266,38 @@ impl FusedBlock {
                         seed.as_ref(),
                     )
                 })?;
-        if let Some(mixed) = lane_mixed {
-            charges.fastpath = charges
-                .fastpath
-                .checked_sub(mixed.checked_mul(charges.runs)?)?;
-        }
         if lane_answer {
             value = crate::interpreter::fused_block_lane::rewrap_one_lane(walk, &value)?;
         }
 
-        let builds = self.builds.len() as u64;
-        let hits = self
-            .calls_per_run
-            .checked_mul(charges.runs)?
-            .checked_sub(builds)?;
-
         #[cfg(test)]
         FUSED_RUNS.with(|c| c.set(c.get() + 1));
-        // Commit what the interpreted walk would have: a step per dispatched
-        // Word, a fastpath hit per scalar-pair arithmetic or comparison, the
-        // work, and one execution epoch per run.
+        // Commit what the interpreted walk would have charged: a step per
+        // dispatched Word and the work. The User Word plans a run built are
+        // stored as the dispatch would have stored them.
         interp.execution_step_count += charges.steps;
         interp.numeric_work_used += charges.work;
-        interp.runtime_metrics.scalar_fastpath_count = interp
-            .runtime_metrics
-            .scalar_fastpath_count
-            .saturating_add(charges.fastpath);
-        // Each User Word call looks its plan up: the first call of a Word
-        // with none current builds one (a miss, a build and an epoch), every
-        // other call is a hit.
         for (name, plan) in &self.builds {
             interp.store_compiled_plan_for_word(name, plan.clone());
         }
-        let metrics = &mut interp.runtime_metrics;
-        metrics.compiled_plan_cache_miss_count += builds;
-        metrics.compiled_plan_build_count += builds;
-        metrics.compiled_plan_cache_hit_count += hits;
-        interp.global_epoch += charges.runs + builds;
-        interp.execution_epoch = interp.global_epoch;
         Some(value)
     }
 
     /// For a walk that holds one-lane Tensors — a one-lane accumulator, or
-    /// one-lane literals the block pushes — how many of each run's arithmetic
-    /// Words pair a lane with a plain scalar, and whether the run's result is
-    /// a lane; `None` when a lane reaches anything but `ADD`/`SUB`/`MUL`/
-    /// `DIV`, `BIND` and a bound name. `inputs` says which of the values the
-    /// run starts from are lanes, bottom first.
+    /// one-lane literals the block pushes — whether the run's result is a
+    /// lane; `None` when a lane reaches anything but `ADD`/`SUB`/`MUL`/`DIV`,
+    /// `BIND` and a bound name. `inputs` says which of the values the run
+    /// starts from are lanes, bottom first.
     ///
     /// Those four Words lift over the lane and answer a one-lane Tensor, so
-    /// the walk computes on the lane alone. What differs is the route each
-    /// pairing takes: two scalars, or two one-lane Tensors, take the scalar
-    /// fast path and count a hit; a lane beside a scalar takes the column
-    /// kernel (`dense_kernels`) and counts none. The work is the same, since
-    /// a one-lane Tensor and a machine-word scalar both measure one lane of
-    /// one limb (`measure_operand`). Every other Word treats a one-lane
-    /// Tensor differently from its lane — `EQ` compares whole values, `LT`
-    /// answers a Vector of Booleans — so the walk declines it.
-    pub(crate) fn lane_flow(&self, inputs: &[bool]) -> Option<(u64, bool)> {
+    /// the walk computes on the lane alone; the work is the same, since a
+    /// one-lane Tensor and a machine-word scalar both measure one lane of one
+    /// limb (`measure_operand`). Every other Word treats a one-lane Tensor
+    /// differently from its lane — `EQ` compares whole values, `LT` answers a
+    /// Vector of Booleans — so the walk declines it.
+    pub(crate) fn lane_flow(&self, inputs: &[bool]) -> Option<bool> {
         let mut stack = inputs.to_vec();
         let mut slots = vec![false; self.slots];
-        let mut mixed = 0;
         for (at, op) in self.ops.iter().enumerate() {
             match op {
                 Op::Push(_) => stack.push(self.lane_pushes.contains(&at)),
@@ -346,7 +306,6 @@ impl FusedBlock {
                 Op::Bind(slot) => slots[*slot] = stack.pop()?,
                 Op::Arith(_) => {
                     let (b, a) = (stack.pop()?, stack.pop()?);
-                    mixed += u64::from(a != b);
                     stack.push(a || b);
                 }
                 Op::Compare(_) | Op::And | Op::Extremum { .. } | Op::Pow => {
@@ -379,7 +338,7 @@ impl FusedBlock {
                 }
             }
         }
-        Some((mixed, stack.last().copied()?))
+        stack.last().copied()
     }
 
     /// The steps `runs` runs take, if the step ceiling lets all of them run.

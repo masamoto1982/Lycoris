@@ -44,9 +44,8 @@ const OPERATIONAL = new Set('FILTER SCAN FILL SORT ORDER UNIQUE TALLY ZIP GROUP 
 // spelling, and a Kernel Word is not on the table.
 //
 // SUB heads the list on the zero-shape reading (LANG.VALUES.SHAPE): it is the
-// one derivable Word with no law of its own — its `zeroShapes` law
-// `difference` is the sum table over a negated operand, as `x y -1 MUL ADD`
-// is — and a wheel has no subtraction among its operations, only addition and
+// one derivable Word with no law of its own — its shape table is the sum
+// table over a negated operand, as `x y -1 MUL ADD` is — and a wheel has no subtraction among its operations, only addition and
 // the reciprocal. It is also the most used, so the move was the owner's call
 // (2026-10): the next Word admitted takes SUB's slot first.
 // The rest stay in order of use, least first, as counted in the lexicon

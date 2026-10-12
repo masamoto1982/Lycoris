@@ -1,20 +1,18 @@
 #!/usr/bin/env node
-// The four source tools answer one question each about the same program, and
+// The three source tools answer one question each about the same program, and
 // their answers have to fit together. This runs every source the golden and
 // evaluation corpora hold, plus the edge cases that once split them, through
-// `compute`, `check`, `infer_contracts` and `outcomes`, and holds them to the
-// relations they promise:
+// `compute`, `check` and `infer_contracts`, and holds them to the relations
+// they promise:
 //
-//   * a run's `outcome` is always one `outcomes` predicted;
-//   * malformed source is malformed to all four, and `outcomes` says so exactly;
+//   * an error's `outcome` and its `error.category` name one category;
+//   * malformed source is malformed to all three;
 //   * `check` ok means the run does not fail on the program's form or its names;
-//   * a name `check` cannot resolve is an `unknownWord` `outcomes` allows for;
-//   * inference succeeds exactly when the source reads, and a contract whose
-//     body names an unresolved Word is never `total`.
+//   * inference succeeds exactly when the source reads;
+//   * every `suggested` line, pasted back above the source, verifies.
 //
-// These split before: `[ 1 2` was `malformedSource` to three tools and an `ok`
-// with no contracts to inference, and `[ FOO ] 'W' DEF` inferred a `total` Word
-// whose first call fails.
+// These split before: `[ 1 2` was `malformedSource` to two tools and an `ok`
+// with no contracts to inference.
 
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -74,48 +72,37 @@ for (const source of sources) {
     if (error?.code) continue;
     throw error;
   }
-  const [checked, inferred, predicted] = await Promise.all([
+  const [checked, inferred] = await Promise.all([
     backend.check(source),
     backend.inferContracts(source),
-    backend.outcomes(source),
   ]);
   compared += 1;
   const outcome = run.outcome;
-  const predictedSet = predicted.outcomes ?? [];
 
-  expect(outcome && predictedSet.includes(outcome), source,
-    `compute's outcome ${outcome} is not in the predicted set ${JSON.stringify(predictedSet)}`);
+  expect(!outcome?.startsWith("error:") || outcome === `error:${run.error?.category}`, source,
+    `compute's outcome ${outcome} names another category than its error ${run.error?.category}`);
 
   const malformed = outcome === "error:malformedSource";
-  expect((checked.aiDiagnostic?.category === "malformedSource") === malformed, source,
-    `check says ${checked.status}/${checked.aiDiagnostic?.category}, compute says ${outcome}`);
-  expect((inferred.aiDiagnostic?.category === "malformedSource") === malformed, source,
-    `infer_contracts says ${inferred.status}/${inferred.aiDiagnostic?.category}, compute says ${outcome}`);
+  expect((checked.error?.category === "malformedSource") === malformed, source,
+    `check says ${checked.status}/${checked.error?.category}, compute says ${outcome}`);
+  expect((inferred.error?.category === "malformedSource") === malformed, source,
+    `infer_contracts says ${inferred.status}/${inferred.error?.category}, compute says ${outcome}`);
   expect((inferred.status === "ok") === !malformed, source,
     `infer_contracts is ${inferred.status} for a source compute reads as ${outcome}`);
-  if (malformed) {
-    expect(predicted.exact === true && predictedSet.length === 1, source,
-      `outcomes is not exactly [error:malformedSource]: ${JSON.stringify(predictedSet)}`);
-  }
 
   if (checked.status === "ok") {
     expect(!["error:malformedSource", "error:unknownWord"].includes(outcome), source,
       `check ok, but the run failed with ${outcome}`);
-  }
-  if (checked.aiDiagnostic?.category === "unknownWord") {
-    expect(predictedSet.includes("error:unknownWord"), source,
-      "check names an unknown Word that outcomes does not allow for");
-  }
-
-  for (const contract of inferred.contracts ?? []) {
-    if ((contract.gaps ?? []).includes("gap.unresolvedWord")) {
-      expect(contract.partiality !== "total", source,
-        `${contract.name} calls an unresolved Word but is inferred total`);
+    for (const contract of inferred.contracts ?? []) {
+      const declared = await backend.check(`${contract.suggested}\n${source}`);
+      const verdict = declared.contractDecls?.declarations?.find(({ word }) => word === contract.name);
+      expect(verdict && verdict.outcome !== "error", source,
+        `the suggested \`${contract.suggested}\` does not verify: ${JSON.stringify(declared.contractDecls)}`);
     }
   }
 }
 
-assert.deepEqual(failures, [], `the four tools disagree:\n  ${failures.join("\n  ")}`);
+assert.deepEqual(failures, [], `the three tools disagree:\n  ${failures.join("\n  ")}`);
 assert.ok(compared >= 50, `expected to compare at least 50 sources, compared ${compared}`);
-console.log(`tool consistency: ${compared} sources agree across compute, check, infer_contracts and outcomes (${backend.kind}).`);
+console.log(`tool consistency: ${compared} sources agree across compute, check and infer_contracts (${backend.kind}).`);
 process.exit(0);

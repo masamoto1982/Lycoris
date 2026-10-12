@@ -23,12 +23,10 @@ import { dirname, join } from "node:path";
 import { parentPort, workerData } from "node:worker_threads";
 
 // The first operation in a fresh instance pays for the engine's one-time
-// tables (`OnceLock`s: the Core Word registry, builtin specs, outcome
-// vocabulary); the warm-up pays that instead, ahead of the call. It cannot
-// change what the call answers: every operation builds a fresh interpreter,
-// and what the warm-up leaves behind is those immutable tables and a
-// diagnostic mint counter that is only ever read as a difference within one
-// run (`semantic::minted_absence_count`).
+// tables (`OnceLock`s: the Core Word registry, builtin specs); the warm-up
+// pays that instead, ahead of the call. It cannot change what the call
+// answers: every operation builds a fresh interpreter, and what the warm-up
+// leaves behind is those immutable tables.
 const WARM_UP = "[ 1 2 3 ] [ 2 MUL 1 ADD ] MAP 'X' BIND X LENGTH 1/3 ADD";
 
 // The glue wasm-pack emits for `--target nodejs` is CommonJS that, when its
@@ -91,8 +89,6 @@ async function run({ op, source, stepLimit, responseBytes }) {
     json = wasm.agent_check(source);
   } else if (op === "inferContracts") {
     json = wasm.agent_infer_contracts(source);
-  } else if (op === "outcomes") {
-    json = wasm.agent_predict_outcomes(source, stepLimit ?? undefined);
   } else {
     return {
       error: {

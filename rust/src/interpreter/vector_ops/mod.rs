@@ -12,7 +12,6 @@ pub use structure::{op_collect, op_concat, op_range, op_reverse};
 use crate::error::{AjisaiError, NilReason, Result};
 use crate::interpreter::value_extraction_helpers::{extract_position_from_value, normalize_index};
 use crate::interpreter::Interpreter;
-use crate::semantic::Recoverability;
 use crate::types::fraction::Fraction;
 use crate::types::Value;
 
@@ -124,7 +123,7 @@ pub fn op_get(interp: &mut Interpreter) -> Result<()> {
     if let Some(record) = target.as_record() {
         let answer = match record.get(&key) {
             Some(value) => value.clone(),
-            None => Value::nil_with_reason(NilReason::NotFound, Recoverability::Recoverable),
+            None => Value::nil_with_reason(NilReason::NotFound),
         };
         interp.stack.push(answer);
         return Ok(());
@@ -161,9 +160,7 @@ pub fn op_get(interp: &mut Interpreter) -> Result<()> {
         normalize_index(index, len)
     }
     .and_then(|position| target.child(position))
-    .unwrap_or_else(|| {
-        Value::nil_with_reason(NilReason::IndexOutOfBounds, Recoverability::Recoverable)
-    });
+    .unwrap_or_else(|| Value::nil_with_reason(NilReason::IndexOutOfBounds));
     interp.stack.push(answer);
     Ok(())
 }
@@ -314,9 +311,7 @@ fn split_by_count(interp: &mut Interpreter, split: Split) -> Result<()> {
         Ok(split
             .bounds(vector_val.len(), count)
             .map(|(start, end)| vector_val.children_range(start, end))
-            .unwrap_or_else(|| {
-                Value::nil_with_reason(NilReason::IndexOutOfBounds, Recoverability::Recoverable)
-            }))
+            .unwrap_or_else(|| Value::nil_with_reason(NilReason::IndexOutOfBounds)))
     })?;
 
     interp.stack.push(result);

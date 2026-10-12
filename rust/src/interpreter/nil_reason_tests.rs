@@ -2,7 +2,7 @@
 
 use crate::error::NilReason;
 use crate::interpreter::Interpreter;
-use crate::semantic::{AbsenceMetadata, AbsenceOrigin, Recoverability};
+use crate::semantic::AbsenceMetadata;
 use crate::types::fraction::Fraction;
 use crate::types::Value;
 
@@ -86,11 +86,7 @@ async fn nil_passthrough_preserves_reason_through_arithmetic_pipeline() {
 #[tokio::test]
 async fn nil_passthrough_preserves_full_absence_metadata() {
     let mut interp = Interpreter::new();
-    let nil = Value::nil_with_absence(AbsenceMetadata::with_reason(
-        NilReason::DomainMiss,
-        AbsenceOrigin::HostEnvironment,
-        Recoverability::Retryable,
-    ));
+    let nil = Value::nil_with_absence(AbsenceMetadata::user_declared("gone"));
     interp.update_stack(vec![nil, Value::from_int(10)]);
 
     interp.execute("ADD").await.unwrap();
@@ -98,9 +94,8 @@ async fn nil_passthrough_preserves_full_absence_metadata() {
     let absence = interp.get_stack()[0]
         .absence_metadata()
         .expect("passthrough NIL keeps absence metadata");
-    assert_eq!(absence.reason, Some(NilReason::DomainMiss));
-    assert_eq!(absence.origin, AbsenceOrigin::HostEnvironment);
-    assert_eq!(absence.recoverability, Recoverability::Retryable);
+    assert_eq!(absence.reason, Some(NilReason::UserDeclared));
+    assert_eq!(absence.detail_text(), Some("gone"));
 }
 /// A written NIL carries the reason `literal`.
 ///

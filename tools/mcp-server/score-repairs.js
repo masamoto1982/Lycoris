@@ -36,7 +36,7 @@ function matches(result, expected) {
  *
  * The round before, this replayed only `compute` and scored every other tool as
  * nothing having happened — the same defect one level down, since `1 2 AD`
- * through `check` returns the identical `typoOrUnknownName` diagnosis naming
+ * through `check` returns the identical `unknownWord` error naming
  * the identical Word. Both corrections point the same way: grade what the model
  * did, through the tool it chose, across the whole turn. That is also what lets
  * the two rates separate rather than being identical by construction — a repair

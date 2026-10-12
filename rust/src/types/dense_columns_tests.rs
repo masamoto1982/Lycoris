@@ -11,7 +11,6 @@ use proptest::prelude::*;
 use super::value_absence::try_collect_dense;
 use super::{DenseTensor, Value, ValueData};
 use crate::error::NilReason;
-use crate::semantic::Recoverability;
 
 fn reference_promoted(values: Vec<Value>) -> Value {
     if let Some(collected) = try_collect_dense(&values) {
@@ -47,7 +46,7 @@ fn leaf() -> impl Strategy<Value = Value> {
             Just(NilReason::IndexOutOfBounds),
             Just(NilReason::NotFound),
         ]
-        .prop_map(|reason| Value::nil_with_reason(reason, Recoverability::Recoverable)),
+        .prop_map(Value::nil_with_reason),
         1 => Just(Value::nil()),
         1 => Just(Value::from_bool(true)),
         1 => Just(Value::from_string("s")),

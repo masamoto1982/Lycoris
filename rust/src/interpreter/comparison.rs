@@ -3,7 +3,6 @@ use crate::interpreter::exact_work::charge_comparison;
 use crate::interpreter::lane_lift::lift_lanes;
 use crate::interpreter::value_extraction_helpers::nil_passthrough_binary;
 use crate::interpreter::Interpreter;
-use crate::semantic::Recoverability;
 use crate::types::exact::ExactReal;
 use crate::types::fraction::Fraction;
 use crate::types::{Value, ValueData};
@@ -12,7 +11,7 @@ use crate::types::{Value, ValueData};
 /// order (LANG.VALUES.EXACT): a well-formed operand outside the operation's
 /// domain, `domainMiss`, as a negative radicand is to `SQRT`.
 pub(crate) fn unordered_projection() -> Value {
-    Value::nil_with_reason(NilReason::DomainMiss, Recoverability::Recoverable)
+    Value::nil_with_reason(NilReason::DomainMiss)
 }
 
 fn push_boolean_result(interp: &mut Interpreter, result: bool) {
@@ -45,11 +44,6 @@ fn scalar_fastpath_pair(interp: &Interpreter) -> Option<(ScalarFastOperand, Scal
     Some((a, b))
 }
 
-fn record_fastpath_hit(interp: &mut Interpreter) {
-    let count = &mut interp.runtime_metrics.scalar_fastpath_count;
-    *count = count.saturating_add(1);
-}
-
 fn push_ordering_scalar_fastpath(interp: &mut Interpreter, kind: OrderingKind) -> bool {
     let Some((a, b)) = scalar_fastpath_pair(interp) else {
         return false;
@@ -61,7 +55,7 @@ fn push_ordering_scalar_fastpath(interp: &mut Interpreter, kind: OrderingKind) -
     interp.stack.pop();
     interp.stack.pop();
     push_boolean_result(interp, decided);
-    record_fastpath_hit(interp);
+    super::arithmetic::note_scalar_fastpath();
     true
 }
 
@@ -73,7 +67,7 @@ fn push_equality_scalar_fastpath(interp: &mut Interpreter, invert: bool) -> bool
     interp.stack.pop();
     interp.stack.pop();
     push_boolean_result(interp, if invert { !eq } else { eq });
-    record_fastpath_hit(interp);
+    super::arithmetic::note_scalar_fastpath();
     true
 }
 

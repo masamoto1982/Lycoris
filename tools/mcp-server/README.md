@@ -112,7 +112,6 @@ nothing else there.
 | `compute` | execute source with time, source, output and step limits |
 | `check` | parse, resolve and conservatively verify `#:contract` declarations without execution |
 | `infer_contracts` | infer contracts for user-defined Words without execution |
-| `outcomes` | predict, without execution, the finite set of outcome ids a program could produce |
 | `word_contract` | query the complete canonical `spec/words.json` contract registry |
 
 Execution tools accept source text only. Deliberately omitting file-path input
@@ -120,36 +119,34 @@ prevents an AI tool call from becoming an arbitrary local-file reader.
 
 `check` answers about the *form* of a program, never about running it: it
 tokenizes, parses, resolves names and verifies `#:contract` declarations
-(`#:contract DOUBLE inputs=1 outputs=1 purity=pure`, one line per Word, in the
-keys and values `word_contract` answers in), all without execution. `compute`
-runs the same declaration check **before executing anything**, and a
-declaration the body contradicts stops the run: both tools answer it as an
-ordinary error — `aiDiagnostic.category: contractViolation`, `message`,
-`diagnosis` with `when: checkContract` — with every finding in
-`contractDecls.findings`, and `compute` names it `outcome:
-error:contractViolation`, which `outcomes` predicts exactly when the source
-carries a directive. A source without a directive carries no `contractDecls`.
-`check` used to answer a violation with `status: error` and nothing else at
-the top level, so a reader following "on error, read `diagnosis.why`" found
-nothing, and `compute` did not check at all — a program whose declaration
-about itself was false ran and answered a value. So a `check` that returns `status: ok` says the program is
+(`#:contract DOUBLE inputs=1 outputs=1 field=closed`, one line per Word, in
+the keys `CONTRACT` answers in — `inputs`, `outputs` and `field`, and no
+other: any other term makes the directive malformed), all without execution.
+`compute` runs the same declaration check **before executing anything**, and
+a declaration the body contradicts, or a malformed one, stops the run: both
+tools answer it as an ordinary error — `error.category: contractViolation`
+and a `message` quoting the finding — with every finding in
+`contractDecls.findings` (`{ severity, message }`) and a verdict per Word in
+`contractDecls.declarations`, and `compute` names it `outcome:
+error:contractViolation`. A source without a directive carries no
+`contractDecls`. So a `check` that returns `status: ok` says the program is
 well-formed and its names resolve — it does not say the program will succeed,
 stay inside a ceiling, or produce a value rather than a NIL. Nothing that only
 a run can decide is decided here. Read it as "this will get as far as
 executing", and read `compute` for what executing it does.
 
-The four source tools answer one program consistently, and
+The three source tools answer one program consistently, and
 `tool-consistency.test.js` (part of `npm run selftest`) holds them to it over
 every golden and corpus source:
 
-- `compute`'s `outcome` is always in the set `outcomes` predicts.
-- Source that does not parse is `malformedSource` to all four — `infer_contracts`
-  included — and `outcomes` answers it exactly.
+- An error's `outcome` and its `error.category` name one category.
+- Source that does not parse is `malformedSource` to all three —
+  `infer_contracts` included.
 - `check` ok means the run does not fail on the program's form or its names.
+- Every `suggested` line `infer_contracts` answers, pasted back above the
+  source, verifies under `check`.
 - `check` is stricter than a run: it rejects a name nothing defines even inside
-  a Word that is never called, which a run never reaches. `outcomes` still
-  allows for `unknownWord` there, and `infer_contracts` reports that Word as
-  `partial` with a `gap.unresolvedWord` gap.
+  a Word that is never called, which a run never reaches.
 
 ### Three outcomes, kept distinct
 
@@ -157,18 +154,13 @@ every golden and corpus source:
 |---|---|---|---|
 | a value | `ok` | `value` | — |
 | `NIL(reason)` | `ok`, with the absence reason | `nil:<reason>` | — |
-| language `ERROR` | `error`, with the full diagnosis | `error:<category>` | — |
+| language `ERROR` | `error`, with `message` and `error` | `error:<category>` | — |
 | a failure of the *host* | `hostError` | — | yes |
 
-`outcome` uses the ids of `spec/outcomes.json` — the same ids the `outcomes`
-tool predicts — so a run is checked against its prediction with one membership
-test, and a reasoned absence is told apart from a value without reading the top
-stack node. `outcomes` answers `exact: true` only when it returns a single id:
-an empty program (`value`) or source that does not tokenize or balance its
-brackets (`error:malformedSource`). Every other program, a bare literal
-included, gets a sound superset with `exact: false`.
+`outcome` uses the ids of `spec/outcomes.json`, so a reasoned absence is told
+apart from a value without reading the top stack node.
 
-All five tools answer with the same envelope (`result.schema.json`, also served
+All four tools answer with the same envelope (`result.schema.json`, also served
 as `ajisai://schema/result`), so one schema describes every result a caller can
 receive and there is no second contract to keep in step.
 
@@ -187,23 +179,21 @@ What was removed is everything constant. `1 2 ADD` answered 3,732 bytes, of
 which the answer — `stack` and `stackDisplay` — was 85: the rest was the
 twelve-entry limit table on every result (`mcp.limits`), the same table again
 inside the engine's `receipt.limitProfile`, the receipt's copies of
-`observationDigest` and `resourceUsage`, and eight optimizer counters
-(`runtimeMetrics`) that describe how the engine went about its work and tell a
-caller nothing. Five calls in one turn cost 5,000 tokens of that. Now:
+`observationDigest` and `resourceUsage`. Five calls in one turn cost 5,000 tokens of that. Now:
 
 - `mcp.limitProfile` names the profile (`mcp-local-stdio`); the ceilings are
   the `ajisai://limits` resource, read once. A ceiling that fires still names
-  itself and its value in `diagnosis.resourceLimit`, and a host failure about
-  one in `error.limit`, so no result needs the table to be acted on.
-- `runtimeMetrics` is not sent. `resourceUsage` — the budget side, what the
-  run spent against each ceiling — is.
+  itself in `error.resource` and its value in `message`, and a host failure
+  about one in `error.limit`, so no result needs the table to be acted on.
+- `resourceUsage` — what the run spent against each ceiling — is sent; the
+  engine reports no optimizer counters at all.
 - `receipt` keeps `digest`, `sourceDigest` and `registryDigest`, the three
   things nothing else in the envelope carries; a verifier takes `status`,
   `observationDigest`, `resourceUsage` and `mcp.engineVersion` from beside
   them and the limit profile from `ajisai://limits`. The native CLI's own
   envelope is untouched — this is the adapter's presentation of it.
-- An optional field carrying no value is absent, not `null` — `message`,
-  `diagnosis` and `aiDiagnostic` on a plain success, `contractDecls` on a
+- An optional field carrying no value is absent, not `null` — `message` and
+  `error` on a plain success, `contractDecls` on a
   source that declares nothing. **Test for presence, not for `null`.**
 
 `1 2 ADD` is 1.8 KB as sent, and what remains constant is the three digests a receipt and its provenance need. `npm run eval:performance` measures the whole
@@ -247,25 +237,16 @@ the same way: `8 SQRT` and `2 SQRT 2 SQRT ADD` both give `2/1*sqrt(2)`, and
 string comparison does not — the string is display text, not a value. `exactTerms` does not appear on a rational
 or a vector of rationals, whose `stackDisplay` is already the whole value.
 
-### Diagnostics
+### Errors
 
-An unknown Word answers with `diagnosis.candidates` — the closest known names,
-best match first, drawn from the compiled-in vocabulary and the Words the same
-source defines (each call runs in a fresh session, so the same source is the
-whole User dictionary). `word_contract` answers an
-unmatched name the same way, in `suggestions`.
-
-Each `nextChecks` entry is `{ code, title: { en, ja }, detail: { en, ja } }`.
-Match on `code`; the display text is localized and free to be reworded.
-
-`diagnosis` is the one copy of an error's diagnosis. `aiDiagnostic` only
-classifies it — `category` (the `spec/outcomes.json` error category, the same
-id as in `outcome`), `repair: "program"` when the registry says the program is
-what to change (absent: an operand is wrong), `word` and `family` — and the
-error's `errorFlowTrace` event does not repeat it. A `nilProduced` event keeps
-its own diagnosis, since a NIL has no other; it is recorded once, at the Word
-that projected the NIL, and the Words it then passed through record nothing. Repeating the diagnosis three times
-is what made `1 ADD` a 12 KB response; it is now 7 KB.
+A language error is `message` — one line of text — and one object,
+`error: { category, resource?, word?, line?, column? }`. `category` is the
+`spec/outcomes.json` error category, the same id as in `outcome`, and is what
+to branch on; `word` is the Word the failure is attributed to, `line` and
+`column` where it was written, and `resource`, for `resourceLimitExceeded`,
+the entry of `ajisai://limits` that fired. An unknown Word is
+`category: unknownWord` with the name as written in `word`; `word_contract`
+answers that name with the closest known Words in `suggestions`.
 
 `responseBytes` bounds the response as sent: the structured result, its
 serialized text mirror and provenance together. A *successful* result is kept
@@ -281,17 +262,16 @@ record saying a 7,001-element vector was left under it, which is what tells
 the caller to drop it. `responseTooLarge` remains the hard gate behind that,
 for a result no elision can bring under the ceiling.
 
-A resource-limit failure carries `diagnosis.resourceLimit`
-(`{ resource, limit, observed }`), where `resource` is the name of the very
-entry in `ajisai://limits` that fired and `limit` its value — every ceiling,
-`executionSteps` included, reports what it observed.
+A resource-limit failure names the very entry in `ajisai://limits` that fired
+in `error.resource`, and its `message` states the limit and what crossed it
+(`materializedElements of 100002 exceeds the limit of 100000`).
 
 A ceiling never refuses a call without failing it. A well-formed generative
 Word whose result will not fit — `0 100001 RANGE` against
 `materializedElements`, a `FILL` or `RESHAPE` shape past it or past
 `nestingDepth`, `JSON-DECODE` of text that deep, `NUM` of a lexeme past
 `numericLiteralDigits`, `POW` past `bigintBits` — is `status: error` with
-`resourceLimitExceeded`, and `diagnosis.resourceLimit` names the ceiling, its
+`resourceLimitExceeded`, `error.resource` names the ceiling, and `message` its
 value and the size requested, measured before anything was built; the Word's
 operands stay on the stack. A ceiling is the host's, not the program's, so
 crossing one is never a value: a NIL here would flow on like any other value
@@ -377,7 +357,7 @@ branching and the algebraic-value trap in one screen, then hands off. Its own
 examples are executed against the live backend by the self-test, the same
 guarantee the generator gives the half below it.
 
-All five tools declare read-only, non-destructive and idempotent MCP
+All four tools declare read-only, non-destructive and idempotent MCP
 annotations.
 
 ## Development

@@ -4,7 +4,7 @@
 //! LANG.AUTHORITY.FREEDOM makes the route unobservable, so each program here
 //! runs with the kernels on and off and the two runs must agree on the
 //! stack's values (`Debug`, so a dense Tensor and a boxed Vector differ), the
-//! error, the resource usage, the metrics and the error flow trace.
+//! error, the resource usage and the error flow trace.
 
 use crate::interpreter::Interpreter;
 use proptest::prelude::*;
@@ -14,7 +14,6 @@ pub(super) struct Observation {
     outcome: std::result::Result<(), String>,
     values: String,
     usage: crate::interpreter::ResourceUsage,
-    metrics: String,
     trace: String,
 }
 
@@ -34,8 +33,7 @@ pub(super) fn observe(source: &str, dense: bool, bits: Option<u64>) -> Observati
         // re-pushes operands the kernel never touched.
         values: crate::test_support::representation(interp.get_stack().as_slice()),
         usage: interp.resource_usage(),
-        metrics: format!("{:?}", interp.runtime_metrics()),
-        trace: format!("{:?}", interp.error_flow_trace_log),
+        trace: format!("{:?}", interp.failed_word),
     }
 }
 

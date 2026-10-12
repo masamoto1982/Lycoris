@@ -271,7 +271,7 @@ fn decode_value(value: &PersistData) -> Result<Value, String> {
             .ok_or_else(|| format!("unknown NIL reason: {}", reason))?;
         return Ok(match (reason, ud) {
             (NilReason::UserDeclared, Some(detail)) => Value::nil_user_declared(detail),
-            _ => Value::nil_with_reason_unknown(reason),
+            _ => Value::nil_with_reason(reason),
         });
     }
     Ok(Value::new(decode_data(value)?, None))

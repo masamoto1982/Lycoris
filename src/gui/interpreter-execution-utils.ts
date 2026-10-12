@@ -8,7 +8,7 @@ import { getPlatform } from '../platform';
 import type {
     AjisaiInterpreter,
     ExecuteResult,
-    ProtocolDiagnosis,
+    ProtocolError,
     UserWord,
     Value
 } from '../wasm-interpreter-types';
@@ -29,97 +29,20 @@ export const readRecordParts = (value: unknown): { keys: Value[]; values: Value[
     };
 };
 
-// ── Diagnosis report ────────────────────────────────────────────────────────
-// The one place that knows what a diagnosis looks like when it is read.
-//
-// The `[DIAGNOSIS]` heading, the three numbered questions and the `next:`
-// lines are a presentation contract: a reader learns the shape once and then
-// reads every refusal the same way. The shape is written once, here, so
-// renaming `Q3 why:` or adding a fourth question moves every diagnosis at
-// once — including the wall-clock timeout, the one refusal the interpreter
-// never gets to explain (the playground terminates the worker where it stands,
-// so no diagnosis arrives with the result) and the one a reader is least
-// likely to have seen before.
-//
-// So the timeout builds a `ProtocolDiagnosis` like any other and renders
-// through here. What is genuinely its own — a ceiling with no observed value,
-// enforced by the host rather than the language — arrives as `extraLines`
-// rather than as a second renderer.
+// ── Error report ────────────────────────────────────────────────────────────
+// What an ERROR carries beside its message, written under it: the category a
+// host branches on, the ceiling that refused the run, the Word it is
+// attributed to and where in the source the run was. The wall-clock stop
+// renders through here too, so every refusal reads the same way.
 
-const evidenceValue = (
-    entries: readonly string[] | undefined,
-    key: string
-): string | null => {
-    const hit = entries?.find((entry) => entry.startsWith(`${key}=`));
-    return hit ? hit.slice(key.length + 1) : null;
-};
-
-export interface DiagnosisReportContext {
-    /**
-     * Stack depth at the failing step, from the error-flow event that carried
-     * the diagnosis. Absent when the diagnosis did not come from a step (the
-     * host-guard case).
-     */
-    readonly stackLenBefore?: number;
-    /**
-     * Lines to print where a protocol `resourceLimit` would go, for a ceiling
-     * the protocol cannot describe.
-     */
-    readonly extraLines?: readonly string[];
-}
-
-export const renderDiagnosisReport = (
-    diagnosis: ProtocolDiagnosis,
-    context: DiagnosisReportContext = {}
-): string => {
-    const where = diagnosis.where.word
-        ? `${diagnosis.where.word} (${diagnosis.where.kind})`
-        : diagnosis.where.kind;
-    const depth =
-        typeof context.stackLenBefore === 'number'
-            ? `, stack depth ${context.stackLenBefore}`
+export const renderErrorReport = (error: ProtocolError): string => {
+    const category = error.resource ? `${error.category} (${error.resource})` : error.category;
+    const word = error.word ? ` in ${error.word}` : '';
+    const at =
+        typeof error.line === 'number'
+            ? ` at line ${error.line}${typeof error.column === 'number' ? `, column ${error.column}` : ''}`
             : '';
-    // Where in the source the run was when it failed. The host records it
-    // as evidence — the same `key=value` channel `stackLenBefore` uses.
-    const sourceLine = evidenceValue(diagnosis.evidence, 'sourceLine');
-    const sourceColumn = evidenceValue(diagnosis.evidence, 'sourceColumn');
-    const at = sourceLine
-        ? ` at line ${sourceLine}${sourceColumn ? `, column ${sourceColumn}` : ''}`
-        : '';
-    // The Words the failure happened *inside*, innermost first. A block and
-    // a Word body are each their own token stream with no source of their
-    // own, so the position above is the top-level token that reached the
-    // failure; this says which construct the failing word was written in.
-    const insideWords = evidenceValue(diagnosis.evidence, 'insideWords');
-    const inside = insideWords ? `, inside ${insideWords.split(',').join(', ')}` : '';
-    // The known Words closest to a name that did not resolve. Telling a
-    // reader to check the spelling without saying what it might have been
-    // is the one hint nobody can act on.
-    const candidates = diagnosis.candidates?.length
-        ? [`did you mean: ${diagnosis.candidates.join(', ')}`]
-        : [];
-    // Which declared ceiling fired, so "too big" says what was too big.
-    const limit = diagnosis.resourceLimit
-        ? [
-              `limit ${diagnosis.resourceLimit.resource}: ${
-                  diagnosis.resourceLimit.observed ?? '?'
-              } against ${diagnosis.resourceLimit.limit}`
-          ]
-        : [];
-    return [
-        `[DIAGNOSIS] ${diagnosis.summary}`,
-        `Q1 when: ${diagnosis.when}`,
-        `Q2 where: ${where}${inside}${at}${depth}`,
-        `Q3 why: ${diagnosis.why}`,
-        ...candidates,
-        ...limit,
-        ...(context.extraLines ?? []),
-        // One locale per line. Each check carries both; the playground's own
-        // text is English (`<html lang="en">`), so English is the side that
-        // matches its surroundings, and the `ja` half stays in the protocol
-        // for a host that renders in Japanese.
-        ...diagnosis.nextChecks.map((check) => `next: ${check.title.en} - ${check.detail.en}`)
-    ].join('\n');
+    return `[ERROR] ${category ?? 'unknown'}${word}${at}`;
 };
 
 // ── Snapshot, sync and the run's own explanations ───────────────────────────
@@ -176,80 +99,12 @@ export const describeFailedRunOutput = (result: ExecuteResult): string => {
     return output ? `${output.replace(/\n*$/, '')}\n${correction}` : correction;
 };
 
-// The diagnosis a wall-clock stop can answer with.
-//
-// Every other refusal is built by the interpreter, which knows the Word, the
-// position and the ceiling. This one is not: the playground terminates the
-// worker where it stands, so nothing of the run survives to be diagnosed. What
-// is knowable here is knowable without the run — which guard fired, that it is
-// the host's and not the language's, and what makes a program fit inside it.
-//
-// It is assembled as a `ProtocolDiagnosis` and rendered by
-// `renderDiagnosisReport`, the same way a diagnosis that arrives from the
-// interpreter is, so the reading format stays one thing. Only the ceiling line
-// is its own, because a wall-clock stop has no observed value to report
-// against the limit and no Word to attribute it to.
-const TIMEOUT_DIAGNOSIS: ProtocolDiagnosis = {
-    when: 'hostGuard',
-    // `playground` is the host, not a Word: the guard belongs to the page that
-    // owns the worker, and naming it here is what tells a reader the language
-    // did not refuse their program.
-    where: { kind: 'hostEnvironment', word: 'playground' },
-    why: 'resourceLimit',
-    summary: 'hostGuard / playground (hostEnvironment) / resourceLimit (executionTimeout)',
-    evidence: [],
-    nextChecks: [
-        {
-            code: 'checkWhichGuardStopped',
-            title: { en: 'Check which guard stopped it', ja: 'どのガードが止めたか確認する' },
-            detail: {
-                en: 'The playground stops a run on wall-clock time. '
-                    + "The interpreter's own budgets (execution steps, materialized elements, "
-                    + 'numeric work) did not refuse this program; it was still running when the '
-                    + 'time ran out.',
-                ja: 'プレイグラウンドは実時間で実行を停止する。インタプリタ自身の予算（実行ステップ、'
-                    + '実体化要素数、数値処理量）はこのプログラムを拒否していない。時間切れの時点で'
-                    + 'まだ実行中だった。'
-            }
-        },
-        {
-            code: 'rewriteLoopAsBulkOperation',
-            title: { en: 'Rewrite the loop as a bulk operation', ja: 'ループを一括操作に書き換える' },
-            detail: {
-                en: 'A whole-vector Word does in one step what a per-element loop does in as '
-                    + 'many, and only the loop is charged per step.',
-                ja: 'ベクタ全体を扱うWordは、要素ごとのループが要素数だけ費やす処理を1ステップで行う。'
-                    + 'ステップ課金を受けるのはループの側だけである。'
-            }
-        },
-        {
-            code: 'trimWhatTheRunCarries',
-            title: { en: 'Trim what the run carries', ja: '実行が抱える値を削る' },
-            detail: {
-                en: 'Exact values grow as they are combined; rounding to a grid (x d MUL FLOOR d DIV) '
-                    + 'bounds a denominator that is otherwise free to grow every iteration.',
-                ja: '厳密値は組み合わせるほど大きくなる。格子への丸め(x d MUL FLOOR d DIV)は、'
-                    + 'そのままでは反復ごとに増え続ける分母に上限を与える。'
-            }
-        },
-        {
-            code: 'checkHostProfile',
-            title: { en: 'Check the host profile', ja: 'ホストプロファイルを確認する' },
-            detail: {
-                en: 'This guard is not part of the language. Another host (the MCP server) '
-                    + 'applies different limits; the profile badge beside the build version lists '
-                    + 'the ones in force here.',
-                ja: 'このガードは言語の一部ではない。別のホスト（MCPサーバ）は異なる上限を適用する。'
-                    + 'ここで有効な上限は、ビルド版数の隣にあるプロファイル表示に並んでいる。'
-            }
-        }
-    ]
-};
-
+// The wall-clock stop is the one refusal the interpreter never gets to
+// explain: the playground terminates the worker where it stands. Its guard is
+// the host's, not the language's, so it names the host rather than a Word.
 export const describeTimeoutDiagnosis = (limitMs: number): string =>
-    renderDiagnosisReport(TIMEOUT_DIAGNOSIS, {
-        extraLines: [`limit executionTimeoutMs: ${limitMs} (wall clock, this host only)`]
-    });
+    `${renderErrorReport({ category: 'executionTimeout', word: 'playground' })}\n`
+    + `limit executionTimeoutMs: ${limitMs} (wall clock, this host only)`;
 
 export const syncInterpreterState = (
     interpreter: AjisaiInterpreter,
@@ -278,7 +133,7 @@ export const resolveExecutionException = (
     }
     showError(toError(error));
     // The one refusal the interpreter never gets to explain: it is stopped from
-    // outside, so the diagnosis is written here instead of arriving with the
+    // outside, so its report is written here instead of arriving with the
     // result.
     if (error instanceof ExecutionTimeoutError) {
         showInfo(describeTimeoutDiagnosis(error.limitMs), true);
@@ -373,35 +228,3 @@ export const detectExecutionSurfaceChanges = (
     };
 };
 
-// Whether a value is a NIL or holds one in some lane.
-const checkHoldsNil = (value: Value | undefined): boolean => {
-    if (!value) return false;
-    if (value.type === 'nil') return true;
-    if (value.type === 'vector') {
-        // A vector cut to its leading elements states whether the rest holds
-        // one (`truncated.holdsNil`).
-        if (value.truncated?.holdsNil) return true;
-        return Array.isArray(value.value) && (value.value as Value[]).some(checkHoldsNil);
-    }
-    if (value.type === 'record') {
-        const { keys, values } = readRecordParts(value.value);
-        return [...keys, ...values].some(checkHoldsNil);
-    }
-    return false;
-};
-
-// Whether the run left a NIL of its own on the stack — the only NIL a "Why
-// NIL" can be about.
-//
-// The trace names a Word for every NIL left on top of the stack, including one
-// that was already there: on a stack holding an earlier run's NIL,
-// `[ 2 MUL ] 'G' DEF` reports that NIL against DEF. A slot the run did not
-// change still holds what the run was handed, so only a new or changed slot
-// holding a NIL counts.
-export const checkRunLeftOwnNil = (
-    before: ExecutionStateView,
-    after: ExecutionStateView
-): boolean =>
-    after.stack.some((value, index) =>
-        checkHoldsNil(value)
-        && (index >= before.stack.length || !checkValuesEqual(before.stack[index], value)));

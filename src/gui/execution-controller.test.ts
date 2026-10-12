@@ -1,9 +1,9 @@
 // Run, Step, the wall-clock guard, Abort and Lookup answer through one path
 // (`applyExecutionResult` in execution-controller.ts): the report and its
-// diagnosis go to Output, and the surfaces the answer changed are shown. These
+// error go to Output, and the surfaces the answer changed are shown. These
 // pin that each of them takes it, rather than a copy that drifts — a failing
-// Step that printed no diagnosis and never left the editor, an Abort that
-// could not stop a run, and a "Why NIL" hung on a DEF were each such a copy.
+// Step that printed no error report and never left the editor, and an Abort
+// that could not stop a run, were each such a copy.
 //
 // The worker pool is replaced by a fake whose `execute` the test answers by
 // hand; the interpreter is the minimal fake the snapshot round trip needs.
@@ -11,9 +11,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
     AjisaiInterpreter,
-    ErrorFlowTraceEvent,
     ExecuteResult,
-    ProtocolDiagnosis,
     UserWord,
     Value
 } from '../wasm-interpreter-types';
@@ -37,28 +35,6 @@ vi.mock('../workers/execution-worker-manager', () => ({
         resetAllWorkers: async () => { /* not exercised */ }
     }
 }));
-
-const nil = (reason: string): Value =>
-    ({ type: 'nil', value: null, semantics: { absence: { reason } } } as unknown as Value);
-
-const SQRT_DIAGNOSIS: ProtocolDiagnosis = {
-    when: 'executeWord',
-    where: { kind: 'coreWord', word: 'SQRT' },
-    why: 'domain',
-    summary: 'executeWord / SQRT (coreWord) / domain (nil:domainMiss)',
-    evidence: [],
-    candidates: [],
-    nextChecks: []
-};
-
-const nilEvent = (word: string): ErrorFlowTraceEvent => ({
-    kind: 'nilProduced',
-    word,
-    stackLenBefore: 2,
-    stackLenAfter: 1,
-    message: `NIL produced by ${word}`,
-    diagnosis: SQRT_DIAGNOSIS
-});
 
 // The main-thread interpreter: a stack and a User dictionary, restored from a
 // result's snapshot the way the wasm one is.
@@ -114,7 +90,6 @@ const setup = () => {
         readEditorValue: () => editor,
         clearEditor: () => { log.push('clearEditor'); },
         showInfo: (text, append) => { log.push(`${append ? 'info+' : 'info'}: ${text}`); },
-        showFoldedInfo: (label) => { log.push(`folded: ${label}`); },
         highlightSourceRange: () => { /* not observed */ },
         showDocumentation: (text) => { log.push(`doc: ${text}`); },
         showError: (error) => {
@@ -162,33 +137,10 @@ describe('Run', () => {
         expect(page.runStatus[0]).toContain('Escape');
         expect(page.runStatus[1]).toBeNull();
     });
-
-    it('offers "Why NIL" for a NIL the run produced', async () => {
-        const page = setup();
-        answerWith(async () => ok([nil('domainMiss')], { errorFlowTrace: [nilEvent('SQRT')] }));
-
-        await page.controller.executeCode('-1 SQRT');
-
-        expect(page.log).toContain('folded: Why NIL');
-    });
-
-    it('offers no "Why NIL" for a DEF that left an earlier NIL on top', async () => {
-        const page = setup();
-        page.setStack([nil('domainMiss')]);
-        answerWith(async () => ok([nil('domainMiss')], {
-            output: 'Defined word: G\n',
-            userWords: [{ name: 'G', definition: '2 MUL' }],
-            errorFlowTrace: [nilEvent('DEF')]
-        }));
-
-        await page.controller.executeCode("[ 2 MUL ] 'G' DEF");
-
-        expect(page.log).not.toContain('folded: Why NIL');
-    });
 });
 
 describe('Step', () => {
-    it('reports a failing step with its diagnosis, keeps the step line, and shows Output', async () => {
+    it('reports a failing step with its error, keeps the step line, and shows Output', async () => {
         const page = setup();
         page.setEditor('1 FOO');
         let calls = 0;
@@ -199,10 +151,7 @@ describe('Step', () => {
                 status: 'ERROR',
                 error: true,
                 message: 'Unknown word: FOO',
-                // An ERROR's diagnosis is the result's; the trace's error event
-                // does not repeat it.
-                diagnosis: SQRT_DIAGNOSIS,
-                errorFlowTrace: [{ ...nilEvent('FOO'), kind: 'wordError', diagnosis: undefined }]
+                errorInfo: { category: 'unknownWord', word: 'FOO', line: 1, column: 3 }
             };
         });
 
@@ -210,7 +159,7 @@ describe('Step', () => {
         await page.controller.executeStep();
 
         const failed = page.log.slice(page.log.indexOf('error: Unknown word: FOO'));
-        expect(failed[1]).toMatch(/^info\+: \[DIAGNOSIS\]/);
+        expect(failed[1]).toBe('info+: [ERROR] unknownWord in FOO at line 1, column 3');
         expect(failed[2]).toMatch(/^info\+: \[>\] Step 2\/2/);
         expect(page.surfaces.at(-1)?.outputChanged).toBe(true);
         expect(page.controller.checkIsStepModeActive()).toBe(false);
@@ -230,14 +179,14 @@ describe('Step', () => {
 });
 
 describe('a run that never answered', () => {
-    it('reports the wall-clock stop with its diagnosis and shows Output', async () => {
+    it('reports the wall-clock stop with its error and shows Output', async () => {
         const page = setup();
         answerWith(async () => { throw new ExecutionTimeoutError(5_000); });
 
         await page.controller.executeCode('loop');
 
         expect(page.log).toContain('error: Execution timed out after 5000 ms');
-        expect(page.log.some(line => line.includes('[DIAGNOSIS]'))).toBe(true);
+        expect(page.log.some(line => line.includes('[ERROR] executionTimeout'))).toBe(true);
         expect(page.surfaces.at(-1)).toEqual({
             outputChanged: true,
             stackChanged: false,
