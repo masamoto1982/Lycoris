@@ -11,7 +11,6 @@
 use super::lanes::{Lanes, Out};
 use super::{floor_divmod, small_rational, ExactArithmeticSchema};
 use crate::types::fraction::binary_gcd_u64;
-use crate::types::Value;
 
 /// The largest scalar divisor whose residue gcds `integer_quotients` tables:
 /// a gcd of it fits a `u16`, and the table is a few kilobytes at most.
@@ -70,23 +69,27 @@ impl Residues {
 /// carried by the numerator; a zero divisor answers the dividend's sign over
 /// zero. `None` for the one quotient a machine word cannot hold,
 /// `i64::MIN / -1`.
-pub(super) fn integer_quotients(a: Lanes, b: Lanes, n: usize) -> Option<Value> {
+pub(super) fn integer_quotients(a: Lanes, b: Lanes, n: usize, out: &mut Out) -> Option<()> {
     // A Tensor divided by one small integer (`7 DIV`, the common case) meets
     // only `|y|` residues, so everything a lane needs is read from a table
     // built once.
     if let (Lanes::Columns { nums, .. }, Lanes::Splat(y, _)) = (a, b) {
         if let Some(residues) = Residues::of(y, n) {
-            return quotients_by_small_integer(nums, y, &residues);
+            return quotients_by_small_integer(nums, y, &residues, out);
         }
     }
     // The operand shapes are matched once, not per lane.
     match (a, b) {
         (Lanes::Columns { nums: x, .. }, Lanes::Columns { nums: y, .. }) => {
-            quotient_lanes(n, |i| (x[i], y[i]))
+            quotient_lanes(n, |i| (x[i], y[i]), out)
         }
-        (Lanes::Columns { nums: x, .. }, Lanes::Splat(y, _)) => quotient_lanes(n, |i| (x[i], y)),
-        (Lanes::Splat(x, _), Lanes::Columns { nums: y, .. }) => quotient_lanes(n, |i| (x, y[i])),
-        (Lanes::Splat(..), Lanes::Splat(..)) => None,
+        (Lanes::Columns { nums: x, .. }, Lanes::Splat(y, _)) => {
+            quotient_lanes(n, |i| (x[i], y), out)
+        }
+        (Lanes::Splat(x, _), Lanes::Columns { nums: y, .. }) => {
+            quotient_lanes(n, |i| (x, y[i]), out)
+        }
+        (Lanes::Splat(x, _), Lanes::Splat(y, _)) => quotient_lanes(n, |_| (x, y), out),
     }
 }
 
@@ -96,8 +99,7 @@ pub(super) fn integer_quotients(a: Lanes, b: Lanes, n: usize) -> Option<Value> {
 /// longest of the four does mispredicts once per four lanes rather than once
 /// per lane.
 #[inline(always)]
-fn quotient_lanes(n: usize, lane: impl Fn(usize) -> (i64, i64)) -> Option<Value> {
-    let mut out = Out::with_capacity(n);
+fn quotient_lanes(n: usize, lane: impl Fn(usize) -> (i64, i64), out: &mut Out) -> Option<()> {
     let mut i = 0;
     while i + 4 <= n {
         let pairs = [lane(i), lane(i + 1), lane(i + 2), lane(i + 3)];
@@ -107,16 +109,17 @@ fn quotient_lanes(n: usize, lane: impl Fn(usize) -> (i64, i64)) -> Option<Value>
         );
         for ((x, y), g) in pairs.into_iter().zip(gcds) {
             let (q, d) = reduced_quotient(x, y, g)?;
-            out.push(q, d);
+            out.push_pair(q, d);
         }
         i += 4;
     }
     for i in i..n {
         let (x, y) = lane(i);
         let (q, d) = reduced_quotient(x, y, binary_gcd_u64(x.unsigned_abs(), y.unsigned_abs()))?;
-        out.push(q, d);
+        out.push_pair(q, d);
     }
-    Some(out.into_value())
+    out.settle();
+    Some(())
 }
 
 /// `x / y` reduced by `g = gcd(|x|, |y|)`, with the sign carried by the
@@ -203,18 +206,23 @@ pub(crate) fn binary_gcd_x4(a: [u64; 4], b: [u64; 4]) -> [u64; 4] {
 /// `x / y` for every lane `x` and one integer `y` with `1 <= |y| <=
 /// GCD_TABLE_MAX`: [`integer_quotients`]'s answer from the residue table.
 /// `None` for the one quotient a machine word cannot hold, `i64::MIN / -1`.
-fn quotients_by_small_integer(nums: &[i64], y: i64, residues: &Residues) -> Option<Value> {
+fn quotients_by_small_integer(
+    nums: &[i64],
+    y: i64,
+    residues: &Residues,
+    out: &mut Out,
+) -> Option<()> {
     let negative = y < 0;
-    let mut out = Out::with_capacity(nums.len());
     for &x in nums {
         let (numerator, m_over_g) = residues.reduce(x);
         if negative {
-            out.push(numerator.checked_neg()?, m_over_g);
+            out.push_pair(numerator.checked_neg()?, m_over_g);
         } else {
-            out.push(numerator, m_over_g);
+            out.push_pair(numerator, m_over_g);
         }
     }
-    Some(out.into_value())
+    out.settle();
+    Some(())
 }
 
 /// `MUL` by, or `DIV` by, one small integer `k` of a column of rationals — the
@@ -236,13 +244,28 @@ pub(super) fn scaled_by_integer(
     schema: ExactArithmeticSchema,
     a: Lanes,
     b: Lanes,
-) -> Option<Value> {
+    out: &mut Out,
+) -> Option<()> {
     use ExactArithmeticSchema::{Div, Mul};
     let (nums, dens, k, k_first) = match (schema, a, b) {
-        (Mul | Div, Lanes::Columns { nums, dens, .. }, Lanes::Splat(k, 1)) => {
-            (nums, dens, k, false)
-        }
-        (Mul, Lanes::Splat(k, 1), Lanes::Columns { nums, dens, .. }) => (nums, dens, k, true),
+        (
+            Mul | Div,
+            Lanes::Columns {
+                nums,
+                dens,
+                integer: false,
+            },
+            Lanes::Splat(k, 1),
+        ) => (nums, dens, k, false),
+        (
+            Mul,
+            Lanes::Splat(k, 1),
+            Lanes::Columns {
+                nums,
+                dens,
+                integer: false,
+            },
+        ) => (nums, dens, k, true),
         _ => return None,
     };
     let residues = Residues::of(k, nums.len())?;
@@ -256,7 +279,6 @@ pub(super) fn scaled_by_integer(
         }
     };
     let negative = k < 0;
-    let mut out = Out::with_capacity(nums.len());
     for (&n, &d) in nums.iter().zip(dens) {
         let pair = if d == 0 {
             None
@@ -279,7 +301,8 @@ pub(super) fn scaled_by_integer(
             Some(pair) => pair,
             None => general((n, d))?,
         };
-        out.push(rn, rd);
+        out.push_pair(rn, rd);
     }
-    Some(out.into_value())
+    out.settle();
+    Some(())
 }

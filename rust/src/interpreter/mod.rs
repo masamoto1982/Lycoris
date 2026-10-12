@@ -32,16 +32,14 @@ mod format_ops;
 pub(crate) mod fused_block;
 #[cfg(test)]
 mod fused_block_cache_tests;
+mod fused_block_columns;
 mod fused_block_general;
-mod fused_block_int;
 mod fused_block_lane;
 #[cfg(test)]
 mod fused_block_lane_call_tests;
 mod fused_block_lower;
 #[cfg(test)]
 mod fused_block_over_zero_tests;
-mod fused_block_rat;
-mod fused_block_reg;
 #[cfg(test)]
 mod fused_block_tests;
 #[cfg(test)]
@@ -92,7 +90,6 @@ mod session_lifecycle;
 mod shape_words;
 #[cfg(test)]
 mod shape_words_tests;
-pub(crate) mod simd_ops;
 pub mod sort;
 pub mod tensor_cmds;
 pub(crate) mod tensor_lane_ops;

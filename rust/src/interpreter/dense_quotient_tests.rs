@@ -64,8 +64,8 @@ fn the_scaled_chain_stays_on_the_kernels() {
     assert_eq!(
         kernel_hits("1 100 RANGE -50 49 RANGE DIV 1 ADD 2 MUL 3 DIV FLOOR 0 GT"),
         // The divisor 0 leaves a `1/0` lane, which has no order: the last
-        // comparison is the general route's.
-        5
+        // comparison answers it with the `domainMiss` NIL, on the columns too.
+        6
     );
 }
 

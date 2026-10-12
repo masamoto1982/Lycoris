@@ -4,8 +4,8 @@
 //!
 //! `Fraction`'s own small path dispatches on its enum, widens to `i128` and
 //! re-normalises through `create_from_i128` on every operation. The kernels
-//! that hold many such values unboxed (`dense_kernels`, the fused walk's
-//! `fused_block_rat`) use these instead: Henrici's sum and cross-cancelled
+//! that hold many such values unboxed (`dense_kernels`, and through them the
+//! column walk) use these instead: Henrici's sum and cross-cancelled
 //! product and quotient, with gcds and quotients in machine words and only
 //! the final products widened. Each answers `None` when its result no longer
 //! fits a pair (or, for `div`, on a zero divisor), for the caller to hand the
@@ -32,8 +32,8 @@ pub(crate) type Pair = (i64, i64);
 ///
 /// The answer always fits: for `d ≥ 2` its magnitude is at most `|n|/d + ½`,
 /// and for `d = 1` it is `|n|` itself, so `i64::MIN` comes back as it went
-/// in. The quickened scalar tier, the fused rational tier and the dense
-/// kernels each used to spell this formula out.
+/// in. The quickened scalar tier and the column kernels each used to spell
+/// this formula out.
 #[inline]
 pub(crate) fn round_half_away_from_zero(n: i64, d: i64) -> i64 {
     let (wide_n, wide_d) = (i128::from(n), i128::from(d));

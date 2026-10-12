@@ -1,6 +1,6 @@
 //! A block walked again and again — an inner higher-order Word, once per
 //! element of an outer one — is lowered once and its compiled forms kept
-//! (`ExecutableCode::fused`, `fused_block_int::IntPrograms`). Against the
+//! (`ExecutableCode::fused`). Against the
 //! interpreted walk (`fused_block_tests` holds the comparison), on the things
 //! a kept lowering could go stale over: a binding read from outside that
 //! changes per element, a called Word whose plan the first walk builds, a

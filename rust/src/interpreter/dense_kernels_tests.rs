@@ -213,22 +213,22 @@ fn the_kernels_answer_where_they_apply() {
     assert_eq!(kernel_hits("[ 1/2 3 ] [ 0 2 ] DIV"), 1);
     // The quotient by zero is a lane over zero for the next Word, which the
     // arithmetic and rounding kernels compute by the Fraction's own law. A
-    // point has no order, so the ordering kernel leaves a lane over zero to
-    // the general route, which projects there.
+    // point has no order, so the ordering kernel answers its lane with the
+    // `domainMiss` NIL the scalar law projects there.
     assert_eq!(kernel_hits("[ 1 2 3 ] [ 1 0 2 ] DIV 1 ADD"), 2);
     assert_eq!(
         kernel_hits("[ 1 2 3 ] [ 1 0 2 ] DIV 1 ADD 2 MUL 3 DIV FLOOR 0 GT"),
-        5
+        6
     );
-    assert_eq!(kernel_hits("[ 1/0 2 ] 1 LT"), 0);
-    assert_eq!(kernel_hits("[ 0/0 2 ] 1 LT"), 0);
-    assert_eq!(kernel_hits("1 [ 0/0 2 ] GT"), 0);
+    assert_eq!(kernel_hits("[ 1/0 2 ] 1 LT"), 1);
+    assert_eq!(kernel_hits("[ 0/0 2 ] 1 LT"), 1);
+    assert_eq!(kernel_hits("1 [ 0/0 2 ] GT"), 1);
     // A quotient by zero is a *number* and stays a lane; a written NIL is
     // not a number and keeps a Vector nested, off the kernels.
     assert_eq!(kernel_hits("[ 1 2 3 ] [ 1 0 1 ] DIV 2 MUL"), 2);
     assert_eq!(kernel_hits("[ 1 2 3 ] [ 1 0 1 ] DIV [ 1 0 2 ] DIV"), 2);
     assert_eq!(kernel_hits("[ 1 2 3 ] [ 1 0 1 ] DIV FLOOR"), 2);
-    assert_eq!(kernel_hits("[ 1 2 3 ] [ 1 0 1 ] DIV 2 GT"), 1);
+    assert_eq!(kernel_hits("[ 1 2 3 ] [ 1 0 1 ] DIV 2 GT"), 2);
     assert_eq!(kernel_hits("[ 1 NIL 3 ] 2 MUL"), 0);
     assert_eq!(kernel_hits("[ 1 NIL 3 ] FLOOR"), 0);
     assert_eq!(kernel_hits("[ 9223372036854775807 1 ] 1 ADD"), 0);

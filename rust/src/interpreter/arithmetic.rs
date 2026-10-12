@@ -3,7 +3,6 @@ use crate::interpreter::arithmetic_meter::{
     charge_binary_schema, check_result_size, measure_operand,
 };
 use crate::interpreter::record_ops;
-use crate::interpreter::simd_ops;
 use crate::interpreter::tensor_lane_ops::lane_nil_passthrough;
 use crate::interpreter::tensor_ops::apply_binary_broadcast;
 use crate::interpreter::value_extraction_helpers::{
@@ -50,22 +49,6 @@ fn consume_stacktop_binary(interp: &mut Interpreter) {
     interp.stack.pop();
 }
 
-/// The integer-lane answer for a schema, or `None` when no lane kernel takes
-/// the operands (non-integer, too short, or an overflow to decline on).
-fn simd_schema_candidate(schema: ExactArithmeticSchema, a: &Value, b: &Value) -> Option<Value> {
-    match schema {
-        ExactArithmeticSchema::Add => simd_ops::apply_simd_add(a, b)
-            .or_else(|| simd_ops::apply_simd_scalar_add(a, b))
-            .or_else(|| simd_ops::apply_simd_scalar_add(b, a)),
-        ExactArithmeticSchema::Sub => simd_ops::apply_simd_sub(a, b),
-        ExactArithmeticSchema::Mul => simd_ops::apply_simd_mul(a, b)
-            .or_else(|| simd_ops::apply_simd_scalar_mul(a, b))
-            .or_else(|| simd_ops::apply_simd_scalar_mul(b, a)),
-        // No SIMD kernel inverts or divides a lane.
-        ExactArithmeticSchema::Div => None,
-    }
-}
-
 /// `dense_kernels::arithmetic` on the two operands, when it answers. Every
 /// lane it produces fits a machine word, so the size ceiling can refuse one
 /// only when it is set below that.
@@ -110,21 +93,6 @@ pub(crate) fn note_scalar_fastpath() {
 #[cfg(test)]
 pub(crate) fn scalar_fastpath_hits_on_this_thread() -> u64 {
     SCALAR_FASTPATH_HITS.with(|c| c.get())
-}
-
-fn push_simd_schema_result(
-    interp: &mut Interpreter,
-    schema: ExactArithmeticSchema,
-    a: &Value,
-    b: &Value,
-) -> Result<bool> {
-    let Some(result) = simd_schema_candidate(schema, a, b) else {
-        return Ok(false);
-    };
-    check_result_size(interp, &result)?;
-    consume_stacktop_binary(interp);
-    interp.stack.push(result);
-    Ok(true)
 }
 
 fn push_exact_real_schema_result(
@@ -306,9 +274,6 @@ fn apply_exact_arithmetic_schema(
     }
 
     if let Some((a, b)) = stacktop_pair(interp) {
-        if push_simd_schema_result(interp, schema, &a, &b)? {
-            return Ok(());
-        }
         if matches!(schema, ExactArithmeticSchema::Mul) {
             if let Some(result) = sparse_mul_candidate(&a, &b) {
                 check_result_size(interp, &result)?;
