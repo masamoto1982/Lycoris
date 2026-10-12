@@ -19,9 +19,10 @@ impl Fraction {
         Some(self.cmp_finite(other))
     }
 
-    /// The order of two rationals. Both operands must be finite.
+    /// The order of two rationals. Both operands must be finite: its two
+    /// callers, `order` above and `ExactReal::cmp_exact`, answer a point over
+    /// zero before they reach it.
     pub(crate) fn cmp_finite(&self, other: &Fraction) -> std::cmp::Ordering {
-        debug_assert!(self.is_finite() && other.is_finite());
         if let (Some((a, b)), Some((c, d))) = (self.extract_i64_pair(), other.extract_i64_pair()) {
             if b == d {
                 return a.cmp(&c);

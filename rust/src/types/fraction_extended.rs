@@ -193,6 +193,18 @@ mod tests {
         assert_eq!(phi().to_string(), "0/0");
     }
 
+    /// An unreduced pair reaches the same normal form: over zero it is a
+    /// point, and a negative denominator carries its sign into the numerator.
+    #[test]
+    fn an_unreduced_pair_over_zero_is_a_point() {
+        assert_eq!(Fraction::create_unreduced((-6).into(), 0.into()), inf());
+        assert_eq!(Fraction::create_unreduced(0.into(), 0.into()), phi());
+        assert_eq!(
+            Fraction::create_unreduced(3.into(), (-4).into()),
+            Fraction::new((-3).into(), 4.into())
+        );
+    }
+
     #[test]
     fn the_two_points_are_two_values() {
         assert_ne!(inf(), phi());
