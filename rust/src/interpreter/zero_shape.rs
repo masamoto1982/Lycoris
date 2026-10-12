@@ -2,13 +2,13 @@
 //! LANG.CONTRACT.FIELD).
 //!
 //! A number's zero shape is whether its numerator and its denominator are
-//! nonzero: `0`, a finite nonzero number, `±1/0` and `0/0`. The inference
-//! carries a little more than the shape — the sign — because two Words decide
-//! on it: `POW`, whose negative exponent turns a zero base into `1/0`, and the
-//! sum, where two finite numbers of one sign never cancel. So an abstract value
-//! is a set of six *atoms*, the four shapes with the finite nonzero and the
-//! infinite ones split by sign, and every table here is the pair formula of
-//! LANG.VALUES.EXACT read on those atoms.
+//! nonzero: `0`, a finite nonzero number, `1/0` and `0/0`. The inference
+//! carries a little more than the shape — the sign of a finite nonzero
+//! number — because two Words decide on it: `SQRT`, which has no root of a
+//! negative number, and the sum, where two finite numbers of one sign never
+//! cancel. So an abstract value is a set of five *atoms*, the four shapes
+//! with the finite nonzero one split by sign, and every table here is the
+//! wheel's pair formula (LANG.VALUES.EXACT) read on those atoms.
 //!
 //! The set is over every number a value holds at any depth, so a Vector, a
 //! Record and a scalar are read alike: an element-wise Word applies its table
@@ -25,12 +25,11 @@ use std::cmp::Ordering;
 pub struct ZeroAtoms(u8);
 
 /// The atoms in the order their bits are numbered.
-const ATOMS: [ZeroAtoms; 6] = [
+const ATOMS: [ZeroAtoms; 5] = [
     ZeroAtoms::ZERO,
     ZeroAtoms::POS,
     ZeroAtoms::NEG,
-    ZeroAtoms::POS_INF,
-    ZeroAtoms::NEG_INF,
+    ZeroAtoms::INFINITE,
     ZeroAtoms::NULLITY,
 ];
 
@@ -47,16 +46,14 @@ impl ZeroAtoms {
     pub const ZERO: Self = Self(1);
     pub const POS: Self = Self(1 << 1);
     pub const NEG: Self = Self(1 << 2);
-    pub const POS_INF: Self = Self(1 << 3);
-    pub const NEG_INF: Self = Self(1 << 4);
-    pub const NULLITY: Self = Self(1 << 5);
+    pub const INFINITE: Self = Self(1 << 3);
+    pub const NULLITY: Self = Self(1 << 4);
     pub const NONZERO: Self = Self(Self::POS.0 | Self::NEG.0);
-    pub const INFINITE: Self = Self(Self::POS_INF.0 | Self::NEG_INF.0);
     /// The numbers of the field: what a contract assumes its operands hold.
     pub const FINITE: Self = Self(Self::ZERO.0 | Self::NONZERO.0);
     /// The non-negative integers a count or an index answers.
     pub const NATURAL: Self = Self(Self::ZERO.0 | Self::POS.0);
-    pub const ALL: Self = Self(0b11_1111);
+    pub const ALL: Self = Self(0b1_1111);
 
     pub const fn union(self, other: Self) -> Self {
         Self(self.0 | other.0)
@@ -104,11 +101,10 @@ impl ZeroAtoms {
         };
         match (f.is_finite(), f.is_nullity(), sign) {
             (_, true, _) => Self::NULLITY,
+            (false, _, _) => Self::INFINITE,
             (true, _, Ordering::Equal) => Self::ZERO,
             (true, _, Ordering::Greater) => Self::POS,
             (true, _, Ordering::Less) => Self::NEG,
-            (false, _, Ordering::Less) => Self::NEG_INF,
-            (false, _, _) => Self::POS_INF,
         }
     }
 
@@ -182,17 +178,15 @@ fn negated(a: ZeroAtoms) -> ZeroAtoms {
     match a {
         ZeroAtoms::POS => ZeroAtoms::NEG,
         ZeroAtoms::NEG => ZeroAtoms::POS,
-        ZeroAtoms::POS_INF => ZeroAtoms::NEG_INF,
-        ZeroAtoms::NEG_INF => ZeroAtoms::POS_INF,
         other => other,
     }
 }
 
-/// `1/x`: the pair swapped, the sign carried into the numerator.
+/// `/x`: the pair swapped, an involution.
 fn reciprocal(a: ZeroAtoms) -> ZeroAtoms {
     match a {
-        ZeroAtoms::ZERO => ZeroAtoms::POS_INF,
-        ZeroAtoms::POS_INF | ZeroAtoms::NEG_INF => ZeroAtoms::ZERO,
+        ZeroAtoms::ZERO => ZeroAtoms::INFINITE,
+        ZeroAtoms::INFINITE => ZeroAtoms::ZERO,
         other => other,
     }
 }
@@ -202,9 +196,9 @@ fn sum(a: ZeroAtoms, b: ZeroAtoms) -> ZeroAtoms {
     match (a, b) {
         (Z::NULLITY, _) | (_, Z::NULLITY) => Z::NULLITY,
         (Z::ZERO, x) | (x, Z::ZERO) => x,
-        // Two points over zero sum to `0/0`, whatever their signs.
-        (x, y) if Z::INFINITE.intersects(x) && Z::INFINITE.intersects(y) => Z::NULLITY,
-        (x, _) | (_, x) if Z::INFINITE.intersects(x) => x,
+        // `1/0 + 1/0` is `(0 + 0)/0`.
+        (Z::INFINITE, Z::INFINITE) => Z::NULLITY,
+        (Z::INFINITE, _) | (_, Z::INFINITE) => Z::INFINITE,
         (x, y) if x == y => x,
         // A positive and a negative number may cancel.
         _ => Z::FINITE,
@@ -213,20 +207,13 @@ fn sum(a: ZeroAtoms, b: ZeroAtoms) -> ZeroAtoms {
 
 fn product(a: ZeroAtoms, b: ZeroAtoms) -> ZeroAtoms {
     use ZeroAtoms as Z;
-    let negative = |x: ZeroAtoms| Z::NEG.union(Z::NEG_INF).intersects(x);
     match (a, b) {
         (Z::NULLITY, _) | (_, Z::NULLITY) => Z::NULLITY,
-        (Z::ZERO, x) | (x, Z::ZERO) if Z::INFINITE.intersects(x) => Z::NULLITY,
+        (Z::ZERO, Z::INFINITE) | (Z::INFINITE, Z::ZERO) => Z::NULLITY,
         (Z::ZERO, _) | (_, Z::ZERO) => Z::ZERO,
-        (x, y) => {
-            let infinite = Z::INFINITE.intersects(x) || Z::INFINITE.intersects(y);
-            match (infinite, negative(x) != negative(y)) {
-                (false, false) => Z::POS,
-                (false, true) => Z::NEG,
-                (true, false) => Z::POS_INF,
-                (true, true) => Z::NEG_INF,
-            }
-        }
+        (Z::INFINITE, _) | (_, Z::INFINITE) => Z::INFINITE,
+        (x, y) if x == y => Z::POS,
+        _ => Z::NEG,
     }
 }
 
@@ -237,14 +224,12 @@ fn power(base: ZeroAtoms, exponent: ZeroAtoms) -> ZeroAtoms {
     use ZeroAtoms as Z;
     match (base, exponent) {
         (Z::NULLITY, _) | (_, Z::NULLITY) => Z::NULLITY,
-        (_, Z::POS_INF | Z::NEG_INF) => Z::NONE,
+        (_, Z::INFINITE) => Z::NONE,
         (_, Z::ZERO) => Z::POS,
         // A positive exponent keeps zero and infinity where they are; a
         // negative base may come out of either sign.
-        (Z::ZERO, Z::POS) => Z::ZERO,
-        (Z::POS | Z::POS_INF, Z::POS) => base,
+        (Z::ZERO | Z::POS | Z::INFINITE, Z::POS) => base,
         (Z::NEG, Z::POS) => Z::NONZERO,
-        (Z::NEG_INF, Z::POS) => Z::INFINITE,
         // A negative exponent is the reciprocal of the positive power.
         (_, _) => power(base, Z::POS).map(reciprocal),
     }
@@ -253,7 +238,7 @@ fn power(base: ZeroAtoms, exponent: ZeroAtoms) -> ZeroAtoms {
 fn root(a: ZeroAtoms) -> ZeroAtoms {
     match a {
         // A negative radicand is absent.
-        ZeroAtoms::NEG | ZeroAtoms::NEG_INF => ZeroAtoms::NONE,
+        ZeroAtoms::NEG => ZeroAtoms::NONE,
         other => other,
     }
 }

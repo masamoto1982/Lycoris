@@ -43,7 +43,7 @@ fn dense_tensor_sparse_density_does_not_count_nullity_as_zero() {
     let dense = DenseTensor::from_fractions(
         vec![
             Fraction::nullity(),
-            Fraction::positive_infinity(),
+            Fraction::infinity(),
             Fraction::from(0_i64),
             Fraction::from(9_i64),
         ],
@@ -107,9 +107,9 @@ fn reversed_lanes_reverses_both_columns() {
 #[test]
 fn reversed_lanes_carries_a_point_over_zero_to_its_new_index() {
     // `1/0` at lane 1 of 8 belongs at lane 6 afterwards (len - 1 - index).
-    let tensor = with_point_at(8, 1, Fraction::positive_infinity());
+    let tensor = with_point_at(8, 1, Fraction::infinity());
     let reversed = tensor.reversed_lanes();
-    assert_eq!(reversed.fraction_at(6), Fraction::positive_infinity());
+    assert_eq!(reversed.fraction_at(6), Fraction::infinity());
     assert_eq!(reversed.fraction_at(1), Fraction::from(6));
     assert!(!reversed.all_finite());
 }
@@ -119,8 +119,8 @@ fn reversed_lanes_is_its_own_inverse() {
     for tensor in [
         DenseTensor::from_integers(vec![7, -3, 0, 11]),
         with_point_at(6, 0, Fraction::nullity()),
-        with_point_at(6, 5, Fraction::negative_infinity()),
-        with_point_at(1, 0, Fraction::positive_infinity()),
+        with_point_at(6, 5, Fraction::infinity()),
+        with_point_at(1, 0, Fraction::infinity()),
     ] {
         assert_eq!(
             tensor.reversed_lanes().reversed_lanes(),
@@ -197,25 +197,21 @@ fn a_rational_lane_reads_as_the_fraction_its_columns_denote() {
 }
 
 /// A lane over zero reads as the point it is, and an untrusted column reduces
-/// a pair over zero to its sign over zero like any other pair.
+/// a pair over zero to its point like any other pair: `-7/0` is `1/0`.
 #[test]
 fn a_lane_over_zero_reads_as_its_point() {
     let tensor = DenseTensor::from_fractions(
-        vec![
-            Fraction::from(1),
-            Fraction::nullity(),
-            Fraction::negative_infinity(),
-        ],
+        vec![Fraction::from(1), Fraction::nullity(), Fraction::infinity()],
         vec![3],
     )
     .expect("lanes build");
     assert_eq!(tensor.fraction_at(0), Fraction::from(1));
     assert_eq!(tensor.fraction_at(1), Fraction::nullity());
-    assert_eq!(tensor.fraction_at(2), Fraction::negative_infinity());
+    assert_eq!(tensor.fraction_at(2), Fraction::infinity());
 
     let untrusted =
         DenseTensor::from_untrusted_columns(vec![100, 4, -7], vec![0, 2, 0], vec![3], true);
-    assert_eq!(untrusted.numerators.as_slice(), [1, 2, -1]);
+    assert_eq!(untrusted.numerators.as_slice(), [1, 2, 1]);
     assert_eq!(untrusted.denominators.as_slice(), [0, 1, 0]);
     assert!(!untrusted.is_pure_integer);
 }

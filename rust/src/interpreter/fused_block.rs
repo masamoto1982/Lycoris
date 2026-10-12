@@ -35,11 +35,11 @@
 //! runs; it computes what the interpreted walk would have charged — the same
 //! steps, the same numeric work, the same metrics, the same epochs — and
 //! commits all of it only if the whole walk finishes without anything the
-//! fused form cannot reproduce exactly. A number over zero — `1/0`, `-1/0`,
+//! fused form cannot reproduce exactly. A number over zero — `1/0` or
 //! `0/0`, met as an element, a literal or the quotient of a zero divisor —
 //! is a number like any other, answered by the `Fraction`'s total arithmetic
 //! (LANG.VALUES.EXACT). An integer overflow falls to the general tier; an
-//! order asked of `0/0` (a `domainMiss` NIL), an operand of the wrong domain
+//! order asked of a point (a `domainMiss` NIL), an operand of the wrong domain
 //! (an ERROR), a result past the size ceiling or a budget the walk would
 //! exhaust answers `None`, and the caller runs the ordinary walk from the
 //! start. Because a block is pure (LANG.DICTIONARY.ACYCLIC, no
@@ -72,7 +72,7 @@ impl Plain {
             // A point over zero is a number like any other: whatever meets
             // one answers it by the `Fraction`'s own total arithmetic, as the
             // dispatch does, and a tier whose pair laws assume a positive
-            // denominator answers the three points the same way.
+            // denominator answers the two points the same way.
             ValueData::Scalar(f) => Some(Plain::Num(f.clone())),
             ValueData::Boolean(b) => Some(Plain::Bool(*b)),
             _ => None,

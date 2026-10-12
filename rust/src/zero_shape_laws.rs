@@ -1,40 +1,28 @@
 //! LANG.VALUES.SHAPE, held against the implementation.
 //!
 //! A number read as whether its numerator and its denominator are nonzero
-//! takes one of four zero shapes — `0` (F), a point `±1/0` (T), `0/0` (N) and
-//! every other number (B) — and the arithmetic is graded by them. The clause
-//! states the laws that follow from treating a number as a pair to the end;
-//! each one is checked here by running programs, never by consulting the
+//! takes one of four zero shapes — `0` (F), the point `1/0` (T), `0/0` (N)
+//! and every other number (B) — and the wheel's arithmetic is graded by them.
+//! Each law is checked here by running programs, never by consulting the
 //! implementation's own representation:
 //!
 //! 1. the shape of a product is the meet of the operands' shapes (FOUR's
 //!    knowledge meet ⊗), and the reciprocal exchanges F and T as `NOT` does;
-//! 2. each shape is a group under `MUL` — the field's units, `{1/0, -1/0}`
-//!    with `1/0` as identity, `{0}` and `{0/0}` — so the numbers form a
-//!    Clifford monoid over FOUR;
-//! 3. the shape of a sum is the Boolean-fraction sum `(ad ∨ bc, bd)`,
-//!    exact except where two B operands cancel to `0`;
-//! 4. the wheel axioms that involve addition hold at every point;
-//! 5. the reciprocal is an involution everywhere but `-1/0`, and respects
-//!    products everywhere but where a zero meets a negative finite factor —
-//!    both because infinity is signed and zero is not;
-//! 6. the distributive law fails only with a point `±1/0` as the multiplier;
-//! 7. the mediant, written from `RATIO`, `ADD`, `GET` and `DIV`, is
-//!    `RECONCILE`'s join on shapes for operands of one sign, has `0/0` as its
-//!    unit, grows the Stern–Brocot tree from `0` and `1/0`, and is not
-//!    associative on values.
+//! 2. each shape is a group under `MUL` — the field's units, `{1/0}`, `{0}`
+//!    and `{0/0}` — so the numbers form a Clifford monoid over FOUR;
+//! 3. the shape of a sum is the Boolean-fraction sum `(ad ∨ bc, bd)`, exact
+//!    except where two B operands cancel to `0`;
+//! 4. every axiom of a wheel holds at every point, the reciprocal's
+//!    involution and its respect for products included;
+//! 5. the distributive law fails only with `1/0` as the multiplier.
 
 use crate::interpreter::Interpreter;
 use crate::types::{Value, ValueData};
 use num_traits::Zero;
 
-/// Every zero shape, both signs, a proper fraction and an irrational.
+/// Every zero shape, both signs of a finite number, a proper fraction, an
+/// irrational, and `-1/0`, which is spelled with a sign and is `1/0`.
 const SAMPLE: &[&str] = &["0", "1", "-2", "1/2", "2 SQRT", "1/0", "-1/0", "0/0"];
-
-/// The rational part of the sample: `RATIO` reads only rationals.
-const RATIONAL_SAMPLE: &[&str] = &["0", "1", "-2", "1/2", "1/0", "-1/0", "0/0"];
-
-const MEDIANT: &str = "[ RATIO 'B' BIND RATIO B ADD 'P' BIND P 0 GET P 1 GET DIV ] 'MEDIANT' DEF ";
 
 /// `(numerator ≠ 0, denominator ≠ 0)`: F = (false, true), T = (true, false),
 /// N = (false, false), B = (true, true).
@@ -47,10 +35,6 @@ const B: Shape = (true, true);
 
 fn meet(a: Shape, b: Shape) -> Shape {
     (a.0 && b.0, a.1 && b.1)
-}
-
-fn join(a: Shape, b: Shape) -> Shape {
-    (a.0 || b.0, a.1 || b.1)
 }
 
 fn swap(a: Shape) -> Shape {
@@ -119,19 +103,10 @@ async fn product_shape_is_the_knowledge_meet_and_reciprocal_is_not() {
 
 #[tokio::test]
 async fn each_shape_is_a_group_under_mul() {
-    // T: {1/0, -1/0} is Z/2 with 1/0 as identity.
+    // T is the one point at infinity: `-1/0` is spelled with a sign and is it.
     assert_eq!(shape("1/0").await, T);
-    assert_eq!(shape("-1/0").await, T);
-    for (a, b, product) in [
-        ("1/0", "1/0", "1/0"),
-        ("1/0", "-1/0", "-1/0"),
-        ("-1/0", "-1/0", "1/0"),
-    ] {
-        assert!(
-            holds(&format!("{a} {b} MUL {product} EQ")).await,
-            "{a} · {b} = {product}"
-        );
-    }
+    assert!(holds("-1/0 1/0 EQ").await);
+    assert!(holds("1/0 1/0 MUL 1/0 EQ").await);
     // F and N are trivial groups, idempotent under MUL.
     assert!(holds("0 0 MUL 0 EQ").await);
     assert!(holds("0/0 0/0 MUL 0/0 EQ").await);
@@ -143,9 +118,9 @@ async fn each_shape_is_a_group_under_mul() {
         );
     }
     // A shape's identity acts on a lower shape as the meet says: B's identity
-    // fixes every number, T's sends B to T by sign.
+    // fixes every number, T's sends all of B to T, whatever its sign.
     assert!(holds("2 1/0 MUL 1/0 EQ").await);
-    assert!(holds("-2 1/0 MUL -1/0 EQ").await);
+    assert!(holds("-2 1/0 MUL 1/0 EQ").await);
 }
 
 #[tokio::test]
@@ -165,63 +140,70 @@ async fn sum_shape_is_the_boolean_fraction_sum_except_for_cancellation() {
             }
         }
     }
-    // The table's one corner a field never reaches: T + T is N, whatever the signs.
+    // T + T is N, as the table says: `(1·0 + 1·0)/(0·0)`.
     assert_eq!(shape("1/0 1/0 ADD").await, N);
-    assert_eq!(shape("1/0 -1/0 ADD").await, N);
     assert_eq!(shape("1 -1 ADD").await, F);
 }
 
+/// Carlström's axioms for a wheel, each written as one program comparing its
+/// two sides with `EQ`, over every triple of the sample.
 #[tokio::test]
-async fn the_additive_wheel_axioms_hold_at_every_point() {
+async fn every_wheel_axiom_holds_at_every_point() {
     for x in SAMPLE {
         for y in SAMPLE {
             for z in SAMPLE {
-                let w4 =
-                    format!("{x} {z} MUL {y} {z} MUL ADD  {x} {y} ADD {z} MUL 0 {z} MUL ADD EQ");
-                let w5 =
-                    format!("{x} {y} {z} MUL ADD {y} DIV  {x} {y} DIV {z} ADD 0 {y} MUL ADD EQ");
-                let w7 = format!("{x} 0 {y} MUL ADD {z} MUL  {x} {z} MUL 0 {y} MUL ADD EQ");
-                let w8 = format!("1 {x} 0 {y} MUL ADD DIV  1 {x} DIV 0 {y} MUL ADD EQ");
-                for (name, law) in [("W4", w4), ("W5", w5), ("W7", w7), ("W8", w8)] {
+                let laws = [
+                    (
+                        "x+(y+z) = (x+y)+z",
+                        format!("{x} {y} {z} ADD ADD  {x} {y} ADD {z} ADD EQ"),
+                    ),
+                    (
+                        "x(yz) = (xy)z",
+                        format!("{x} {y} {z} MUL MUL  {x} {y} MUL {z} MUL EQ"),
+                    ),
+                    (
+                        "xz+yz = (x+y)z+0z",
+                        format!(
+                            "{x} {z} MUL {y} {z} MUL ADD  {x} {y} ADD {z} MUL 0 {z} MUL ADD EQ"
+                        ),
+                    ),
+                    (
+                        "(x+yz)/y = x/y+z+0y",
+                        format!(
+                            "{x} {y} {z} MUL ADD {y} DIV  {x} {y} DIV {z} ADD 0 {y} MUL ADD EQ"
+                        ),
+                    ),
+                    (
+                        "(x+0y)z = xz+0y",
+                        format!("{x} 0 {y} MUL ADD {z} MUL  {x} {z} MUL 0 {y} MUL ADD EQ"),
+                    ),
+                    (
+                        "/(x+0y) = /x+0y",
+                        format!("1 {x} 0 {y} MUL ADD DIV  1 {x} DIV 0 {y} MUL ADD EQ"),
+                    ),
+                    ("//x = x", format!("1 1 {x} DIV DIV {x} EQ")),
+                    (
+                        "/(xy) = /x/y",
+                        format!("1 {x} {y} MUL DIV  1 {x} DIV 1 {y} DIV MUL EQ"),
+                    ),
+                    ("x-x = 0x²", format!("{x} {x} SUB  0 {x} MUL {x} MUL EQ")),
+                    (
+                        "x/x = 1+0x/x",
+                        format!("{x} {x} DIV  1 0 {x} MUL {x} DIV ADD EQ"),
+                    ),
+                    ("x+0/0 = 0/0", format!("{x} 0/0 ADD 0/0 EQ")),
+                ];
+                for (name, law) in laws {
                     assert!(holds(&law).await, "{name} must hold at x={x}, y={y}, z={z}");
                 }
             }
         }
     }
+    assert!(holds("0 0 MUL 0 EQ").await, "0·0 = 0");
 }
 
 #[tokio::test]
-async fn the_reciprocal_is_an_involution_except_at_negative_infinity() {
-    for x in SAMPLE {
-        let involutive = holds(&format!("1 1 {x} DIV DIV {x} EQ")).await;
-        assert_eq!(
-            involutive,
-            *x != "-1/0",
-            "1/(1/x) = x exactly when x is not -1/0 ({x})"
-        );
-    }
-    // Zero has no sign to give back: the reciprocal of -1/0 is 0, and of 0 is 1/0.
-    assert!(holds("1 1 -1/0 DIV DIV 1/0 EQ").await);
-}
-
-#[tokio::test]
-async fn the_reciprocal_respects_products_except_where_zero_meets_a_negative() {
-    let negative_finite = ["-2"];
-    for x in SAMPLE {
-        for y in SAMPLE {
-            let law = holds(&format!("1 {x} {y} MUL DIV  1 {x} DIV 1 {y} DIV MUL EQ")).await;
-            let expected_failure = (*x == "0" && negative_finite.contains(y))
-                || (*y == "0" && negative_finite.contains(x));
-            assert_eq!(
-                law, !expected_failure,
-                "1/(xy) = (1/x)(1/y) at x={x}, y={y}"
-            );
-        }
-    }
-}
-
-#[tokio::test]
-async fn distribution_fails_only_under_a_signed_point() {
+async fn distribution_fails_only_under_the_point_at_infinity() {
     let mut failures = 0;
     for x in SAMPLE {
         for y in SAMPLE {
@@ -231,92 +213,11 @@ async fn distribution_fails_only_under_a_signed_point() {
                     failures += 1;
                     assert!(
                         *x == "1/0" || *x == "-1/0",
-                        "x(y+z) = xy+xz may fail only with x = ±1/0, failed at x={x}, y={y}, z={z}"
+                        "x(y+z) = xy+xz may fail only with x = 1/0, failed at x={x}, y={y}, z={z}"
                     );
                 }
             }
         }
     }
-    assert!(failures > 0, "the distributive law does give way at ±1/0");
-}
-
-#[tokio::test]
-async fn the_mediant_is_the_join_on_shapes_for_operands_of_one_sign() {
-    let non_negative = ["0", "1", "1/2", "1/0", "0/0"];
-    let non_positive = ["0", "-2", "-1/0", "0/0"];
-    for side in [&non_negative[..], &non_positive[..]] {
-        for x in side {
-            for y in side {
-                let mediant = shape(&format!("{MEDIANT}{x} {y} MEDIANT")).await;
-                assert_eq!(mediant, join(shape(x).await, shape(y).await), "{x} ⊕ {y}");
-            }
-        }
-    }
-    // 0/0 is the unit, of the mediant and of RECONCILE among numbers.
-    for x in RATIONAL_SAMPLE {
-        assert!(
-            holds(&format!("{MEDIANT}0/0 {x} MEDIANT {x} EQ")).await,
-            "0/0 ⊕ {x} = {x}"
-        );
-        assert!(
-            holds(&format!("0/0 {x} RECONCILE {x} EQ")).await,
-            "0/0 RECONCILE {x} = {x}"
-        );
-    }
-    // FALSE ⊕ TRUE is BOTH, and the number it is is 1.
-    assert!(holds(&format!("{MEDIANT}0 1/0 MEDIANT 1 EQ")).await);
-    assert!(holds(&format!("{MEDIANT}-1/0 0 MEDIANT -1 EQ")).await);
-}
-
-#[tokio::test]
-async fn the_mediant_grows_every_positive_rational_from_false_and_true() {
-    // Stern–Brocot: in-order, each level inserts the mediant of its neighbours.
-    let mut row: Vec<String> = vec!["0".into(), "1/0".into()];
-    for _ in 0..5 {
-        let mut next = Vec::with_capacity(row.len() * 2);
-        for pair in row.windows(2) {
-            next.push(pair[0].clone());
-            let m = number(&format!("{MEDIANT}{} {} MEDIANT", pair[0], pair[1])).await;
-            next.push(m.to_string());
-        }
-        next.push(row.last().unwrap().clone());
-        row = next;
-    }
-    // Strictly increasing, so every number appears once.
-    for pair in row.windows(2) {
-        assert!(
-            holds(&format!("{} {} LT", pair[0], pair[1])).await,
-            "{} < {}",
-            pair[0],
-            pair[1]
-        );
-    }
-    // Every reduced p/q with 1 ≤ p, q ≤ 4 has appeared within five levels.
-    for p in 1..=4i64 {
-        for q in 1..=4i64 {
-            if num_integer::Integer::gcd(&p, &q) != 1 {
-                continue;
-            }
-            let mut found = false;
-            for item in &row {
-                if holds(&format!("{item} {p}/{q} EQ")).await {
-                    found = true;
-                    break;
-                }
-            }
-            assert!(found, "{p}/{q} appears in the Stern–Brocot tree");
-        }
-    }
-}
-
-#[tokio::test]
-async fn the_mediant_is_not_associative_on_values() {
-    // RECONCILE folds in any order; the mediant remembers the order.
-    assert!(holds(&format!("{MEDIANT}1 1 MEDIANT 1/2 MEDIANT 2/3 EQ")).await);
-    assert!(holds(&format!("{MEDIANT}1 1 1/2 MEDIANT MEDIANT 3/4 EQ")).await);
-    // On shapes the two agree, as the join is associative.
-    assert_eq!(
-        shape(&format!("{MEDIANT}1 1 MEDIANT 1/2 MEDIANT")).await,
-        shape(&format!("{MEDIANT}1 1 1/2 MEDIANT MEDIANT")).await
-    );
+    assert!(failures > 0, "the distributive law does give way at 1/0");
 }

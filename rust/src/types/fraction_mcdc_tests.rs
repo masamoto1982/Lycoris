@@ -61,7 +61,7 @@ mod point_equality_guard {
     #[test]
     fn aq_ver_001_a_row1_self_point_other_rational_guard_taken_returns_false() {
         // (A=T, B=F): guard taken, the pairs differ -> not equal.
-        let lhs = Fraction::positive_infinity();
+        let lhs = Fraction::infinity();
         let rhs = small(1, 1);
         assert_ne!(lhs, rhs, "1/0 and 1/1 must not be equal");
     }
@@ -88,16 +88,17 @@ mod point_equality_guard {
     #[test]
     fn aq_ver_001_a_row4_both_points_compare_as_pairs() {
         // (A=T, B=T): the pairs decide — equal when the same point, and never
-        // by cross-multiplication, which would make 1/0 and -1/0 equal.
+        // by cross-multiplication, which would make 1/0 and 0/0 equal.
         assert_eq!(
             Fraction::nullity(),
             Fraction::nullity(),
             "0/0 must equal 0/0"
         );
+        assert_eq!(Fraction::infinity(), Fraction::infinity());
         assert_ne!(
-            Fraction::positive_infinity(),
-            Fraction::negative_infinity(),
-            "1/0 and -1/0 are two points"
+            Fraction::infinity(),
+            Fraction::nullity(),
+            "1/0 and 0/0 are two points"
         );
     }
 }
@@ -159,23 +160,15 @@ mod cmp_small_fast_path {
 
     #[test]
     fn aq_ver_001_b_the_points_over_zero_order_or_do_not() {
-        // -1/0 lies below every rational and 1/0 above, however wide; 0/0 is
-        // ordered against nothing, itself included.
-        assert_eq!(
-            Fraction::negative_infinity().order(&big_int(0)),
-            Some(Ordering::Less)
-        );
-        assert_eq!(
-            Fraction::positive_infinity().order(&big_int(0)),
-            Some(Ordering::Greater)
-        );
-        assert_eq!(
-            Fraction::positive_infinity().order(&Fraction::positive_infinity()),
-            Some(Ordering::Equal)
-        );
-        assert_eq!(Fraction::nullity().order(&small(1, 1)), None);
-        assert_eq!(small(1, 1).order(&Fraction::nullity()), None);
-        assert_eq!(Fraction::nullity().order(&Fraction::nullity()), None);
+        // Neither point is ordered against anything, however wide the other
+        // operand, itself included.
+        for point in [Fraction::infinity(), Fraction::nullity()] {
+            assert_eq!(point.order(&big_int(0)), None);
+            assert_eq!(big_int(0).order(&point), None);
+            assert_eq!(point.order(&small(1, 1)), None);
+            assert_eq!(point.order(&point), None);
+        }
+        assert_eq!(Fraction::infinity().order(&Fraction::nullity()), None);
     }
 }
 
@@ -313,10 +306,7 @@ mod add_small_fast_paths {
         let one = small(1, 1);
         assert_eq!(nullity.add(&one), nullity);
         assert_eq!(one.add(&nullity), nullity);
-        assert_eq!(
-            Fraction::positive_infinity().add(&one),
-            Fraction::positive_infinity()
-        );
+        assert_eq!(Fraction::infinity().add(&one), Fraction::infinity());
     }
 }
 

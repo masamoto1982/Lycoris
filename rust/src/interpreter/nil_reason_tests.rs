@@ -154,15 +154,15 @@ mod division_is_total {
         assert!(interp.get_stack().last().unwrap().is_nil());
     }
 
-    /// A zero divisor answers the dividend's sign over zero, a number and not
+    /// A zero divisor answers a point over zero, a number and not
     /// an absence (LANG.VALUES.EXACT).
     #[tokio::test]
     async fn right_zero_produces_the_sign_over_zero() {
         for (source, expected) in [
-            ("5 0 DIV", Fraction::positive_infinity()),
-            ("-5 0 DIV", Fraction::negative_infinity()),
+            ("5 0 DIV", Fraction::infinity()),
+            ("-5 0 DIV", Fraction::infinity()),
             ("0 0 DIV", Fraction::nullity()),
-            ("1/2 0 DIV", Fraction::positive_infinity()),
+            ("1/2 0 DIV", Fraction::infinity()),
         ] {
             let mut interp = Interpreter::new();
             interp.execute(source).await.unwrap();

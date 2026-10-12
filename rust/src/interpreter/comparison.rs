@@ -386,7 +386,7 @@ pub(crate) fn extract_scalar_for_comparison(val: &Value) -> ScalarResult<Fractio
 
 /// Scalar–scalar equality (LANG.VALUES.EXACT). Both-Rational operands decide
 /// via `Fraction` `PartialEq` — value equality on canonical reduced pairs,
-/// the three points over zero included, so `0/0 0/0 EQ` is TRUE: identity
+/// the two points over zero included, so `0/0 0/0 EQ` is TRUE: identity
 /// is denotation, and an order is not asked. Anything mixing in a Tier 1
 /// algebraic decides through `ExactReal::cmp_exact` — equal values built
 /// through different histories (√8 vs √2+√2) decide `Equal` exactly, and

@@ -212,23 +212,23 @@ mod bigint_product_cascade {
     #[test]
     fn aq_ver_001_q_div_guards() {
         // F = T: the reciprocal of a point over zero.
-        assert_eq!(small(3, 1).div(&Fraction::positive_infinity()), small(0, 1));
+        assert_eq!(small(3, 1).div(&Fraction::infinity()), small(0, 1));
         assert_eq!(small(3, 1).div(&Fraction::nullity()), Fraction::nullity());
         // P || Z.
         assert_eq!(small(3, 2).div(&small(3, 1)), small(1, 2), "(F, F)");
         assert_eq!(
-            Fraction::positive_infinity().div(&small(2, 1)),
-            Fraction::positive_infinity(),
+            Fraction::infinity().div(&small(2, 1)),
+            Fraction::infinity(),
             "(T, F)"
         );
         assert_eq!(
             small(3, 1).div(&small(0, 1)),
-            Fraction::positive_infinity(),
+            Fraction::infinity(),
             "(F, T)"
         );
         assert_eq!(
             small(-3, 1).div(&small(0, 1)),
-            Fraction::negative_infinity(),
+            Fraction::infinity(),
             "(F, T)"
         );
         assert_eq!(small(0, 1).div(&small(0, 1)), Fraction::nullity(), "(F, T)");
@@ -237,18 +237,12 @@ mod bigint_product_cascade {
     #[test]
     fn aq_ver_001_q_mul_entry_guard() {
         // `!self.is_finite() || !other.is_finite()`, one side at a time.
+        assert_eq!(Fraction::infinity().mul(&small(2, 1)), Fraction::infinity());
         assert_eq!(
-            Fraction::negative_infinity().mul(&small(2, 1)),
-            Fraction::negative_infinity()
+            small(-2, 1).mul(&Fraction::infinity()),
+            Fraction::infinity()
         );
-        assert_eq!(
-            small(-2, 1).mul(&Fraction::positive_infinity()),
-            Fraction::negative_infinity()
-        );
-        assert_eq!(
-            small(0, 1).mul(&Fraction::positive_infinity()),
-            Fraction::nullity()
-        );
+        assert_eq!(small(0, 1).mul(&Fraction::infinity()), Fraction::nullity());
     }
 }
 
@@ -322,7 +316,7 @@ mod rounding_and_sign {
         assert_eq!(big(w(), 1).neg(), big(-w(), 1));
         assert_eq!(big(-w(), 3).abs(), big(w(), 3));
         assert_eq!(big(w(), 3).abs(), big(w(), 3));
-        assert_eq!(parse("-1/0").abs(), Fraction::positive_infinity());
+        assert_eq!(parse("-1/0").abs(), Fraction::infinity());
     }
 }
 

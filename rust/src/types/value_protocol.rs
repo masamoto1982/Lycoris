@@ -127,7 +127,7 @@ fn number_protocol_value(f: &Fraction) -> ProtocolValue {
 
 /// Flatten a dense tensor into protocol leaves. A dense tensor holds numbers
 /// only (neither a Boolean nor a NIL densifies), so every lane is a `number`,
-/// one of the three points over zero included. An interior node of rank >= 2
+/// one of the two points over zero included. An interior node of rank >= 2
 /// is a Vector of Vectors, whose `semantics` is empty like any Vector's.
 fn tensor_to_protocol(data: &DenseTensor, offset: usize, shape: &[usize]) -> Vec<ProtocolNode> {
     if shape.is_empty() || shape.len() == 1 {

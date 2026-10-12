@@ -9,7 +9,7 @@
 //! all, when it is handed a point over zero, since its contract assumed it
 //! would not be). A block a higher-order Word runs is walked the same way, its
 //! inputs the atoms of the elements (and, for `FOLD` and `SCAN`, of the
-//! accumulator, iterated until the set stops growing — six atoms bound the
+//! accumulator, iterated until the set stops growing — five atoms bound the
 //! iteration).
 //!
 //! What the walk learns is the set of every number the body pushes or
@@ -38,7 +38,7 @@ use crate::kernel::generated::Arity;
 use crate::types::Token;
 
 /// The bound on `FOLD`'s accumulator iteration: each round that does not stop
-/// adds an atom, and there are six.
+/// adds an atom, and there are five.
 const MAX_FOLD_ROUNDS: usize = 7;
 
 /// How deep blocks may nest before the walk gives up: each `FOLD` level may

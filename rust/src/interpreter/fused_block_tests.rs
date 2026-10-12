@@ -275,7 +275,7 @@ fn literal() -> impl Strategy<Value = String> {
         Just("-9223372036854775808".to_string()),
         Just("4611686018427387904".to_string()),
         Just("0".to_string()),
-        // The three points over zero.
+        // The two points over zero.
         Just("1/0".to_string()),
         Just("-1/0".to_string()),
         Just("0/0".to_string()),

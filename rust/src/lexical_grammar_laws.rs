@@ -342,7 +342,7 @@ fn a_glued_comment_or_quote_character_does_not_unbalance_delimiters() {
     }
 }
 
-/// `n/0` is a number like any other pair: it denotes one of the three points
+/// `n/0` is a number like any other pair: it denotes one of the two points
 /// over zero (LANG.VALUES.EXACT), and tokenizes as a Number.
 #[test]
 fn a_zero_denominator_is_a_number() {

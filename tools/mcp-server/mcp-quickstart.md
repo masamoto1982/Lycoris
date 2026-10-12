@@ -109,11 +109,11 @@ call still succeeds:
 ```
 
 Division is not such an operation. Every number is a pair over a non-negative
-denominator and division is total: a zero divisor answers the dividend's sign
-over zero, one of the three numbers `1/0`, `-1/0`, `0/0`, and the call carries
-no absence:
+denominator and division is total: a zero divisor answers a point over zero —
+`1/0` for any nonzero dividend, whatever its sign, and `0/0` for zero — and the
+call carries no absence:
 
-```ajisai tool=compute status=ok stack="1/0 -1/0 0/0"
+```ajisai tool=compute status=ok stack="1/0 1/0 0/0"
 100 0 DIV -5 0 DIV 0 0 DIV
 ```
 
@@ -288,8 +288,8 @@ in the keys and values `word_contract` answers in: `inputs=N` `outputs=N`
 `determinism=deterministic|stateRelative|hostRelative` (each a bound the body
 must not exceed), and `cost steps=… numeric=… collection=…` with a class from
 `const` `linear` `superlinear` `unbounded`. A key left out is not checked.
-`field=closed` promises the body never answers a point over zero (`1/0`
-`-1/0` `0/0`) from operands holding none: only `DIV`, `POW`, `NUM` and a
+`field=closed` promises the body never answers a point over zero (`1/0` or
+`0/0`) from operands holding none: only `DIV`, `POW`, `NUM` and a
 literal over zero leave the field, and a `DIV` by a non-zero literal (`2 DIV`)
 or a `POW` to a non-negative literal (`2 POW`) does not. Inside `closed` code
 the field laws — distributivity, `x x SUB` is `0` — hold over finite operands,

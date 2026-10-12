@@ -1,7 +1,7 @@
 //! The exact-real scalar value behind `ValueData::ExactScalar` (LANG.VALUES.EXACT).
 //!
 //! An enum over the two numeric cost tiers: Tier 0 rationals (`Fraction`,
-//! the three points over zero included) and Tier 1 algebraic numbers. The
+//! the two points over zero included) and Tier 1 algebraic numbers. The
 //! variant is a cost class, never an observable property
 //! (LANG.AUTHORITY.FREEDOM): values demote to the cheapest tier that holds
 //! them exactly, so an `Algebraic` payload is always irrational. Sign, floor
@@ -21,7 +21,7 @@ use std::cmp::Ordering;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ExactReal {
-    /// Tier 0: an exact rational, or one of the three points over zero
+    /// Tier 0: an exact rational, or one of the two points over zero
     /// (`fraction_extended`).
     Rational(Fraction),
     /// Tier 1: an algebraic irrational in multiquadratic normal form.
@@ -103,7 +103,7 @@ impl ExactReal {
     }
 
     /// Whether the value is a rational or an algebraic irrational, rather
-    /// than one of the three points over zero.
+    /// than one of the two points over zero.
     #[inline]
     pub fn is_finite(&self) -> bool {
         match self {
@@ -120,7 +120,7 @@ impl ExactReal {
         }
     }
 
-    /// The value as the rational an operation over the three points reads:
+    /// The value as the rational an operation over the two points reads:
     /// itself for a rational, and its sign for an irrational, since only the
     /// sign of a finite operand reaches such a result (`fraction_extended`).
     fn extended_view(&self) -> Fraction {
@@ -263,7 +263,7 @@ impl ExactReal {
     }
 
     /// Division `self / other`, total: multiplication by the reciprocal. A
-    /// zero divisor answers the dividend's sign over zero.
+    /// zero divisor answers `1/0`, or `0/0` for a zero dividend.
     pub fn div(&self, other: &Self) -> Self {
         if !self.is_finite() || !other.is_finite() || other.is_structurally_zero() {
             return Self::Rational(self.extended_view().div(&other.extended_view()));
@@ -281,8 +281,8 @@ impl ExactReal {
     // ---- Observations ----
 
     /// Three-way comparison (LANG.VALUES.EXACT). Order in the field is
-    /// decidable, `-1/0` lies below it and `1/0` above, so every pair
-    /// decides — except one holding `0/0`, which has no order: `None`.
+    /// decidable, so every pair decides — except one holding a point over
+    /// zero, which has no order: `None`.
     pub fn cmp_exact(&self, other: &Self) -> Option<Ordering> {
         if !self.is_finite() || !other.is_finite() {
             return self.extended_view().order(&other.extended_view());
@@ -295,7 +295,7 @@ impl ExactReal {
         })
     }
 
-    /// Floor as an exact real. Each of the three points over zero is its
+    /// Floor as an exact real. Each of the two points over zero is its
     /// own floor (`Fraction::floor`).
     pub fn floor(&self) -> ExactReal {
         match self {
@@ -315,7 +315,7 @@ impl ExactReal {
 
     /// Best rational approximation within a denominator bound: the
     /// deepest principal convergent whose denominator does not exceed
-    /// `max_denominator`. `None` for one of the three points over zero,
+    /// `max_denominator`. `None` for one of the two points over zero,
     /// which no rational approximates, or a bound below 1.
     pub fn best_rational_approximation(&self, max_denominator: &BigInt) -> Option<Fraction> {
         if max_denominator < &BigInt::one() {

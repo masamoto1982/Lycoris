@@ -120,13 +120,13 @@ fn quotient_lanes(n: usize, lane: impl Fn(usize) -> (i64, i64)) -> Option<Value>
 }
 
 /// `x / y` reduced by `g = gcd(|x|, |y|)`, with the sign carried by the
-/// numerator; a zero divisor answers the dividend's sign over zero. `None`
+/// numerator; a zero divisor answers `1/0`, or `0/0` for a zero dividend. `None`
 /// for the one quotient a machine word cannot hold, `i64::MIN / -1` (and for
 /// `i64::MIN / i64::MIN`, whose gcd is `2^63`).
 #[inline(always)]
 fn reduced_quotient(x: i64, y: i64, g: u64) -> Option<(i64, i64)> {
     if y == 0 {
-        return Some((x.signum(), 0));
+        return Some((i64::from(x != 0), 0));
     }
     let g = i64::try_from(g).ok()?;
     // `g` divides both exactly, and below 2^53 every operand and quotient is

@@ -21,7 +21,7 @@
 //! route (`charge_binary_schema`); which route ran is unobservable
 //! (LANG.AUTHORITY.FREEDOM). `dense_kernels_tests` holds the two equal.
 //!
-//! A lane over zero — one of the three points `1/0`, `-1/0`, `0/0` — is a
+//! A lane over zero — one of the two points `1/0` and `0/0` — is a
 //! lane like any other, in an operand or in the answer. The pair laws here
 //! assume a positive denominator, so such a lane, and a zero divisor, are
 //! answered by the `Fraction`'s own total arithmetic (`fraction_extended`)
@@ -131,9 +131,9 @@ pub(crate) fn floor_divmod(x: i64, m: i64, inv: f64) -> (i64, i64) {
 
 /// `n ± k` for a column of rationals and one integer `k`, either side:
 /// `n/d ± k` is `(n ± k·d)/d`, already in lowest terms because
-/// `gcd(n ± k·d, d) = gcd(n, d) = 1`, so a lane needs no gcd. The same law
-/// answers the three points over zero (`d = 0` leaves `n` as it was, or
-/// negated for `k - n`), which is what `add_total` answers for them. `None`
+/// `gcd(n ± k·d, d) = gcd(n, d) = 1`, so a lane needs no gcd. A point over
+/// zero is left as it was — `k - 1/0` is `1/0`, the negation of the one
+/// unsigned point — which is what `add_total` answers for it. `None`
 /// for anything else, or when a lane overflows.
 fn shifted_by_integer(schema: ExactArithmeticSchema, a: Lanes, b: Lanes) -> Option<Value> {
     let subtract = match schema {
@@ -155,7 +155,7 @@ fn shifted_by_integer(schema: ExactArithmeticSchema, a: Lanes, b: Lanes) -> Opti
             (true, false) => n.overflowing_sub(kd),
             (true, true) => kd.overflowing_sub(n),
         };
-        *o = v;
+        *o = if d == 0 { n } else { v };
         bad |= f | g;
     }
     (!bad).then(|| Out::columns(out, dens.to_vec()).into_value())
@@ -208,9 +208,9 @@ fn arithmetic_lanes(schema: ExactArithmeticSchema, a: &Value, b: &Value) -> Opti
 }
 
 /// `a LT b` / `a GT b` lane by lane: the Vector of Booleans `lift_lanes`
-/// builds, or `None` for the general route — which a `0/0` lane takes, since
-/// it has no order to answer (LANG.VALUES.EXACT). `±1/0` are ordered below
-/// and above every rational (`small_rational::order_total`).
+/// builds, or `None` for the general route — which a lane over zero takes,
+/// since neither point has an order to answer (LANG.VALUES.EXACT,
+/// `small_rational::order_total`).
 pub(crate) fn ordering(kind: OrderingKind, a: &Value, b: &Value) -> Option<Value> {
     hit(ordering_lanes(kind, a, b))
 }
@@ -241,7 +241,7 @@ pub(crate) enum Rounding {
 
 /// `FLOOR`/`ROUND` of every lane, or `None` for the general route. Every
 /// rational rounds to an integer, so the answer is a pure-integer Tensor
-/// unless a lane is one of the three points over zero, which is its own
+/// unless a lane is one of the two points over zero, which is its own
 /// floor and its own rounding; for a Tensor that already was pure-integer,
 /// that is the operand itself.
 pub(crate) fn rounded(rounding: Rounding, value: &Value) -> Option<Value> {
@@ -291,7 +291,7 @@ fn rounded_lanes(rounding: Rounding, value: &Value) -> Option<Value> {
     if !over_zero {
         return Some(Out::integers(out).into_value());
     }
-    // The three points over zero keep their own denominator.
+    // The two points over zero keep their own denominator.
     let out_dens = dens.iter().map(|&d| i64::from(d != 0)).collect();
     Some(Out::columns(out, out_dens).into_value())
 }

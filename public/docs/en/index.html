@@ -111,7 +111,7 @@
                     <p>Exact numbers, and a stack that carries them. When that form settled, the image that came to mind was "water poured into a vessel". What fills the vessel is only water that is never rounded. Yet there is no limit to the shapes of the ripples you can spread across its surface together with AI.</p>
                     <p>As it happens, there is a flower whose scientific name derives from "water vessel": the hydrangea, <em>ajisai</em> in Japanese. I started development in June in Japan, during tsuyu, the rainy season, when the rain goes on and on. Ajisai is a language made with that scene in mind.</p>
                     <h3>Numeric exactness</h3>
-                    <p>Every number is handled exactly. Values are held as exact rationals and as the algebraic irrationals that arise when those are closed under <code>SQRT</code> — the multi-quadratic normal form. Arithmetic and comparison both run without rounding error. The stack display <code>sqrt(2)</code> or <code>1/1+sqrt(2)</code> writes that normal form as a single token; nothing is truncated or approximated. The Playground's Stack area shows the same token as it is. Division is no exception: it is total, so dividing by zero does not stop the program but answers the dividend's sign over zero — one of the three numbers <code>1/0</code>, <code>-1/0</code>, <code>0/0</code> (<a href="#division-by-zero">Dividing by zero</a>).</p>
+                    <p>Every number is handled exactly. Values are held as exact rationals and as the algebraic irrationals that arise when those are closed under <code>SQRT</code> — the multi-quadratic normal form. Arithmetic and comparison both run without rounding error. The stack display <code>sqrt(2)</code> or <code>1/1+sqrt(2)</code> writes that normal form as a single token; nothing is truncated or approximated. The Playground's Stack area shows the same token as it is. Division is no exception: it is total, so dividing by zero does not stop the program but answers a point over zero — <code>1/0</code> for a nonzero dividend of either sign, <code>0/0</code> for zero (<a href="#division-by-zero">Dividing by zero</a>).</p>
                     <h3>What this Reference offers</h3>
                     <p>This Reference explains each feature together with a short, verified sample. Every example has an <strong>"Open in Playground"</strong> button: one click loads the code into the app's editor, so you can see the actual behavior immediately.</p>
                     <p>This Reference divides a program into its elements, and divides each element further for as long as it can be divided. What lies at the end of that division is the individual Word, and that is where the Reference ends.</p>
@@ -745,8 +745,8 @@
                     <p>Irrationals have one display form: the value's normal form written as a single token with no whitespace. <code>2 SQRT</code> is <code>sqrt(2)</code>, <code>1 2 SQRT ADD</code> is <code>1/1+sqrt(2)</code>, <code>2 SQRT 3 SQRT SUB</code> is <code>sqrt(2)-sqrt(3)</code>, and <code>8 SQRT</code> is <code>2/1*sqrt(2)</code> (the radicand is normalized to be square-free). Nothing is truncated or approximated, and inside a Vector it reads as a single element. The <code>stackDisplay</code> of the CLI and MCP hosts and the Playground's Stack area all show this same token. The CLI and MCP also list the same terms, structured, under <code>semantics.exactTerms</code>.</p>
                     <p class="ref-note">This is display-only output, not source syntax. Writing <code>sqrt(2)</code> in a program gives an unknown name. <code>(</code> <code>)</code> are name characters, not syntax, so written in a program they do not act as parentheses.</p>
                     <h3 id="division-by-zero">Dividing by zero</h3>
-                    <p>Every number is a reduced pair of integers over a non-negative denominator, and <code>DIV</code> is total: it is multiplication by the reciprocal, and every number has one. Dividing by zero does not stop the program and produces no absence: the answer is the dividend's sign over zero. Because the gcd of <code>n</code> and <code>0</code> is <code>|n|</code>, every pair over zero reduces to one of exactly three numbers — <code>1/0</code>, <code>-1/0</code> and <code>0/0</code> — so <code>100 0 DIV</code> is <code>1/0</code> for the same reason <code>4/2</code> is <code>2/1</code>, and <code>1/0</code> is a literal as <code>1/2</code> is. The three points compute by the same pair formulas as every other number: <code>1/0 5 ADD</code> is <code>1/0</code>, <code>1 1/0 DIV</code> is <code>0</code>, <code>1/0 1/0 ADD</code> is <code>0/0</code>. <code>-1/0</code> lies below every other number and <code>1/0</code> above; <code>0/0</code> absorbs everything it meets and has no place in the order, so a comparison that asks for one projects <code>NIL</code> (<code>domainMiss</code>) and reads as "unknown" (<a href="#logic">four-valued logic</a>). In a Vector only the element that was divided by zero becomes a point over zero; the quotients beside it are ordinary quotients.</p>
-                    <p class="ref-note">At the three points, and nowhere else, the laws of a field that mention zero give way: <code>0 1/0 MUL</code> is <code>0/0</code>, not <code>0</code>; <code>1/0 1/0 SUB</code> is <code>0/0</code>, not <code>0</code>; and the distributive law fails there. The machine does not restore them by special case. A program that must not reach the points tests its divisor first; one that reaches them keeps computing, and <code>EQ</code> still decides, since <code>0/0 0/0 EQ</code> is <code>TRUE</code>.</p>
+                    <p>Every number is a pair of integers taken up to a nonzero factor, written in lowest terms over a non-negative denominator — the wheel of fractions — and <code>DIV</code> is total: it is multiplication by the reciprocal, and every number has one. Dividing by zero does not stop the program and produces no absence. Because the gcd of <code>n</code> and <code>0</code> is <code>|n|</code>, and the factor <code>-1</code> relates <code>1/0</code> and <code>-1/0</code>, every pair over zero reduces to one of exactly two numbers — <code>1/0</code>, the one unsigned point at infinity, and <code>0/0</code> — so <code>100 0 DIV</code> and <code>-5 0 DIV</code> are both <code>1/0</code> for the same reason <code>4/2</code> is <code>2/1</code>, and <code>1/0</code> is a literal as <code>1/2</code> is. The two points compute by the same pair formulas as every other number: <code>1/0 5 ADD</code> is <code>1/0</code>, <code>1 1/0 DIV</code> is <code>0</code>, <code>1/0 1/0 ADD</code> is <code>0/0</code>, and the reciprocal of a reciprocal is always the number you started from. Neither point has a place in the order — <code>1/0</code> has no sign, and <code>0/0</code> absorbs everything it meets — so a comparison that asks for one projects <code>NIL</code> (<code>domainMiss</code>) and reads as "unknown" (<a href="#logic">four-valued logic</a>). In a Vector only the element that was divided by zero becomes a point over zero; the quotients beside it are ordinary quotients.</p>
+                    <p class="ref-note">At the two points, and nowhere else, the laws of a field that mention zero give way: <code>0 1/0 MUL</code> is <code>0/0</code>, not <code>0</code>; <code>1/0 1/0 SUB</code> is <code>0/0</code>, not <code>0</code>; and the distributive law fails there. The machine does not restore them by special case. A program that must not reach the points tests its divisor first; one that reaches them keeps computing, and <code>EQ</code> still decides, since <code>0/0 0/0 EQ</code> is <code>TRUE</code>.</p>
                     <div class="sample">
                         <div class="ref-table-wrap">
                         <table class="ref-table">
@@ -774,14 +774,14 @@
                             </thead>
                             <tbody>
                                 <tr>
-                                    <td><code>1 0 DIV 1 GT</code></td>
+                                    <td><code>-1 0 DIV 1 0 DIV EQ</code></td>
                                     <td><code>TRUE</code></td>
-                                    <td class="notes"><code>1/0</code> lies above every other number, so the order decides.</td>
+                                    <td class="notes">There is one point at infinity, whatever the sign of the number divided, and equality decides it.</td>
                                 </tr>
                                 <tr>
-                                    <td><code>0 0 DIV 1 GT</code></td>
+                                    <td><code>1 0 DIV 1 GT</code></td>
                                     <td><code>NIL</code></td>
-                                    <td class="notes"><code>0/0</code> has no place in the order, so the comparison is unknown: a <code>NIL</code> whose reason is <code>domainMiss</code>.</td>
+                                    <td class="notes"><code>1/0</code> has no place in the order, so the comparison is unknown: a <code>NIL</code> whose reason is <code>domainMiss</code>. <code>0/0</code> answers the same.</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -1512,7 +1512,7 @@ FILTER</code></td>
                         <li><strong>Rounding</strong>: <code>FLOOR</code> (round down), <code>ROUND</code> (round to nearest, a tie away from zero). Ceiling is written <code>x -1 MUL FLOOR -1 MUL</code>.</li>
                         <li><strong>Rounding to a grid</strong>: <code>x d MUL 1/2 ADD FLOOR d DIV</code> rounds a value to a multiple of <code>1/d</code>. Use it to stop denominators from growing in loops and iterative computations. See <a href="#iterative">The cost of iteration</a> for more.</li>
                     </ul>
-                    <p class="ref-note">Division by zero does not crash the program and produces no absence: the affected element becomes its sign over zero, a number, and the elements beside it are quotients. Every Word after the division computes with the point by the same pair formulas. See <a href="#division-by-zero">Dividing by zero</a> for more.</p>
+                    <p class="ref-note">Division by zero does not crash the program and produces no absence: the affected element becomes a point over zero, a number, and the elements beside it are quotients. Every Word after the division computes with the point by the same pair formulas. See <a href="#division-by-zero">Dividing by zero</a> for more.</p>
                     <div class="sample">
                         <div class="ref-table-wrap">
                         <table class="ref-table">
@@ -1689,7 +1689,7 @@ FILTER</code></td>
                         </div>
                     </div>
                     <h3>Exact comparison</h3>
-                    <p class="ref-note">Comparison decides exactly across every value the Words can build, rationals and square roots included. So a comparison always returns <code>TRUE</code> or <code>FALSE</code> in finite time, with one exception: <code>0/0</code> has no place in the order, so an order asked of it answers <code>NIL</code> (<code>domainMiss</code>).</p>
+                    <p class="ref-note">Comparison decides exactly across every value the Words can build, rationals and square roots included. So a comparison always returns <code>TRUE</code> or <code>FALSE</code> in finite time, with one exception: the two points over zero, <code>1/0</code> and <code>0/0</code>, have no place in the order, so an order asked of one answers <code>NIL</code> (<code>domainMiss</code>).</p>
 
                     <h3 id="logic">Logic</h3>
                     <p>Ajisai's truth is four-valued, after Belnap: <code>TRUE</code>, <code>FALSE</code>, <code>BOTH</code> (told true and told false at once) and UNKNOWN (a <code>NIL</code> read in truth position). Two logical Words, <code>AND</code> and <code>NOT</code>, combine them. Like any other Word, each is written by its spelling. Logical OR is written by De Morgan's law as <code>a NOT b NOT AND NOT</code>. <code>NOT</code> swaps <code>TRUE</code> and <code>FALSE</code> and leaves <code>BOTH</code> and UNKNOWN as they are; <code>AND</code> of <code>BOTH</code> and UNKNOWN is <code>FALSE</code>.</p>
@@ -1899,7 +1899,7 @@ FILTER</code></td>
 </div>
 <div class="word-entry" id="word-LT">
 <h4><code>LT</code> <span class="word-tier">Semantic Kernel</span></h4>
-<p>Whether the left number is less than the right: <code>1 2 LT</code> is <code>TRUE</code>, element-wise over Vectors, <code>[ 1 5 ] 3 LT</code> is <code>[ TRUE FALSE ]</code>. Order over the exact domain decides (LANG.VALUES.EXACT), irrationals included — <code>2 SQRT 3/2 LT</code> is <code>TRUE</code> — and <code>-1/0</code> lies below every other number and <code>1/0</code> above. <code>0/0</code> alone has no order, so a comparison asking it projects NIL(domainMiss): <code>0/0 1 LT</code> is the UNKNOWN that absence reads as in truth position (LANG.VALUES.TRUTH). Only numbers are ordered; anything else is <code>nonNumeric</code>.</p>
+<p>Whether the left number is less than the right: <code>1 2 LT</code> is <code>TRUE</code>, element-wise over Vectors, <code>[ 1 5 ] 3 LT</code> is <code>[ TRUE FALSE ]</code>. Order over the exact domain decides (LANG.VALUES.EXACT), irrationals included — <code>2 SQRT 3/2 LT</code> is <code>TRUE</code> — and neither point over zero has an order — <code>1/0</code> is the one unsigned point at infinity and <code>0/0</code> the wheel's bottom — so a comparison asking one projects NIL(domainMiss): <code>1/0 1 LT</code> is the UNKNOWN that absence reads as in truth position (LANG.VALUES.TRUTH). Only numbers are ordered; anything else is <code>nonNumeric</code>.</p>
 <dl class="word-contract">
 <dt>Syntax</dt><dd><code>1 2 LT</code></dd>
 <dt>Stack effect</dt><dd><span class="notation">[ a ] [ b ] -&gt; [ TRUE | FALSE ]</span></dd>
@@ -1916,7 +1916,7 @@ FILTER</code></td>
 </div>
 <div class="word-entry" id="word-GT">
 <h4><code>GT</code> <span class="word-tier">Semantic Kernel</span></h4>
-<p>Whether the left number is greater than the right: <code>2 1 GT</code> is <code>TRUE</code>, element-wise over Vectors, <code>[ 1 5 ] 3 GT</code> is <code>[ FALSE TRUE ]</code>. Order over the exact domain decides (LANG.VALUES.EXACT), irrationals included — <code>2 SQRT 3/2 LT</code> is <code>TRUE</code> — and <code>-1/0</code> lies below every other number and <code>1/0</code> above. <code>0/0</code> alone has no order, so a comparison asking it projects NIL(domainMiss): <code>0/0 1 GT</code> is the UNKNOWN that absence reads as in truth position (LANG.VALUES.TRUTH). Only numbers are ordered; anything else is <code>nonNumeric</code>.</p>
+<p>Whether the left number is greater than the right: <code>2 1 GT</code> is <code>TRUE</code>, element-wise over Vectors, <code>[ 1 5 ] 3 GT</code> is <code>[ FALSE TRUE ]</code>. Order over the exact domain decides (LANG.VALUES.EXACT), irrationals included — <code>2 SQRT 3/2 LT</code> is <code>TRUE</code> — and neither point over zero has an order — <code>1/0</code> is the one unsigned point at infinity and <code>0/0</code> the wheel's bottom — so a comparison asking one projects NIL(domainMiss): <code>1/0 1 GT</code> is the UNKNOWN that absence reads as in truth position (LANG.VALUES.TRUTH). Only numbers are ordered; anything else is <code>nonNumeric</code>.</p>
 <dl class="word-contract">
 <dt>Syntax</dt><dd><code>2 1 GT</code></dd>
 <dt>Stack effect</dt><dd><span class="notation">[ a ] [ b ] -&gt; [ TRUE | FALSE ]</span></dd>
@@ -1933,7 +1933,7 @@ FILTER</code></td>
 </div>
 <div class="word-entry" id="word-MIN">
 <h4><code>MIN</code> <span class="word-tier">Standard · namedPattern</span></h4>
-<p>The smaller of two numbers: <code>1 2 MIN</code> is <code>1</code>, and element-wise over Vectors with broadcasting, <code>[ 3 1 ] 2 MIN</code> is <code>[ 2 1 ]</code>. The order is the exact domain's (LANG.VALUES.EXACT): <code>-1/0 5 MIN</code> is <code>-1/0</code>, and <code>0/0</code>, which has no order, projects NIL(domainMiss) as LT does. A non-number is <code>nonNumeric</code>.</p>
+<p>The smaller of two numbers: <code>1 2 MIN</code> is <code>1</code>, and element-wise over Vectors with broadcasting, <code>[ 3 1 ] 2 MIN</code> is <code>[ 2 1 ]</code>. The order is the exact domain's (LANG.VALUES.EXACT): <code>-1 5 MIN</code> is <code>-1</code>, and a point over zero, <code>1/0</code> or <code>0/0</code>, which has no order, projects NIL(domainMiss) as LT does. A non-number is <code>nonNumeric</code>.</p>
 <dl class="word-contract">
 <dt>Syntax</dt><dd><code>1 2 MIN</code></dd>
 <dt>Stack effect</dt><dd><span class="notation">[ a ] [ b ] -&gt; [ min ]</span></dd>
@@ -1950,7 +1950,7 @@ FILTER</code></td>
 </div>
 <div class="word-entry" id="word-MAX">
 <h4><code>MAX</code> <span class="word-tier">Standard · namedPattern</span></h4>
-<p>The larger of two numbers: <code>1 2 MAX</code> is <code>2</code>, and element-wise over Vectors with broadcasting, <code>[ -1 2 -3 ] 0 MAX</code> is <code>[ 0 2 0 ]</code>. The order is the exact domain's (LANG.VALUES.EXACT): <code>1/0 5 MAX</code> is <code>1/0</code>, and <code>0/0</code>, which has no order, projects NIL(domainMiss) as GT does. A non-number is <code>nonNumeric</code>.</p>
+<p>The larger of two numbers: <code>1 2 MAX</code> is <code>2</code>, and element-wise over Vectors with broadcasting, <code>[ -1 2 -3 ] 0 MAX</code> is <code>[ 0 2 0 ]</code>. The order is the exact domain's (LANG.VALUES.EXACT): <code>-1 5 MAX</code> is <code>5</code>, and a point over zero, <code>1/0</code> or <code>0/0</code>, which has no order, projects NIL(domainMiss) as GT does. A non-number is <code>nonNumeric</code>.</p>
 <dl class="word-contract">
 <dt>Syntax</dt><dd><code>1 2 MAX</code></dd>
 <dt>Stack effect</dt><dd><span class="notation">[ a ] [ b ] -&gt; [ max ]</span></dd>
@@ -1984,7 +1984,7 @@ FILTER</code></td>
 </div>
 <div class="word-entry" id="word-ADD">
 <h4><code>ADD</code> <span class="word-tier">Semantic Kernel</span></h4>
-<p>The exact sum: <code>1/3 1/6 ADD</code> is <code>1/2</code>, and element-wise over Vectors with broadcasting (LANG.COLLECTIONS.LIFT), <code>[ 1 2 ] 10 ADD</code> is <code>[ 11 12 ]</code>. Nothing is rounded: <code>2 SQRT 2 SQRT ADD</code> is <code>8 SQRT</code>. The pair formula decides the three points over zero too: <code>1/0 5 ADD</code> is <code>1/0</code> and <code>1/0 1/0 ADD</code> is <code>0/0</code> (LANG.VALUES.EXACT). A non-number is <code>nonNumeric</code>.</p>
+<p>The exact sum: <code>1/3 1/6 ADD</code> is <code>1/2</code>, and element-wise over Vectors with broadcasting (LANG.COLLECTIONS.LIFT), <code>[ 1 2 ] 10 ADD</code> is <code>[ 11 12 ]</code>. Nothing is rounded: <code>2 SQRT 2 SQRT ADD</code> is <code>8 SQRT</code>. The pair formula decides the two points over zero too: <code>1/0 5 ADD</code> is <code>1/0</code> and <code>1/0 1/0 ADD</code> is <code>0/0</code> (LANG.VALUES.EXACT). A non-number is <code>nonNumeric</code>.</p>
 <dl class="word-contract">
 <dt>Syntax</dt><dd><code>1 2 ADD</code></dd>
 <dt>Stack effect</dt><dd><span class="notation">[ a ] [ b ] -&gt; [ a + b ]</span></dd>
@@ -2018,7 +2018,7 @@ FILTER</code></td>
 </div>
 <div class="word-entry" id="word-MUL">
 <h4><code>MUL</code> <span class="word-tier">Semantic Kernel</span></h4>
-<p>The exact product: <code>2/3 3/4 MUL</code> is <code>1/2</code>, and element-wise over Vectors with broadcasting (LANG.COLLECTIONS.LIFT), <code>[ 1 2 3 ] [ 10 ] MUL</code> is <code>[ 10 20 30 ]</code>. The pair formula decides the three points over zero too: <code>1/0 -2 MUL</code> is <code>-1/0</code> and <code>1/0 0 MUL</code> is <code>0/0</code> (LANG.VALUES.EXACT). A non-number is <code>nonNumeric</code>.</p>
+<p>The exact product: <code>2/3 3/4 MUL</code> is <code>1/2</code>, and element-wise over Vectors with broadcasting (LANG.COLLECTIONS.LIFT), <code>[ 1 2 3 ] [ 10 ] MUL</code> is <code>[ 10 20 30 ]</code>. The pair formula decides the two points over zero too: <code>1/0 -2 MUL</code> is <code>1/0</code> and <code>1/0 0 MUL</code> is <code>0/0</code> (LANG.VALUES.EXACT). A non-number is <code>nonNumeric</code>.</p>
 <dl class="word-contract">
 <dt>Syntax</dt><dd><code>2 4 MUL</code></dd>
 <dt>Stack effect</dt><dd><span class="notation">[ a ] [ b ] -&gt; [ a * b ]</span></dd>
@@ -2035,7 +2035,7 @@ FILTER</code></td>
 </div>
 <div class="word-entry" id="word-DIV">
 <h4><code>DIV</code> <span class="word-tier">Semantic Kernel</span></h4>
-<p>The exact quotient, left over right: <code>1 3 DIV</code> is exactly <code>1/3</code>, and element-wise over Vectors with broadcasting (LANG.COLLECTIONS.LIFT), <code>[ 2 4 ] 2 DIV</code> is <code>[ 1 2 ]</code>. Division is total (LANG.VALUES.EXACT): it is multiplication by the reciprocal, and every number has one. A zero divisor answers the dividend's sign over zero in its own lane and no other — <code>[ 1 -2 0 ] 0 DIV</code> is <code>[ 1/0 -1/0 0/0 ]</code>, and <code>1 1/0 DIV</code> is <code>0</code> — the lanes beside it are quotients, and a Word after it computes with the point by the same pair formulas, so <code>1 0 DIV 2 MUL</code> is <code>1/0</code> and <code>1 0 DIV 0 MUL</code> is <code>0/0</code>. A non-number is <code>nonNumeric</code>.</p>
+<p>The exact quotient, left over right: <code>1 3 DIV</code> is exactly <code>1/3</code>, and element-wise over Vectors with broadcasting (LANG.COLLECTIONS.LIFT), <code>[ 2 4 ] 2 DIV</code> is <code>[ 1 2 ]</code>. Division is total (LANG.VALUES.EXACT): it is multiplication by the reciprocal, and every number has one. A zero divisor answers a point over zero in its own lane and no other — <code>1/0</code> for a nonzero dividend of either sign and <code>0/0</code> for zero, so <code>[ 1 -2 0 ] 0 DIV</code> is <code>[ 1/0 1/0 0/0 ]</code>, and <code>1 1/0 DIV</code> is <code>0</code> — the lanes beside it are quotients, and a Word after it computes with the point by the same pair formulas, so <code>1 0 DIV 2 MUL</code> is <code>1/0</code> and <code>1 0 DIV 0 MUL</code> is <code>0/0</code>. A non-number is <code>nonNumeric</code>.</p>
 <dl class="word-contract">
 <dt>Syntax</dt><dd><code>10 2 DIV</code></dd>
 <dt>Stack effect</dt><dd><span class="notation">[ a ] [ b ] -&gt; [ a / b ]</span></dd>
@@ -2052,7 +2052,7 @@ FILTER</code></td>
 </div>
 <div class="word-entry" id="word-FLOOR">
 <h4><code>FLOOR</code> <span class="word-tier">Semantic Kernel</span></h4>
-<p>The greatest integer not above the number: <code>7/3 FLOOR</code> is <code>2</code> and <code>-7/3 FLOOR</code> is <code>-3</code>, element-wise over Vectors. Irrationals floor exactly: <code>2 SQRT FLOOR</code> is <code>1</code>. No integer lies at or beyond the three points over zero, so each is its own floor: <code>1/0 FLOOR</code> is <code>1/0</code>. A non-number is <code>nonNumeric</code>.</p>
+<p>The greatest integer not above the number: <code>7/3 FLOOR</code> is <code>2</code> and <code>-7/3 FLOOR</code> is <code>-3</code>, element-wise over Vectors. Irrationals floor exactly: <code>2 SQRT FLOOR</code> is <code>1</code>. No integer lies at the two points over zero, so each is its own floor: <code>1/0 FLOOR</code> is <code>1/0</code>. A non-number is <code>nonNumeric</code>.</p>
 <dl class="word-contract">
 <dt>Syntax</dt><dd><code>7/3 FLOOR</code></dd>
 <dt>Stack effect</dt><dd><span class="notation">[ x ] -&gt; [ floor x ]</span></dd>
@@ -2069,7 +2069,7 @@ FILTER</code></td>
 </div>
 <div class="word-entry" id="word-ROUND">
 <h4><code>ROUND</code> <span class="word-tier">Standard · algorithm</span></h4>
-<p>The nearest integer, a tie going away from zero: <code>5/2 ROUND</code> is <code>3</code> and <code>-5/2 ROUND</code> is <code>-3</code>, element-wise over Vectors. FORMAT rounds its last digit the same way. Each of the three points over zero is its own rounding, as it is its own floor. A non-number is <code>nonNumeric</code>.</p>
+<p>The nearest integer, a tie going away from zero: <code>5/2 ROUND</code> is <code>3</code> and <code>-5/2 ROUND</code> is <code>-3</code>, element-wise over Vectors. FORMAT rounds its last digit the same way. Each of the two points over zero is its own rounding, as it is its own floor. A non-number is <code>nonNumeric</code>.</p>
 <dl class="word-contract">
 <dt>Syntax</dt><dd><code>5/2 ROUND</code></dd>
 <dt>Stack effect</dt><dd><span class="notation">[ x ] -&gt; [ round x ]</span></dd>
@@ -2086,7 +2086,7 @@ FILTER</code></td>
 </div>
 <div class="word-entry" id="word-SQRT">
 <h4><code>SQRT</code> <span class="word-tier">Semantic Kernel</span></h4>
-<p>The exact square root of a non-negative number: <code>4 SQRT</code> is <code>2</code>, and <code>2 SQRT</code> is the irrational itself, carried in multiquadratic normal form and compared with no rounding (LANG.VALUES.EXACT), so <code>2 SQRT 2 SQRT MUL</code> is <code>2</code>. The radicand is reduced to its square-free part, so one number has one form however it was built: <code>8 SQRT</code> is <code>2 SQRT 2 MUL</code>. That reduction factors the radicand and is charged to the run's numeric work; a radicand the remaining work cannot factor is <code>resourceLimitExceeded</code>. <code>1/0</code> and <code>0/0</code> are their own roots. Element-wise over Vectors, and a negative radicand, <code>-1/0</code> included, projects NIL(domainMiss): <code>[ 4 -1 ] SQRT</code> is <code>[ 2 NIL ]</code> with the second lane absent for that reason. A non-number is <code>nonNumeric</code>.</p>
+<p>The exact square root of a non-negative number: <code>4 SQRT</code> is <code>2</code>, and <code>2 SQRT</code> is the irrational itself, carried in multiquadratic normal form and compared with no rounding (LANG.VALUES.EXACT), so <code>2 SQRT 2 SQRT MUL</code> is <code>2</code>. The radicand is reduced to its square-free part, so one number has one form however it was built: <code>8 SQRT</code> is <code>2 SQRT 2 MUL</code>. That reduction factors the radicand and is charged to the run's numeric work; a radicand the remaining work cannot factor is <code>resourceLimitExceeded</code>. <code>1/0</code> and <code>0/0</code> are their own roots. Element-wise over Vectors, and a negative radicand projects NIL(domainMiss): <code>[ 4 -1 ] SQRT</code> is <code>[ 2 NIL ]</code> with the second lane absent for that reason. A non-number is <code>nonNumeric</code>.</p>
 <dl class="word-contract">
 <dt>Syntax</dt><dd><code>2 SQRT</code></dd>
 <dt>Stack effect</dt><dd><span class="notation">[ x ] -&gt; [ sqrt(x) ]</span></dd>
@@ -2103,7 +2103,7 @@ FILTER</code></td>
 </div>
 <div class="word-entry" id="word-POW">
 <h4><code>POW</code> <span class="word-tier">Semantic Kernel</span></h4>
-<p>Exact power <code>x y POW</code>, element-wise over Vectors, answered inside the exact domain. An integer exponent keeps the result in the base's own tier: <code>2 10 POW</code> is <code>1024</code>, <code>2 SQRT 2 POW</code> is <code>2</code>, <code>2 -1 POW</code> is <code>1/2</code>, <code>7 0 POW</code> is <code>1</code>, the empty product, and since division is total <code>0 -1 POW</code> is <code>1/0</code> and <code>1/0 -1 POW</code> is <code>0</code> (LANG.VALUES.EXACT). <code>0/0</code> absorbs POW as it absorbs every operation, in either operand: <code>0/0 0 POW</code> and <code>2 0/0 POW</code> are <code>0/0</code>. An exponent <code>p/2</code> over a non-negative rational base stays in the field too — <code>2 1/2 POW</code> is exactly what <code>2 SQRT</code> answers, and <code>2 3/2 POW</code> is <code>2 2 SQRT MUL</code>. A negative base under <code>p/2</code> has no real value and projects <code>domainMiss</code>; every other exponent — a denominator other than 1 or 2, <code>p/2</code> over an irrational base, an irrational exponent, <code>1/0</code> or <code>-1/0</code> — leaves the field and projects <code>domainMiss</code> as well (<code>8 1/3 POW</code>, <code>2 2 SQRT POW</code>, <code>2 1/0 POW</code>). A result wider than <code>bigintBits</code> or of more terms than <code>algebraicTerms</code> is refused as ERROR(<code>resourceLimitExceeded</code>) by the ceiling's name before it is computed, exactly as <code>MUL</code> refuses the same width (LANG.MACHINE.LIMITS). <code>SQRT</code> remains the Word that builds the field; <code>POW</code> is not its sugar.</p>
+<p>Exact power <code>x y POW</code>, element-wise over Vectors, answered inside the exact domain. An integer exponent keeps the result in the base's own tier: <code>2 10 POW</code> is <code>1024</code>, <code>2 SQRT 2 POW</code> is <code>2</code>, <code>2 -1 POW</code> is <code>1/2</code>, <code>7 0 POW</code> is <code>1</code>, the empty product, and since division is total <code>0 -1 POW</code> is <code>1/0</code> and <code>1/0 -1 POW</code> is <code>0</code> (LANG.VALUES.EXACT). <code>0/0</code> absorbs POW as it absorbs every operation, in either operand: <code>0/0 0 POW</code> and <code>2 0/0 POW</code> are <code>0/0</code>. An exponent <code>p/2</code> over a non-negative rational base stays in the field too — <code>2 1/2 POW</code> is exactly what <code>2 SQRT</code> answers, and <code>2 3/2 POW</code> is <code>2 2 SQRT MUL</code>. A negative base under <code>p/2</code> has no real value and projects <code>domainMiss</code>; every other exponent — a denominator other than 1 or 2, <code>p/2</code> over an irrational base, an irrational exponent, <code>1/0</code> — leaves the field and projects <code>domainMiss</code> as well (<code>8 1/3 POW</code>, <code>2 2 SQRT POW</code>, <code>2 1/0 POW</code>). A result wider than <code>bigintBits</code> or of more terms than <code>algebraicTerms</code> is refused as ERROR(<code>resourceLimitExceeded</code>) by the ceiling's name before it is computed, exactly as <code>MUL</code> refuses the same width (LANG.MACHINE.LIMITS). <code>SQRT</code> remains the Word that builds the field; <code>POW</code> is not its sugar.</p>
 <dl class="word-contract">
 <dt>Syntax</dt><dd><code>2 10 POW</code></dd>
 <dt>Stack effect</dt><dd><span class="notation">[ x ] [ y ] -&gt; [ x^y ]</span></dd>
@@ -2137,7 +2137,7 @@ FILTER</code></td>
 </div>
 <div class="word-entry" id="word-RATIO">
 <h4><code>RATIO</code> <span class="word-tier">Standard · operational</span></h4>
-<p>A number opened into its reduced numerator and denominator, as a two-element Vector with the denominator non-negative: <code>6/4 RATIO</code> is <code>[ 3 2 ]</code>, <code>-3 RATIO</code> is <code>[ -3 1 ]</code>, and <code>100 0 DIV RATIO</code> is <code>[ 1 0 ]</code>, since every pair over zero reduces to its sign over zero (LANG.VALUES.EXACT); element-wise over Vectors. The language advertises exact fractions; this is the Word that reads their two parts back, and because the answer is a Vector, arithmetic lifts over it as it does over any other. An irrational (<code>2 SQRT</code>) has no numerator and projects <code>domainMiss</code>.</p>
+<p>A number opened into its reduced numerator and denominator, as a two-element Vector with the denominator non-negative: <code>6/4 RATIO</code> is <code>[ 3 2 ]</code>, <code>-3 RATIO</code> is <code>[ -3 1 ]</code>, and <code>100 0 DIV RATIO</code> is <code>[ 1 0 ]</code>, since every pair over zero with a nonzero numerator reduces to <code>1/0</code> (LANG.VALUES.EXACT); element-wise over Vectors. The language advertises exact fractions; this is the Word that reads their two parts back, and because the answer is a Vector, arithmetic lifts over it as it does over any other. An irrational (<code>2 SQRT</code>) has no numerator and projects <code>domainMiss</code>.</p>
 <dl class="word-contract">
 <dt>Syntax</dt><dd><code>6/4 RATIO</code></dd>
 <dt>Stack effect</dt><dd><span class="notation">[ q ] -&gt; [ [ numerator denominator ] ]</span></dd>
@@ -2677,7 +2677,7 @@ FILTER</code></td>
 </div>
 <div class="word-entry" id="word-SORT">
 <h4><code>SORT</code> <span class="word-tier">Standard · operational</span></h4>
-<p>A copy of a Vector of numbers in ascending order: <code>[ 3 1 2 ] SORT</code> is <code>[ 1 2 3 ]</code>. Order is exact, irrationals included, with <code>-1/0</code> first and <code>1/0</code> last; a Vector holding <code>0/0</code>, which has no order, has no sorted form and projects NIL(domainMiss) (LANG.VALUES.EXACT). Only numbers are ordered (<code>nonNumeric</code>), and a non-Vector is <code>nonVector</code>. ORDER answers the permutation instead.</p>
+<p>A copy of a Vector of numbers in ascending order: <code>[ 3 1 2 ] SORT</code> is <code>[ 1 2 3 ]</code>. Order is exact, irrationals included; a Vector holding a point over zero, <code>1/0</code> or <code>0/0</code>, which has no order, has no sorted form and projects NIL(domainMiss) (LANG.VALUES.EXACT). Only numbers are ordered (<code>nonNumeric</code>), and a non-Vector is <code>nonVector</code>. ORDER answers the permutation instead.</p>
 <dl class="word-contract">
 <dt>Syntax</dt><dd><code>[ 3 1 2 ] SORT</code></dd>
 <dt>Stack effect</dt><dd><span class="notation">[ vec ] -&gt; [ sorted ]</span></dd>
@@ -2694,7 +2694,7 @@ FILTER</code></td>
 </div>
 <div class="word-entry" id="word-ORDER">
 <h4><code>ORDER</code> <span class="word-tier">Standard · operational</span></h4>
-<p>The indices that would sort a Vector of numbers ascending: <code>[ 30 10 20 ] ORDER</code> is <code>[ 1 2 0 ]</code>, so gathering by it sorts: <code>[ 30 10 20 ] 'V' BIND V V ORDER GET</code> is <code>[ 10 20 30 ]</code>. Ties keep their original order: <code>[ 2 1 2 1 ] ORDER</code> is <code>[ 1 3 0 2 ]</code>. A Vector holding <code>0/0</code>, which has no order, projects NIL(domainMiss) as SORT does (LANG.VALUES.EXACT). Only numbers are ordered (<code>nonNumeric</code>), and a non-Vector is <code>nonVector</code>.</p>
+<p>The indices that would sort a Vector of numbers ascending: <code>[ 30 10 20 ] ORDER</code> is <code>[ 1 2 0 ]</code>, so gathering by it sorts: <code>[ 30 10 20 ] 'V' BIND V V ORDER GET</code> is <code>[ 10 20 30 ]</code>. Ties keep their original order: <code>[ 2 1 2 1 ] ORDER</code> is <code>[ 1 3 0 2 ]</code>. A Vector holding a point over zero, which has no order, projects NIL(domainMiss) as SORT does (LANG.VALUES.EXACT). Only numbers are ordered (<code>nonNumeric</code>), and a non-Vector is <code>nonVector</code>.</p>
 <dl class="word-contract">
 <dt>Syntax</dt><dd><code>[ 30 10 20 ] ORDER</code></dd>
 <dt>Stack effect</dt><dd><span class="notation">[ vec ] -&gt; [ permutation ]</span></dd>
@@ -2762,7 +2762,7 @@ FILTER</code></td>
 </div>
 <div class="word-entry" id="word-BSEARCH">
 <h4><code>BSEARCH</code> <span class="word-tier">Standard · algorithm</span></h4>
-<p>The index of each key in an ascending vector, found by halving: <code>[ 1 3 5 7 ] [ 5 ] BSEARCH</code> is <code>[ 2 ]</code>, a single key answers a single index, and a key that is not there is a NIL(notFound) lane. The vector must be in ascending order; one that is not raises <code>unsortedInput</code>, since a binary search over unordered data would answer something rather than nothing, and one holding <code>0/0</code>, which has no order, projects NIL(domainMiss), as does a key of <code>0/0</code> in its own lane (LANG.VALUES.EXACT). Checking the order is one pass over the vector, and each key then costs O(log n), so m keys cost O(n + m log n) against a linear scan's O(m·n) — and halving a range until it is empty is a loop whose length depends on the data, which a language with no unbounded loop cannot write.</p>
+<p>The index of each key in an ascending vector, found by halving: <code>[ 1 3 5 7 ] [ 5 ] BSEARCH</code> is <code>[ 2 ]</code>, a single key answers a single index, and a key that is not there is a NIL(notFound) lane. The vector must be in ascending order; one that is not raises <code>unsortedInput</code>, since a binary search over unordered data would answer something rather than nothing, and one holding a point over zero, which has no order, projects NIL(domainMiss), as does a key over zero in its own lane (LANG.VALUES.EXACT). Checking the order is one pass over the vector, and each key then costs O(log n), so m keys cost O(n + m log n) against a linear scan's O(m·n) — and halving a range until it is empty is a loop whose length depends on the data, which a language with no unbounded loop cannot write.</p>
 <dl class="word-contract">
 <dt>Syntax</dt><dd><code>[ 1 3 5 7 ] [ 5 ] BSEARCH</code></dd>
 <dt>Stack effect</dt><dd><span class="notation">[ sorted ] [ keys ] -&gt; [ indices ]</span></dd>
@@ -3473,7 +3473,7 @@ FILTER</code></td>
 </div>
 <div class="word-entry" id="word-NUM">
 <h4><code>NUM</code> <span class="word-tier">Semantic Kernel</span></h4>
-<p>Parse text as a number, by the same grammar a source literal is read with: <code>'3/4' NUM</code> is <code>3/4</code>, <code>'0.25' NUM</code> is <code>1/4</code>, and <code>'5/0' NUM</code> is <code>1/0</code>, the pair reduced to its sign over zero (LANG.VALUES.EXACT). Text that spells no number — <code>'abc'</code>, <code>'.5'</code>, <code>'1_000'</code> — projects NIL(invalidEncoding), and text spelling a number of more digits than the numeric-literal ceiling allows a source literal, its exponent counted (<code>'1e99999999'</code>), is refused as ERROR(<code>resourceLimitExceeded</code>, <code>numericLiteralDigits</code>), exactly as the same lexeme in source is (LANG.MACHINE.LIMITS). A non-String operand is an ERROR (<code>nonText</code>); a Vector of Strings lifts.</p>
+<p>Parse text as a number, by the same grammar a source literal is read with: <code>'3/4' NUM</code> is <code>3/4</code>, <code>'0.25' NUM</code> is <code>1/4</code>, and <code>'-5/0' NUM</code> is <code>1/0</code>, the pair reduced to its point over zero (LANG.VALUES.EXACT). Text that spells no number — <code>'abc'</code>, <code>'.5'</code>, <code>'1_000'</code> — projects NIL(invalidEncoding), and text spelling a number of more digits than the numeric-literal ceiling allows a source literal, its exponent counted (<code>'1e99999999'</code>), is refused as ERROR(<code>resourceLimitExceeded</code>, <code>numericLiteralDigits</code>), exactly as the same lexeme in source is (LANG.MACHINE.LIMITS). A non-String operand is an ERROR (<code>nonText</code>); a Vector of Strings lifts.</p>
 <dl class="word-contract">
 <dt>Syntax</dt><dd><code>'42' NUM</code></dd>
 <dt>Stack effect</dt><dd><span class="notation">[ text ] -&gt; [ n ]</span></dd>
@@ -3506,7 +3506,7 @@ FILTER</code></td>
 </div>
 <div class="word-entry" id="word-FORMAT">
 <h4><code>FORMAT</code> <span class="word-tier">Standard · operational</span></h4>
-<p>Render an exact scalar as decimal text with a stated number of digits after the point, rounding a tie away from zero exactly as <code>ROUND</code> does: <code>1/3 5 FORMAT</code> is <code>'0.33333'</code>, <code>5/2 0 FORMAT</code> is <code>'3'</code>, <code>2 SQRT 3 FORMAT</code> is <code>'1.414'</code>. This is the one place a value is rounded, and it is text that leaves it, never a number: arithmetic performs no rounding and <code>STR</code> refuses a number with no exact lexeme, so a program that wants a decimal approximation names its precision here, at the display boundary. No decimal lies at or beyond the three points over zero, so <code>1/0</code>, <code>-1/0</code> and <code>0/0</code> project NIL(domainMiss) (LANG.VALUES.EXACT); STR writes their lexemes. The digit count is a non-negative integer (<code>invalidInteger</code> otherwise) and the value a scalar (<code>nonNumeric</code> otherwise). Every digit is decided exactly, an irrational's included, since the field's order never ties.</p>
+<p>Render an exact scalar as decimal text with a stated number of digits after the point, rounding a tie away from zero exactly as <code>ROUND</code> does: <code>1/3 5 FORMAT</code> is <code>'0.33333'</code>, <code>5/2 0 FORMAT</code> is <code>'3'</code>, <code>2 SQRT 3 FORMAT</code> is <code>'1.414'</code>. This is the one place a value is rounded, and it is text that leaves it, never a number: arithmetic performs no rounding and <code>STR</code> refuses a number with no exact lexeme, so a program that wants a decimal approximation names its precision here, at the display boundary. No decimal lies at the two points over zero, so <code>1/0</code> and <code>0/0</code> project NIL(domainMiss) (LANG.VALUES.EXACT); STR writes their lexemes. The digit count is a non-negative integer (<code>invalidInteger</code> otherwise) and the value a scalar (<code>nonNumeric</code> otherwise). Every digit is decided exactly, an irrational's included, since the field's order never ties.</p>
 <dl class="word-contract">
 <dt>Syntax</dt><dd><code>1/3 5 FORMAT</code></dd>
 <dt>Stack effect</dt><dd><span class="notation">[ x ] [ digits ] -&gt; [ text ]</span></dd>

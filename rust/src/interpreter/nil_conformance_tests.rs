@@ -160,8 +160,8 @@ const PROJECTING_WORDS: &[&str] = &[
     "RATIO", "RECONCILE", "SEARCH", "SHAPE", "SORT", "SQRT", "STR", "TAKE", "WITHOUT",
 ];
 
-/// The order Words project on `0/0`: it is a number (LANG.VALUES.EXACT) but
-/// has no place in the order `-1/0 < field < 1/0`, so asking where it stands
+/// The order Words project on a point over zero: `1/0` and `0/0` are numbers
+/// (LANG.VALUES.EXACT) with no place in the order, so asking where one stands
 /// is a question outside the Word's domain — `domainMiss`, the reason `SQRT`
 /// gives a negative radicand. Equality is not order: `0/0 0/0 EQ` is TRUE.
 #[tokio::test]
@@ -180,6 +180,11 @@ async fn nil_projection_order_words_project_on_nullity() {
         // Lifted over lanes, the projection lands in the lane that asked.
         "[ 1 0/0 ] 1 LT 1 GET",
         "[ 0/0 1 ] 1 MAX 0 GET",
+        "1 0 DIV 1 GT",
+        "-1 0 DIV 1 LT",
+        "1 0 DIV 5 MAX",
+        "-1 0 DIV 5 MIN",
+        "[ 1/0 0 ] SORT",
     ] {
         assert_eq!(
             reason(code).await.as_deref(),
@@ -187,15 +192,11 @@ async fn nil_projection_order_words_project_on_nullity() {
             "`{code}` must project domainMiss"
         );
     }
-    // The two points over zero *are* ordered, at the ends of the line.
+    // Equality still decides at both points: identity is denotation.
     for (code, expected) in [
-        ("1 0 DIV 1 GT", "TRUE"),
-        ("-1 0 DIV 1 LT", "TRUE"),
-        ("-1 0 DIV 1 0 DIV LT", "TRUE"),
-        ("1 0 DIV 5 MAX", "1/0"),
-        ("-1 0 DIV 5 MIN", "-1/0"),
-        ("[ 1/0 -1/0 0 ] SORT", "[ -1/0 0/1 1/0 ]"),
         ("0 0 DIV 0 0 DIV EQ", "TRUE"),
+        ("1 0 DIV -1 0 DIV EQ", "TRUE"),
+        ("1 0 DIV 0 0 DIV EQ", "FALSE"),
     ] {
         assert_eq!(top_of(code).await.to_string(), expected, "`{code}`");
     }
@@ -486,13 +487,14 @@ mod properties {
             }
         }
 
-        // Division by zero is total: the dividend's sign over zero.
+        // Division by zero is total: `1/0` for a nonzero dividend, `0/0`
+        // for zero.
         #[test]
-        fn division_by_zero_is_the_sign_over_zero(a in -50i64..50) {
+        fn division_by_zero_is_a_point_over_zero(a in -50i64..50) {
             let stack = block_on(run(&format!("{a} 0 DIV")))
                 .unwrap_or_else(|e| panic!("`{a} 0 DIV` errored: {e}"));
             prop_assert!(!stack[0].is_nil());
-            prop_assert_eq!(format!("{}", stack[0]), format!("{}/0", a.signum()));
+            prop_assert_eq!(format!("{}", stack[0]), format!("{}/0", i64::from(a != 0)));
         }
     }
 }

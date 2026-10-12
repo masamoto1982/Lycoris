@@ -48,7 +48,7 @@ fn equal_values_digest_equally() {
         Value::from_string("A"),
         Value::nil_with_reason(NilReason::DomainMiss, Recoverability::Unknown),
         Value::nil_with_reason(NilReason::NotFound, Recoverability::Unknown),
-        Value::from_fraction(Fraction::positive_infinity()),
+        Value::from_fraction(Fraction::infinity()),
         Value::from_fraction(Fraction::nullity()),
         sqrt_of(2),
         sqrt_of(3),

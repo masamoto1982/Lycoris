@@ -63,7 +63,9 @@ fn hand_picked_programs_agree() {
 fn the_scaled_chain_stays_on_the_kernels() {
     assert_eq!(
         kernel_hits("1 100 RANGE -50 49 RANGE DIV 1 ADD 2 MUL 3 DIV FLOOR 0 GT"),
-        6
+        // The divisor 0 leaves a `1/0` lane, which has no order: the last
+        // comparison is the general route's.
+        5
     );
 }
 

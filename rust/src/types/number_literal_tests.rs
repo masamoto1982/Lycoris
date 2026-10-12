@@ -93,16 +93,16 @@ fn the_lexeme_is_preserved_exactly_as_written() {
     }
 }
 
-/// A lexeme over zero denotes one of the three points (LANG.VALUES.EXACT),
-/// reduced to its sign over zero, and carries no `i64` fast path: it reaches
+/// A lexeme over zero denotes one of the two points (LANG.VALUES.EXACT),
+/// `-1/0` the same `1/0` as `1/0`, and carries no `i64` fast path: it reaches
 /// the full parse as every rational does.
 #[test]
 fn a_lexeme_over_zero_denotes_its_point() {
     for (lexeme, expected) in [
-        ("1/0", Fraction::positive_infinity()),
-        ("100/0", Fraction::positive_infinity()),
+        ("1/0", Fraction::infinity()),
+        ("100/0", Fraction::infinity()),
         ("0/0", Fraction::nullity()),
-        ("-1/0", Fraction::negative_infinity()),
+        ("-1/0", Fraction::infinity()),
     ] {
         let literal = literal(lexeme);
         assert_eq!(literal.lexeme(), lexeme);

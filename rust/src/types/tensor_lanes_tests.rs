@@ -18,7 +18,7 @@ fn reference_row(data: &DenseTensor, shape: &[usize], index: usize) -> Value {
     Value::from_tensor(slice, rest)
 }
 
-/// A lane: a small rational, or one of the three points over zero.
+/// A lane: a small rational, or one of the two points over zero.
 fn lane() -> impl Strategy<Value = Fraction> {
     prop_oneof![
         6 => (-50i64..50, 1i64..4).prop_map(|(n, d)| Fraction::new(n.into(), d.into())),

@@ -147,7 +147,7 @@ fn derive_failure_text(word: &GeneratedWord) -> String {
     }
     if word.field == FieldClosure::Leaving {
         lines.push(
-            "Leaves the field: from operands holding no point over zero it can\nanswer 1/0, -1/0 or 0/0, where the field laws stop (LANG.CONTRACT.FIELD).",
+            "Leaves the field: from operands holding no point over zero it can\nanswer 1/0 or 0/0, where the field laws stop (LANG.CONTRACT.FIELD).",
         );
     }
     // One line per role the Word has (LANG.FAILURE.PASSTHROUGH), so the

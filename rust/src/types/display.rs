@@ -202,8 +202,8 @@ fn format_tensor_slice_recursive(data: &[Fraction], shape: &[usize], _depth: usi
 }
 
 /// Canonical numeric rendering: every number is shown as a reduced
-/// `numerator/denominator`, integers included (`3` -> `3/1`) and the three
-/// points over zero included (`1/0`, `-1/0`, `0/0`). There is no decimal
+/// `numerator/denominator`, integers included (`3` -> `3/1`) and the two
+/// points over zero included (`1/0`, `0/0`). There is no decimal
 /// surface form and no per-value style — the display is uniform and matches
 /// the exact-real internal model.
 fn format_fraction(f: &Fraction) -> String {

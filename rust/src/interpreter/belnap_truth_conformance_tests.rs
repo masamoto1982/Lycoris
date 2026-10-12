@@ -85,7 +85,7 @@ async fn reconcile_agrees_yields_and_conflicts() {
         ("NIL FALSE RECONCILE", "FALSE"),
         ("[ 1 2 ] [ 1 2 ] RECONCILE", "[ 1/1 2/1 ]"),
         ("0/0 5 RECONCILE", "5/1"),
-        ("-1/0 0/0 RECONCILE", "-1/0"),
+        ("-1/0 0/0 RECONCILE", "1/0"),
         ("0/0 0/0 RECONCILE", "0/0"),
         ("NIL 0/0 RECONCILE", "0/0"),
         ("0/0 NIL RECONCILE", "0/0"),

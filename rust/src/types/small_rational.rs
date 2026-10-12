@@ -13,13 +13,13 @@
 //! denominator is unique, so these agree with `Fraction` wherever they
 //! answer; `fraction_gcd_tests` holds them to it.
 //!
-//! The `_total` forms take the three points over zero too — `(1, 0)`,
-//! `(-1, 0)` and `(0, 0)` — and a zero divisor, which the pair laws above
-//! do not (they assume a positive denominator). Such an operation is answered
-//! by the `Fraction`'s own total arithmetic (`fraction_extended`), whose
-//! answer is always one of the three points or zero, a small pair; every
-//! other is the pair law's. `order_total` is the one place the order of the
-//! three points is decided for the pair kernels.
+//! The `_total` forms take the two points over zero too — `(1, 0)` and
+//! `(0, 0)` — and a zero divisor, which the pair laws above do not (they
+//! assume a positive denominator). Such an operation is answered by the
+//! `Fraction`'s own total arithmetic (`fraction_extended`), whose answer is
+//! always one of the two points or zero, a small pair; every other is the
+//! pair law's. `order_total` is the one place the pair kernels decide that
+//! neither point has an order.
 
 use crate::types::fraction::{binary_gcd_u128, binary_gcd_u64, compute_gcd_i64, Fraction};
 use std::cmp::Ordering;
@@ -303,19 +303,10 @@ pub(crate) fn div_total(a: Pair, b: Pair) -> Option<Pair> {
     div(a, b)
 }
 
-/// The order of two pairs, as `Fraction::order` decides it: `-1/0` below
-/// every rational and `1/0` above, and `None` when either is `0/0`, which is
-/// ordered against nothing (LANG.VALUES.EXACT). `±1/0` are ordered by the
-/// sign of their numerator.
+/// The order of two pairs, as `Fraction::order` decides it: `None` when
+/// either lies over zero, since neither point is ordered against anything
+/// (LANG.VALUES.EXACT).
 #[inline]
 pub(crate) fn order_total(a: Pair, b: Pair) -> Option<Ordering> {
-    if a.1 != 0 && b.1 != 0 {
-        return Some(order(a, b));
-    }
-    if a == (0, 0) || b == (0, 0) {
-        return None;
-    }
-    // Where each sits: -2 for `-1/0`, a rational's sign, 2 for `1/0`.
-    let place = |(n, d): Pair| if d == 0 { 2 * n } else { n.signum() };
-    Some(place(a).cmp(&place(b)))
+    (a.1 != 0 && b.1 != 0).then(|| order(a, b))
 }

@@ -168,8 +168,8 @@ fn hand_picked_programs_agree() {
         "1 1 100 RANGE DIV 1/7 GT",
         "1 100 RANGE 100 1 RANGE LT",
         "[ 1/2 -1/3 9223372036854775807 ] [ 1/3 -1/2 -9223372036854775808 ] GT",
-        // Order over zero: `±1/0` are ordered, `0/0` is the general
-        // route's `domainMiss`.
+        // Order over zero: neither point is ordered, so a lane over zero is
+        // the general route's `domainMiss`.
         "[ 1/0 2 -1/0 ] 1 LT",
         "[ 1/0 2 -1/0 ] 1/2 GT",
         "1 [ 1/0 2 -1/0 ] LT",
@@ -214,16 +214,15 @@ fn the_kernels_answer_where_they_apply() {
     assert_eq!(kernel_hits("[ 1 2 3 ] [ 1 0 2 ] DIV"), 1);
     assert_eq!(kernel_hits("[ 1/2 3 ] [ 0 2 ] DIV"), 1);
     // The quotient by zero is a lane over zero for the next Word, which the
-    // arithmetic and rounding kernels compute by the Fraction's own law, and
-    // the ordering kernel orders: `±1/0` lie below and above every rational.
-    // Only a `0/0` lane, which has no order, is the general route's.
+    // arithmetic and rounding kernels compute by the Fraction's own law. A
+    // point has no order, so the ordering kernel leaves a lane over zero to
+    // the general route, which projects there.
     assert_eq!(kernel_hits("[ 1 2 3 ] [ 1 0 2 ] DIV 1 ADD"), 2);
     assert_eq!(
         kernel_hits("[ 1 2 3 ] [ 1 0 2 ] DIV 1 ADD 2 MUL 3 DIV FLOOR 0 GT"),
-        6
+        5
     );
-    assert_eq!(kernel_hits("[ 1/0 2 -1/0 ] 1 LT"), 1);
-    assert_eq!(kernel_hits("[ 1/0 2 -1/0 ] [ 1 1/0 -1/0 ] GT"), 1);
+    assert_eq!(kernel_hits("[ 1/0 2 ] 1 LT"), 0);
     assert_eq!(kernel_hits("[ 0/0 2 ] 1 LT"), 0);
     assert_eq!(kernel_hits("1 [ 0/0 2 ] GT"), 0);
     // A quotient by zero is a *number* and stays a lane; a written NIL is
@@ -231,7 +230,7 @@ fn the_kernels_answer_where_they_apply() {
     assert_eq!(kernel_hits("[ 1 2 3 ] [ 1 0 1 ] DIV 2 MUL"), 2);
     assert_eq!(kernel_hits("[ 1 2 3 ] [ 1 0 1 ] DIV [ 1 0 2 ] DIV"), 2);
     assert_eq!(kernel_hits("[ 1 2 3 ] [ 1 0 1 ] DIV FLOOR"), 2);
-    assert_eq!(kernel_hits("[ 1 2 3 ] [ 1 0 1 ] DIV 2 GT"), 2);
+    assert_eq!(kernel_hits("[ 1 2 3 ] [ 1 0 1 ] DIV 2 GT"), 1);
     assert_eq!(kernel_hits("[ 1 NIL 3 ] 2 MUL"), 0);
     assert_eq!(kernel_hits("[ 1 NIL 3 ] FLOOR"), 0);
     assert_eq!(kernel_hits("[ 9223372036854775807 1 ] 1 ADD"), 0);
@@ -239,7 +238,7 @@ fn the_kernels_answer_where_they_apply() {
     assert_eq!(kernel_hits("2 3 ADD"), 0);
 }
 
-/// A zero divisor answers its own lane's sign over zero and nothing else —
+/// A zero divisor answers its own lane's point over zero and nothing else —
 /// not the Tensor's columns. On every route a `DIV` result whose lanes fit a
 /// machine word is a dense Tensor, the point over zero a lane like any other;
 /// it used to be a boxed Vector on the lift and a nested Vector on the
@@ -256,11 +255,11 @@ fn a_zero_divisor_keeps_the_result_dense() {
         ),
         (
             "[ 1/2 3 -5/3 ] [ 0 2 0 ] DIV",
-            vec!["1/0", "3/2", "-1/0"],
+            vec!["1/0", "3/2", "1/0"],
             vec![3],
         ),
         ("1 [ 1 0 2 ] DIV", vec!["1/1", "1/0", "1/2"], vec![3]),
-        ("[ 1 0 -3 ] 0 DIV", vec!["1/0", "0/0", "-1/0"], vec![3]),
+        ("[ 1 0 -3 ] 0 DIV", vec!["1/0", "0/0", "1/0"], vec![3]),
         ("[ 6 ] [ 0 ] DIV", vec!["1/0"], vec![1]),
         ("[ [ 6 ] ] [ [ 0 ] ] DIV", vec!["1/0"], vec![1, 1]),
         (
@@ -316,7 +315,7 @@ fn a_lane_over_zero_computes_dense() {
         ),
         (
             "[ 1 2 3 ] [ 0 0 0 ] DIV [ 1 0 -1 ] MUL",
-            vec!["1/0", "0/0", "-1/0"],
+            vec!["1/0", "0/0", "1/0"],
         ),
         ("[ 1 2 ] [ 0 0 ] DIV [ 1 -1 ] 0 DIV ADD", vec!["0/0", "0/0"]),
         ("[ 5 7 ] [ 1 0 ] DIV 0 DIV", vec!["1/0", "1/0"]),

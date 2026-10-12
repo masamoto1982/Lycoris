@@ -386,7 +386,7 @@ function verifiedNilSection() {
   }
   // Division is not where NIL comes from: a quotient by zero is a number.
   const byZero = expectOk('100 0 DIV -5 0 DIV 0 0 DIV');
-  if (byZero.stackDisplay.join(' ') !== '1/0 -1/0 0/0') fail('a quotient by zero is its sign over zero');
+  if (byZero.stackDisplay.join(' ') !== '1/0 1/0 0/0') fail('a quotient by zero is a point over zero');
   return {
     reason: event.absence.reason,
     fallbackStack: fallback.stackDisplay[0],
@@ -461,7 +461,7 @@ One comment line per Word, written in the keys and values of a contract Record
 
 \`#:contract NAME [inputs=N] [outputs=N] [purity=pure|effectful] [partiality=total|partial|projecting] [field=closed|leaving] [shapes=zero,nonzero,infinite,nullity] [determinism=deterministic|stateRelative|hostRelative] [cost steps=C numeric=C collection=C]\`
 with each cost class \`C\` one of \`const\` \`linear\` \`superlinear\` \`unbounded\`.
-\`field=closed\` promises the Word never answers a point over zero (\`1/0\` \`-1/0\`
+\`field=closed\` promises the Word never answers a point over zero (\`1/0\`
 \`0/0\`) from operands holding none — only \`DIV\`, \`POW\`, \`NUM\` and a literal over
 zero leave the field, and a \`DIV\` by a divisor that cannot be zero (\`2 DIV\`,
 \`LENGTH 1 ADD DIV\`) or a \`POW\` to an exponent that cannot be negative (\`2 POW\`)
@@ -495,11 +495,13 @@ pushes \`NIL\` (reason: \`${nil.reason}\`). The projection is recorded in
 value itself carries \`semantics.absence.reason\` on the stack.
 
 Division by zero is **not** a projection: every number is a pair over a
-non-negative denominator, and a quotient by zero is the dividend's sign over
-zero — \`100 0 DIV -5 0 DIV 0 0 DIV\` → stack \`${nil.byZeroStack}\`. The three
-points \`1/0\`, \`-1/0\`, \`0/0\` are numbers: they add, multiply, divide and
-compare by \`EQ\`. \`0/0\` absorbs everything it meets and has no place in the
-order, so \`LT\` / \`GT\` / \`MIN\` / \`MAX\` / \`SORT\` project \`domainMiss\` on it.
+non-negative denominator, taken up to a nonzero factor (the wheel of fractions),
+and a quotient by zero is \`1/0\` for any nonzero dividend, whatever its sign,
+and \`0/0\` for zero — \`100 0 DIV -5 0 DIV 0 0 DIV\` → stack \`${nil.byZeroStack}\`.
+The two points \`1/0\` and \`0/0\` are numbers: they add, multiply, divide and
+compare by \`EQ\`. \`1/0\` is unsigned and \`0/0\` absorbs everything it meets;
+neither has a place in the order, so \`LT\` / \`GT\` / \`MIN\` / \`MAX\` / \`SORT\`
+project \`domainMiss\` on them.
 
 - Provide a fallback with \`BIND\`, \`NIL?\` and \`SELECT\`: \`-1 SQRT 'S' BIND 99 S S NIL? SELECT\` → stack \`${nil.fallbackStack}\`. \`NIL?\` consumes its subject like every Word and answers whether it was absent, which is exactly where \`SELECT\` wants the truth — so name the subject once and read it twice: the phrase reads "S, or the fallback if S is absent".
 - Over a vector the projection is **per lane, not per value**: \`[ 4 -1 ] SQRT\` → stack \`${nil.liftedStack}\`. The lane that had no root is the only one emptied.

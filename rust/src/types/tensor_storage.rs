@@ -19,9 +19,9 @@ pub type Dims = smallvec::SmallVec<[usize; 1]>;
 ///
 /// Every lane is a reduced pair with a non-negative denominator, written from
 /// a normalized `Fraction` and read back without re-deriving the normal form.
-/// A denominator of 0 is a lane like any other: one of the three points over
-/// zero (`fraction_extended`), `1/0`, `-1/0` or `0/0`, whose numerator is its
-/// sign. Such a lane is not an integer lane, so a pure-integer tensor holds
+/// A denominator of 0 is a lane like any other: one of the two points over
+/// zero (`fraction_extended`), `1/0` or `0/0`, whose numerator is 1 or 0.
+/// Such a lane is not an integer lane, so a pure-integer tensor holds
 /// none, and the integer kernels that read numerators alone never meet one.
 ///
 /// Two tensors are one value exactly when their columns and shapes are, which
@@ -66,7 +66,7 @@ impl DenseTensor {
     /// columns come off the wire, so a payload could carry `4/2`, a negative
     /// denominator, or `100/0`, and nothing in the decode path looked. So the
     /// check runs here, once per lane per restore: every lane is reduced,
-    /// one over zero to its sign over zero.
+    /// one over zero to `1/0` or `0/0`.
     pub fn from_untrusted_columns(
         numerators: Vec<i64>,
         denominators: Vec<i64>,
@@ -229,7 +229,7 @@ impl DenseTensor {
 /// The sparse form of a dense tensor: only the non-zero lanes are stored, and
 /// every unstored lane is the number zero.
 ///
-/// [`Self::from_dense`] refuses a tensor holding one of the three points over
+/// [`Self::from_dense`] refuses a tensor holding one of the two points over
 /// zero, so every stored pair is a rational and "not stored" means zero.
 pub struct SparseTensor {
     pub indices: Vec<usize>,

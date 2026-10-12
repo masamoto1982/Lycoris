@@ -40,7 +40,7 @@ fn strip_factor(mut n: BigInt, factor: u32) -> (u32, BigInt) {
 
 /// The finite decimal spelling of `f`, or `None` when it has none — a
 /// rational whose denominator has a factor other than 2 and 5, and each of
-/// the three points over zero.
+/// the two points over zero.
 fn decimal_spelling(f: &Fraction) -> Option<String> {
     if !f.is_finite() {
         return None;
