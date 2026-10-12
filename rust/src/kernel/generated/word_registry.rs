@@ -385,16 +385,6 @@ pub enum Arity {
     Variable,
 }
 
-impl Arity {
-    /// The exact count when the specification pins one.
-    pub const fn fixed(self) -> Option<u8> {
-        match self {
-            Arity::Fixed(n) => Some(n),
-            Arity::Variable => None,
-        }
-    }
-}
-
 /// A Word's declared charge on one metered resource.
 ///
 /// `class` is a **sound upper bound**: the charge never grows faster than this
