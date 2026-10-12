@@ -19,13 +19,19 @@ impl Value {
 
     #[inline]
     pub fn nil_literal() -> Self {
-        Self::new(ValueData::Nil(None), Some(AbsenceMetadata::literal()))
+        Self::new(
+            ValueData::Nil(crate::semantic::NilAbsence::None),
+            Some(AbsenceMetadata::literal()),
+        )
     }
 
     /// An absence, with `absence` for why.
     #[inline]
     pub fn nil_with_absence(absence: AbsenceMetadata) -> Self {
-        Self::new(ValueData::Nil(None), Some(absence))
+        Self::new(
+            ValueData::Nil(crate::semantic::NilAbsence::None),
+            Some(absence),
+        )
     }
 
     /// The observable `truthValue` axis (LANG.VALUES.TRUTH,
@@ -67,7 +73,7 @@ impl Value {
     #[inline]
     pub fn absence_metadata(&self) -> Option<&AbsenceMetadata> {
         match &self.data {
-            ValueData::Nil(absence) => absence.as_deref(),
+            ValueData::Nil(absence) => absence.metadata(),
             _ => None,
         }
     }

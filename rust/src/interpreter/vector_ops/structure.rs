@@ -249,7 +249,6 @@ pub fn op_range(interp: &mut Interpreter) -> Result<()> {
         interp.stack.push(Value::from_vector(lanes));
         return Ok(());
     };
-    let step: i64 = if ascending { 1 } else { -1 };
 
     // Built as columns, not as boxed lanes. Within `i64` bounds *every* value
     // RANGE can produce is an `i64` with denominator 1 and no lane absent — a
@@ -261,16 +260,18 @@ pub fn op_range(interp: &mut Interpreter) -> Result<()> {
     // construction: `0 262143 RANGE` spent 9.9 ms laying out 25 MB to describe
     // 2 MB of numbers.
     //
-    // `element_count` is exact (`|end - start| + 1` counts the lanes the
-    // comparison loops below used to visit), so the count drives the loop and
-    // the bound comparison is gone with it. `saturating_add` matters only on the
-    // final, unused step past the last lane, where `current += step` could
-    // overflow `i64` for an extreme bound; the lanes themselves are unchanged.
-    let mut numerators = Vec::with_capacity(count);
-    let mut current = start;
-    for _ in 0..count {
-        numerators.push(current);
-        current = current.saturating_add(step);
+    // `element_count` is exact (`|end - start| + 1`), so lane `i` is
+    // `start ± i`, which never passes `end` and so never overflows: a plain
+    // loop over the indices, which the compiler vectorises.
+    let mut numerators = vec![0i64; count];
+    if ascending {
+        for (i, lane) in numerators.iter_mut().enumerate() {
+            *lane = start + i as i64;
+        }
+    } else {
+        for (i, lane) in numerators.iter_mut().enumerate() {
+            *lane = start - i as i64;
+        }
     }
 
     interp.stack.push(Value::from_int_tensor(numerators));

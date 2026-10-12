@@ -229,7 +229,7 @@ fn decode_data(data: &PersistData) -> Result<ValueData, String> {
                 shape: Arc::new(shape.clone()),
             }
         }
-        PersistData::Nil { .. } => ValueData::Nil(None),
+        PersistData::Nil { .. } => ValueData::Nil(crate::semantic::NilAbsence::None),
         PersistData::Record { keys, values } => {
             let keys = keys
                 .iter()

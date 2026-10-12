@@ -123,3 +123,62 @@ mod tests {
         assert_eq!(Value::from_int(1).truth_value(), None);
     }
 }
+
+/// A NIL's absence as the value holds it: nothing at all, a bare reason held
+/// inline, or — only when the absence carries text, as `ABSENT`'s does — a
+/// box. A NIL is built per element by a Word that projects one (`'x' NUM`
+/// over a column), and boxing a reason alone cost every one of them an
+/// allocation.
+#[derive(Debug, Clone)]
+pub enum NilAbsence {
+    None,
+    Reason(Option<NilReason>),
+    Detailed(Box<AbsenceMetadata>),
+}
+
+impl NilAbsence {
+    pub fn of(absence: AbsenceMetadata) -> Self {
+        match absence.detail {
+            None => NilAbsence::Reason(absence.reason),
+            Some(_) => NilAbsence::Detailed(Box::new(absence)),
+        }
+    }
+
+    pub fn metadata(&self) -> Option<&AbsenceMetadata> {
+        match self {
+            NilAbsence::None => None,
+            NilAbsence::Reason(reason) => Some(reason_only(*reason)),
+            NilAbsence::Detailed(absence) => Some(absence),
+        }
+    }
+}
+
+/// The absence that is `reason` alone, shared.
+fn reason_only(reason: Option<NilReason>) -> &'static AbsenceMetadata {
+    const fn bare(reason: Option<NilReason>) -> AbsenceMetadata {
+        AbsenceMetadata {
+            reason,
+            detail: None,
+        }
+    }
+    static BARE: [AbsenceMetadata; 8] = [
+        bare(None),
+        bare(Some(NilReason::NotFound)),
+        bare(Some(NilReason::InvalidEncoding)),
+        bare(Some(NilReason::IndexOutOfBounds)),
+        bare(Some(NilReason::DomainMiss)),
+        bare(Some(NilReason::Literal)),
+        bare(Some(NilReason::UserDeclared)),
+        bare(Some(NilReason::Conflict)),
+    ];
+    &BARE[match reason {
+        None => 0,
+        Some(NilReason::NotFound) => 1,
+        Some(NilReason::InvalidEncoding) => 2,
+        Some(NilReason::IndexOutOfBounds) => 3,
+        Some(NilReason::DomainMiss) => 4,
+        Some(NilReason::Literal) => 5,
+        Some(NilReason::UserDeclared) => 6,
+        Some(NilReason::Conflict) => 7,
+    }]
+}
