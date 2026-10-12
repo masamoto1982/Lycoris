@@ -13,19 +13,13 @@ use std::sync::Arc;
 
 mod fused_cache;
 
-/// A block, with the compiled plan for it built once.
-///
-/// The tokens are kept because the plan can go stale: a block that runs `DEF`
-/// moves the dictionary epoch, and from that element on the tokens are what
-/// must be interpreted. They are also what `execute_compiled_line` itself falls
-/// back to for an op it could not lower.
+/// A block, compiled once.
 ///
 /// A Word name written as a String used to be the other way to spell a code
 /// operand (`[ 1 2 3 ] 'DBL' MAP`). It is gone, and this is a struct rather
 /// than an enum because of it — see `extract_executable_code`.
 pub(crate) struct ExecutableCode {
-    tokens: Vec<crate::types::Token>,
-    plan: crate::interpreter::CompiledPlan,
+    code: crate::interpreter::engine::Code,
     /// The last fused lowering of the block, kept for the next walk.
     fused: std::sync::Mutex<Option<(fused_cache::FusedKey, Arc<FusedBlock>)>>,
 }
@@ -36,9 +30,8 @@ pub(crate) struct ExecutableCode {
 ///
 /// An entry is keyed by the identity of the operand's storage, which the entry
 /// keeps alive (it holds a clone of the operand), so an equal key is the same
-/// Vector; and by everything compiling reads besides the tokens: the
-/// dictionary, through its epoch, the nesting ceiling and the vector-literal
-/// switch. Compiling a block charges and records nothing, so whether a block
+/// Vector; and by the one setting compiling reads besides the tokens, the
+/// nesting ceiling. Compiling a block charges and records nothing, so whether a block
 /// was compiled or found here is unobservable (LANG.AUTHORITY.FREEDOM).
 #[derive(Default)]
 pub(crate) struct BlockCache {
@@ -55,9 +48,7 @@ struct BlockCacheEntry {
 #[derive(PartialEq, Eq, Clone, Copy)]
 struct BlockKey {
     storage: usize,
-    dictionary_epoch: u64,
     max_nesting_depth: usize,
-    vector_literal_enabled: bool,
 }
 
 fn block_key(interp: &Interpreter, val: &Value) -> Option<BlockKey> {
@@ -68,9 +59,7 @@ fn block_key(interp: &Interpreter, val: &Value) -> Option<BlockKey> {
     };
     Some(BlockKey {
         storage,
-        dictionary_epoch: interp.dictionary_epoch,
         max_nesting_depth: interp.runtime_limits.max_nesting_depth,
-        vector_literal_enabled: interp.vector_literal_enabled,
     })
 }
 
@@ -116,10 +105,9 @@ fn compile_executable_code(interp: &mut Interpreter, val: &Value) -> Result<Exec
         // Compiled here, once, rather than in the caller's loop: this is the one
         // place a block becomes executable, and every higher-order Word reaches
         // it before its first element.
-        let plan = crate::interpreter::compile_token_block(tokens.clone(), interp);
+        let code = crate::interpreter::engine::compile(&tokens, interp);
         return Ok(ExecutableCode {
-            tokens,
-            plan,
+            code,
             fused: Default::default(),
         });
     }
@@ -181,14 +169,7 @@ pub(crate) fn execute_executable_code(
     interp: &mut Interpreter,
     exec: &ExecutableCode,
 ) -> Result<()> {
-    let ExecutableCode { tokens, plan, .. } = exec;
-    // A plan stays valid across the loop's elements; only a dictionary change
-    // inside the block invalidates it.
-    if crate::interpreter::is_plan_valid(plan, interp) {
-        crate::interpreter::compiled_plan::execute_compiled_nested_block(interp, plan)
-    } else {
-        interp.execute_nested_block(tokens)
-    }
+    interp.run_block(&exec.code)
 }
 
 pub fn op_filter(interp: &mut Interpreter) -> Result<()> {

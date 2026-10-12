@@ -21,9 +21,6 @@ impl ExecutableCode {
     /// binding from outside the block, or built a called Word's plan, depends
     /// on more, and is lowered afresh every time.
     pub(crate) fn fused(&self, interp: &Interpreter, inputs: usize) -> Option<Arc<FusedBlock>> {
-        if !crate::interpreter::is_plan_valid(&self.plan, interp) {
-            return None;
-        }
         let key = (inputs, interp.call_depth, interp.dictionary_epoch);
         let mut kept = self
             .fused
@@ -34,8 +31,8 @@ impl ExecutableCode {
                 return Some(block.clone());
             }
         }
-        let block = Arc::new(FusedBlock::compile(&self.plan, interp, inputs)?);
-        if !block.reads_outer && block.builds.is_empty() {
+        let block = Arc::new(FusedBlock::compile(&self.code, interp, inputs)?);
+        if !block.reads_outer {
             *kept = Some((key, block.clone()));
         }
         Some(block)

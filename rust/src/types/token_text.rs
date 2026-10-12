@@ -84,24 +84,6 @@ impl Name {
             Repr::Shared(text) => Arc::clone(text),
         }
     }
-
-    /// A hash of the text that is cheap to take and good enough to spread
-    /// names over a small table (`symbol_cache`); not the `Hash` impl, which
-    /// is `str`'s.
-    #[inline]
-    pub(crate) fn quick_hash(&self) -> u64 {
-        let head = match &self.0 {
-            Repr::Inline { bytes, .. } => {
-                u64::from_le_bytes(bytes[..8].try_into().expect("eight bytes"))
-            }
-            Repr::Shared(text) => text
-                .bytes()
-                .take(8)
-                .rev()
-                .fold(0, |word, byte| (word << 8) | u64::from(byte)),
-        };
-        (head ^ self.as_bytes().len() as u64).wrapping_mul(0x9E37_79B9_7F4A_7C15)
-    }
 }
 
 impl Clone for Name {
@@ -375,7 +357,6 @@ mod tests {
                 std_hasher.hash_one(text.as_str())
             );
             assert_eq!(fx_hasher.hash_one(&name), fx_hasher.hash_one(text.as_str()));
-            assert_eq!(name.quick_hash(), shared.quick_hash());
         }
         let all = texts();
         for (i, a) in all.iter().enumerate() {

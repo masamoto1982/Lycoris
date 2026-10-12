@@ -49,7 +49,7 @@
 //! routes equal.
 
 use crate::interpreter::arithmetic::ExactArithmeticSchema;
-use crate::interpreter::{CompiledPlan, Interpreter};
+use crate::interpreter::Interpreter;
 use crate::types::fraction::Fraction;
 use crate::types::{Value, ValueData};
 
@@ -118,7 +118,7 @@ pub(crate) enum Op {
     /// `'NAME' BIND` into the block's own frame, slot-numbered.
     Bind(usize),
     /// A name the block bound earlier in the same run: free, as a binding
-    /// read is (`execute_word_core` answers it before charging).
+    /// read is (the engine reads it without charging).
     Load(usize),
     /// A Word whose answer is a constant — `[ ... ] LENGTH` on a literal
     /// Vector. A step (the LENGTH), no work, no fast-path hit, as
@@ -163,10 +163,6 @@ pub(crate) struct FusedBlock {
     pub(crate) slots: usize,
     /// Words dispatched per run, User Word calls included.
     pub(crate) steps_per_run: u64,
-    /// The plans of called User Words that had none current: the interpreted
-    /// walk builds each on its first call, so a committed fused walk stores
-    /// them.
-    pub(crate) builds: Vec<(String, std::sync::Arc<CompiledPlan>)>,
     /// Whether a name bound outside the block was read into it as a
     /// constant (`Op::Push`), which ties the lowering to that binding.
     pub(crate) reads_outer: bool,
@@ -190,16 +186,16 @@ pub(crate) struct Charges {
 }
 
 impl FusedBlock {
-    /// Lower `plan` for a walk that starts the block on `inputs` values, or
+    /// Lower `code` for a walk that starts the block on `inputs` values, or
     /// `None` when any op is outside the fused subset or the block would
     /// underflow (an ERROR the ordinary route reports). See
     /// `fused_block_lower`, which also inlines the User Words it calls.
     pub(crate) fn compile(
-        plan: &CompiledPlan,
+        code: &crate::interpreter::engine::Code,
         interp: &Interpreter,
         inputs: usize,
     ) -> Option<Self> {
-        crate::interpreter::fused_block_lower::lower(plan, interp, inputs)
+        crate::interpreter::fused_block_lower::lower(code, interp, inputs)
     }
 
     /// Run the walk over `target`, starting from `seed` for `Fold`/`Scan`.
@@ -273,13 +269,9 @@ impl FusedBlock {
         #[cfg(test)]
         FUSED_RUNS.with(|c| c.set(c.get() + 1));
         // Commit what the interpreted walk would have charged: a step per
-        // dispatched Word and the work. The User Word plans a run built are
-        // stored as the dispatch would have stored them.
+        // dispatched Word and the work.
         interp.execution_step_count += charges.steps;
         interp.numeric_work_used += charges.work;
-        for (name, plan) in &self.builds {
-            interp.store_compiled_plan_for_word(name, plan.clone());
-        }
         Some(value)
     }
 

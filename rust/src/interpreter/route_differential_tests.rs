@@ -22,9 +22,7 @@ fn run(source: &str, routes: bool) -> Observation {
         |interp| {
             interp.set_fused_block_enabled(routes);
             interp.set_quickening_enabled(routes);
-            interp.set_segments_enabled(routes);
             interp.set_dense_kernels_enabled(routes);
-            interp.set_vector_literal_enabled(routes);
         },
         Limits::default(),
     )

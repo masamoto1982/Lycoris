@@ -3,161 +3,7 @@ use crate::types::{Token, Value};
 
 use super::Interpreter;
 
-/// If the bracketed literal spanning `tokens[start..start+consumed)` is
-/// immediately followed (no tokens between) by `<name-string> DEF`,
-/// return its inner tokens (brackets excluded) — the body `DEF` is about to
-/// define, as written. `None` on any mismatch, which just means this literal
-/// is not a `DEF` body written in place — see `pending_def_body_tokens`'s
-/// doc comment for why `op_def` wants this at all.
-fn def_body_tokens_if_literal_precedes_def(
-    tokens: &[Token],
-    start: usize,
-    consumed: usize,
-) -> Option<Vec<Token>> {
-    let mut j = start + consumed;
-    if !matches!(tokens.get(j), Some(Token::String(_))) {
-        return None;
-    }
-    j += 1;
-    match tokens.get(j) {
-        Some(Token::Symbol(s)) if crate::word_name::canonical_word_name(s).as_ref() == "DEF" => {
-            let body = &tokens[start + 1..start + consumed - 1];
-            // A stream bridged from a Vector (`EXEC`, a higher-order block —
-            // `value_as_code.rs`) carries a value no source denotes whole, as
-            // a `Token::Value`, and such a literal is not the body as
-            // written: a definition is kept as its source
-            // (LANG.DICTIONARY.MUTATION), and only `op_def`'s fallback writes
-            // a carried value back as what builds it, or refuses one that
-            // nothing builds. Declining sends the body there. Taken as
-            // written, `… [ 'X' DEF ] CONCAT EXEC` kept a Record as its
-            // display text `{ 'k' 1/1 }`, which no later session could read,
-            // and let a reasoned NIL past `invalidDefinitionBody`.
-            if body.iter().any(|token| matches!(token, Token::Value(_))) {
-                return None;
-            }
-            Some(body.to_vec())
-        }
-        _ => None,
-    }
-}
-
 impl Interpreter {
-    pub(crate) fn execute_section_core(
-        &mut self,
-        tokens: &[Token],
-        start_index: usize,
-    ) -> Result<usize> {
-        // The numeric-literal ceiling is not re-applied here. Every stream
-        // that reaches this loop was already held to it where its lexemes were
-        // read — the program's own text in `execute`, a body at `DEF` — and
-        // the streams bridged from values (`EXEC`, a higher-order block) carry
-        // Scalars already built within `bigintBits`, which the compiled route
-        // for the same block never held to the literal ceiling either.
-        // Checking them here made a block's outcome depend on which route ran
-        // it (LANG.AUTHORITY.FREEDOM).
-
-        // Depth 1 is the program's own token stream, the one `source_spans`
-        // describes. A nested block, a word body or a COND clause is a
-        // different stream with no source of its own, so the cursor is left
-        // pointing at the top-level token that reached it — which is exactly
-        // the token a reader needs to be sent to.
-        self.section_depth += 1;
-        let track = self.section_depth == 1 && !self.source_spans.is_empty();
-        let result = self.execute_section_tokens(&tokens[start_index..], start_index, track);
-        self.section_depth -= 1;
-        result
-    }
-
-    fn execute_section_tokens(
-        &mut self,
-        execute_tokens: &[Token],
-        start_index: usize,
-        track_source_position: bool,
-    ) -> Result<usize> {
-        let mut i: usize = 0;
-
-        while i < execute_tokens.len() {
-            if track_source_position {
-                self.current_source_span = self.source_spans.get(start_index + i).copied();
-            }
-            match &execute_tokens[i] {
-                Token::Number(literal) => {
-                    // Parsed when the lexeme was read, not here — this line ran
-                    // once per element of every `MAP` block that mentioned a
-                    // number. `parsed` only re-derives anything on the refusal
-                    // path, which ends the program.
-                    let frac = literal.parsed().map_err(AjisaiError::MalformedSource)?;
-                    self.stack.push(Value::from_fraction(frac));
-                }
-                Token::String(s) => {
-                    self.stack.push(Value::from_text(s));
-                }
-                Token::VectorStart => {
-                    // `[ ]` is the sole bracket, built through
-                    // `vector_literal.rs`'s collector — see that module's
-                    // doc comment. `COND` takes its clause blocks as a
-                    // single ordinary Vector operand (one more literal built
-                    // and pushed exactly like this one) rather than a
-                    // variable-length run recognized here — see
-                    // `control_cond.rs::op_cond`'s doc comment for why.
-                    let (values, consumed) = Self::collect_bracketed_with_depth(
-                        execute_tokens,
-                        i,
-                        1,
-                        &self.runtime_limits,
-                    )?;
-                    // A literal immediately followed by `<name> DEF`
-                    // is that DEF's body — captured here, as written, for
-                    // `op_def` to prefer over re-deriving it from the Value
-                    // just built (see `pending_def_body_tokens`'s doc
-                    // comment). A mismatch here is not an error: it just
-                    // means this literal is not a `DEF` body written
-                    // in place, and `op_def` falls back normally.
-                    self.pending_def_body_tokens =
-                        def_body_tokens_if_literal_precedes_def(execute_tokens, i, consumed);
-                    self.stack.push(Value::from_vector_promoted(values));
-                    i += consumed;
-                    continue;
-                }
-                // `dispatch_word` on the canonical name, with what the name's
-                // text alone decides remembered per token (`symbol_cache`).
-                Token::Symbol(s) => self.dispatch_symbol(s)?,
-                Token::Value(value) => {
-                    // A value the Vector-as-code bridge carried in whole: it
-                    // is pushed as it is, like a literal. It is never a `DEF`
-                    // body, so a pending body capture is cleared.
-                    self.pending_def_body_tokens = None;
-                    self.stack.push((**value).clone());
-                    i += 1;
-                    continue;
-                }
-                Token::VectorEnd => {
-                    return Err(AjisaiError::MalformedSource(
-                        "Unexpected vector end".to_string(),
-                    ));
-                }
-            }
-            i += 1;
-        }
-
-        Ok(start_index + i)
-    }
-
-    /// Evaluate the tokens of a *nested* code block — the block a higher-order
-    /// Word (`MAP`, `FILTER`, `FOLD`, `SCAN`) applies, or the one `EXEC`
-    /// runs — as its own token stream.
-    pub(crate) fn execute_nested_block(&mut self, tokens: &[Token]) -> Result<()> {
-        // A transparent frame: the block reads the names of the frame it was
-        // written in, and the names it makes are gone when it ends. That is
-        // what lets a bound threshold be used inside `{ T LT } FILTER` — and
-        // why a `BIND` inside a `MAP` block is a fresh name per element rather
-        // than a collision on the second.
-        self.open_binding_scope(false);
-        let result = self.execute_section_core(tokens, 0).map(|_| ());
-        self.close_binding_scope();
-        result
-    }
-
     pub async fn execute(&mut self, code: &str) -> Result<()> {
         // CS5: bound the input before it is expanded into values. Source bytes
         // are checked before tokenization allocates per-character buffers; each
@@ -185,7 +31,8 @@ impl Interpreter {
         }
         // Source entry is the one place a token has a position, so it is the
         // one place the positions are recorded. They are index-aligned with
-        // `tokens` and consumed by the depth-1 cursor in `execute_section_core`.
+        // `tokens`, and a failure is reported at the token it was reached from
+        // (`run_program`).
         // A lexical failure is a fault in the writing, not in any value, so it
         // is classified as one rather than arriving as an uncategorized
         // `Custom` whose only next check was "read the message".
@@ -199,7 +46,7 @@ impl Interpreter {
         // the same count, as checking every token did.
         let first_numbers = source.first_numbers.iter().map(|&at| &source.tokens[at]);
         self.check_source_numeric_literals(first_numbers)?;
-        self.execute_section_core(&source.tokens, 0)?;
+        self.run_program(&source.tokens, &source.firsts, source.lexemes)?;
         self.check_fresh_nesting()
     }
 
@@ -307,39 +154,15 @@ impl Interpreter {
 
 #[cfg(test)]
 mod tests {
-    //! Tests for compile-time literal-vector lowering (`CompiledOp::PushVectorLiteral`).
-    //!
-    //! A fully-literal vector is prebuilt once at compile time with the same
-    //! promoted value `collect_vector` produces, so the line runs
-    //! compiled instead of falling back to the interpreter. These tests pin that the
-    //! lowered path is byte-for-byte identical to the interpreted one across element
-    //! kinds, that non-literal vectors still fall back, and that errors are kept.
+    //! Vector literals are data: a name inside one is a Symbol, never a call,
+    //! whatever the dictionary holds (LANG.VALUES.VECTOR).
 
     use crate::agent::block_on;
     use crate::interpreter::Interpreter;
 
-    /// Run `src` twice — lowering on and off — and assert the resulting stacks are
-    /// identical (value and rendered form).
-    fn assert_on_equals_off(src: &str) -> String {
-        let mut on = Interpreter::new();
-        on.set_vector_literal_enabled(true);
-        block_on(on.execute(src)).unwrap();
-
-        let mut off = Interpreter::new();
-        off.set_vector_literal_enabled(false);
-        block_on(off.execute(src)).unwrap();
-
-        assert_eq!(
-            format!("{:?}", on.get_stack()),
-            format!("{:?}", off.get_stack()),
-            "lowering ON vs OFF diverged for: {src}"
-        );
-        let render_on = render(&on);
-        assert_eq!(render_on, render(&off), "rendered form diverged for: {src}");
-        render_on
-    }
-
-    fn render(interp: &Interpreter) -> String {
+    fn top(src: &str) -> String {
+        let mut interp = Interpreter::new();
+        block_on(interp.execute(src)).unwrap();
         interp
             .get_stack()
             .last()
@@ -348,98 +171,25 @@ mod tests {
     }
 
     #[test]
-    fn literal_vector_shapes_match_interpreter() {
-        // Numeric (tensor-promoted), boolean, string,
-        // NIL-bearing, nested, and arithmetic-over-literals all agree.
-        let cases = [
-            "[ [ 1 2 3 ] [ 4 5 6 ] ADD ] 'W' DEF W",
-            "[ [ TRUE FALSE TRUE ] ] 'W' DEF W",
-            "[ [ 'a' 'b' 'c' ] ] 'W' DEF W",
-            "[ [ 1 NIL 3 ] ] 'W' DEF W",
-            "[ [ [ 1 2 ] [ 3 4 ] ] ] 'W' DEF W",
-            "[ [ 1 2 3 4 ] [ 2 2 2 2 ] MUL [ 1 1 1 1 ] SUB ] 'W' DEF W",
-        ];
-        for src in cases {
-            assert_on_equals_off(src);
-        }
-    }
-
-    #[test]
-    fn boolean_vector_renders_its_booleans() {
-        let rendered = assert_on_equals_off("[ [ TRUE FALSE ] ] 'W' DEF W");
-        assert!(
-            rendered.contains("TRUE") && rendered.contains("FALSE"),
-            "boolean vector should render as TRUE/FALSE, got: {rendered}"
-        );
-    }
-
-    #[test]
     fn symbol_in_vector_is_data_not_executed() {
-        // LANG.VALUES.VECTOR: a name inside a Vector literal is its own text as
-        // data, even when it names a defined user word. `[ TEN 2 3 ]`
-        // is therefore a fully literal vector — TEN is the string "TEN", never the
-        // word's result — and lowers identically on the compiled and interpreted
-        // paths. This is the regression guard for the retired word-execution behavior.
-        let src = "[ [ 10 ] ] 'TEN' DEF\n[ [ TEN 2 3 ] ] 'W' DEF\nW";
-        let rendered = assert_on_equals_off(src);
-        assert!(
-            rendered.contains("TEN"),
-            "the symbol must appear as data, got: {rendered}"
-        );
-        assert!(
-            !rendered.contains("10"),
-            "the user word must NOT be executed inside the vector, got: {rendered}"
-        );
+        let rendered = top("[ [ 10 ] ] 'TEN' DEF\n[ [ TEN 2 3 ] ] 'W' DEF\nW");
+        assert!(rendered.contains("TEN"), "{rendered}");
+        assert!(!rendered.contains("10"), "{rendered}");
     }
 
     #[test]
     fn vector_literal_is_independent_of_dictionary_state() {
-        // The core of LANG.VALUES.VECTOR: the *same* source vector produces
-        // the *same* value whether or not the symbol names a defined word. Before,
-        // `[ FOO 1 ]` executed FOO when defined and was data otherwise — a
-        // dictionary-state-dependent meaning. Now both are the data `[ "FOO" 1 ]`.
-        let mut with_word = Interpreter::new();
-        block_on(with_word.execute("[ [ 99 ] ] 'FOO' DEF\n[ FOO 1 ]")).unwrap();
-
-        let mut without_word = Interpreter::new();
-        block_on(without_word.execute("[ FOO 1 ]")).unwrap();
-
-        assert_eq!(
-            format!("{}", with_word.get_stack().last().unwrap()),
-            format!("{}", without_word.get_stack().last().unwrap()),
-            "a vector literal must not depend on whether the symbol is a defined word"
-        );
-        assert!(
-            !format!("{}", with_word.get_stack().last().unwrap()).contains("99"),
-            "the defined word must not be executed inside the vector"
-        );
+        assert_eq!(top("[ [ 99 ] ] 'FOO' DEF\n[ FOO 1 ]"), top("[ FOO 1 ]"));
     }
 
     #[test]
-    fn empty_vector_lowers_identically_both_paths() {
-        // `[ ]` used to be rejected, and this pinned that the lowering did not
-        // paper over the rejection. It is a value now, so what must agree is the
-        // value both paths produce.
-        for enabled in [true, false] {
-            let mut interp = Interpreter::new();
-            interp.set_vector_literal_enabled(enabled);
-            block_on(interp.execute("[ [ ] ] 'W' DEF\nW")).expect("`[ ]` is a value");
-            let val = interp.get_stack().last().expect("a result").clone();
-            assert!(!val.is_nil(), "the empty vector is not an absence");
-            assert_eq!(
-                val.len(),
-                0,
-                "empty in both lowering modes (enabled={enabled})"
-            );
-        }
-    }
-
-    #[test]
-    fn matches_readme_vector_example() {
-        let rendered = assert_on_equals_off("[ [ 1 2 3 ] [ 4 5 6 ] ADD ] 'W' DEF W");
+    fn literal_vectors_in_a_body_are_built_as_written() {
+        let rendered = top("[ [ 1 2 3 ] [ 4 5 6 ] ADD ] 'W' DEF W");
         assert!(
-            rendered.contains("5/1") && rendered.contains("7/1") && rendered.contains("9/1"),
-            "expected [ 5/1 7/1 9/1 ], got: {rendered}"
+            rendered.contains("5/1") && rendered.contains("9/1"),
+            "{rendered}"
         );
+        assert_eq!(top("[ [ ] ] 'W' DEF W"), top("[ ]"));
+        assert_eq!(top("[ [ 1 NIL 3 ] ] 'W' DEF W"), top("[ 1 NIL 3 ]"));
     }
 }

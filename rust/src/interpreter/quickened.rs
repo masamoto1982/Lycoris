@@ -65,31 +65,6 @@ impl Slot {
         }
     }
 
-    /// The plain value this slot holds, for a Word's plain law
-    /// (`fusion_contract`).
-    #[inline]
-    pub(crate) fn plain(self) -> crate::interpreter::fused_block::Plain {
-        use crate::interpreter::fused_block::Plain;
-        match self {
-            Slot::Num((n, d)) => Plain::Num(Fraction::from_repr(FractionRepr::Small(n, d))),
-            Slot::Bool(b) => Plain::Bool(b),
-        }
-    }
-
-    /// The slot a plain value is, when it fits one: what `Slot::of` reads
-    /// from the value the interpreted route would build for it.
-    #[inline]
-    pub(crate) fn of_plain(plain: &crate::interpreter::fused_block::Plain) -> Option<Self> {
-        use crate::interpreter::fused_block::Plain;
-        match plain {
-            Plain::Num(Fraction {
-                repr: FractionRepr::Small(n, d),
-            }) if *d != 0 => Some(Slot::Num((*n, *d))),
-            Plain::Num(_) => None,
-            Plain::Bool(b) => Some(Slot::Bool(*b)),
-        }
-    }
-
     /// The value the interpreted route builds for this slot.
     #[inline]
     pub(crate) fn into_value(self) -> Value {
@@ -452,6 +427,11 @@ thread_local! {
 }
 
 /// Calls this route answered on this thread, for tests that pin it ran.
+#[cfg(test)]
+pub(crate) fn note_quickened() {
+    QUICKENED.with(|c| c.set(c.get() + 1));
+}
+
 #[cfg(test)]
 pub(crate) fn quickened_calls_on_this_thread() -> u64 {
     QUICKENED.with(|c| c.get())

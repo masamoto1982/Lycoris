@@ -3,9 +3,8 @@
 //! An ERROR is reported by its category, its message and the Word it is
 //! attributed to. The Word is the innermost one that raised the error, except
 //! that attribution stops at a User Word: from the caller's side the Word is
-//! what failed. Every dispatch route — the token walk, a compiled plan, a
-//! compiled User Word call — records through here, so compiling stays
-//! unobservable (LANG.AUTHORITY.FREEDOM).
+//! what failed. Every dispatch the engine makes records through here, so
+//! compiling stays unobservable (LANG.AUTHORITY.FREEDOM).
 
 use crate::error::{AjisaiError, ErrorCategory, Result};
 use crate::interpreter::Interpreter;
@@ -19,33 +18,31 @@ pub(crate) struct FailedWord {
 }
 
 impl Interpreter {
-    /// One Word dispatch, recording the failure before it propagates.
-    pub(crate) fn dispatch_word(&mut self, name: &str) -> Result<()> {
-        let outcome = self.execute_word_core(name);
-        if let Err(err) = &outcome {
-            self.record_word_dispatch_failure(name, err);
-        }
-        outcome
-    }
-
-    /// [`Self::dispatch_word`] for a canonical name already known to name no
-    /// Core Word (`symbol_cache`): the same dispatch without probing Core.
+    /// A name compiled as no Core Word's: a binding, else a User Word, with
+    /// the failure recorded before it propagates.
     #[inline]
     pub(crate) fn dispatch_word_beyond_core(&mut self, name: &crate::types::Name) -> Result<()> {
-        if let Some(value) = self.lookup_binding(name) {
-            self.stack.push(value);
-            return Ok(());
-        }
-        let name = name.as_str();
-        let outcome = self.execute_unbound_word(name, None);
+        // A binding may not take a User Word's name and `DEF` may not take a
+        // bound one, so at most one of the two answers and the order of the
+        // two lookups is free: the Word is asked first, from its cache.
+        let outcome = match self.user_word(name) {
+            Some(def) => self.call_user_word(name, def),
+            None => match self.lookup_binding(name) {
+                Some(value) => {
+                    self.stack.push(value);
+                    return Ok(());
+                }
+                None => Err(self.unknown_word(name.as_str())),
+            },
+        };
         if let Err(err) = &outcome {
-            self.record_word_dispatch_failure(name, err);
+            self.record_word_dispatch_failure(name.as_str(), err);
         }
         outcome
     }
 
-    /// [`Self::dispatch_word`] for a Core Word already resolved to its
-    /// registry entry (`symbol_cache`).
+    /// A Core Word resolved to its registry entry when its code was compiled,
+    /// with the failure recorded before it propagates.
     #[inline]
     pub(crate) fn dispatch_core_word(
         &mut self,

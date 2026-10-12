@@ -40,34 +40,93 @@ use super::Interpreter;
 pub(crate) struct BindingScope {
     names: super::binding_table::ScopeNames,
     barrier: bool,
+    /// The names the frame's code binds with `'NAME' BIND`, each held in a
+    /// slot of `Interpreter::locals` from `base` on (`engine`): read there by
+    /// the code itself, and by name by everything that looks the name up.
+    slots: Arc<[Name]>,
+    base: usize,
 }
 
 impl BindingScope {
-    /// The scope a run itself owns. A barrier, like a Word call's: there is no
-    /// frame outside the run for a name to come from.
     pub(crate) fn root() -> Self {
         Self {
-            names: Default::default(),
             barrier: true,
+            ..Self::default()
         }
+    }
+
+    /// The value the slot named `name` holds, when one does.
+    #[inline]
+    fn slot<'a, Q>(&self, locals: &'a [Option<Value>], name: &Q) -> Option<&'a Value>
+    where
+        Name: std::borrow::Borrow<Q>,
+        Q: Eq + ?Sized,
+    {
+        let at = self
+            .slots
+            .iter()
+            .position(|held| std::borrow::Borrow::<Q>::borrow(held) == name)?;
+        locals[self.base + at].as_ref()
     }
 }
 
 impl Interpreter {
-    /// Open a scope for a frame. `barrier` when the frame is a Word call or the
-    /// run itself. Returns nothing: the matching [`Interpreter::close_binding_scope`]
-    /// pops whatever this pushed, and the two are always paired within one
-    /// function so no depth token is needed.
-    #[inline]
-    pub(crate) fn open_binding_scope(&mut self, barrier: bool) {
+    /// Open a frame for code that binds `slots` in slots of its own;
+    /// `barrier` when the frame is a Word call or the run itself. The
+    /// matching [`Interpreter::close_binding_scope`] pops what this pushed.
+    #[inline(always)]
+    pub(crate) fn open_frame(&mut self, barrier: bool, slots: &Arc<[Name]>) {
+        let base = self.locals.len();
+        for _ in 0..slots.len() {
+            self.locals.push(None);
+        }
         match self.binding_scopes.get_mut(self.binding_depth) {
-            Some(scope) => scope.barrier = barrier,
+            Some(scope) => {
+                scope.barrier = barrier;
+                scope.base = base;
+                if !Arc::ptr_eq(&scope.slots, slots) {
+                    scope.slots = slots.clone();
+                }
+            }
             None => self.binding_scopes.push(BindingScope {
                 names: Default::default(),
                 barrier,
+                slots: slots.clone(),
+                base,
             }),
         }
         self.binding_depth += 1;
+    }
+
+    /// Give the current frame `slots`, for a program's own code.
+    pub(crate) fn set_frame_slots(&mut self, slots: Arc<[Name]>) {
+        let depth = self.binding_depth - 1;
+        let base = self.locals.len();
+        self.locals.resize(base + slots.len(), None);
+        let scope = &mut self.binding_scopes[depth];
+        scope.base = base;
+        scope.slots = slots;
+    }
+
+    /// Give the current frame more slots, `slots` being all it has now.
+    pub(crate) fn grow_frame_slots(&mut self, slots: Arc<[Name]>) {
+        let scope = &mut self.binding_scopes[self.binding_depth - 1];
+        self.locals.resize_with(scope.base + slots.len(), || None);
+        scope.slots = slots;
+    }
+
+    /// Slot `slot` of the current frame.
+    #[inline]
+    pub(crate) fn local(&self, slot: u32) -> Option<&Value> {
+        let scope = &self.binding_scopes[self.binding_depth - 1];
+        self.locals[scope.base + slot as usize].as_ref()
+    }
+
+    /// Set slot `slot` of the current frame.
+    #[inline]
+    pub(crate) fn set_local(&mut self, slot: u32, value: Value) {
+        let at = self.binding_scopes[self.binding_depth - 1].base + slot as usize;
+        self.locals[at] = Some(value);
     }
 
     /// Close the innermost scope. Its emptied table stays where it was, for
@@ -77,12 +136,13 @@ impl Interpreter {
     /// every time — or, as when emptied tables were kept aside, move one in
     /// and out of a list of spares. Only small tables near the root are
     /// kept; any other is let go of.
-    #[inline]
+    #[inline(always)]
     pub(crate) fn close_binding_scope(&mut self) {
         let Some(depth) = self.binding_depth.checked_sub(1) else {
             return;
         };
         self.binding_depth = depth;
+        self.locals.truncate(self.binding_scopes[depth].base);
         let names = &mut self.binding_scopes[depth].names;
         if depth < 16 && names.capacity() <= 64 {
             names.clear();
@@ -105,6 +165,7 @@ impl Interpreter {
         self.binding_scopes.clear();
         self.binding_scopes.push(BindingScope::root());
         self.binding_depth = 1;
+        self.locals.clear();
     }
 
     /// The value bound to `name` in the frames this one can see. `name` is a
@@ -117,7 +178,10 @@ impl Interpreter {
         Q: std::hash::Hash + Eq + ?Sized,
     {
         for scope in self.open_scopes().iter().rev() {
-            if let Some(bound) = scope.names.get(name) {
+            if let Some(bound) = scope
+                .slot(&self.locals, name)
+                .or_else(|| scope.names.get(name))
+            {
                 // A truth column read onto the stack must be seen there
                 // (`truth_columns`).
                 if matches!(bound.data, crate::types::ValueData::Truths(_)) {
@@ -139,7 +203,7 @@ impl Interpreter {
     pub(crate) fn binding_exists_beyond_barrier(&self, name: &str) -> bool {
         self.open_scopes()
             .iter()
-            .any(|scope| scope.names.contains_key(name))
+            .any(|scope| scope.names.contains_key(name) || scope.slot(&self.locals, name).is_some())
     }
 
     /// Bind `name` in the innermost scope, replacing any binding it already
@@ -154,7 +218,11 @@ impl Interpreter {
     /// code can reach, and nothing outside this frame can reach this one.
     pub(crate) fn bind_local(&mut self, name: Name, value: Value) {
         if let Some(depth) = self.binding_depth.checked_sub(1) {
-            self.binding_scopes[depth].names.insert(name, value);
+            let scope = &mut self.binding_scopes[depth];
+            match scope.slots.iter().position(|held| *held == name) {
+                Some(at) => self.locals[scope.base + at] = Some(value),
+                None => scope.names.insert(name, value),
+            }
         }
     }
 

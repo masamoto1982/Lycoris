@@ -27,7 +27,52 @@ pub use word_registry::{
 /// the canonical (post-alias) name. Callers holding a raw source token should
 /// canonicalize first.
 pub fn generated_word(name: &str) -> Option<&'static GeneratedWord> {
-    GENERATED_WORDS.iter().find(|word| word.name == name)
+    static BY_NAME: std::sync::OnceLock<
+        crate::fast_hash::FastMap<&'static str, &'static GeneratedWord>,
+    > = std::sync::OnceLock::new();
+    BY_NAME
+        .get_or_init(|| {
+            GENERATED_WORDS
+                .iter()
+                .map(|word| (word.name, word))
+                .collect()
+        })
+        .get(name)
+        .copied()
+}
+
+/// The Core Word a name's text spells, in any letter case — the lookup the
+/// compiler makes for every name it meets, so it reads the bytes without
+/// folding them into a new string. A name with a byte outside ASCII is folded
+/// as `canonical_word_name` folds it, since Unicode case mapping can turn one
+/// into an ASCII letter.
+pub fn core_word_spelled(bytes: &[u8]) -> Option<&'static GeneratedWord> {
+    const WIDTH: usize = 16;
+    static BY_KEY: std::sync::OnceLock<crate::fast_hash::FastMap<u128, &'static GeneratedWord>> =
+        std::sync::OnceLock::new();
+    if !bytes.is_ascii() {
+        let text = std::str::from_utf8(bytes).ok()?;
+        return generated_word(&crate::word_name::canonical_word_name(text));
+    }
+    if bytes.len() > WIDTH {
+        return None;
+    }
+    let key = |text: &[u8]| {
+        let mut key = [0u8; WIDTH];
+        for (k, b) in key.iter_mut().zip(text) {
+            *k = b.to_ascii_uppercase();
+        }
+        u128::from_le_bytes(key)
+    };
+    BY_KEY
+        .get_or_init(|| {
+            GENERATED_WORDS
+                .iter()
+                .map(|word| (key(word.name.as_bytes()), word))
+                .collect()
+        })
+        .get(&key(bytes))
+        .copied()
 }
 
 /// The declared contract for a Word, by its canonical identity.

@@ -31,7 +31,7 @@ fn steps(report: &Json) -> u64 {
 async fn every_kind_of_execution_reports_the_steps_it_took() {
     // Each of these runs Words; none of them could ever report having done
     // so. A user-word call, a fold, and a fold through `MAP` cover the
-    // dispatch routes that reach `execute_word_core`.
+    // dispatch routes of the engine.
     for source in [
         "2 3 DIV 1 3 DIV ADD",
         "[ [ 2 ] MUL ] 'DOUBLE' DEF [ 3 ] DOUBLE",
