@@ -75,6 +75,5 @@ Vector の入れ子構造(Vector の中に Vector を置ける性質)は**存続
 - **互換性:** 既存挙動を変える破壊的変更(§2.2)。ブラスト半径は限定的で、影響は
   リポジトリ内で 1 テスト(`vector_literal_tests.rs`、新意味論へ更新)と
   1 例(`examples/tail-recursion-test.ajisai`、語の直接呼び出しへ移行)のみ。
-  実装は `execution_loop.rs::collect_vector` と `compiled_plan.rs`
-  (`try_collect_literal_vector`)の双方で一致させ、解釈経路と compiled 経路が
-  同一の値を生む。
+  実装は `execution_loop.rs::collect_bracketed_with_depth` 一か所で、実行エンジン
+  (`engine.rs`)はリテラルをこれで値にする。

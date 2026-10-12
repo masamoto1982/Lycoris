@@ -1,8 +1,10 @@
 use crate::error::{AjisaiError, Result};
 use crate::kernel::generated::{generated_word, WordId};
-use crate::types::{Token, Value};
+use std::sync::Arc;
 
-use super::compiled_plan::{execute_compiled_plan, is_plan_valid};
+use crate::types::{Name, Token, Value, WordDefinition};
+
+use super::interpreter_core::WORD_CACHE;
 
 use super::{
     arithmetic, bindings, cast, comparison, control, declared_nil_contract, execute_def,
@@ -12,60 +14,8 @@ use super::{
 };
 
 impl Interpreter {
-    /// Core word-execution logic (greedy, always): the single entry point
-    /// every dispatch route reaches a Word through.
-    pub(crate) fn execute_word_core(&mut self, name: &str) -> Result<()> {
-        let canonical_name = crate::word_name::canonical_word_name(name);
-        let name = canonical_name.as_ref();
-
-        // A local binding is read before the dictionary. Nothing can be in both
-        // — `BIND` refuses a Word's name and `DEF` refuses a live binding's —
-        // so the order settles no contest; it is here because a binding is the
-        // cheaper lookup and the more local fact.
-        //
-        // `name` is already uppercase, so no `to_uppercase()` here or below.
-        // `canonical_word_name` returns one of two things: the input
-        // unchanged when it is ASCII with no lowercase byte (uppercasing that is
-        // the identity), or an owned `to_uppercase()`. `bind_local` keys a scope
-        // by `name.to_uppercase()`, so this asks for the key the binding was
-        // stored under either way — the uppercase that used to be here could
-        // only ever rebuild a string already in hand, once per word dispatch,
-        // which is the hottest path the interpreter has.
-        //
-        // A Core Word is the one exception to that order, and only for speed:
-        // `BIND` refuses every Core Word's name, so no binding can answer one,
-        // and one probe of the Core dictionary spares the walk over every
-        // scope that would only miss. Most names a program dispatches are
-        // Core Words.
-        //
-        // A Core Word on two machine-word scalars is answered and charged as
-        // the dispatch below would (`quickened`): the step, the work, the
-        // fast-path hit and the nesting check are all made there. Asked
-        // first, on the entry the probe finds, so the common call takes no
-        // reference to the definition it would only let go of again.
-        let core_word = self.core_vocabulary.get(name).map(|def| {
-            def.body
-                .is_empty()
-                .then_some(def.generated)
-                .flatten()
-                .map(|word| word.id)
-        });
-        if let Some(Some(id)) = core_word {
-            if super::quickened::try_scalar_call(self, id) {
-                return Ok(());
-            }
-        }
-        let core = match core_word {
-            Some(_) => self.core_vocabulary.get(name).cloned(),
-            None => None,
-        };
-        self.execute_resolved_word(name, core)
-    }
-
-    /// A Core Word resolved to its registry entry, run as
-    /// `execute_word_core` runs it once the scalar route has declined: one
-    /// step, the Word, and the nesting check. `dispatch_core_word` asks the
-    /// scalar route first.
+    /// A Core Word resolved to its registry entry: one step, the Word, and
+    /// the nesting check. `dispatch_core_word` asks the scalar route first.
     #[inline]
     pub(crate) fn execute_core_word(
         &mut self,
@@ -76,89 +26,68 @@ impl Interpreter {
             .and_then(|()| self.check_fresh_nesting())
     }
 
-    /// The rest of `execute_word_core` for the canonical `name`, once Core has
-    /// been probed: `core` is the Core definition the probe found, if any.
-    pub(crate) fn execute_resolved_word(
-        &mut self,
-        name: &str,
-        core: Option<std::sync::Arc<crate::types::WordDefinition>>,
-    ) -> Result<()> {
-        if core.is_none() {
-            if let Some(value) = self.lookup_binding(name) {
-                self.stack.push(value);
-                return Ok(());
-            }
+    /// The cache entry for `key`'s User Word, refreshed when the dictionary
+    /// has changed since it was filled. A program calls a few Words many
+    /// times, and a lookup by name hashed the text on every call.
+    #[inline(always)]
+    fn word_cache_entry(&mut self, key: &Name) -> &Option<Arc<WordDefinition>> {
+        let bytes = key.as_bytes();
+        let at = (bytes.len() + usize::from(bytes.last().copied().unwrap_or(0))) % WORD_CACHE;
+        let epoch = self.dictionary_epoch;
+        let entry = &mut self.word_cache[at];
+        if entry.0 != epoch || entry.1 != *key {
+            *entry = (
+                epoch,
+                key.clone(),
+                self.user_words.get(key.as_str()).cloned(),
+            );
         }
-        self.execute_unbound_word(name, core)
+        &entry.2
     }
 
-    /// [`Self::execute_resolved_word`] for a name no binding answered.
-    pub(crate) fn execute_unbound_word(
-        &mut self,
-        name: &str,
-        core: Option<std::sync::Arc<crate::types::WordDefinition>>,
-    ) -> Result<()> {
-        let core_found = core.is_some();
+    /// The User Word `key` names now.
+    #[inline(always)]
+    pub(crate) fn user_word(&mut self, key: &Name) -> Option<Arc<WordDefinition>> {
+        self.word_cache_entry(key).clone()
+    }
 
-        // `name` is already canonical, and resolution answers under that same
-        // name, so the dispatch asks only for the definition. Taking a name back
-        // meant allocating a copy of the one in hand — a `String` from
-        // `to_uppercase` and an `Arc<str>` built from it — on every dispatch.
-        // Core has been probed already, so what is left is the User tier.
-        let def = core.or_else(|| self.user_words.get(name).cloned()).ok_or_else(|| {
-            // Both arms are the same resolution failure — the name did not
-            // resolve to a usable Word — with a more specific message where
-            // there is one. `UnknownWord` is the one structural category
-            // LANG.DICTIONARY.RESOLUTION's failure has; an out-of-scope
-            // binding is a refinement of it, not a condition any Word's own
-            // contract could declare.
-            if self.binding_exists_beyond_barrier(name) {
-                // The reader can see the name in their own source, so the bare
-                // "unknown word" is the least useful true thing to say. What
-                // went wrong is the scope, and naming it is the difference
-                // between reading the rule and rediscovering it.
-                AjisaiError::UnknownWord(format!(
-                    "'{}' is bound in another frame. A binding is reachable in the frame that made it \
-                     and in the blocks written there, never inside a Word it calls — pass the value \
-                     as an operand instead.",
-                    name
-                ))
-            } else {
-                AjisaiError::UnknownWord(name.to_string())
-            }
-        })?;
+    /// Whether a User Word holds `key`.
+    #[inline(always)]
+    pub(crate) fn is_user_word(&mut self, key: &Name) -> bool {
+        self.word_cache_entry(key).is_some()
+    }
 
-        // Provenance (Phase 6): record the resolved word for the execution
-        // receipt. No-op unless receipt recording is enabled.
-
-        // A definition the Core probe did not find gets the same scalar
-        // route; one it found has already been asked.
-        if !core_found && def.body.is_empty() {
-            if let Some(word) = def.generated {
-                if super::quickened::try_scalar_call(self, word.id) {
-                    return Ok(());
-                }
-            }
+    /// The failure of a name that resolved to nothing.
+    #[cold]
+    pub(crate) fn unknown_word(&self, name: &str) -> AjisaiError {
+        // `UnknownWord` is the one structural category
+        // LANG.DICTIONARY.RESOLUTION's failure has; an out-of-scope binding
+        // is a refinement of it, not a condition any Word's own contract
+        // could declare.
+        if self.binding_exists_beyond_barrier(name) {
+            // The reader can see the name in their own source, so the bare
+            // "unknown word" is the least useful true thing to say. What went
+            // wrong is the scope, and naming it is the difference between
+            // reading the rule and rediscovering it.
+            AjisaiError::UnknownWord(format!(
+                "'{}' is bound in another frame. A binding is reachable in the frame that made it \
+                 and in the blocks written there, never inside a Word it calls — pass the value \
+                 as an operand instead.",
+                name
+            ))
+        } else {
+            AjisaiError::UnknownWord(name.to_string())
         }
+    }
 
+    /// Call the User Word `def`, named `name`.
+    pub(crate) fn call_user_word(&mut self, name: &Name, def: Arc<WordDefinition>) -> Result<()> {
         self.charge_execution_step()?;
 
         if def.body.is_empty() {
-            // Dispatch the Word resolution already found, rather than finding it
-            // again. `execute_builtin` re-canonicalized the name — a third fold
-            // of a name folded once above — and then `generated_word` scanned the
-            // 65-entry registry comparing strings to reach the entry this
-            // definition was built from. `def.generated` is that entry.
-            //
-            // The `None` arm is not dead: a definition with an empty body and no
-            // registry entry is what `word_contract_probe` synthesizes, and the
-            // old route is the right answer for it — an unknown name must still
-            // report `UnknownWord` rather than silently doing nothing.
-            return match def.generated {
-                Some(word) => self.execute_generated_word(word),
-                None => self.execute_builtin_direct(name),
-            }
-            .and_then(|()| self.check_fresh_nesting());
+            return self
+                .execute_builtin_direct(name.as_str())
+                .and_then(|()| self.check_fresh_nesting());
         }
 
         // Call-depth guard: catches blown Rust stack before WASM traps. Guards
@@ -174,29 +103,14 @@ impl Interpreter {
         }
         self.call_depth += 1;
 
-        let compiled_plan = self.get_compiled_plan(name, &def);
-
-        // A body that is one typed segment runs as that segment, with no frame
-        // opened for names nothing will read (`Segment::try_run_as_body`).
-        if let Some(segment) = compiled_plan.as_deref().and_then(|p| p.whole_segment()) {
-            if segment.try_run_as_body(self) {
-                self.call_depth -= 1;
-                return Ok(());
-            }
-        }
+        let code = self.body_code(&def);
 
         // A Word call is a barrier frame: its body names its own locals and
         // reads none of the caller's, so what a Word means depends on its
         // operands and its dictionary and nothing else.
-        self.open_binding_scope(true);
+        self.open_frame(true, &code.slots);
 
-        // Compiling a body is unobservable (LANG.AUTHORITY.FREEDOM): a run
-        // produces the same result whether it went through the compiled plan
-        // or the plain token route.
-        let result = match compiled_plan.as_ref() {
-            Some(compiled) => execute_compiled_plan(self, compiled),
-            None => self.execute_section_core(&def.body, 0).map(|_| ()),
-        };
+        let result = self.run_code(&code);
 
         self.close_binding_scope();
 
@@ -205,7 +119,7 @@ impl Interpreter {
         // Attribution stops at a User Word — see `record_user_word_failure`
         // for what that means and the one failure it does not cover.
         if let Err(err) = &result {
-            self.record_user_word_failure(name, err);
+            self.record_user_word_failure(name.as_str(), err);
         }
 
         result
@@ -362,42 +276,16 @@ impl Interpreter {
         }
     }
 
-    /// The compiled plan for a User Word's body, built on first call and
-    /// reused while the dictionary epoch it was compiled against still holds.
-    fn get_compiled_plan(
-        &mut self,
-        resolved_name: &str,
-        def: &std::sync::Arc<crate::types::WordDefinition>,
-    ) -> Option<std::sync::Arc<super::compiled_plan::CompiledPlan>> {
-        if def.body.is_empty() {
-            return None;
-        }
-
-        if let Some(existing) = def.compiled_plan.as_ref() {
-            if is_plan_valid(existing, self) {
-                return Some(existing.clone());
-            }
-        }
-
-        let plan = self.build_compiled_plan(def);
-        self.store_compiled_plan_for_word(resolved_name, plan.clone());
-        Some(plan)
-    }
-
-    /// Keep the plan on the definition, so the next call finds it. The
-    /// definition is copied once per build — once per Word per dictionary
-    /// epoch, since a stored plan stays valid until the dictionary changes.
-    pub(crate) fn store_compiled_plan_for_word(
-        &mut self,
-        resolved_name: &str,
-        plan: std::sync::Arc<super::compiled_plan::CompiledPlan>,
-    ) {
-        if let Some(old_def) = self.user_words.get(resolved_name).cloned() {
-            let mut updated = (*old_def).clone();
-            updated.compiled_plan = Some(plan);
-            self.user_words
-                .insert(resolved_name.to_string(), std::sync::Arc::new(updated));
-        }
+    /// A User Word's body, compiled on its first call and kept on the
+    /// definition: compiled code depends on no dictionary state, so it never
+    /// goes stale (`engine`).
+    pub(crate) fn body_code(
+        &self,
+        def: &crate::types::WordDefinition,
+    ) -> std::sync::Arc<super::engine::Code> {
+        def.code
+            .get_or_init(|| std::sync::Arc::new(super::engine::compile(&def.body, self)))
+            .clone()
     }
 
     pub(crate) fn format_token_to_string(&self, token: &Token) -> String {

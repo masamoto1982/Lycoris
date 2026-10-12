@@ -122,17 +122,9 @@ async fn a_redefinition_replaces_the_user_entry() {
 
 // ── the resolve cache must never outlive the dictionary it described ──────
 //
-// The cache maps a canonical name to a resolved *name*, and the definition
-// is fetched live from the vocabulary on every hit. That indirection is load
-// bearing, and the epoch check alone does not replace it: caching the
-// `Arc<WordDefinition>` beside the vocabulary was tried and reverted,
-// because `store_compiled_plan_for_word` replaces a word's `Arc` in
-// `user_words` when it caches a compiled plan and — rightly — does not bump
-// the dictionary epoch for it, a plan being an optimization rather than a
-// dictionary change. A cached `Arc` therefore pinned the pre-plan
-// definition forever, so every call missed the compiled-plan cache and
-// recompiled: a 66% regression on a user-word `MAP`, and a second record of
-// a fact that the first one silently moved out from under.
+// The engine caches a name's `Arc<WordDefinition>` under the dictionary
+// epoch (`Interpreter::user_word`); every change to `user_words` moves the
+// epoch, so a hit is the definition in force.
 //
 // So: the vocabulary is the one record of what a name means, and these pin
 // what the cache must not be able to do to that. A stale definition served
@@ -209,7 +201,7 @@ async fn a_deleted_word_is_not_served_from_the_cache() {
 
 // ── a dispatch asks for a name it already has ─────────────────────────────
 //
-// `execute_word_core` canonicalizes the name once, and every question
+// A dispatch canonicalizes the name once, and every question
 // it then asks is about *that* name. Two of those questions used to rebuild
 // it first: the binding lookup re-uppercased a name canonicalization had
 // already uppercased, and resolution answered with a freshly allocated

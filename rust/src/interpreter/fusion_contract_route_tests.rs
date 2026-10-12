@@ -24,14 +24,9 @@ fn quickened(source: &str, on: bool, limits: Limits) -> Observation {
         source,
         |interp| {
             interp.set_quickening_enabled(on);
-            interp.set_segments_enabled(false);
         },
         limits,
     )
-}
-
-fn segmented(source: &str, on: bool, limits: Limits) -> Observation {
-    observe(source, |interp| interp.set_segments_enabled(on), limits)
 }
 
 fn assert_routes_agree(source: &str, limits: Limits) {
@@ -44,11 +39,6 @@ fn assert_routes_agree(source: &str, limits: Limits) {
         quickened(source, true, limits),
         quickened(source, false, limits),
         "quickened and dispatched disagree on `{source}` under {limits:?}"
-    );
-    assert_eq!(
-        segmented(source, true, limits),
-        segmented(source, false, limits),
-        "segmented and dispatched disagree on `{source}` under {limits:?}"
     );
 }
 
@@ -168,26 +158,6 @@ fn the_kernel_words_take_the_fast_routes() {
     assert_eq!(quickened_calls("7 DEPTH"), 1);
     assert_eq!(quickened_calls("1/2 4 GCD"), 0);
     assert_eq!(quickened_calls("NIL NIL?"), 0);
-
-    let segment_runs = |source: &str| {
-        let before = crate::interpreter::segment::segment_runs_on_this_thread();
-        let _ = segmented(source, true, Limits::default());
-        crate::interpreter::segment::segment_runs_on_this_thread() - before
-    };
-    assert_eq!(
-        segment_runs("[ 'X' BIND X 6 GCD X ADD ] 'F' DEF 5 F 12 F"),
-        2
-    );
-    assert_eq!(segment_runs("[ 'X' BIND X NIL? X DEPTH ] 'F' DEF 9 F"), 1);
-    assert_eq!(
-        segment_runs("1 9 RANGE [ 12 GCD 'Y' BIND Y Y ADD 1 COLLECT ] MAP"),
-        9
-    );
-    // A result past a machine word ends the run: dispatched instead.
-    assert_eq!(
-        segment_runs("[ 'X' BIND X X GCD 1 ADD ] 'F' DEF 9223372036854775807 F"),
-        0
-    );
 }
 
 fn literal() -> impl Strategy<Value = String> {
@@ -243,11 +213,6 @@ proptest! {
             quickened(&source, true, limits),
             quickened(&source, false, limits),
             "quickened and dispatched disagree on `{}` under {:?}", source, limits
-        );
-        prop_assert_eq!(
-            segmented(&source, true, limits),
-            segmented(&source, false, limits),
-            "segmented and dispatched disagree on `{}` under {:?}", source, limits
         );
     }
 }

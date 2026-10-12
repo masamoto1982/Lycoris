@@ -7,12 +7,8 @@
 //! implementation detail (LANG.AUTHORITY.FREEDOM), so nothing here changes what
 //! a program produces.
 
-use std::sync::Arc;
-
 use crate::error::Result;
-use crate::types::WordDefinition;
 
-use super::compiled_plan::{arc_plan, compile_word_definition, CompiledPlan};
 use super::Interpreter;
 
 /// One saved definition that could not be restored, and why.
@@ -101,6 +97,7 @@ impl Interpreter {
         self.stack.clear();
         self.core_vocabulary.clear();
         self.user_words.clear();
+        self.bump_dictionary_epoch();
         self.dependents.clear();
         self.output_buffer.clear();
         self.host_effects.clear();
@@ -109,43 +106,14 @@ impl Interpreter {
         self.runtime_scratch.clear();
         self.call_depth = 0;
         self.source_spans.clear();
-        self.section_depth = 0;
         self.current_source_span = None;
         self.word_identities.clear();
         self.body_store.clear();
         self.defer_identity_recompute = false;
         self.next_registration_order = 1;
         self.failed_word = None;
-        self.symbol_cache.clear();
         crate::builtins::register_builtins(&mut self.core_vocabulary);
     }
-
-    /// Compile a word body into a `CompiledPlan`. Compilation is unobservable:
-    /// a run produces the same result whether it went through a plan or the
-    /// plain path.
-    ///
-    /// Every body gets a plan, including one the compiler could lower none
-    /// of. Such a plan runs its source tokens through the interpreter, exactly
-    /// as a body with no plan would — `execute_compiled_plan` re-interprets
-    /// any line holding a fallback token whole — so declining it bought
-    /// nothing, and cost a recompile and a copy of the definition on every
-    /// call, since nothing remembered that the body had been declined.
-    pub(crate) fn build_compiled_plan(&mut self, def: &Arc<WordDefinition>) -> Arc<CompiledPlan> {
-        #[cfg(test)]
-        PLAN_BUILDS.with(|c| c.set(c.get() + 1));
-        arc_plan(compile_word_definition(def, self))
-    }
-}
-
-#[cfg(test)]
-thread_local! {
-    static PLAN_BUILDS: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
-}
-
-/// User Word plans built on this thread, for tests that pin how often.
-#[cfg(test)]
-pub(crate) fn plan_builds_on_this_thread() -> u64 {
-    PLAN_BUILDS.with(|c| c.get())
 }
 
 #[cfg(test)]

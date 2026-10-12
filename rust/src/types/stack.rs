@@ -53,12 +53,6 @@ impl Stack {
         self.fresh_from.min(self.values.len())
     }
 
-    /// Note that every slot below `index` has been checked, as a check
-    /// made when the stack was `index` high would have left it.
-    pub(crate) fn set_fresh_start(&mut self, index: usize) {
-        self.fresh_from = index;
-    }
-
     /// [`Self::fresh_start`], and forget it.
     #[inline]
     pub fn take_fresh_start(&mut self) -> usize {

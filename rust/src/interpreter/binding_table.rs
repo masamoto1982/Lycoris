@@ -79,7 +79,11 @@ impl ScopeNames {
         }
     }
 
+    #[inline]
     pub(crate) fn clear(&mut self) {
+        if self.entries.is_empty() {
+            return;
+        }
         self.entries.clear();
         self.index.clear();
     }

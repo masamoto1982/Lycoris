@@ -18,7 +18,6 @@ fn observe(source: &str, quickened: bool, limits: Limits) -> Observation {
         source,
         |interp| {
             interp.set_quickening_enabled(quickened);
-            interp.set_segments_enabled(false);
         },
         limits,
     )
@@ -153,7 +152,6 @@ fn compiled_scalar_calls_are_quickened() {
     let steps_without_dispatch = |quickened: bool| {
         let mut interp = Interpreter::new();
         interp.set_quickening_enabled(quickened);
-        interp.set_segments_enabled(false);
         crate::agent::block_on(interp.execute("[ 2 MUL 1 ADD ] 'F' DEF 5 F")).unwrap();
         (
             interp.resource_usage().execution_steps,
@@ -162,7 +160,6 @@ fn compiled_scalar_calls_are_quickened() {
     };
     assert_eq!(steps_without_dispatch(true), steps_without_dispatch(false));
     let mut interp = Interpreter::new();
-    interp.set_segments_enabled(false);
     let before = crate::interpreter::quickened::quickened_calls_on_this_thread();
     crate::agent::block_on(interp.execute("[ 2 MUL 1 ADD ] 'F' DEF 5 F")).unwrap();
     assert_eq!(
@@ -264,7 +261,6 @@ proptest! {
 fn pow_and_length_are_quickened_where_they_apply() {
     let quickened = |source: &str| {
         let mut interp = Interpreter::new();
-        interp.set_segments_enabled(false);
         let before = crate::interpreter::quickened::quickened_calls_on_this_thread();
         let _ = crate::agent::block_on(interp.execute(source));
         crate::interpreter::quickened::quickened_calls_on_this_thread() - before

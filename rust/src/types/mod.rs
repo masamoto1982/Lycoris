@@ -404,9 +404,9 @@ pub struct WordDefinition {
     /// support.
     pub text_references: HashSet<String>,
     pub registration_order: u64,
-    /// The compiled plan for this Word's body, once one has been built and
-    /// while it is still valid for the current dictionary epoch.
-    pub compiled_plan: Option<Arc<crate::interpreter::compiled_plan::CompiledPlan>>,
+    /// The body compiled for the engine, on its first call
+    /// (`Interpreter::body_code`).
+    pub(crate) code: std::sync::OnceLock<Arc<crate::interpreter::engine::Code>>,
     /// The generated registry entry for a Core Word, held rather than looked up
     /// again.
     ///

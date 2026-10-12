@@ -34,7 +34,7 @@ pub fn register_builtins<S: std::hash::BuildHasher>(
                 dependencies: HashSet::new(),
                 text_references: HashSet::new(),
                 registration_order: 0,
-                compiled_plan: None,
+                code: Default::default(),
                 generated: Some(word),
             }),
         );

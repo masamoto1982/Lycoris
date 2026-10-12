@@ -1,7 +1,12 @@
 use crate::error::Result;
-use crate::types::{Stack, Value, WordDefinition};
+use crate::types::{Name, Stack, Value, WordDefinition};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
+
+/// How many User Word lookups `word_cache` keeps.
+pub(crate) const WORD_CACHE: usize = 8;
+
+pub(crate) type WordCacheEntry = (u64, Name, Option<Arc<WordDefinition>>);
 
 /// The dictionary epoch at one instant: what a compiled plan records so it
 /// can tell later whether the dictionary it was built against is still the one
@@ -21,8 +26,8 @@ pub const DEFAULT_MAX_EXECUTION_STEPS: usize = super::runtime_limits::DEFAULT_MA
 /// set well above any reasonable hand-written nesting (the existing deep
 /// non-recursive test uses 5 frames) but well below the Rust stack budget on
 /// WASM and on the 2 MiB default native test-thread stack — every user-word
-/// recursion expands to several Rust frames (execute_word_core →
-/// plan/structure runner → execution loop → resolve), so the empirical
+/// recursion expands to several Rust frames (`call_user_word` → `run_code`
+/// → `run_op_slow` → `dispatch_word_beyond_core`), so the empirical
 /// safe ceiling is roughly 256 levels in debug builds. `DEFAULT_MAX_EXECUTION_STEPS`
 /// is still the primary backstop for runaway computation generally; this
 /// guard turns a pathologically long acyclic call chain into a recoverable
@@ -96,6 +101,8 @@ pub struct Interpreter {
     /// it, so a name here is never reachable from another Word.
     pub(crate) binding_scopes: Vec<super::bindings::BindingScope>,
     pub(crate) binding_depth: usize,
+    /// The slots of every open frame's locals (`BindingScope::slots`).
+    pub(crate) locals: Vec<Option<Value>>,
     /// The dictionary changes this top-level `execute` has made so far, in
     /// order — `Defined word:` / `Deleted word:` without the prose.
     ///
@@ -110,7 +117,7 @@ pub struct Interpreter {
     /// Type-erased caches owned by runtime subsystems.
     pub(crate) runtime_scratch: HashMap<String, Box<dyn std::any::Any + Send>>,
     /// User-word call depth. Incremented on entry to a user-word body in
-    /// `execute_word_core`, and around a Word that evaluates a block
+    /// `call_user_word`, and around a Word that evaluates a block
     /// (`in_block_frame`), decremented on exit. Compared against
     /// `MAX_USER_WORD_DEPTH` to prevent a deep recursion from blowing the
     /// Rust call stack and trapping the WASM module.
@@ -140,6 +147,9 @@ pub struct Interpreter {
 
     /// The Word this run's failure is attributed to (`failure_site`).
     pub(crate) failed_word: Option<super::failure_site::FailedWord>,
+    /// The last User Word lookups by name, each with the dictionary epoch it
+    /// was made at (`Interpreter::user_word`).
+    pub(crate) word_cache: [WordCacheEntry; WORD_CACHE],
 
     /// Content identity of each user word, keyed by name. Derived state:
     /// recomputed whenever the user-word graph changes.
@@ -173,20 +183,10 @@ pub struct Interpreter {
     /// index-aligned with its token stream. Empty for any entry point that did
     /// not come from source text.
     pub(crate) source_spans: Vec<crate::tokenizer::SourceSpan>,
-    /// Nesting depth of `execute_section_core`. Depth 1 is the program's own
-    /// token stream — the only stream `source_spans` describes — so the cursor
-    /// below is maintained there and nowhere else.
-    pub(crate) section_depth: usize,
-    /// The top-level token being executed. An error raised anywhere beneath it
-    /// is attributed here, which is what turns "Stack underflow" into
-    /// "Stack underflow at line 4, column 12, in SELECT".
+    /// The top-level token a failure was reached from (`engine::run_program`),
+    /// which is what turns "Stack underflow" into "Stack underflow at line 4,
+    /// column 12".
     pub(crate) current_source_span: Option<crate::tokenizer::SourceSpan>,
-
-    /// When true (default), `compile_word_definition` lowers fully-literal
-    /// vectors into a prebuilt `CompiledOp::PushVectorLiteral` instead of
-    /// leaving them on the interpreter via `FallbackToken`. Disable via
-    /// `AJISAI_NO_VECTOR_LITERAL` for an A/B comparison.
-    pub(crate) vector_literal_enabled: bool,
 
     /// When true (default), StackTop scalar-scalar arithmetic and comparison can
     /// bypass the tensor broadcast wrapper for bare scalars and same-shape
@@ -208,14 +208,8 @@ pub struct Interpreter {
     pub(crate) packed_truths: std::cell::Cell<bool>,
     /// Compiled scalar calls answered without the dispatch (`quickened`).
     pub(crate) quickening_enabled: bool,
-    /// Runs of scalar Words, names and User Word calls lowered to typed
-    /// segments and run without the dispatch (`segment`).
-    pub(crate) segments_enabled: bool,
     /// Code operands compiled recently (`higher_order::BlockCache`).
     pub(crate) block_cache: super::higher_order::BlockCache,
-    /// What each name token recently dispatched dispatches to (`symbol_cache`).
-    pub(crate) symbol_cache: super::symbol_cache::SymbolCache,
-    pub(crate) segment_scratch: super::segment::SegmentScratch,
 }
 
 impl Default for Interpreter {
@@ -240,6 +234,7 @@ impl Interpreter {
             host_env,
             binding_scopes: vec![super::bindings::BindingScope::root()],
             binding_depth: 1,
+            locals: Vec::new(),
             dictionary_changes_this_run: Vec::new(),
             disable_no_change_check: true,
             runtime_scratch: HashMap::new(),
@@ -253,6 +248,7 @@ impl Interpreter {
             global_epoch: 0,
             dictionary_epoch: 0,
             failed_word: None,
+            word_cache: std::array::from_fn(|_| (u64::MAX, Name::new(""), None)),
 
             // Elastic Engine
             word_identities: HashMap::new(),
@@ -261,18 +257,13 @@ impl Interpreter {
             pending_def_body_tokens: None,
             pending_word_descriptions: HashMap::new(),
             source_spans: Vec::new(),
-            section_depth: 0,
             current_source_span: None,
-            vector_literal_enabled: std::env::var("AJISAI_NO_VECTOR_LITERAL").is_err(),
             scalar_fastpath_enabled: std::env::var("AJISAI_NO_SCALAR_FASTPATH").is_err(),
             fused_block_enabled: std::env::var("AJISAI_NO_FUSED_BLOCK").is_err(),
             dense_kernels_enabled: std::env::var("AJISAI_NO_DENSE_KERNELS").is_err(),
             packed_truths: Default::default(),
             quickening_enabled: std::env::var("AJISAI_NO_QUICKEN").is_err(),
-            segments_enabled: std::env::var("AJISAI_NO_SEGMENTS").is_err(),
             block_cache: Default::default(),
-            symbol_cache: Default::default(),
-            segment_scratch: Default::default(),
         };
         crate::builtins::register_builtins(&mut interpreter.core_vocabulary);
         interpreter
@@ -405,13 +396,6 @@ impl Interpreter {
         self.current_source_span
     }
 
-    /// Enable or disable compile-time lowering of fully-literal vectors. In-process
-    /// equivalent of `AJISAI_NO_VECTOR_LITERAL`; takes effect for word plans
-    /// compiled after the change.
-    pub fn set_vector_literal_enabled(&mut self, enabled: bool) {
-        self.vector_literal_enabled = enabled;
-    }
-
     /// Enable or disable the D1 scalar-scalar arithmetic/comparison fast path.
     /// In-process equivalent of `AJISAI_NO_SCALAR_FASTPATH`; unlike compiled
     /// plan toggles this affects subsequent primitive executions immediately.
@@ -429,12 +413,6 @@ impl Interpreter {
     /// `AJISAI_NO_QUICKEN`.
     pub fn set_quickening_enabled(&mut self, enabled: bool) {
         self.quickening_enabled = enabled;
-    }
-
-    /// Enable or disable typed segments. In-process equivalent of
-    /// `AJISAI_NO_SEGMENTS`; takes effect for lines compiled after the change.
-    pub fn set_segments_enabled(&mut self, enabled: bool) {
-        self.segments_enabled = enabled;
     }
 
     /// Enable or disable the dense column kernels. In-process equivalent of

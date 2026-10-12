@@ -49,11 +49,10 @@ impl Interpreter {
     /// had to come from the live dictionary or a redefinition could be served
     /// from under it. So the cache memoized one hashmap probe behind another
     /// hashmap probe, which is not a saving; and it could not memoize the thing
-    /// that would have been one. Caching the `Arc<WordDefinition>` was tried and
-    /// reverted at a 66% regression, because `store_compiled_plan_for_word`
-    /// replaces a word's `Arc` in `user_words` when it caches a compiled plan
-    /// and rightly does not bump the dictionary epoch for it — so a cached `Arc`
-    /// pinned the pre-plan definition forever and every call recompiled.
+    /// that would have been one. The engine's call path keeps such a cache now
+    /// (`Interpreter::user_word`): no definition is replaced behind the
+    /// dictionary epoch any more, so an `Arc` cached under the epoch is the
+    /// definition in force.
     ///
     /// What is left is the lookup the cache was in front of. `resolve_short_name`
     /// is one probe of Core and then one of User, and

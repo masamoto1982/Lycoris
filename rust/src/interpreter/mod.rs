@@ -9,9 +9,6 @@ pub(crate) mod collection_meter;
 pub mod comparison;
 #[cfg(test)]
 mod comparison_tests;
-pub mod compiled_plan;
-#[cfg(test)]
-mod compiled_plan_tests;
 mod contract_record;
 pub mod control;
 pub(crate) mod declared_nil_contract;
@@ -22,6 +19,7 @@ mod dense_kernels_tests;
 mod dense_quotient_tests;
 #[cfg(test)]
 mod dense_slice_route_tests;
+pub(crate) mod engine;
 #[cfg(test)]
 mod error_message_format_tests;
 #[cfg(test)]
@@ -58,11 +56,6 @@ mod quickened;
 mod quickened_tests;
 #[cfg(test)]
 mod route_observation;
-pub(crate) mod segment;
-mod segment_lower;
-#[cfg(test)]
-mod segment_tests;
-mod symbol_cache;
 mod truth_columns;
 mod truth_ops;
 // The host-side Word lookup lives in `host.rs`; the module path it used to
@@ -194,11 +187,6 @@ pub use runtime_limits::RuntimeLimits;
 pub use host::{default_host_env, DefaultHostEnv, HostEffect, HostEnv, RecordingHostEnv};
 
 pub use crate::types::WordDefinition;
-
-pub use compiled_plan::{
-    compile_token_block, compile_word_definition, execute_compiled_plan, is_plan_valid,
-    CompiledLine, CompiledOp, CompiledPlan,
-};
 
 #[cfg(test)]
 mod builtin_dispatch_tests;

@@ -44,6 +44,12 @@ pub(crate) struct SourceTokens {
     /// depends on the lexeme alone — the numeric-literal ceiling — finds its
     /// first failure among them, at the same token, by reading only these.
     pub(crate) first_numbers: Vec<usize>,
+    /// For each name or number token, its lexeme's number: lexemes are
+    /// numbered `0..lexemes` in the order first spelled. `u32::MAX` for every
+    /// other token. Equal spellings compile to the same op.
+    pub(crate) firsts: Vec<u32>,
+    /// How many distinct name and number lexemes `firsts` numbers.
+    pub(crate) lexemes: usize,
 }
 
 /// [`tokenize_with_spans`], and the first spelling of each numeric lexeme.
@@ -67,6 +73,8 @@ pub(crate) fn tokenize_source(input: &str) -> Result<SourceTokens, String> {
     let mut depth: usize = 0;
     let mut stray_close = false;
     let mut first_numbers = Vec::new();
+    let mut firsts: Vec<u32> = Vec::with_capacity(words);
+    let mut lexemes = 0usize;
 
     // One pass over the text: `pos` is the byte offset of the next character
     // and `here` its line and column, so a token's span is the cursor's
@@ -120,6 +128,7 @@ pub(crate) fn tokenize_source(input: &str) -> Result<SourceTokens, String> {
                 cursor.advance_to(cursor.pos + content.len() + 2);
                 tokens.push(Token::String(content.into()));
                 spans.push(span);
+                firsts.push(u32::MAX);
                 continue;
             }
             0x80.. if cursor.peek().is_some_and(char::is_whitespace) => {
@@ -158,6 +167,7 @@ pub(crate) fn tokenize_source(input: &str) -> Result<SourceTokens, String> {
             }
             tokens.push(token);
             spans.push(span);
+            firsts.push(u32::MAX);
             continue;
         }
         // A short lexeme seen before is answered by its key alone, without
@@ -170,6 +180,7 @@ pub(crate) fn tokenize_source(input: &str) -> Result<SourceTokens, String> {
             let token = tokens[first].clone();
             tokens.push(token);
             spans.push(span);
+            firsts.push(firsts[first]);
             continue;
         }
         let token_str = &input[start..cursor.pos];
@@ -192,6 +203,8 @@ pub(crate) fn tokenize_source(input: &str) -> Result<SourceTokens, String> {
             None => Token::Symbol(token_str.into()),
         };
         seen.remember(key, token_str, tokens.len());
+        firsts.push(lexemes as u32);
+        lexemes += 1;
         tokens.push(token);
         spans.push(span);
     }
@@ -218,6 +231,8 @@ pub(crate) fn tokenize_source(input: &str) -> Result<SourceTokens, String> {
         tokens,
         spans,
         first_numbers,
+        firsts,
+        lexemes,
     })
 }
 
