@@ -6,7 +6,9 @@ beta, and promises compatibility from 1.0.0; this file records changes to
 the adapter's own surface — tool list, envelope fields, resources and
 descriptions.
 
-## Unreleased
+## 0.9.0
+
+The first release published since 0.7.2: 0.8.0, 0.8.1 and 0.8.2 below were recorded but never reached npm, so their changes ship here too.
 
 Breaking: the diagnosis an error carried, the `outcomes` tool and most of contract inference are removed, with no deprecation period, and the envelope's `schemaVersion` is 5. Engine rules change too, and the goldens, Word summaries, quickstart and README this server serves say so.
 
@@ -23,6 +25,7 @@ Breaking: the diagnosis an error carried, the `outcomes` tool and most of contra
 - **Division by zero is a wheel of fractions: one unsigned point at infinity.** A number is a pair of integers taken up to a nonzero factor, so `1/0` and `-1/0` are one number: every quotient of a nonzero number by zero is `1/0`, whatever its sign, and `-1/0` is another spelling of it (`-5 0 DIV` used to answer `-1/0`). The reciprocal is now an involution everywhere (`1 1 -1/0 DIV DIV` is `1/0` as before, and is now the number it started from), and every wheel axiom holds. Neither point has an order: `LT`, `GT`, `MIN`, `MAX`, `SORT`, `ORDER` and `BSEARCH` project `domainMiss` for `1/0` as they did for `0/0` (`1/0 5 MAX` used to answer `1/0`).
 - **A host ceiling is never a value.** A generative Word asked for a result past a ceiling — `RANGE`, `FILL`, `RESHAPE` past `materializedElements`, a `FILL`/`RESHAPE` shape or `JSON-DECODE` text past `nestingDepth`, `NUM` or `JSON-DECODE` past `numericLiteralDigits`, `POW` past `bigintBits` or `algebraicTerms` — now fails as `resourceLimitExceeded`, naming the ceiling in `error.resource` and its value and the size requested in `message`, with the Word's operands left on the stack. It used to project `NIL(spaceExhausted)` and answer `status: ok`; that NIL flowed on like any other value, so `0 100001 RANGE LENGTH` answered `100001` in the playground and `NIL` here, and `0 X X NIL? SELECT` chose a different branch per host without any failure to notice. The NIL reason `spaceExhausted` no longer exists.
 - **`0/0` absorbs `POW` in either operand.** `0/0 0 POW` and `2 0/0 POW` are `0/0`, as LANG.VALUES.EXACT's "0/0 absorbs every operation" says; `0/0 0 POW` used to answer `1`, and `2 0/0 POW` a `domainMiss`. `1/0 0 POW` stays `1`, the empty product. `1/0` and `-1/0` as exponents still project `domainMiss`.
+- **The engine is faster, and so is `compute`.** One compiler and one column walk run every program, block and Word body, with kernels shared between `MAP`/`FILTER`/`FOLD`/`SCAN` and the element-wise Words; `compute` no longer digests the whole stack, so a large result answers in under half the time. `BSEARCH` checks a column's order once per Tensor. Results, NIL reasons, errors and `resourceUsage` are unchanged by any of it. A typical response is about 1 KB as sent (`1 2 ADD` was 1.8 KB).
 - **The quickstart's step budget is stated per Word.** A block iteration costs one step per element for every Word the block runs, so a two-Word block walks 50,000 elements under the 100,000-step budget, not "tens of thousands" for any block. `CHARS` says it splits by code point, not grapheme cluster.
 
 ## 0.8.2

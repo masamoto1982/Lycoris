@@ -192,7 +192,7 @@ receipt and observation digest no host verified. Five calls in one turn cost
   `error` on a plain success, `contractDecls` on a
   source that declares nothing. **Test for presence, not for `null`.**
 
-`1 2 ADD` is about 1.4 KB as sent, and what remains constant is its provenance. `npm run eval:performance` measures the whole
+`1 2 ADD` is about 1 KB as sent, and what remains constant is its provenance. `npm run eval:performance` measures the whole
 response and the text block alone over the seven benchmark cases and fails
 against a committed `medianResponseBytesBudget`, so none of it can come back
 unnoticed. The budget is a ceiling to lower when a response genuinely shrinks,
