@@ -1,7 +1,7 @@
 //! Every `Big` fraction the arithmetic returns is in lowest terms with a
-//! positive denominator. The observation digest writes a `Big` pair as it is
-//! held, without dividing out a gcd, so this is what keeps equal values'
-//! digests equal. Operands are wide, carry shared factors (so that the
+//! positive denominator. The value digest writes a `Big` pair as it is held,
+//! without dividing out a gcd, so this is what keeps equal values' digests
+//! equal. Operands are wide, carry shared factors (so that the
 //! cross-cancellation in `mul`/`div` and the Henrici reduction in `add`/`sub`
 //! have something to remove), and include equal denominators and sums that
 //! cancel.

@@ -22,8 +22,8 @@
 /rust/src/types/exact/ @masamoto1982
 /rust/src/types/interval.rs @masamoto1982
 
-# Content-addressed identity (§8.6). Feeds the content store, lockfiles, and
-# execution receipts; a defect here misexecutes or misattests.
+# Content-addressed identity (§8.6). Feeds the content store and lockfiles;
+# a defect here misexecutes or misattests.
 /rust/src/interpreter/word_identity.rs @masamoto1982
 
 # The crate's single audited unsafe island (memory safety).

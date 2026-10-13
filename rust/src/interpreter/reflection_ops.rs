@@ -11,16 +11,16 @@
 //! (LANG.DICTIONARY.ACYCLIC) is complete only because no Word does. So a
 //! String is malformed use, `notASymbol`, rather than a lookup that failed.
 //! `CONTRACT` also takes a block, whose contract it infers the way
-//! `ajisai check --contract` does — the pre-execution check reached from
+//! `ajisai check` does — the pre-execution check reached from
 //! inside the language (LANG.CONTRACT.CHECK) — never evaluating it, so the
 //! call carries none of the block's own effects.
 
 use super::ordering_ops::{restore, take_operand};
-use crate::agent::observation_digest::value_digest;
 use crate::builtins::lookup_builtin_spec;
 use crate::error::{AjisaiError, NilReason, Result};
 use crate::interpreter::collection_meter;
 use crate::interpreter::contract_record::contract_record;
+use crate::interpreter::value_digest::value_digest;
 use crate::interpreter::word_identity::content_digest;
 use crate::interpreter::Interpreter;
 use crate::types::{Value, ValueData};
@@ -109,7 +109,7 @@ pub(crate) fn op_contract(interp: &mut Interpreter) -> Result<()> {
         }
     }
     if let Some(elements) = operand.as_vector_view() {
-        // A block: the same inference `ajisai check --contract` runs, over
+        // A block: the same inference `ajisai check` runs, over
         // the block's tokens, without running one of them.
         let tokens = match crate::interpreter::value_as_code::value_elements_to_tokens(&elements) {
             Ok(tokens) => tokens,

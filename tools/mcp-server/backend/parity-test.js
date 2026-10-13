@@ -56,7 +56,6 @@ const STABLE_FIELDS = [
   "message",
   "error",
   "contractDecls",
-  "receipt",
 ];
 
 function stableView(envelope) {

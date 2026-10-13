@@ -4,7 +4,7 @@
 //! execution and report assembly. It performs no filesystem or terminal I/O.
 
 use super::report::{completed_run_report, ErrorInfo, Report};
-use super::{contract, contract_violation, error_report, print_payloads, resolve_words};
+use super::{contract, error_report, print_payloads, resolve_words};
 use crate::error::ErrorCategory;
 use crate::interpreter::runtime_limits::DEFAULT_MAX_NESTING_DEPTH;
 use crate::interpreter::{Interpreter, RuntimeLimits};
@@ -96,8 +96,7 @@ impl ComputeOptions {
         }
     }
 
-    /// The agent profile's ceilings as `ajisai://limits` and a receipt name
-    /// them, for a host that wants to show them beside its own.
+    /// The agent profile's ceilings as `ajisai://limits` names them, for a host that wants to show them beside its own.
     pub fn agent_limit_profile() -> serde_json::Value {
         let options = Self::agent(None);
         crate::interpreter::limit_profile::to_json(
@@ -189,20 +188,6 @@ impl AgentResponse {
 /// Execute one source document and return the same structured observation the
 /// CLI emits, without creating a file or writing stdout/stderr.
 pub async fn compute(source: &str, options: ComputeOptions) -> AgentResponse {
-    if let Err(message) = crate::tokenizer::tokenize(source) {
-        // Applied even though tokenization never gets far enough to spend any
-        // of it: the receipt names the profile the caller asked for, not the
-        // interpreter's built-in default, and the two can differ.
-        let interp = options.interpreter();
-        return AgentResponse::computed(error_report(
-            &interp,
-            ErrorInfo::of(ErrorCategory::MalformedSource, None),
-            message,
-            Vec::new(),
-            Some(source),
-        ));
-    }
-
     // The pre-execution check (LANG.CONTRACT.CHECK) runs here as well as in
     // `check`: a program that declares a contract for its own Word is
     // checked against it *before anything runs*, and a declaration inference
@@ -212,20 +197,15 @@ pub async fn compute(source: &str, options: ComputeOptions) -> AgentResponse {
     // Programs without a directive are untouched, which is every program
     // that does not opt in.
     let mut interp = options.interpreter();
-    let decls = contract_violation::declared_contract_check(source);
+    let decls = contract::declared_contract_check(source);
     if let Some(check) = &decls {
         if check.violated {
-            return AgentResponse::computed(contract_violation::violation_report(
-                &interp,
-                check,
-                Some(source),
-            ));
+            return AgentResponse::computed(contract::violation_report(&interp, check));
         }
     }
     let result = interp.execute(source).await;
     let output = print_payloads(&interp);
-    let mut report =
-        completed_run_report(&interp, result, output, source, options.stack_budget_bytes);
+    let mut report = completed_run_report(&interp, result, output, options.stack_budget_bytes);
     // A verified (or unverifiable) declaration is reported too, so the caller
     // sees the check happened and what it decided; a source with no
     // directive carries no `contractDecls` at all.
@@ -244,8 +224,8 @@ pub async fn compute(source: &str, options: ComputeOptions) -> AgentResponse {
 /// is to `compute` — one phase, one message, for every tool.
 ///
 /// `check` had this gate and `infer_contracts` did not, so `[ 1 2` was a
-/// `malformedSource` error to `compute`, `check` and `outcomes` and an `ok`
-/// with no contracts to inference — four tools, two answers about one source.
+/// `malformedSource` error to `compute` and `check` and an `ok`
+/// with no contracts to inference — three tools, two answers about one source.
 fn tokens_of_well_formed(
     interp: &Interpreter,
     source: &str,
@@ -261,13 +241,13 @@ fn tokens_of_well_formed(
             ErrorInfo::of(ErrorCategory::MalformedSource, None),
             message,
             Vec::new(),
-            None,
         ),
     }))
 }
 
-/// Validate source without executing it and return the standard report shape.
-pub fn check(source: &str, verify_contracts: bool) -> AgentResponse {
+/// Validate source without executing it and return the standard report shape:
+/// every name resolves, and every `#:contract` declaration holds.
+pub fn check(source: &str) -> AgentResponse {
     let interp = Interpreter::new();
     let tokens = match tokens_of_well_formed(&interp, source) {
         Ok(tokens) => tokens,
@@ -291,48 +271,30 @@ pub fn check(source: &str, verify_contracts: bool) -> AgentResponse {
                 ErrorInfo::of(ErrorCategory::UnknownWord, Some(first.clone())),
                 message,
                 Vec::new(),
-                None,
             ),
         };
     }
 
-    let contract_decls = verify_contracts.then(|| contract::check_contract_decls(source));
-    if let Some(check) = contract_decls.as_ref().filter(|result| result.violated) {
+    let contract_decls = contract::check_contract_decls(source);
+    if contract_decls.violated {
         // The same shape every other error has — `message` and
         // `error.category: contractViolation` — so the violation is where
         // every other failure is, not only in `contractDecls.findings`.
         return AgentResponse {
-            report: contract_violation::violation_report(&interp, check, None),
+            report: contract::violation_report(&interp, &contract_decls),
         };
     }
-    let status = "ok";
-    // `check` never executes, so the observation is the degenerate one: no
-    // stack, no output, no dictionary — but it still folds to a stable digest
-    // that a caller can compare across two identical `check` calls.
-    let digest = super::observation_digest::observation_digest(
-        super::observation_digest::ObservationDigestInput {
-            status,
-            stack: &[],
-            output: &[],
-            user_words: &[],
-            error_category: None,
-        },
-    );
     AgentResponse {
         report: Report {
-            status,
+            status: "ok",
             stack: serde_json::Value::Array(Vec::new()),
             stack_display: Vec::new(),
             output: Vec::new(),
             message: None,
             error: None,
             resource_usage: crate::interpreter::ResourceUsage::default(),
-            contract_decls: contract_decls.as_ref().map(|result| result.to_json()),
+            contract_decls: Some(contract_decls.to_json()),
             stack_elided: None,
-            observation_digest: digest,
-            // `check` never executes, so there is nothing to receipt —
-            // see `Report::receipt`'s doc comment.
-            receipt: None,
             outcome: None,
         },
     }

@@ -1,19 +1,12 @@
-//! Observation digest: folds a program's whole observation into one 32-byte
-//! BLAKE3 digest (Phase 1, `docs/dev/competitive-advantage-work-order-2026-08.md`).
-//!
-//! Ajisai is a pure function from source to observation — 64 of 65 Words are
-//! deterministic and the one host-relative Word (`PRINT`) still produces a
-//! deterministic *sequence* of output lines — and value equality is semantic
-//! rather than representational (`rust/src/types/value_hash_tests.rs`). Both
-//! facts together are what make one digest of the whole observation
-//! meaningful: two runs that are the same *program result*, however they got
-//! there, must fold to the same bytes. Four representation traps make that
-//! easy to get wrong without a test noticing:
+//! A value's digest: the `DIGEST` Word's answer for anything that is not a
+//! Word, and the leaf of a User Word's content identity (LANG.VALUES.DENOTATION).
+//! Equal values digest alike whatever built them. Four representation traps
+//! make that easy to get wrong without a test noticing:
 //!
 //!  * **Algebraic normal forms are not canonical.** `8 SQRT` keeps the basis
 //!    `{8}`; `2 SQRT 2 SQRT ADD` keeps `{2}` — equal values, disagreeing
 //!    `normal_form_terms()`. Hashing the normal form would make this Phase's
-//!    own founding example fail. `impl Hash for Algebraic`
+//!    founding example (`8 SQRT` against `2 SQRT 2 SQRT ADD`) fail. `impl Hash for Algebraic`
 //!    (`types/exact/algebraic.rs`) already solves this by hashing
 //!    `floor(value * 2^bits)`, doubling `bits` until the bounding interval's
 //!    floor is decided; this module reruns that exact loop at that impl's own
@@ -48,11 +41,6 @@ use crate::types::exact::{Algebraic, ExactReal};
 use crate::types::fraction::Fraction;
 use crate::types::{Value, ValueData};
 
-/// Version tag for this byte grammar. Bump it (and the schema version noun,
-/// not `report::SCHEMA_VERSION`) if the grammar itself ever changes — the
-/// digest is not a compatible value across a tag change.
-pub(crate) const DIGEST_SCHEMA_TAG: &[u8] = b"AJISAI-OBS-1";
-
 /// Bits of fractional precision an algebraic scalar's digest key is taken at
 /// — deliberately `types::exact::algebraic::HASH_KEY_BITS`, the same
 /// precision `impl Hash for Algebraic` already uses, not a larger one; see
@@ -61,72 +49,17 @@ pub(crate) const DIGEST_SCHEMA_TAG: &[u8] = b"AJISAI-OBS-1";
 /// `2^-DIGEST_ALGEBRAIC_BITS` — see the module comment.
 pub(crate) const DIGEST_ALGEBRAIC_BITS: u32 = 64;
 
-/// Everything one observation digest is taken over.
-pub(crate) struct ObservationDigestInput<'a> {
-    /// The report's `status` (`"ok"` / `"error"`).
-    pub status: &'a str,
-    /// The stack, bottom to top — `Interpreter::get_stack()`'s own order.
-    pub stack: &'a [Value],
-    /// `PRINT` output lines, in order.
-    pub output: &'a [String],
-    /// `(normalized word name, content identity)` pairs, sorted by name by
-    /// the caller.
-    pub user_words: &'a [(String, String)],
-    /// The error's stable category id. `None` on success.
-    pub error_category: Option<&'a str>,
-}
-
-/// The canonical digest of one observation.
-pub(crate) fn observation_digest(input: ObservationDigestInput<'_>) -> String {
-    let mut bytes = Vec::new();
-    bytes.extend_from_slice(DIGEST_SCHEMA_TAG);
-
-    write_section(&mut bytes, 0x01);
-    write_str(&mut bytes, input.status);
-
-    write_section(&mut bytes, 0x02);
-    write_u64(&mut bytes, input.stack.len() as u64);
-    for value in input.stack {
-        encode_value(&mut bytes, value);
-    }
-
-    write_section(&mut bytes, 0x03);
-    write_u64(&mut bytes, input.output.len() as u64);
-    for line in input.output {
-        write_str(&mut bytes, line);
-    }
-
-    write_section(&mut bytes, 0x04);
-    write_u64(&mut bytes, input.user_words.len() as u64);
-    for (name, identity) in input.user_words {
-        write_str(&mut bytes, name);
-        write_str(&mut bytes, identity);
-    }
-
-    write_section(&mut bytes, 0x05);
-    write_opt_str(&mut bytes, input.error_category);
-
-    content_digest(&bytes)
-}
-
-/// Version tag for a single value's digest — the `DIGEST` Word's answer for
-/// anything that is not a Word (LANG.VALUES.DENOTATION). A separate tag from
-/// the observation grammar so a value's digest can never collide with the
-/// digest of a whole observation that happens to hold that value alone.
+/// Version tag for this byte grammar. Bump it if the grammar ever changes —
+/// a digest is not a compatible value across a tag change.
 pub(crate) const VALUE_DIGEST_SCHEMA_TAG: &[u8] = b"AJISAI-VAL-1";
 
 /// The digest of one value's denotation. Equal values digest alike whatever
-/// built them, by the same encoding the observation digest uses for its stack.
+/// built them.
 pub(crate) fn value_digest(value: &Value) -> String {
     let mut bytes = Vec::new();
     bytes.extend_from_slice(VALUE_DIGEST_SCHEMA_TAG);
     encode_value(&mut bytes, value);
     content_digest(&bytes)
-}
-
-fn write_section(bytes: &mut Vec<u8>, id: u8) {
-    bytes.push(0x1D);
-    bytes.push(id);
 }
 
 fn write_u64(bytes: &mut Vec<u8>, n: u64) {
@@ -136,16 +69,6 @@ fn write_u64(bytes: &mut Vec<u8>, n: u64) {
 fn write_str(bytes: &mut Vec<u8>, s: &str) {
     write_u64(bytes, s.len() as u64);
     bytes.extend_from_slice(s.as_bytes());
-}
-
-fn write_opt_str(bytes: &mut Vec<u8>, s: Option<&str>) {
-    match s {
-        None => bytes.push(0x00),
-        Some(s) => {
-            bytes.push(0x01);
-            write_str(bytes, s);
-        }
-    }
 }
 
 /// A `BigInt`, written as its signed radix-16 spelling. Never downcast to a
@@ -347,5 +270,9 @@ fn encode_algebraic(bytes: &mut Vec<u8>, alg: &Algebraic) {
 }
 
 #[cfg(test)]
-#[path = "observation_digest_small_tests.rs"]
+#[path = "value_digest_small_tests.rs"]
 mod small_tests;
+
+#[cfg(test)]
+#[path = "value_digest_tests.rs"]
+mod value_digest_tests;

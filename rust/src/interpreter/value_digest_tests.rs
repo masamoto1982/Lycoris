@@ -1,30 +1,16 @@
-//! Step 1.4 of `docs/dev/competitive-advantage-work-order-2026-08.md`: the
-//! ten required tests for the observation digest. Test 1 decides the Phase —
-//! if it fails, the byte grammar is wrong and must be fixed, not loosened.
+//! The value digest's laws: equal values digest alike however they were
+//! built, and distinct values (a NIL's reason included) apart.
 
-use crate::agent::api::ComputeOptions;
-use crate::agent::observation_digest::{observation_digest, ObservationDigestInput};
+use super::value_digest;
 use crate::error::NilReason;
-use crate::test_support::{agent_json, exact_add, exact_mul, frac, sqrt_of};
+use crate::test_support::{exact_add, exact_mul, frac, sqrt_of};
 use crate::types::exact::ExactReal;
 use crate::types::fraction::Fraction;
 use crate::types::Value;
 use num_bigint::BigInt;
-use std::collections::HashSet;
 
 fn digest_of(value: &Value) -> String {
-    let stack = [value.clone()];
-    observation_digest(ObservationDigestInput {
-        status: "ok",
-        stack: &stack,
-        output: &[],
-        user_words: &[],
-        error_category: None,
-    })
-}
-
-async fn digest_field(source: &str) -> serde_json::Value {
-    agent_json(source, ComputeOptions::default()).await["observationDigest"].clone()
+    value_digest(value)
 }
 
 /// The Phase's central invariant: `a == b` must imply `encode(a) ==
@@ -96,14 +82,6 @@ fn equal_values_digest_equally() {
 /// The regression this Phase exists to fix: `8 SQRT` keeps the coarse
 /// basis `{8}`, `2 SQRT 2 SQRT ADD` keeps `{3}` — equal values with
 /// disagreeing `normal_form_terms()` (pitfall A).
-#[tokio::test]
-async fn sqrt_eight_matches_sqrt_two_plus_sqrt_two() {
-    let a = digest_field("8 SQRT").await;
-    let b = digest_field("2 SQRT 2 SQRT ADD").await;
-    assert!(a.is_string(), "expected a digest string, got {a}");
-    assert_eq!(a, b);
-}
-
 /// A rectangular numeric `Vector` and the `Tensor` holding the same lanes
 /// are the same value (pitfall B); nested vs rank-2 too.
 #[test]
@@ -130,40 +108,9 @@ fn tensor_and_nested_vector_digest_equally() {
 /// How a value was made is not part of it (LANG.VALUES.DENOTATION): a
 /// Boolean straight from a comparison and the same Boolean from a `FOLD`
 /// of `AND` must digest the same.
-#[tokio::test]
-async fn how_a_value_was_made_does_not_change_the_digest() {
-    let compared = agent_json("3 2 GT", ComputeOptions::default()).await;
-    let fold = agent_json(
-        "[ 3 4 ] [ 2 GT ] MAP TRUE [ AND ] FOLD",
-        ComputeOptions::default(),
-    )
-    .await;
-    assert_eq!(compared["stack"], fold["stack"]);
-    assert_eq!(compared["observationDigest"], fold["observationDigest"]);
-}
-
 /// A NIL that passed through arithmetic is observed exactly as the NIL it
 /// was: `type: "nil"` with its reason, never as a number.
-#[tokio::test]
-async fn a_nil_through_arithmetic_is_observed_as_that_nil() {
-    let through = agent_json("NIL -1 MUL", ComputeOptions::default()).await;
-    let literal = agent_json("NIL", ComputeOptions::default()).await;
-    assert_eq!(through["stack"][0]["type"], "nil");
-    assert!(through["stack"][0].get("displayHint").is_none());
-    assert_eq!(through["stack"], literal["stack"]);
-    assert_eq!(through["observationDigest"], literal["observationDigest"]);
-}
-
 /// UNKNOWN is a NIL (LANG.VALUES.TRUTH): no truth axis on the wire.
-#[tokio::test]
-async fn unknown_is_observed_as_a_nil() {
-    let unknown = agent_json("NIL TRUE AND", ComputeOptions::default()).await;
-    let node = &unknown["stack"][0];
-    assert_eq!(node["type"], "nil");
-    assert!(node["semantics"].get("truthValue").is_none());
-    assert_eq!(node["semantics"]["absence"]["reason"], "literal");
-}
-
 /// The reverse of the previous test: the NIL reason *is* meaning
 /// (LANG.VALUES.NIL), so two differently-caused NILs must digest apart.
 #[test]
@@ -198,65 +145,13 @@ fn unreduced_fraction_matches_reduced() {
 
 /// Ten unmistakably different programs; all ten digests must be
 /// pairwise distinct.
-#[tokio::test]
-async fn different_results_digest_differently() {
-    let programs = [
-        "1",
-        "2",
-        "TRUE",
-        "FALSE",
-        "'hello'",
-        "[ 1 2 3 ]",
-        "0 0 DIV",
-        "2 SQRT",
-        "1 PRINT",
-        "[ ]",
-    ];
-    let mut digests = Vec::new();
-    for program in programs {
-        digests.push(digest_field(program).await.to_string());
-    }
-    let distinct: HashSet<&String> = digests.iter().collect();
-    assert_eq!(
-        distinct.len(),
-        digests.len(),
-        "expected {} distinct digests, got {:?}",
-        digests.len(),
-        digests
-    );
-}
-
 /// `PRINT` output is part of the observation, in order (SPEC:
 /// determinism holds for the whole run, not just the final stack).
-#[tokio::test]
-async fn output_order_is_observable() {
-    let a = digest_field("1 PRINT 2 PRINT").await;
-    let b = digest_field("2 PRINT 1 PRINT").await;
-    assert_ne!(a, b);
-}
-
 /// Two runs with the same (empty) stack and output but different user
 /// dictionaries must not collapse to one digest.
-#[tokio::test]
-async fn dictionary_state_is_observable() {
-    let a = digest_field("[ 1 ] 'F' DEF").await;
-    let b = digest_field("[ 2 ] 'G' DEF").await;
-    assert!(a.is_string(), "expected a digest string, got {a}");
-    assert_ne!(a, b);
-}
-
 /// Purity (SPEC: 64 of 65 Words are deterministic, and `PRINT`'s effect
 /// is itself a deterministic sequence) means the same source digests the
 /// same every time.
-#[tokio::test]
-async fn digest_is_stable_across_runs() {
-    let source = "[ 1 2 3 ] 1 { ADD } FOLD";
-    let a = digest_field(source).await;
-    let b = digest_field(source).await;
-    assert!(a.is_string(), "expected a digest string, got {a}");
-    assert_eq!(a, b);
-}
-
 /// Regression: keying the algebraic digest at a much larger precision
 /// than `HASH_KEY_BITS` made a 256-term value (reachable in practice —
 /// `max_algebraic_terms` allows up to 512) cost tens of milliseconds per

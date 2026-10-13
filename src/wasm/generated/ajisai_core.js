@@ -91,8 +91,7 @@ export class AjisaiInterpreter {
      * The resource ceilings this interpreter is actually running under, as
      * JSON, under the same names every other Ajisai host publishes them by —
      * literally the same, since `interpreter::limit_profile` is the one place
-     * the ceiling set is enumerated and the receipt reads it too. This
-     * sentence used to be a claim with nothing checking it.
+     * the ceiling set is enumerated.
      *
      * LANG.MACHINE.LIMITS makes limits a host safety control rather than value
      * semantics, so two conforming hosts legitimately disagree about them —
@@ -128,7 +127,7 @@ export class AjisaiInterpreter {
     /**
      * A User Word's `#:contract`-derived description, for a host affordance
      * like the Dictionary panel's hover — never checked against the Word's
-     * actual behavior (that stays a CLI-only, opt-in `check --contract`).
+     * actual behavior (that stays a CLI-only, opt-in `check`).
      * @param {string} name
      * @returns {any}
      */

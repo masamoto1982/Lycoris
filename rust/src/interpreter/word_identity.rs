@@ -95,7 +95,7 @@ pub(crate) fn encode_token(bytes: &mut Vec<u8>, tok: &Token) {
 /// denotation digest (LANG.VALUES.DENOTATION), so equal values identify
 /// alike.
 fn value_identity(value: &crate::types::Value) -> String {
-    crate::agent::observation_digest::value_digest(value)
+    crate::interpreter::value_digest::value_digest(value)
 }
 
 /// Canonical content key for a word body, independent of references' identities

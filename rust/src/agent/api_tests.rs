@@ -62,12 +62,12 @@ async fn compute_names_the_outcome_id_it_produced() {
         let json = compute(source, ComputeOptions::default()).await.to_json();
         assert_eq!(json["outcome"], expected, "{source}");
     }
-    assert!(check("1 2 ADD", true).to_json().get("outcome").is_none());
+    assert!(check("1 2 ADD").to_json().get("outcome").is_none());
 }
 
 #[test]
 fn check_is_execution_free_and_structured() {
-    let response = check("[ [ 1 ] ADD ] 'INC' DEF 'must-not-print' PRINT", true);
+    let response = check("[ [ 1 ] ADD ] 'INC' DEF 'must-not-print' PRINT");
     let json = response.to_json();
     assert_eq!(response.exit_code(), 0);
     assert_eq!(json["status"], "ok");
@@ -87,7 +87,7 @@ fn infer_contracts_returns_a_common_agent_envelope() {
 fn infer_contracts_reports_malformed_source_as_check_does() {
     for source in ["[ 1 2", "1 2 ]", "'unterminated"] {
         let inferred = infer_contracts(source);
-        let checked = check(source, false);
+        let checked = check(source);
         let inferred_json = inferred.to_json();
         assert_eq!(inferred_json["status"], "error", "{source}");
         assert_eq!(

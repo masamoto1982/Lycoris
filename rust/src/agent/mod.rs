@@ -14,14 +14,9 @@ mod check_locals_tests;
 pub(crate) mod contract;
 #[cfg(test)]
 mod contract_decl_tests;
-pub(crate) mod contract_violation;
 mod error_stack;
 #[cfg(test)]
 mod error_stack_tests;
-pub(crate) mod execution_receipt;
-pub(crate) mod observation_digest;
-#[cfg(test)]
-mod observation_digest_tests;
 #[cfg(test)]
 mod profile_liveness_tests;
 pub(crate) mod report;
@@ -36,7 +31,6 @@ mod stack_view_tests;
 use crate::interpreter::{HostEffect, Interpreter, RuntimeLimits};
 use crate::types::Token;
 use crate::word_name::canonical_word_name;
-use observation_digest::{observation_digest, ObservationDigestInput};
 use report::{ErrorInfo, Report};
 use std::collections::HashMap;
 
@@ -48,9 +42,6 @@ pub(crate) struct Opts {
     /// `agent`: print the envelope compact, byte-identical to the WASM entry
     /// points, instead of indented.
     pub compact: bool,
-    /// `check`: verify `#:contract` word declarations against the inferred
-    /// contract.
-    pub contract: bool,
     /// `compute`: execution step budget override. `None` keeps the
     /// interpreter default.
     pub step_limit: Option<usize>,
@@ -72,10 +63,6 @@ pub(crate) fn error_report(
     mut error: ErrorInfo,
     message: String,
     output: Vec<String>,
-    // `Some(source)` builds an execution receipt (`compute`'s callers);
-    // `None` skips it (`check`'s callers, which never execute and so have
-    // nothing to receipt — see `Report::receipt`'s doc comment).
-    source: Option<&str>,
 ) -> Report {
     // Every error gets the position of the top-level token that reached it.
     if error.position.is_none() {
@@ -87,25 +74,7 @@ pub(crate) fn error_report(
     // The digest is taken over the real stack, not the wire-budgeted residue:
     // `stack`/`stackDisplay` may elide values for `responseBytes`, but the
     // observation itself is what the interpreter actually holds.
-    let error_category = error.category.as_ref().map(|c| c.as_protocol_str());
-    let digest = observation_digest(ObservationDigestInput {
-        status: "error",
-        stack: interp.get_stack(),
-        output: &output,
-        user_words: &user_word_identities(interp),
-        error_category,
-    });
     let resource_usage = interp.resource_usage();
-    let receipt = source.map(|source| {
-        execution_receipt::build_receipt(
-            source,
-            interp.runtime_limits(),
-            interp.max_execution_steps(),
-            "error",
-            &resource_usage,
-            &digest,
-        )
-    });
     Report {
         status: "error",
         stack: residue.stack,
@@ -116,30 +85,8 @@ pub(crate) fn error_report(
         resource_usage,
         contract_decls: None,
         stack_elided: residue.elided,
-        observation_digest: digest,
-        receipt,
         outcome: None,
     }
-}
-
-/// The user dictionary's Word names, sorted — the one ordering every listing
-/// of it uses (the digest's `user_words`, the wasm host's dictionary views).
-pub(crate) fn sorted_user_word_names(interp: &Interpreter) -> Vec<&String> {
-    let mut names: Vec<&String> = interp.user_words.keys().collect();
-    names.sort();
-    names
-}
-
-/// `(normalized word name, content identity)` for every user word, sorted by
-/// name — the shape `ObservationDigestInput::user_words` requires.
-pub(crate) fn user_word_identities(interp: &Interpreter) -> Vec<(String, String)> {
-    sorted_user_word_names(interp)
-        .into_iter()
-        .map(|name| {
-            let identity = interp.word_identity(name).cloned().unwrap_or_default();
-            (name.clone(), identity)
-        })
-        .collect()
 }
 
 pub(crate) fn print_payloads(interp: &Interpreter) -> Vec<String> {

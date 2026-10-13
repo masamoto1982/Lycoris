@@ -7,7 +7,7 @@ decision and its reasoning, not language semantics.
 ## The claim
 
 The runtime trichotomy (`LANG.FAILURE.TRICHOTOMY`: a value, a reasoned
-absence, or an error) and the static trichotomy `check --contract` reports
+absence, or an error) and the static trichotomy `check` reports
 (`LANG.CONTRACT.CHECK`: verified, cannot verify, violated) are the same
 three-way classification applied at two different times — evaluation time and
 check time. This is not a resemblance chosen for a tidy write-up. Three
@@ -26,8 +26,8 @@ independent pieces of structural evidence say so:
    (`agent::contract_report`) returns the *inferred* contract — precisely
    what "verified" means, since a declaration verifies exactly when it
    matches what inference derives. The trichotomy was, in effect, already
-   split across two commands (`contract` for the value case, `check
-   --contract` for cannot-verify/violated) before this phase; stating the
+   split across two commands (`contract` for the value case, `check`
+   for cannot-verify/violated) before this phase; stating the
    correspondence in one place is describing an existing fact, not
    introducing a new one.
 3. **A gap identifier is the same kind of object as a NIL reason.** Both are
@@ -60,11 +60,11 @@ check evaluate the program: the correspondence classifies *outcomes*, not
 *mechanisms*. Division by zero, a failed parse, and an out-of-range index
 already share one outcome (NIL) while sharing no mechanism whatsoever; an
 inference that could not decide joins that list on exactly the same terms.
-`check --contract` still runs no word body.
+`check` still runs no word body.
 
 ## What (b) is, and why it is not done
 
-The stronger version of this idea is for `check --contract` to return an
+The stronger version of this idea is for `check` to return an
 actual Ajisai `Value` — folding gap identifiers into the NIL reason registry
 so a caller could read one back through `NIL-REASON`, the way any other
 absence reason is read. That is **not** implemented here, and the reason is

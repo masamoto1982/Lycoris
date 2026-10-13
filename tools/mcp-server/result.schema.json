@@ -203,21 +203,6 @@
     }
    }
   },
-  "receipt": {
-   "type": "object",
-   "description": "compute only. The execution receipt (rust/src/agent/execution_receipt.rs): `digest` is a BLAKE3 over the source, the engine version, the registry digest, the limit profile, the outcome status, the observation digest and the resource usage. This adapter sends the three inputs nothing else in the envelope carries — `digest`, `sourceDigest`, `registryDigest` — and a verifier takes the rest from beside them: `status`, `observationDigest`, `resourceUsage`, `mcp.engineVersion`, and the engine-side entries of `ajisai://limits` as the limit profile. The native CLI's `--json` receipt carries them all inline.",
-   "properties": {
-    "digest": {
-     "type": "string"
-    },
-    "sourceDigest": {
-     "type": "string"
-    },
-    "registryDigest": {
-     "type": "string"
-    }
-   }
-  },
   "message": {
    "type": "string",
    "description": "On an `error`, what went wrong, as one line of text. Absent from a success."
@@ -340,7 +325,7 @@
     "assetDigest": {
      "type": "string",
      "pattern": "^[a-f0-9]{64}$",
-     "description": "SHA-256 of the Word registry file this adapter packages (assets/words.json), checked against assets/metadata.json at startup. It identifies the adapter's asset, not the engine's registry: the engine's own `receipt.registryDigest` is a BLAKE3 digest over words and outcomes, in `#`-prefixed form, and the two are not comparable."
+     "description": "SHA-256 of the Word registry file this adapter packages (assets/words.json), checked against assets/metadata.json at startup. It identifies the adapter's asset, not the engine."
     },
     "backend": {
      "type": "object",

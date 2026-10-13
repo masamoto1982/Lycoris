@@ -40,20 +40,18 @@ const USAGE: &str = "Usage: ajisai <command> [options]
 Commands:
   run <file.ajisai> [--step-limit <N>]
                                   Execute a program file
-  check <file.ajisai> [--contract]
-                                  Tokenize, parse and resolve only (no
-                                  execution). With --contract, also check each
-                                  `#:contract` declaration against the contract
-                                  inferred from the Core Words it calls
+  check <file.ajisai>             Tokenize, parse and resolve only, and check
+                                  each `#:contract` declaration against the
+                                  contract inferred from the Core Words it
+                                  calls (no execution)
   contract <file.ajisai>          Report each user word's inferred contract
-                                  (arity, purity, NIL, determinism) plus a
-                                  paste-ready `#:contract` line (no execution)
+                                  (inputs, outputs, field) plus a paste-ready
+                                  `#:contract` line (no execution)
   agent <operation> <file.ajisai|-> [--limits <agent|trusted>] [--step-limit <N>]
                                   The one source-to-JSON host boundary. Operations:
                                   compute, check, infer-contracts. `-`
                                   reads the program from standard input, so an
-                                  embedding host needs no temporary file. `check`
-                                  always verifies `#:contract` declarations
+                                  embedding host needs no temporary file
   test <file-or-dir> [--json]     Run test files, checking each program against
                                   its `#@` directive comments (status/stack/
                                   output/error). Exit 1 if any test fails
@@ -64,15 +62,11 @@ Commands:
 Options:
   --json                          With `test`/`repl`/`version`: emit JSON
                                   (pipe-safe). `agent` always emits JSON
+                                  and takes no `--json`
   --compact                       With `agent`: emit the envelope as compact
                                   JSON with no trailing newline, the exact
                                   bytes the WASM agent entry points return
                                   (default: indented for reading)
-  --contract                      With `check`: verify `#:contract` word
-                                  declarations against the inferred contract
-                                  (exit 1 on a contradiction). The check is
-                                  conservative: an unanalyzable body is
-                                  reported as `cannot verify`, never as passed
   --limits <agent|trusted>        With `agent compute`: the
                                   resource ceilings. `agent` (default) is the
                                   tighter profile for untrusted, generated
@@ -99,7 +93,6 @@ pub fn run(args: &[String]) -> i32 {
     };
     let mut json = false;
     let mut compact = false;
-    let mut contract = false;
     let mut limits = LimitProfile::Agent;
     let mut limits_given = false;
     let mut step_limit: Option<usize> = None;
@@ -109,7 +102,6 @@ pub fn run(args: &[String]) -> i32 {
         match arg.as_str() {
             "--json" => json = true,
             "--compact" => compact = true,
-            "--contract" => contract = true,
             "--limits" => match iter.next().map(String::as_str) {
                 Some("agent") => (limits, limits_given) = (LimitProfile::Agent, true),
                 Some("trusted") => (limits, limits_given) = (LimitProfile::Trusted, true),
@@ -138,23 +130,9 @@ pub fn run(args: &[String]) -> i32 {
     let opts = Opts {
         json,
         compact,
-        contract,
         step_limit,
         limits,
     };
-    if json && matches!(command.as_str(), "run" | "check" | "contract") {
-        // Name the exact equivalent, profile included: `run` executes under
-        // the trusted ceilings, which `agent compute` applies only on request.
-        let equivalent = match command.as_str() {
-            "run" => "`ajisai agent compute --limits trusted`",
-            "check" => "`ajisai agent check` (it always verifies `#:contract` declarations)",
-            _ => "`ajisai agent infer-contracts`",
-        };
-        eprintln!(
-            "`{command}` is the human-readable form; its JSON form is {equivalent}\n\n{USAGE}"
-        );
-        return 2;
-    }
     // A flag the command does not read would be accepted and silently
     // ignored — `run file --limits agent` running under the trusted ceilings
     // regardless — so it is refused instead.
@@ -166,7 +144,11 @@ pub fn run(args: &[String]) -> i32 {
             step_limit.is_some(),
             command == "run" || agent_op("compute"),
         ),
-        ("--contract", contract, command == "check"),
+        (
+            "--json",
+            json,
+            matches!(command.as_str(), "test" | "repl" | "version"),
+        ),
         ("--compact", compact, command == "agent"),
     ];
     for (flag, given, applies) in misplaced {
@@ -182,7 +164,7 @@ pub fn run(args: &[String]) -> i32 {
     }
     match (command.as_str(), positional.as_slice()) {
         ("run", [path]) => cmd_run(path, &opts),
-        ("check", [path]) => cmd_check(path, &opts),
+        ("check", [path]) => cmd_check(path),
         ("contract", [path]) => cmd_contract(path),
         ("agent", [operation, path]) => cmd_agent(operation, path, &opts),
         ("test", [path]) => test_runner::cmd_test(path, &opts),
@@ -234,13 +216,13 @@ fn cmd_run(path: &str, opts: &Opts) -> i32 {
     response.exit_code()
 }
 
-fn cmd_check(path: &str, opts: &Opts) -> i32 {
+fn cmd_check(path: &str) -> i32 {
     let Some(source) = read_source(path) else {
         return 2;
     };
     // The same check `agent check` answers, read out for a person: one
     // implementation, two renderings.
-    let response = agent_api::check(&source, opts.contract);
+    let response = agent_api::check(&source);
     let report = response.report();
     if report.error.is_some() {
         emit(report);
@@ -263,7 +245,7 @@ fn cmd_check(path: &str, opts: &Opts) -> i32 {
 }
 
 /// `ajisai contract <file>`: report each user word's inferred contract
-/// (`interpreter::word_contract`), the reporting companion to `check --contract`
+/// (`interpreter::word_contract`), the reporting companion to `check`
 /// (P2). Registers definitions and imports without executing any word body or
 /// top-level code. Observational — a well-formed file always exits 0.
 fn cmd_contract(path: &str) -> i32 {
@@ -325,7 +307,7 @@ fn cmd_agent(operation: &str, path: &str, opts: &Opts) -> i32 {
             (response.into_json(), exit_code)
         }
         "check" => {
-            let response = agent_api::check(&source, true);
+            let response = agent_api::check(&source);
             (response.to_json(), response.exit_code())
         }
         "infer-contracts" => {

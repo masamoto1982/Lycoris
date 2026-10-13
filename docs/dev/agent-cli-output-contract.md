@@ -8,7 +8,7 @@ only commands and fields emitted by the current native CLI.
 
 ```text
 ajisai run <file.ajisai> [--step-limit <N>]
-ajisai check <file.ajisai> [--contract]
+ajisai check <file.ajisai>
 ajisai contract <file.ajisai>
 ajisai agent <compute|check|infer-contracts> <file.ajisai|-> [--limits <agent|trusted>] [--step-limit <N>] [--compact]
 ajisai test <file-or-dir> [--json]
@@ -34,10 +34,11 @@ leaves no program on disk for the duration of the call.
 `agent compute --limits trusted`, `agent check` and `agent infer-contracts`,
 and take no `--json`: the machine form of an operation is its `agent`
 operation, and there is one. (`run` executes under the trusted ceilings;
-`agent compute` applies them only when asked. `agent check` always verifies
-`#:contract` declarations, as `check --contract` does.) A flag a command does
-not read is a usage error (exit 2), never silently ignored. `agent` (and
-`test`/`repl`/`version` with `--json`) write one JSON document to stdout.
+`agent compute` applies them only when asked. Both forms of `check` verify
+`#:contract` declarations.) A flag a command does not read is a usage error
+(exit 2), never silently ignored: `agent` always writes JSON and takes no
+`--json`. `agent` (and `test`/`repl`/`version` with `--json`) write one JSON
+document to stdout.
 Program `PRINT` effects are captured in the document rather than mixed into
 stdout.
 
@@ -50,7 +51,7 @@ the default is the profile's own budget: 100,000 under `agent`
 applies) and the host's derived budget under `trusted`
 (`interpreter::DEFAULT_MAX_EXECUTION_STEPS`, currently 12,180,000 — see
 `docs/dev/mcp-host-profiles.md`, re-derived per-container and not a value to
-hard-code elsewhere). `--contract` applies only to `check`.
+hard-code elsewhere).
 
 `agent` writes its document indented for a reader by default. `--compact`
 (only with `agent`) writes the same document as compact JSON with no trailing
@@ -61,11 +62,11 @@ measure the same bytes and reject at the same result.
 
 ## `agent compute` and `agent check`
 
-Both operations emit schema version 4:
+Both operations emit schema version 5:
 
 ```json
 {
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "status": "ok",
   "stack": [],
   "stackDisplay": [],
@@ -74,18 +75,15 @@ Both operations emit schema version 4:
   "error": null,
   "resourceUsage": {},
   "contractDecls": null,
-  "stackElided": null,
-  "observationDigest": "#89ab...",
-  "receipt": null
+  "stackElided": null
 }
 ```
 
 `status` is `ok` or `error`. Ajisai language errors use exit 1 and retain this
 JSON envelope. `check` tokenizes, checks delimiter structure, performs
-best-effort static Word resolution, and never executes the program. With
-`--contract` (always, for `agent check`), `contractDecls` contains the
-conservative result of comparing `#:contract` declarations with inferred
-contracts.
+best-effort static Word resolution, and never executes the program.
+`contractDecls` contains the conservative result of comparing `#:contract`
+declarations with inferred contracts.
 
 An error carries `message` and one `error` object, the whole of what
 LANG.OBSERVATION.DIAGNOSIS asks an ERROR to carry:
@@ -182,79 +180,6 @@ How the runtime went about the work — which cache answered, which fast path
 fired — is not reported. Those optimizer counters (`runtimeMetrics`) were
 removed in 2026-10: they described no fact about the program, and keeping every
 fast path's count equal to the plain route's cost code and time on each one.
-
-
-### `observationDigest`
-
-A single `#`-prefixed 64-lowercase-hex BLAKE3 digest of the whole observation.
-Two runs agree on this field exactly when they agree on everything
-an agent can observe: `status`, the stack (bottom to top, by value — not by
-representation), `PRINT` output in order, the user dictionary (each word's
-normalized name and its content identity, sorted by name), and the error
-category. It lets a caller compare two implementations, two runs, or a run
-against a recorded expectation, without transferring or diffing the values
-themselves.
-
-It does **not** include `stackDisplay`, `message`, the `error` object beyond
-its category, `resourceUsage`, or `contractDecls` — none of those are the observation; several of them
-(`stackDisplay` in particular) are renderings of a value rather than the value
-itself. A value's
-`hint` (display role) is excluded the same way `PartialEq for Value` excludes
-it; a NIL's reason is included the same way `PartialEq for Value` includes it.
-
-**Guarantee, stated in one direction only:** equal observations always digest
-equally. The converse does not hold without qualification for algebraic
-(Tier 1 exact-irrational) scalars: the digest keys such a value by
-`floor(value * 2^64)` — the same precision `impl Hash for Algebraic`
-(`types/exact/algebraic.rs`) already uses for `HashMap`-based correctness
-throughout the interpreter (`UNIQUE` / `GROUP` / `TALLY`), deliberately reused
-rather than widened, because the cost of this key is `O(terms)` big-integer
-square roots and a legitimately reachable algebraic value can carry hundreds
-of terms — so two distinct algebraic numbers closer together than `2^-64`
-fold to the same digest. This is a deliberate, bounded residual, not an
-oversight — do not read `observationDigest` as proving two stacks differ when
-it merely fails to prove they agree at that resolution. Every other domain
-(rational, boolean, string, code block, NIL, vector, tensor) digests
-injectively.
-
-The byte grammar is tagged (`AJISAI-OBS-1`, `rust/src/agent/observation_digest.rs`).
-Changing the grammar is not a backward-compatible change even though it adds
-no JSON field and does not move `SCHEMA_VERSION`: a value that used to digest
-one way will digest another, so any caller comparing against a previously
-recorded digest breaks. Bump the schema tag when that happens.
-
-### `receipt`
-
-`observationDigest` bundles only what an agent can observe. `receipt` answers
-the broader question a third party asks after the fact: run this exact
-`source`, on this `engineVersion`, against this vocabulary and outcome space
-(`registryDigest`), under this `limitProfile`, and you get exactly this
-`outcomeStatus`, this `observationDigest`, having spent exactly this
-`resourceUsage` — verifiable without re-running anything, by re-deriving the
-same digest from the same seven inputs. `null` for `check`/`infer-contracts`, which never
-execute and so have nothing to receipt.
-
-```json
-{
-  "sourceDigest": "#0123...",
-  "engineVersion": "1.0.0-beta.1",
-  "registryDigest": "#4567...",
-  "limitProfile": { "executionSteps": 23190000, "materializedElements": 100000, "...": "..." },
-  "outcomeStatus": "ok",
-  "observationDigest": "#89ab...",
-  "resourceUsage": { "executionSteps": 22, "numericWork": 20, "collectionWork": 0 },
-  "digest": "#cdef..."
-}
-```
-
-Two runs of the same `source` under the same profile receipt identically; a
-one-character change to either the source or the profile changes `digest`.
-Nothing about which route ran is in the bundle: that is optimizer state, not a
-fact about what the program does (`LANG.AUTHORITY.FREEDOM` — which path ran is
-unobservable). The byte grammar carries its own schema tag (`AJISAI-RECEIPT-2`,
-`rust/src/agent/execution_receipt.rs`), distinct from `observationDigest`'s,
-since a receipt is a superset of a digest and the two must be free to version
-independently.
 
 
 ### A report that cannot afford its stack
@@ -422,7 +347,7 @@ Ajisai Words.
 `version --json` emits:
 
 ```json
-{ "schemaVersion": 4, "status": "ok", "version": "1.0.0-beta.1" }
+{ "schemaVersion": 5, "status": "ok", "version": "1.0.0-beta.1" }
 ```
 
 
@@ -437,7 +362,9 @@ object.
 
 Additive fields do not change `schemaVersion`; consumers must ignore fields
 they do not recognize. Removing or renaming fields, changing their types, or
-changing exit-code meaning requires a schema-version increment.
+changing exit-code meaning requires a schema-version increment. Version 5
+removed `observationDigest` and `receipt`: no host verified either, and a
+value's digest is the `DIGEST` Word's.
 
 The MCP-specific envelope and its exact-value definitions are additionally
 published as `tools/mcp-server/result.schema.json`. That schema adds MCP

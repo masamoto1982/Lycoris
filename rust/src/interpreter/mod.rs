@@ -66,8 +66,8 @@ mod json_decode;
 mod json_encode;
 pub(crate) mod lane_lift;
 // The limit-profile enumeration lives in `host_profile_defaults.rs`; the
-// module path it used to have is kept for `agent::execution_receipt` and the
-// wasm bindings, which import it by that name.
+// module path it used to have is kept for the agent profile and the wasm
+// bindings, which import it by that name.
 pub(crate) use self::host_profile_defaults as limit_profile;
 mod ceiling_refusal;
 pub mod logic;
@@ -103,16 +103,13 @@ mod word_contract_tests;
 // `pub(crate)`, not private: `agent::observation_digest` calls
 // `word_identity::content_digest` and `word_identity::encode_token` directly,
 // so the crate-wide agent boundary needs to name this module.
+pub mod interpreter_core;
+pub(crate) mod value_digest;
 pub(crate) mod word_identity;
 #[cfg(test)]
 mod word_identity_tests;
 #[cfg(test)]
 mod work_meter_calibration_tests;
-// Re-exported only for the host-only `cli` consumers (receipt / lockfile source
-// identity); `content_digest` itself is used internally by `word_identity`, so
-// gate just this re-export to the same target as `cli` to stay wasm-clean.
-
-pub mod interpreter_core;
 
 mod resolve_word;
 

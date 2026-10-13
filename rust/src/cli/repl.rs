@@ -270,7 +270,6 @@ mod tests {
         let opts = Opts {
             json: true,
             compact: false,
-            contract: false,
             step_limit: None,
             limits: crate::agent::LimitProfile::Agent,
         };
