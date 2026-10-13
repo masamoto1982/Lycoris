@@ -1,85 +1,12 @@
-//! Test suite for `crate::types::tensor_storage` — the dense and sparse
-//! numeric tensor stores.
+//! Test suite for `crate::types::tensor_storage` — the dense numeric
+//! tensor store.
 //!
 //! Lifted out of an inline `#[cfg(test)] mod` so the module it tests stays
 //! inside the 500-line budget (docs/dev/specification-implementation-rules.md),
 //! and so it sits where every other test file in `types/` already does.
 
 use super::fraction::Fraction;
-use super::tensor_storage::{DenseTensor, SparseTensor};
-
-fn dense_from_i64(values: &[i64], shape: Vec<usize>) -> DenseTensor {
-    DenseTensor::from_fractions(values.iter().copied().map(Fraction::from).collect(), shape)
-        .expect("small dense tensor should build")
-}
-
-#[test]
-fn dense_tensor_sparse_density_counts_zero_and_nonzero_lanes() {
-    let all_zero = dense_from_i64(&vec![0; 64], vec![64]);
-    assert_eq!(all_zero.zero_count(), 64);
-    assert_eq!(all_zero.nonzero_count(), 0);
-    assert_eq!(all_zero.density(), 0.0);
-    assert!(all_zero.is_sparse_candidate());
-
-    let all_nonzero = dense_from_i64(&vec![1; 64], vec![64]);
-    assert_eq!(all_nonzero.zero_count(), 0);
-    assert_eq!(all_nonzero.nonzero_count(), 64);
-    assert_eq!(all_nonzero.density(), 1.0);
-    assert!(!all_nonzero.is_sparse_candidate());
-
-    let mixed = dense_from_i64(&[0, 7, 0, -3], vec![4]);
-    assert_eq!(mixed.zero_count(), 2);
-    assert_eq!(mixed.nonzero_count(), 2);
-    assert_eq!(mixed.density(), 0.5);
-    assert!(!mixed.is_sparse_candidate());
-}
-
-#[test]
-fn dense_tensor_sparse_density_does_not_count_nullity_as_zero() {
-    // `0/0` has numerator 0, exactly like a zero lane, so it is the
-    // denominator that tells them apart. A density that counted the two
-    // alike would offer a tensor holding `0/0` to the sparse form, which
-    // stores no pair over zero and would silently read those lanes back as 0.
-    let dense = DenseTensor::from_fractions(
-        vec![
-            Fraction::nullity(),
-            Fraction::infinity(),
-            Fraction::from(0_i64),
-            Fraction::from(9_i64),
-        ],
-        vec![4],
-    )
-    .expect("small fractions admit dense representation");
-    assert!(!dense.all_finite());
-    assert_eq!(dense.zero_count(), 1);
-    assert_eq!(dense.nonzero_count(), 3);
-    assert_eq!(dense.density(), 0.75);
-    assert!(SparseTensor::from_dense(&dense).is_none());
-}
-
-#[test]
-fn sparse_tensor_round_trips_dense_values_and_shape() {
-    let dense = dense_from_i64(&[0, 0, 3, 0, -4, 0], vec![2, 3]);
-    let sparse = SparseTensor::from_dense(&dense).expect("a finite dense tensor is sparseable");
-    assert_eq!(sparse.shape.as_slice(), [2, 3]);
-    assert_eq!(sparse.len, 6);
-    assert_eq!(sparse.indices, vec![2, 4]);
-    assert_eq!(sparse.nonzero_count(), 2);
-    assert!(sparse.indices.windows(2).all(|w| w[0] < w[1]));
-    assert_eq!(sparse.get_small_fraction(0), None);
-    assert_eq!(sparse.get_small_fraction(2), Some(Fraction::from(3_i64)));
-    assert_eq!(sparse.to_dense(), dense);
-}
-
-#[test]
-fn sparse_tensor_accepts_all_zero_dense_tensor() {
-    let dense = dense_from_i64(&vec![0; 64], vec![8, 8]);
-    let sparse = SparseTensor::from_dense(&dense).expect("an all-zero tensor is sparseable");
-    assert!(sparse.indices.is_empty());
-    assert_eq!(sparse.nonzero_count(), 0);
-    assert_eq!(sparse.density(), 0.0);
-    assert_eq!(sparse.to_dense(), dense);
-}
+use super::tensor_storage::DenseTensor;
 
 // ── reversed_lanes ──────────────────────────────────────────────────────────
 

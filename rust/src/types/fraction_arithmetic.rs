@@ -5,7 +5,8 @@
 //! `exact::algebraic_field`) — a shared low-level primitive, kept beside the
 //! arithmetic that calls it most.
 
-use super::fraction::{compute_gcd_i64, Fraction, FractionRepr};
+use super::fraction::{Fraction, FractionRepr};
+use super::small_rational;
 use num_bigint::BigInt;
 use num_integer::Integer;
 use num_traits::{One, ToPrimitive, Zero};
@@ -41,33 +42,25 @@ impl Fraction {
     }
 
     pub fn add(&self, other: &Fraction) -> Fraction {
+        self.add_signed(other, false)
+    }
+
+    /// A sum of two machine-word pairs is `small_rational`'s, the same law
+    /// the column kernels run; a sum that leaves a machine word, or has a
+    /// wide operand, is `add_wide`'s.
+    #[inline]
+    fn add_signed(&self, other: &Fraction, subtract: bool) -> Fraction {
+        if let (FractionRepr::Small(a, b), FractionRepr::Small(c, d)) = (&self.repr, &other.repr) {
+            if *b != 0 && *d != 0 {
+                if let Some((n, d)) = small_rational::add((*a, *b), (*c, *d), subtract) {
+                    return Fraction::from_repr(FractionRepr::Small(n, d));
+                }
+            }
+        }
         if !self.is_finite() || !other.is_finite() {
-            return self.extended_add(other, false);
+            return self.extended_add(other, subtract);
         }
-
-        // Two `Small` integers: the overwhelmingly common operand pair (a
-        // counter, a running total, an index). Their sum is an integer, so
-        // there is nothing to reduce; `create_from_i128` would still run an
-        // i128 Euclidean gcd against 1 (a `__divti3` call) to find that out.
-        if let (FractionRepr::Small(a, 1), FractionRepr::Small(c, 1)) = (&self.repr, &other.repr) {
-            if let Some(n) = a.checked_add(*c) {
-                return Fraction::from_repr(FractionRepr::Small(n, 1));
-            }
-        }
-        if let (Some((a, b)), Some((c, d))) = (self.extract_i64_pair(), other.extract_i64_pair()) {
-            if b == 1 && d == 1 {
-                return Self::create_from_i128((a as i128) + (c as i128), 1);
-            }
-            if b == d {
-                return Self::create_from_i128((a as i128) + (c as i128), b as i128);
-            }
-            // Each product is under 2^126 in magnitude, so their sum
-            // is under 2^127: it always fits.
-            let num = (a as i128) * (d as i128) + (c as i128) * (b as i128);
-            return Self::create_from_i128(num, (b as i128) * (d as i128));
-        }
-
-        self.add_wide(other, false)
+        self.add_wide(other, subtract)
     }
 
     /// `self ± other` once a half is past a machine word. A `Big` half is
@@ -181,241 +174,110 @@ impl Fraction {
         Self::create_already_reduced(quotient(&t, &g2), ad_g * quotient(bd, &g2))
     }
 
-    /// A product or quotient of two cross-cancelled reduced pairs: already in
-    /// lowest terms, so only the sign is left to normalise.
-    ///
-    /// With `a/b` and `c/d` reduced, `mul` divides out `gcd(a, d)` and
-    /// `gcd(c, b)`, and what remains of the numerator shares no factor with
-    /// what remains of the denominator (`div` the same with `c` and `d`
-    /// exchanged). Sending the pair through `create_from_i128` ran a third
-    /// gcd only to find 1 — the largest single cost of a small-rational
-    /// product.
-    #[inline]
-    fn from_coprime_i128(num: i128, den: i128) -> Fraction {
-        debug_assert!(den != 0);
-        let (num, den) = if den < 0 { (-num, -den) } else { (num, den) };
-        match (i64::try_from(num), i64::try_from(den)) {
-            (Ok(n), Ok(d)) => Fraction::from_repr(FractionRepr::Small(n, d)),
-            _ => Self::create_from_i128(num, den),
-        }
-    }
-
     pub fn mul(&self, other: &Fraction) -> Fraction {
+        if let (FractionRepr::Small(a, b), FractionRepr::Small(c, d)) = (&self.repr, &other.repr) {
+            if *b != 0 && *d != 0 {
+                if let Some((n, d)) = small_rational::mul((*a, *b), (*c, *d)) {
+                    return Fraction::from_repr(FractionRepr::Small(n, d));
+                }
+            }
+        }
         if !self.is_finite() || !other.is_finite() {
             return self.extended_mul(other);
         }
-
-        // As in `add`: an integer product is already in lowest terms.
-        if let (FractionRepr::Small(a, 1), FractionRepr::Small(c, 1)) = (&self.repr, &other.repr) {
-            if let Some(n) = crate::types::small_rational::checked_mul(*a, *c) {
-                return Fraction::from_repr(FractionRepr::Small(n, 1));
-            }
-        }
-        if let (Some((a, b)), Some((c, d))) = (self.extract_i64_pair(), other.extract_i64_pair()) {
-            let g1 = compute_gcd_i64(a, d);
-            let g2 = compute_gcd_i64(c, b);
-            let a_r = (a / g1) as i128;
-            let b_r = (b / g2) as i128;
-            let c_r = (c / g2) as i128;
-            let d_r = (d / g1) as i128;
-            // Four machine words over i128: the products always fit.
-            return Self::from_coprime_i128(a_r * c_r, b_r * d_r);
-        }
-
-        let (an, ad): (BigInt, BigInt) = self.to_bigint_pair();
-        let (bn, bd): (BigInt, BigInt) = other.to_bigint_pair();
-
-        if ad.is_one() && bd.is_one() {
-            return Self::from_bigint_pair(an * bn, BigInt::one());
-        }
-
-        if ad.is_one() {
-            let g: BigInt = balanced_bigint_gcd(&an, &bd);
-            let a_reduced: BigInt = &an / &g;
-            let d_reduced: BigInt = &bd / &g;
-            return Self::create_already_reduced(a_reduced * bn, d_reduced);
-        }
-
-        if bd.is_one() {
-            let g: BigInt = balanced_bigint_gcd(&bn, &ad);
-            let c_reduced: BigInt = &bn / &g;
-            let b_reduced: BigInt = &ad / &g;
-            return Self::create_already_reduced(an * c_reduced, b_reduced);
-        }
-
-        let g1: BigInt = balanced_bigint_gcd(&an, &bd);
-        let g2: BigInt = balanced_bigint_gcd(&bn, &ad);
-
-        let a_reduced: BigInt = &an / &g1;
-        let d_reduced: BigInt = &bd / &g1;
-        let c_reduced: BigInt = &bn / &g2;
-        let b_reduced: BigInt = &ad / &g2;
-
-        Self::create_already_reduced(a_reduced * c_reduced, b_reduced * d_reduced)
+        let (an, ad) = self.bigint_pair_cow();
+        let (bn, bd) = other.bigint_pair_cow();
+        Self::mul_wide(&an, &ad, &bn, &bd)
     }
 
-    /// Division is total: it is multiplication by the reciprocal, and every
-    /// number has one (`fraction_extended`). A zero divisor's reciprocal is
-    /// `1/0`, so `a ÷ 0` is the sign of `a` over zero.
+    /// `(an/ad)·(bn/bd)` of two reduced pairs, each numerator cancelled
+    /// against the other's denominator first so the product is reduced. A
+    /// quotient is the product with the divisor's halves swapped, so `bd`
+    /// may be negative; the sign settles in the constructor.
+    fn mul_wide(an: &BigInt, ad: &BigInt, bn: &BigInt, bd: &BigInt) -> Fraction {
+        let gcd = |x: &BigInt, unit: &BigInt| {
+            if unit.magnitude().is_one() {
+                BigInt::one()
+            } else {
+                balanced_bigint_gcd(x, unit)
+            }
+        };
+        let (g1, g2) = (gcd(an, bd), gcd(bn, ad));
+        let cancel = |x: &BigInt, g: &BigInt| if g.is_one() { x.clone() } else { x / g };
+        Self::create_already_reduced(
+            cancel(an, &g1) * cancel(bn, &g2),
+            cancel(ad, &g2) * cancel(bd, &g1),
+        )
+    }
+
     pub fn div(&self, other: &Fraction) -> Fraction {
+        if let (FractionRepr::Small(a, b), FractionRepr::Small(c, d)) = (&self.repr, &other.repr) {
+            if *b != 0 && *d != 0 {
+                if let Some((n, d)) = small_rational::div((*a, *b), (*c, *d)) {
+                    return Fraction::from_repr(FractionRepr::Small(n, d));
+                }
+            }
+        }
         if !other.is_finite() {
-            // The reciprocal of `1/0` is 0, and of `0/0` is itself:
-            // the product is the ordinary one, or the extended one.
             return self.mul(&other.reciprocal());
         }
         if !self.is_finite() || other.is_zero() {
             return self.extended_mul(&other.reciprocal());
         }
-
-        if let (Some((a, b)), Some((c, d))) = (self.extract_i64_pair(), other.extract_i64_pair()) {
-            let g1 = compute_gcd_i64(a, c);
-            let g2 = compute_gcd_i64(d, b);
-            let a_r = (a / g1) as i128;
-            let b_r = (b / g2) as i128;
-            let c_r = (c / g1) as i128;
-            let d_r = (d / g2) as i128;
-            // Four machine words over i128: the products always fit.
-            return Self::from_coprime_i128(a_r * d_r, b_r * c_r);
-        }
-
-        let (an, ad): (BigInt, BigInt) = self.to_bigint_pair();
-        let (bn, bd): (BigInt, BigInt) = other.to_bigint_pair();
-
-        if ad.is_one() && bd.is_one() {
-            return Fraction::new(an, bn);
-        }
-
-        if ad.is_one() {
-            let g: BigInt = balanced_bigint_gcd(&an, &bn);
-            let a_reduced: BigInt = &an / &g;
-            let c_reduced: BigInt = &bn / &g;
-            return Self::create_already_reduced(a_reduced * bd, c_reduced);
-        }
-
-        if bd.is_one() {
-            let g: BigInt = balanced_bigint_gcd(&an, &bn);
-            let a_reduced: BigInt = &an / &g;
-            let c_reduced: BigInt = &bn / &g;
-            return Self::create_already_reduced(a_reduced, ad * c_reduced);
-        }
-
-        let g1: BigInt = balanced_bigint_gcd(&an, &bn);
-        let g2: BigInt = balanced_bigint_gcd(&bd, &ad);
-
-        let a_reduced: BigInt = &an / &g1;
-        let c_reduced: BigInt = &bn / &g1;
-        let d_reduced: BigInt = &bd / &g2;
-        let b_reduced: BigInt = &ad / &g2;
-
-        Self::create_already_reduced(a_reduced * d_reduced, b_reduced * c_reduced)
+        let (an, ad) = self.bigint_pair_cow();
+        let (bn, bd) = other.bigint_pair_cow();
+        Self::mul_wide(&an, &ad, &bd, &bn)
     }
 
-    /// Additive inverse: a sign flip on the stored pair (no gcd, no clone); `-i64::MIN` widens as in `abs`.
     #[inline]
     pub fn neg(&self) -> Fraction {
         match &self.repr {
-            // `(-1, 0)` and `(1, 0)` are one number, and `-0/0` is `0/0`.
             FractionRepr::Small(_, 0) => self.clone(),
             FractionRepr::Small(n, d) => match n.checked_neg() {
                 Some(negated) => Fraction::from_repr(FractionRepr::Small(negated, *d)),
                 None => Fraction::from_repr(FractionRepr::big(-BigInt::from(*n), BigInt::from(*d))),
             },
-            FractionRepr::Big(big) => Fraction::from_repr(FractionRepr::big(
-                -big.numerator.clone(),
-                big.denominator.clone(),
-            )),
+            // `-(2^63)` narrows back to a machine word.
+            FractionRepr::Big(big) => {
+                Self::from_bigint_pair(-&big.numerator, big.denominator.clone())
+            }
         }
     }
 
     #[inline]
     pub fn abs(&self) -> Fraction {
-        match &self.repr {
-            // `i64::MIN` has no positive i64 counterpart, so `i64::abs()`
-            // overflows on it (a panic in debug, the same negative value back
-            // in release). `checked_abs` declines instead, and that one
-            // operand widens to `Big`, as `round` and `compute_gcd_i64` do.
-            FractionRepr::Small(n, d) => match n.checked_abs() {
-                Some(magnitude) => Fraction::from_repr(FractionRepr::Small(magnitude, *d)),
-                None => Fraction::from_repr(FractionRepr::big(-BigInt::from(*n), BigInt::from(*d))),
-            },
-            FractionRepr::Big(big) => {
-                let numerator = if big.numerator < BigInt::zero() {
-                    -big.numerator.clone()
-                } else {
-                    big.numerator.clone()
-                };
-                Fraction::from_repr(FractionRepr::big(numerator, big.denominator.clone()))
-            }
+        if self.signum() == std::cmp::Ordering::Less {
+            self.neg()
+        } else {
+            self.clone()
         }
     }
 
     pub fn floor(&self) -> Fraction {
-        // No integer lies at or beyond the two points, so each is its own
-        // floor, as it is its own rounding.
-        if !self.is_finite() {
+        if !self.is_finite() || self.is_integer() {
             return self.clone();
         }
-        if self.is_integer() {
-            return Fraction::from_repr(self.repr.clone());
-        }
-
         match &self.repr {
-            FractionRepr::Small(n, d) => {
-                let q = n / d;
-                let r = n % d;
-                let floored = if *n < 0 && r != 0 { q - 1 } else { q };
-                Fraction::from_repr(FractionRepr::Small(floored, 1))
-            }
+            FractionRepr::Small(n, d) => Fraction::from(n.div_euclid(*d)),
             FractionRepr::Big(big) => {
-                let (numerator, denominator) = (&big.numerator, &big.denominator);
-                let q = numerator / denominator;
-                let r = numerator % denominator;
-                let floored = if *numerator < BigInt::zero() && !r.is_zero() {
-                    q - BigInt::one()
-                } else {
-                    q
-                };
-                Self::from_bigint_pair(floored, BigInt::one())
+                Self::from_bigint_pair(big.numerator.div_floor(&big.denominator), BigInt::one())
             }
         }
     }
 
+    /// The nearest integer, a half rounded away from zero.
     pub fn round(&self) -> Fraction {
-        // As `floor`.
-        if !self.is_finite() {
+        if !self.is_finite() || self.is_integer() {
             return self.clone();
         }
-        if self.is_integer() {
-            return Fraction::from_repr(self.repr.clone());
-        }
-
         match &self.repr {
             FractionRepr::Small(n, d) => {
-                let is_negative = *n < 0;
-                // Widen to i128 *before* taking the absolute value: `i64::MIN`
-                // has no positive i64 counterpart, so `i64::abs()` overflows and
-                // panics in debug (reachable from a `-9223372036854775808/d`
-                // operand). i128 holds it exactly.
-                let abs_n = (*n as i128).abs();
-                let d128 = *d as i128;
-                let result = ((2 * abs_n + d128) / (2 * d128)) as i64;
-                Fraction::from_repr(FractionRepr::Small(
-                    if is_negative { -result } else { result },
-                    1,
-                ))
+                Fraction::from(small_rational::round_half_away_from_zero(*n, *d))
             }
             FractionRepr::Big(big) => {
-                let (numerator, denominator) = (&big.numerator, &big.denominator);
-                let is_negative = *numerator < BigInt::zero();
-                let abs_num = if is_negative {
-                    -numerator.clone()
-                } else {
-                    numerator.clone()
-                };
-                let two = BigInt::from(2);
-                let two_abs_num = &abs_num * &two;
-                let result = (&two_abs_num + denominator) / (&two * denominator);
-                Self::from_bigint_pair(if is_negative { -result } else { result }, BigInt::one())
+                let (n, d) = (&big.numerator, &big.denominator);
+                let magnitude = (n.magnitude() * 2u32 + d.magnitude()) / (d.magnitude() * 2u32);
+                Self::from_bigint_pair(BigInt::from_biguint(n.sign(), magnitude), BigInt::one())
             }
         }
     }

@@ -57,7 +57,7 @@ pub use self::truth_column::TruthColumn;
 use self::fraction::Fraction;
 pub use self::record::{RecordBuildError, RecordData};
 pub use self::stack::Stack;
-pub use self::tensor_storage::{Column, DenseTensor, Dims, SparseTensor};
+pub use self::tensor_storage::{Column, DenseTensor, Dims};
 use self::value_identity::{dense_flatten, tensor_eq_vector};
 use crate::semantic::{AbsenceMetadata, NilAbsence};
 use crate::types::exact::ExactReal;

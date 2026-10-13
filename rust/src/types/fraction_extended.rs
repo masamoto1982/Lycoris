@@ -29,7 +29,6 @@
 
 use super::fraction::{Fraction, FractionRepr};
 use num_bigint::BigInt;
-use num_traits::Zero;
 
 impl Fraction {
     /// `1/0`, the quotient of any nonzero number by zero.
@@ -57,10 +56,7 @@ impl Fraction {
     /// Whether the denominator is non-zero: the number is a rational.
     #[inline]
     pub fn is_finite(&self) -> bool {
-        match &self.repr {
-            FractionRepr::Small(_, d) => *d != 0,
-            FractionRepr::Big(big) => !big.denominator.is_zero(),
-        }
+        !matches!(self.repr, FractionRepr::Small(_, 0))
     }
 
     /// Whether this is `0/0`.
@@ -142,7 +138,9 @@ impl Fraction {
                     Fraction::from_repr(FractionRepr::Small(*d, *n))
                 }
             }
-            FractionRepr::Big(big) => Fraction::new(big.denominator.clone(), big.numerator.clone()),
+            FractionRepr::Big(big) => {
+                Fraction::create_already_reduced(big.denominator.clone(), big.numerator.clone())
+            }
         }
     }
 }
@@ -197,10 +195,10 @@ mod tests {
     /// point, and a negative denominator carries its sign into the numerator.
     #[test]
     fn an_unreduced_pair_over_zero_is_a_point() {
-        assert_eq!(Fraction::create_unreduced((-6).into(), 0.into()), inf());
-        assert_eq!(Fraction::create_unreduced(0.into(), 0.into()), phi());
+        assert_eq!(Fraction::new((-6).into(), 0.into()), inf());
+        assert_eq!(Fraction::new(0.into(), 0.into()), phi());
         assert_eq!(
-            Fraction::create_unreduced(3.into(), (-4).into()),
+            Fraction::new(3.into(), (-4).into()),
             Fraction::new((-3).into(), 4.into())
         );
     }

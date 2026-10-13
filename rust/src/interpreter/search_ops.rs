@@ -79,9 +79,9 @@ impl<'a> Elements<'a> {
     fn check_ascending(&self) -> Result<Option<bool>> {
         if let Elements::Lanes(_, data) = self {
             if data.is_pure_integer {
-                return Ok(Some(
-                    data.numerators.windows(2).all(|pair| pair[0] <= pair[1]),
-                ));
+                return Ok(Some(data.ascending.get_or_init(|| {
+                    data.numerators.windows(2).all(|pair| pair[0] <= pair[1])
+                })));
             }
         }
         for index in 0..self.len() {
@@ -258,6 +258,18 @@ mod tests {
             "expected Scalar elements, got String",
         )
         .await;
+    }
+
+    #[tokio::test]
+    async fn a_bound_column_answers_every_search_from_its_one_order_check() {
+        // The order is decided once per tensor and kept: the second search
+        // on the same column, and every lifted key, reads it.
+        assert_eq!(
+            top("0 9 RANGE 'T' BIND T [ 3 7 ] BSEARCH T 9 BSEARCH").await,
+            "[ 3/1 7/1 ] 9/1"
+        );
+        raises("9 0 RANGE 'T' BIND T 3 BSEARCH T 4 BSEARCH", "BSEARCH").await;
+        raises("9 0 RANGE [ 3 4 ] BSEARCH", "BSEARCH").await;
     }
 
     #[tokio::test]

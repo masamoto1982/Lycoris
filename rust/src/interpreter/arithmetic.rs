@@ -11,7 +11,7 @@ use crate::interpreter::value_extraction_helpers::{
 use crate::interpreter::Interpreter;
 use crate::types::exact::ExactReal;
 use crate::types::fraction::Fraction;
-use crate::types::{DenseTensor, SparseTensor, Value, ValueData};
+use crate::types::{DenseTensor, Value, ValueData};
 use std::sync::Arc;
 
 #[derive(Debug, Clone, Copy)]
@@ -274,14 +274,6 @@ fn apply_exact_arithmetic_schema(
     }
 
     if let Some((a, b)) = stacktop_pair(interp) {
-        if matches!(schema, ExactArithmeticSchema::Mul) {
-            if let Some(result) = sparse_mul_candidate(&a, &b) {
-                check_result_size(interp, &result)?;
-                consume_stacktop_binary(interp);
-                interp.stack.push(result);
-                return Ok(());
-            }
-        }
         if push_exact_real_schema_result(interp, schema, &a, &b)? {
             return Ok(());
         }
@@ -294,23 +286,6 @@ fn apply_exact_arithmetic_schema(
     }
 
     apply_binary_arithmetic(interp, |a, b| Ok(schema.fraction(a, b)))
-}
-
-fn extract_scalar_from_value(val: &Value) -> Option<Fraction> {
-    match &val.data {
-        ValueData::Truths(t) => extract_scalar_from_value(&t.to_vector()),
-        ValueData::Scalar(f) => Some(f.clone()),
-        ValueData::ExactScalar(_) => None, // handled by ExactReal path
-        ValueData::Vector(children) if children.len() == 1 => {
-            extract_scalar_from_value(&children[0])
-        }
-        ValueData::Vector(_) => None,
-        ValueData::Text(_) => None,
-        ValueData::Tensor { data, .. } if data.len() == 1 => Some(data.fraction_at(0)),
-        ValueData::Tensor { .. } => None,
-        ValueData::Nil(_) => None,
-        ValueData::Boolean(_) | ValueData::Symbol(_) | ValueData::Record(_) => None,
-    }
 }
 
 /// `true` when `val` is, or structurally contains, an irrational `ExactScalar`
@@ -456,65 +431,6 @@ pub(crate) fn push_exact_real_broadcast_result(
     consume_stacktop_binary(interp);
     interp.stack.push(result);
     Ok(true)
-}
-
-fn sparse_mul_candidate(a: &Value, b: &Value) -> Option<Value> {
-    if let Some(result) = sparse_tensor_scalar_mul(a, b) {
-        return Some(result);
-    }
-    if let Some(result) = sparse_tensor_scalar_mul(b, a) {
-        return Some(result);
-    }
-    sparse_same_shape_tensor_mul(a, b)
-}
-
-fn sparse_tensor_scalar_mul(tensor_value: &Value, scalar_value: &Value) -> Option<Value> {
-    let (dense, shape) = tensor_value.as_dense_tensor()?;
-    if !dense.is_sparse_candidate() {
-        return None;
-    }
-    let scalar = extract_scalar_from_value(scalar_value)?;
-    let sparse = SparseTensor::from_dense(dense)?;
-    let mut result = vec![Fraction::from(0_i64); sparse.len];
-    for (&index, entry) in sparse.indices.iter().zip(0..) {
-        result[index] = Fraction::new(
-            sparse.numerators[entry].into(),
-            sparse.denominators[entry].into(),
-        )
-        .mul(&scalar);
-    }
-    Some(Value::from_tensor(result, shape.to_vec()))
-}
-
-fn sparse_same_shape_tensor_mul(a: &Value, b: &Value) -> Option<Value> {
-    let (a_dense, a_shape) = a.as_dense_tensor()?;
-    let (b_dense, b_shape) = b.as_dense_tensor()?;
-    if a_shape != b_shape || a_dense.len() != b_dense.len() {
-        return None;
-    }
-
-    let use_a_sparse = a_dense.is_sparse_candidate();
-    let use_b_sparse = b_dense.is_sparse_candidate();
-    if !use_a_sparse && !use_b_sparse {
-        return None;
-    }
-
-    let (sparse, other) = if use_a_sparse {
-        (SparseTensor::from_dense(a_dense)?, b_dense)
-    } else {
-        (SparseTensor::from_dense(b_dense)?, a_dense)
-    };
-
-    let mut result = vec![Fraction::from(0_i64); sparse.len];
-    for (&index, entry) in sparse.indices.iter().zip(0..) {
-        let lhs = Fraction::new(
-            sparse.numerators[entry].into(),
-            sparse.denominators[entry].into(),
-        );
-        let rhs = other.fraction_at(index);
-        result[index] = lhs.mul(&rhs);
-    }
-    Some(Value::from_tensor(result, a_shape.to_vec()))
 }
 
 fn apply_binary_arithmetic<F>(interp: &mut Interpreter, op: F) -> Result<()>
