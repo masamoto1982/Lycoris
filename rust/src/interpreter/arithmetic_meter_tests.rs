@@ -49,7 +49,7 @@ macro_rules! assert_refused_by {
 async fn multiplication_is_charged_in_every_operand_shape() {
     // The meter used to live in two places, both reachable only when both
     // operands were scalar-shaped. Every other route out of the arithmetic
-    // dispatch — SIMD, sparse, rational broadcast, exact-real broadcast —
+    // dispatch — column kernels, rational broadcast, exact-real broadcast —
     // charged nothing, so `[ 2 ] 3 MUL` was free while `2 3 MUL` was not. A
     // control a pair of brackets switches off is not a control.
     for source in [

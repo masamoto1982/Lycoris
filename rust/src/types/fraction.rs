@@ -133,89 +133,39 @@ impl Fraction {
     }
 }
 
+/// Every `Fraction` is held canonically: in lowest terms, the denominator
+/// positive or one of the two points over zero (`fraction_extended`), and
+/// `Small` exactly when both halves fit a machine word. Every constructor
+/// keeps it — `new` divides out the gcd, the arithmetic cancels before it
+/// multiplies, `from_bigint_pair` narrows whatever fits — so two fractions
+/// are equal exactly when their pairs are, and hash as those pairs.
 impl PartialEq for Fraction {
     #[inline]
     fn eq(&self, other: &Self) -> bool {
-        // A pair over zero is one of two reduced pairs (`fraction_extended`),
-        // so it compares as the pair it is: cross-multiplying would make
-        // `1/0` and `0/0` equal, both products being 0.
-        if !self.is_finite() || !other.is_finite() {
-            return self.extract_i64_pair() == other.extract_i64_pair();
-        }
         match (&self.repr, &other.repr) {
-            (FractionRepr::Small(a, b), FractionRepr::Small(c, d)) => {
-                if b == d {
-                    return a == c;
-                }
-                (*a as i128) * (*d as i128) == (*c as i128) * (*b as i128)
+            (FractionRepr::Small(a, b), FractionRepr::Small(c, d)) => a == c && b == d,
+            (FractionRepr::Big(x), FractionRepr::Big(y)) => {
+                x.numerator == y.numerator && x.denominator == y.denominator
             }
-            (FractionRepr::Small(..), FractionRepr::Big(_))
-            | (FractionRepr::Big(_), FractionRepr::Small(..))
-            | (FractionRepr::Big(_), FractionRepr::Big(_)) => {
-                let (an, ad): (BigInt, BigInt) = self.to_bigint_pair();
-                let (bn, bd): (BigInt, BigInt) = other.to_bigint_pair();
-                if ad == bd {
-                    return an == bn;
-                }
-                an * &bd == bn * &ad
-            }
+            _ => false,
         }
     }
 }
 
 impl Eq for Fraction {}
 
-/// Hashes the same reduced `(numerator, denominator)` pair `==` compares by
-/// cross-multiplication, so equal fractions hash equal however each arrived
-/// — `Small` vs `Big` representation, or a `create_unreduced` construction
-/// that never called the gcd normalizer `new` does.
-///
-/// A `Small` fraction reduces through `compute_gcd_i64` rather than routing
-/// through `BigInt`, which is the collection meter's hash-per-element scan
-/// (`UNIQUE`/`TALLY`/`GROUP`) calling this once per element: every `Small`
-/// reduction that went through `BigInt::from` first paid a heap allocation
-/// to hash a value that fits in a register. A `Big` fraction that reduces
-/// down to something `i64` can hold takes the same fast path afterward —
-/// which of the two paths runs is a function of the reduced *value*, not of
-/// which `repr` it arrived in, so the two stay consistent with each other.
 impl std::hash::Hash for Fraction {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        if let FractionRepr::Small(n, 0) = &self.repr {
-            // One of the two points: hashed as the pair it is, which is
-            // what `==` compares.
-            state.write_u8(0);
-            n.hash(state);
-            return;
-        }
-        state.write_u8(1);
-        if let FractionRepr::Small(n, d) = &self.repr {
-            let g = compute_gcd_i64(*n, *d).max(1);
-            let (mut rn, mut rd) = (n / g, d / g);
-            if rd < 0 {
-                rn = -rn;
-                rd = -rd;
+        match &self.repr {
+            FractionRepr::Small(n, d) => {
+                n.hash(state);
+                d.hash(state);
             }
-            rn.hash(state);
-            rd.hash(state);
-            return;
+            FractionRepr::Big(big) => {
+                big.numerator.hash(state);
+                big.denominator.hash(state);
+            }
         }
-        let (mut n, mut d) = self.to_bigint_pair();
-        let g = balanced_bigint_gcd(&n, &d);
-        if !g.is_zero() && !g.is_one() {
-            n /= &g;
-            d /= &g;
-        }
-        if d.sign() == num_bigint::Sign::Minus {
-            n = -n;
-            d = -d;
-        }
-        if let (Some(rn), Some(rd)) = (n.to_i64(), d.to_i64()) {
-            rn.hash(state);
-            rd.hash(state);
-            return;
-        }
-        n.hash(state);
-        d.hash(state);
     }
 }
 
@@ -307,22 +257,6 @@ impl Fraction {
         Self::from_bigint_pair(num, den)
     }
 
-    /// A pair kept as given (only the sign normalized), for tests of what
-    /// must not depend on reduction (`impl Hash`, the digest's `Small` path).
-    /// Test-only: every other constructor keeps a `Big` pair in lowest terms,
-    /// which the observation digest relies on.
-    #[cfg(test)]
-    pub fn create_unreduced(mut numerator: BigInt, mut denominator: BigInt) -> Self {
-        if denominator.is_zero() {
-            return Self::new(numerator, denominator);
-        }
-        if denominator < BigInt::zero() {
-            numerator = -numerator;
-            denominator = -denominator;
-        }
-        Self::from_bigint_pair(numerator, denominator)
-    }
-
     #[inline]
     pub(crate) fn create_already_reduced(mut numerator: BigInt, mut denominator: BigInt) -> Self {
         debug_assert!(!denominator.is_zero());
@@ -381,10 +315,7 @@ impl Fraction {
     /// it is one of the two points of `fraction_extended`.
     #[inline]
     pub fn is_zero(&self) -> bool {
-        match &self.repr {
-            FractionRepr::Small(n, d) => *n == 0 && *d != 0,
-            FractionRepr::Big(big) => big.numerator.is_zero() && !big.denominator.is_zero(),
-        }
+        matches!(self.repr, FractionRepr::Small(0, 1))
     }
 
     /// True for values strictly greater than zero. The denominator is always
@@ -399,57 +330,23 @@ impl Fraction {
 
     #[inline]
     pub(crate) fn extract_i64_pair(&self) -> Option<(i64, i64)> {
-        match &self.repr {
-            FractionRepr::Small(n, d) => Some((*n, *d)),
-            FractionRepr::Big(big) => {
-                let (numerator, denominator) = (&big.numerator, &big.denominator);
-                let n = numerator.to_i64()?;
-                let d = denominator.to_i64()?;
-                Some((n, d))
-            }
+        match self.repr {
+            FractionRepr::Small(n, d) => Some((n, d)),
+            FractionRepr::Big(_) => None,
         }
     }
 
     #[inline]
     pub fn to_i64(&self) -> Option<i64> {
-        match &self.repr {
-            FractionRepr::Small(n, d) => {
-                if *d == 1 {
-                    Some(*n)
-                } else {
-                    None
-                }
-            }
-            FractionRepr::Big(big) => {
-                let (numerator, denominator) = (&big.numerator, &big.denominator);
-                if !denominator.is_one() {
-                    return None;
-                }
-                numerator.to_i64()
-            }
+        match self.repr {
+            FractionRepr::Small(n, 1) => Some(n),
+            _ => None,
         }
     }
 
     #[inline]
     pub fn as_usize(&self) -> Option<usize> {
-        match &self.repr {
-            FractionRepr::Small(n, d) => {
-                if *d != 1 || *n < 0 {
-                    return None;
-                }
-                // Not `as usize`: on a 32-bit target (wasm32) that cast
-                // truncates, so a count past `u32::MAX` came back as a small,
-                // wrong count instead of "not a usize".
-                usize::try_from(*n).ok()
-            }
-            FractionRepr::Big(big) => {
-                let (numerator, denominator) = (&big.numerator, &big.denominator);
-                if !denominator.is_one() || *numerator < BigInt::zero() {
-                    return None;
-                }
-                numerator.to_usize()
-            }
-        }
+        usize::try_from(self.as_u64()?).ok()
     }
 
     /// The value as a `u64` when it is a non-negative integer that fits one.
@@ -481,40 +378,16 @@ impl Fraction {
         if den == 0 {
             return Self::over_zero(num.cmp(&0));
         }
-        // Both halves in machine words — every `Small` sum, difference and
-        // product that did not overflow — reduce with 64-bit divisions; the
-        // `i128` ones below are a software routine (`__divti3`) per divide.
-        if let (Ok(n), Ok(d)) = (i64::try_from(num), i64::try_from(den)) {
-            let g = binary_gcd_u64(n.unsigned_abs(), d.unsigned_abs());
-            if let Ok(g) = i64::try_from(g) {
-                let (n, d) = (n / g, d / g);
-                let (n, d) = if d < 0 {
-                    (n.checked_neg(), d.checked_neg())
-                } else {
-                    (Some(n), Some(d))
-                };
-                if let (Some(n), Some(d)) = (n, d) {
-                    return Fraction {
-                        repr: FractionRepr::Small(n, d),
-                    };
-                }
-            }
-        }
-        let g: i128 = binary_gcd_u128(num.unsigned_abs(), den.unsigned_abs()) as i128;
-        let mut n: i128 = num / g;
-        let mut d: i128 = den / g;
-        if d < 0 {
-            n = -n;
-            d = -d;
-        }
-
-        if n >= i64::MIN as i128 && n <= i64::MAX as i128 && d >= 0 && d <= i64::MAX as i128 {
-            return Fraction {
-                repr: FractionRepr::Small(n as i64, d as i64),
-            };
-        }
-        Fraction {
-            repr: FractionRepr::big(BigInt::from(n), BigInt::from(d)),
+        let g = binary_gcd_u128(num.unsigned_abs(), den.unsigned_abs()) as i128;
+        let (n, d) = (num / g, den / g);
+        let (n, d) = if d < 0 { (-n, -d) } else { (n, d) };
+        match (i64::try_from(n), i64::try_from(d)) {
+            (Ok(n), Ok(d)) => Fraction {
+                repr: FractionRepr::Small(n, d),
+            },
+            _ => Fraction {
+                repr: FractionRepr::big(BigInt::from(n), BigInt::from(d)),
+            },
         }
     }
 
@@ -611,59 +484,6 @@ impl Fraction {
             Ok(Fraction {
                 repr: FractionRepr::big(num, BigInt::one()),
             })
-        }
-    }
-}
-
-impl ToPrimitive for Fraction {
-    fn to_i64(&self) -> Option<i64> {
-        match &self.repr {
-            FractionRepr::Small(n, d) => {
-                if *d == 0 {
-                    return None;
-                }
-                Some(n / d)
-            }
-            FractionRepr::Big(big) => (&big.numerator / &big.denominator).to_i64(),
-        }
-    }
-
-    fn to_u64(&self) -> Option<u64> {
-        match &self.repr {
-            FractionRepr::Small(n, d) => {
-                if *d == 0 || *n < 0 {
-                    return None;
-                }
-                Some((*n / *d) as u64)
-            }
-            FractionRepr::Big(big) => {
-                let (numerator, denominator) = (&big.numerator, &big.denominator);
-                if *numerator < BigInt::zero() {
-                    return None;
-                }
-                (numerator / denominator).to_u64()
-            }
-        }
-    }
-
-    fn to_f64(&self) -> Option<f64> {
-        match &self.repr {
-            FractionRepr::Small(n, d) => {
-                if *d == 0 {
-                    return None;
-                }
-                Some(*n as f64 / *d as f64)
-            }
-            FractionRepr::Big(big) => {
-                let (numerator, denominator) = (&big.numerator, &big.denominator);
-                let num_f64: f64 = numerator.to_f64()?;
-                let den_f64: f64 = denominator.to_f64()?;
-                if den_f64 == 0.0 {
-                    None
-                } else {
-                    Some(num_f64 / den_f64)
-                }
-            }
         }
     }
 }

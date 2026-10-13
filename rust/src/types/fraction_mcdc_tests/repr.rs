@@ -11,7 +11,6 @@
 
 use crate::types::fraction::{binary_gcd_u128, Fraction};
 use num_bigint::BigInt;
-use num_traits::ToPrimitive;
 use std::cmp::Ordering;
 
 fn small(n: i64, d: i64) -> Fraction {
@@ -201,11 +200,9 @@ mod create_from_i128_machine_word_path {
 // AQ-VER-001-L
 // DUT: rust/src/types/fraction.rs, the compound guards of the integer reads:
 //
-//   `is_zero` (Small):        *n == 0 && *d != 0
-//   `to_u64` (ToPrimitive):   *d == 0 || *n < 0          -> None
-//   `as_usize` (Big):         !denominator.is_one() || *numerator < 0 -> None
+//   `is_zero`:                only the canonical 0/1
+//   `as_usize` (Big):         through `as_u64`
 //   `as_u64` (Big):           !denominator.is_one()      -> None
-//   `to_u64` (Big):           *numerator < 0             -> None
 //
 // AQ-VER-001-C covers the `Small` arm of `as_usize`; these are the rest.
 //
@@ -217,8 +214,7 @@ mod create_from_i128_machine_word_path {
 // as_usize Big (I = !d.is_one(), N = n < 0):
 //   (F, F) 2^63 -> Some;  (T, F) (2^63+2)/3 -> None [I];  (F, T) -(2^63+1) -> None [N]
 // The single-condition reads the coverage run found unexecuted: the
-// inherent `to_i64` on `Big`, `ToPrimitive::to_i64` / `to_f64` (a point
-// over zero has no image), `Display` of a `Big` non-integer, and the
+// inherent `to_i64` on `Big`, `Display` of a `Big` non-integer, and the
 // empty-string and signed trailing-dot arms of `from_str`.
 // ---------------------------------------------------------------------------
 mod integer_reads {
@@ -233,22 +229,6 @@ mod integer_reads {
             "D flips the outcome: 0/0 is not zero"
         );
         assert!(!big(pow2(70), 1).is_zero());
-    }
-
-    #[test]
-    fn aq_ver_001_l_to_u64_small_declines_a_point_or_a_negative() {
-        assert_eq!(ToPrimitive::to_u64(&small(7, 2)), Some(3));
-        assert_eq!(ToPrimitive::to_u64(&Fraction::infinity()), None);
-        assert_eq!(ToPrimitive::to_u64(&small(-7, 2)), None);
-    }
-
-    #[test]
-    fn aq_ver_001_l_to_u64_big_declines_a_negative() {
-        // (2^64 + 1) / 2 truncates to 2^63, which a u64 holds.
-        let positive = big(pow2(64) + 1, 2);
-        assert!(!positive.is_small());
-        assert_eq!(ToPrimitive::to_u64(&positive), Some(1u64 << 63));
-        assert_eq!(ToPrimitive::to_u64(&big(-(pow2(64) + 1i32), 2)), None);
     }
 
     #[test]
@@ -273,19 +253,6 @@ mod integer_reads {
         assert_eq!(big(pow2(70) + 1, 3).to_i64(), None);
         assert_eq!(small(-7, 1).to_i64(), Some(-7));
         assert_eq!(small(7, 2).to_i64(), None);
-    }
-
-    #[test]
-    fn aq_ver_001_l_to_primitive_truncates_and_declines_points() {
-        assert_eq!(ToPrimitive::to_i64(&small(-7, 2)), Some(-3));
-        assert_eq!(ToPrimitive::to_i64(&Fraction::nullity()), None);
-        // (2^64 + 1) / 4 truncates to 2^62.
-        assert_eq!(ToPrimitive::to_i64(&big(pow2(64) + 1, 4)), Some(1 << 62));
-        assert_eq!(ToPrimitive::to_i64(&big(pow2(70) + 1, 3)), None);
-        assert_eq!(ToPrimitive::to_f64(&small(1, 4)), Some(0.25));
-        assert_eq!(ToPrimitive::to_f64(&Fraction::infinity()), None);
-        let wide = ToPrimitive::to_f64(&big(pow2(70), 3)).unwrap();
-        assert!((wide - 2f64.powi(70) / 3.0).abs() < 1e6);
     }
 
     #[test]
@@ -371,16 +338,7 @@ mod from_str_exponent_guard {
 //   AQ-VER-001-B has (T, F) and (T, T); here (F, T), rational against a point.
 // cmp_finite and PartialEq, `(Some(..), Some(..))` on the i64 pairs (A, B):
 //   AQ-VER-001-B has (T, T) and (F, F); here (T, F) and (F, T).
-// impl Hash, Big arm: `!g.is_zero() && !g.is_one()` (reduce or not) and
-//   whether the reduced pair fits i64 (hash as words or as BigInts). Reduced
-//   Big pairs only reach (g = 1, does not fit); the other rows need a pair
-//   held unreduced, and must hash as the reduced value they equal.
-//   (`g.is_zero()` and a negative Big denominator have no row: a Big pair
-//   has a nonzero denominator, normalized positive by every constructor.)
-// PartialEq Small/Small `b == d` (C) and Big `ad == bd` (C'):
-//   C = F with the values equal needs a pair not in lowest terms (only
-//   `create_unreduced` builds one); it is what tells the cross-multiplication
-//   apart from a `return false` that would also pass every reduced row.
+// PartialEq and impl Hash read the canonical pair as it is held.
 // ---------------------------------------------------------------------------
 mod mixed_representation_order_and_equality {
     use super::*;
@@ -433,33 +391,23 @@ mod mixed_representation_order_and_equality {
     }
 
     #[test]
-    fn aq_ver_001_n_an_unreduced_big_pair_hashes_as_its_value() {
-        // Reduces, and stays past a word: hashed as BigInts.
-        let wide = Fraction::create_unreduced(pow2(71) + 2, BigInt::from(6));
-        assert!(!wide.is_small());
-        assert_eq!(hash_of(&wide), hash_of(&big(pow2(70) + 1, 3)));
-        // Reduces into a word: hashed as the Small value it equals.
-        let three = Fraction::create_unreduced(pow2(70) * 3, pow2(70));
-        assert!(!three.is_small());
-        assert_eq!(three, small(3, 1));
+    fn aq_ver_001_n_every_fraction_is_held_canonically() {
+        // Lowest terms, and `Small` exactly when both halves fit a word, so
+        // equality and the hash read the pair as it is held.
+        let third = Fraction::new(BigInt::from(2), BigInt::from(6));
+        assert!(third.is_small());
+        assert_eq!(third, small(1, 3));
+        let three = Fraction::new(pow2(70) * 3, pow2(70));
+        assert!(three.is_small());
         assert_eq!(hash_of(&three), hash_of(&small(3, 1)));
-        // Already reduced: hashed as itself, distinct from a nearby value.
+        let wide = Fraction::new(pow2(71) + 2, BigInt::from(6));
+        assert_eq!(wide, big(pow2(70) + 1, 3));
+        assert_eq!(hash_of(&wide), hash_of(&big(pow2(70) + 1, 3)));
         assert_ne!(
             hash_of(&big(pow2(70) + 1, 3)),
             hash_of(&big(pow2(70) + 4, 3))
         );
-    }
-
-    #[test]
-    fn aq_ver_001_n_unequal_denominators_cross_multiply_to_equality() {
-        // (C=F) yet equal: 2/6 is 1/3 held unreduced.
-        let unreduced = Fraction::create_unreduced(BigInt::from(2), BigInt::from(6));
-        assert!(unreduced.is_small());
-        assert_eq!(unreduced, small(1, 3));
-        assert_eq!(small(1, 3), unreduced);
-        // (C'=F) yet equal, on the Big arm.
-        let wide = Fraction::create_unreduced(pow2(71) + 2, BigInt::from(6));
-        assert!(!wide.is_small());
-        assert_eq!(wide, big(pow2(70) + 1, 3));
+        assert_eq!(big(-pow2(63), 1).neg(), big(pow2(63), 1));
+        assert!(big(pow2(63), 1).neg().is_small());
     }
 }

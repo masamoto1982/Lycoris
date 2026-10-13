@@ -1,6 +1,6 @@
-//! Dense and sparse numeric tensor storage.
+//! Dense numeric tensor storage.
 //!
-//! Invariant: storage validity, shape, and density are representation
+//! Invariant: storage validity and shape are representation
 //! concerns; semantic interpretation remains owned by `Value`. A dense tensor
 //! holds numbers and nothing else — a NIL is not a number and never a lane
 //! (`dense_columns`) — so the columns are the whole of what it stores.
@@ -32,7 +32,30 @@ pub struct DenseTensor {
     pub denominators: Column,
     pub shape: Dims,
     pub is_pure_integer: bool,
+    /// Whether the lanes ascend, worked out the first time a search asks.
+    pub(crate) ascending: Ascending,
 }
+
+/// A tensor's lanes never change once built, so whether they ascend is
+/// decided once: `BSEARCH` lifted over its keys, or run again on a bound
+/// table, reads the answer instead of re-reading every lane. It is part of
+/// no value: two tensors compare by their lanes alone.
+#[derive(Debug, Clone, Default)]
+pub(crate) struct Ascending(std::sync::OnceLock<bool>);
+
+impl Ascending {
+    pub(crate) fn get_or_init(&self, decide: impl FnOnce() -> bool) -> bool {
+        *self.0.get_or_init(decide)
+    }
+}
+
+impl PartialEq for Ascending {
+    fn eq(&self, _: &Self) -> bool {
+        true
+    }
+}
+
+impl Eq for Ascending {}
 
 impl DenseTensor {
     /// Assemble a tensor from already-separated columns, each lane a reduced
@@ -54,6 +77,7 @@ impl DenseTensor {
             denominators,
             shape: shape.into(),
             is_pure_integer,
+            ascending: Ascending::default(),
         }
     }
 
@@ -155,6 +179,7 @@ impl DenseTensor {
             denominators,
             shape: smallvec::smallvec![len],
             is_pure_integer: true,
+            ascending: Ascending::default(),
         }
     }
 
@@ -194,125 +219,5 @@ impl DenseTensor {
 
     pub fn to_fractions(&self) -> Vec<Fraction> {
         self.iter().collect()
-    }
-
-    /// How many lanes are the number zero. `0/0` is not zero: its
-    /// denominator is 0.
-    pub fn zero_count(&self) -> usize {
-        self.numerators
-            .iter()
-            .zip(&self.denominators)
-            .filter(|(&n, &d)| n == 0 && d != 0)
-            .count()
-    }
-
-    pub fn nonzero_count(&self) -> usize {
-        self.len() - self.zero_count()
-    }
-
-    pub fn density(&self) -> f64 {
-        if self.is_empty() {
-            return 0.0;
-        }
-        self.nonzero_count() as f64 / self.len() as f64
-    }
-
-    pub fn is_sparse_candidate(&self) -> bool {
-        const MIN_LEN: usize = 64;
-        const MAX_DENSITY: f64 = 0.25;
-
-        self.len() >= MIN_LEN && self.density() <= MAX_DENSITY
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-/// The sparse form of a dense tensor: only the non-zero lanes are stored, and
-/// every unstored lane is the number zero.
-///
-/// [`Self::from_dense`] refuses a tensor holding one of the two points over
-/// zero, so every stored pair is a rational and "not stored" means zero.
-pub struct SparseTensor {
-    pub indices: Vec<usize>,
-    pub numerators: Vec<i64>,
-    pub denominators: Vec<i64>,
-    pub shape: Vec<usize>,
-    pub len: usize,
-    pub is_pure_integer: bool,
-}
-
-impl SparseTensor {
-    pub fn from_dense(dense: &DenseTensor) -> Option<Self> {
-        let expected_len = if dense.shape.is_empty() {
-            dense.len()
-        } else {
-            dense.shape.iter().product()
-        };
-        if expected_len != dense.len() {
-            return None;
-        }
-        if !dense.all_finite() {
-            return None;
-        }
-
-        let nonzero_count = dense.nonzero_count();
-        let mut indices = Vec::with_capacity(nonzero_count);
-        let mut numerators = Vec::with_capacity(nonzero_count);
-        let mut denominators = Vec::with_capacity(nonzero_count);
-
-        for index in 0..dense.len() {
-            if dense.numerators[index] != 0 {
-                indices.push(index);
-                numerators.push(dense.numerators[index]);
-                denominators.push(dense.denominators[index]);
-            }
-        }
-
-        Some(Self {
-            indices,
-            numerators,
-            denominators,
-            shape: dense.shape.to_vec(),
-            len: dense.len(),
-            is_pure_integer: dense.is_pure_integer,
-        })
-    }
-
-    pub fn to_dense(&self) -> DenseTensor {
-        let mut numerators = vec![0; self.len];
-        let mut denominators = vec![1; self.len];
-        for (entry, &index) in self.indices.iter().enumerate() {
-            if index < self.len {
-                numerators[index] = self.numerators[entry];
-                denominators[index] = self.denominators[entry];
-            }
-        }
-        DenseTensor::from_columns(
-            numerators,
-            denominators,
-            self.shape.clone(),
-            self.is_pure_integer,
-        )
-    }
-
-    pub fn get_small_fraction(&self, index: usize) -> Option<Fraction> {
-        if index >= self.len {
-            return None;
-        }
-        let entry = self.indices.binary_search(&index).ok()?;
-        Some(Fraction::new(
-            self.numerators[entry].into(),
-            self.denominators[entry].into(),
-        ))
-    }
-
-    pub fn nonzero_count(&self) -> usize {
-        self.indices.len()
-    }
-
-    pub fn density(&self) -> f64 {
-        if self.len == 0 {
-            return 0.0;
-        }
-        self.nonzero_count() as f64 / self.len as f64
     }
 }

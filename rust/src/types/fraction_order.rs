@@ -23,13 +23,8 @@ impl Fraction {
     /// callers, `order` above and `ExactReal::cmp_exact`, answer a point over
     /// zero before they reach it.
     pub(crate) fn cmp_finite(&self, other: &Fraction) -> std::cmp::Ordering {
-        if let (Some((a, b)), Some((c, d))) = (self.extract_i64_pair(), other.extract_i64_pair()) {
-            if b == d {
-                return a.cmp(&c);
-            }
-            let lhs = (a as i128) * (d as i128);
-            let rhs = (c as i128) * (b as i128);
-            return lhs.cmp(&rhs);
+        if let (Some(a), Some(b)) = (self.extract_i64_pair(), other.extract_i64_pair()) {
+            return super::small_rational::order(a, b);
         }
         let (an, ad): (BigInt, BigInt) = self.to_bigint_pair();
         let (bn, bd): (BigInt, BigInt) = other.to_bigint_pair();

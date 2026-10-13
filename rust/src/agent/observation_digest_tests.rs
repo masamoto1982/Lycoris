@@ -39,7 +39,7 @@ fn equal_values_digest_equally() {
         Value::from_int(1),
         Value::from_int(-1),
         Value::from_fraction(frac(1, 2)),
-        Value::from_fraction(Fraction::create_unreduced(BigInt::from(2), BigInt::from(4))),
+        Value::from_fraction(Fraction::new(BigInt::from(2), BigInt::from(4))),
         Value::from_fraction(frac(-3, 7)),
         Value::from_bool(true),
         Value::from_bool(false),
@@ -192,8 +192,7 @@ fn absent_texts_separate_digests() {
 #[test]
 fn unreduced_fraction_matches_reduced() {
     let reduced = Value::from_fraction(frac(1, 2));
-    let unreduced =
-        Value::from_fraction(Fraction::create_unreduced(BigInt::from(2), BigInt::from(4)));
+    let unreduced = Value::from_fraction(Fraction::new(BigInt::from(2), BigInt::from(4)));
     assert_eq!(digest_of(&reduced), digest_of(&unreduced));
 }
 

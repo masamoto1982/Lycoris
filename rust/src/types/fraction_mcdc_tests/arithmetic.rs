@@ -104,7 +104,6 @@ mod machine_integer_fast_path {
 //     }
 //     add_reduced_bigint:
 //         if g.is_one() { .. }                       // H   g = gcd(ad, bd)
-//         if t.is_zero() { return 0 }                // T
 //         if g2.is_one() { .. }                      // H2  g2 = gcd(t, g)
 //
 // One operand is past a word, so the i64 pair path declines both rows of each
@@ -113,9 +112,8 @@ mod machine_integer_fast_path {
 //          Z = F, G = F  (W+1)/3 + 1/3 = (W+2)/3, an integer
 //   S = F: H = T (W+1)/3 + 1/7;  H = F, H2 = T  (W+1)/6 + 1/4;
 //          H = F, H2 = F  (W+1)/6 + 1/10
-//   T = T is unreachable from reduced operands — equal values have equal
-//   reduced denominators, so S answers first — and is reached here with a
-//   pair `create_unreduced` holds as 2(W+1)/12.
+//   A zero `t` has no row: values that cancel have equal reduced
+//   denominators, so S answers first.
 // ---------------------------------------------------------------------------
 mod bigint_sum_reduction {
     use super::*;
@@ -147,15 +145,6 @@ mod bigint_sum_reduction {
         // t = 5(W+1) + 3 is even, so g2 = 2 divides out.
         assert_eq!(a.add(&small(1, 10)), big((w() * 5 + 8) / 2, 15), "H2 = F");
         assert_eq!(a.sub(&small(1, 10)), big((w() * 5 + 2) / 2, 15), "H2 = F");
-    }
-
-    #[test]
-    fn aq_ver_001_p_henrici_cancels_to_zero() {
-        let unreduced = Fraction::create_unreduced((w() + 1) * 2, BigInt::from(12));
-        assert!(!unreduced.is_small());
-        let a = big(w() + 1, 6);
-        assert_eq!(unreduced.sub(&a), small(0, 1), "T = T");
-        assert_eq!(unreduced.add(&a.neg()), small(0, 1), "T = T");
     }
 }
 
@@ -250,11 +239,7 @@ mod bigint_product_cascade {
 // AQ-VER-001-R
 // DUT: rust/src/types/fraction_arithmetic.rs `floor`, `round`, `neg`, `abs`
 //
-// floor, `*n < 0 && r != 0` (N, R) — completes AQ-VER-001-E, which could not
-// reach R = F: every reduced non-integer has a remainder. A pair held
-// unreduced (`create_unreduced`) is a non-integer `repr` with none:
-//   (T, T) -7/3 -> -3;  (T, F) -6/3 -> -2  pair shows R;  (F, F) 6/3 -> 2
-//   and the same rows on the `Big` arm.
+// floor rounds toward negative infinity on both arms: -7/3 -> -3, 7/3 -> 2.
 // round: half away from zero, the sign (S = n < 0) deciding the direction:
 //   S = F 5/2 -> 3, 7/3 -> 2;  S = T -5/2 -> -3, -7/3 -> -2; and on `Big`.
 //   `if self.is_zero()` has no true row: zero is an integer, which returns
@@ -264,30 +249,16 @@ mod bigint_product_cascade {
 mod rounding_and_sign {
     use super::*;
 
-    fn unreduced(n: BigInt, d: i64) -> Fraction {
-        Fraction::create_unreduced(n, BigInt::from(d))
-    }
-
     #[test]
     fn aq_ver_001_r_floor_with_and_without_a_remainder() {
-        assert_eq!(small(-7, 3).floor(), small(-3, 1), "(T, T)");
-        let exact = unreduced(BigInt::from(-6), 3);
-        assert!(!exact.is_integer());
-        assert_eq!(exact.floor(), small(-2, 1), "(T, F)");
-        assert_eq!(unreduced(BigInt::from(6), 3).floor(), small(2, 1), "(F, F)");
+        assert_eq!(small(-7, 3).floor(), small(-3, 1));
+        assert_eq!(small(7, 3).floor(), small(2, 1));
     }
 
     #[test]
     fn aq_ver_001_r_floor_big_with_and_without_a_remainder() {
-        let exact = unreduced(-w() * 2, 2);
-        assert!(!exact.is_small() && !exact.is_integer());
-        assert_eq!(exact.floor(), big(-w(), 1), "(T, F)");
-        assert_eq!(
-            big(-(w() + 1i32), 3).floor(),
-            big(-(w() + 1i32) / 3 - 1, 1),
-            "(T, T)"
-        );
-        assert_eq!(unreduced(w() * 2, 2).floor(), big(w(), 1), "(F, F)");
+        assert_eq!(big(-(w() + 1i32), 3).floor(), big(-(w() + 1i32) / 3 - 1, 1));
+        assert_eq!(big(w() + 1i32, 3).floor(), big((w() + 1i32) / 3, 1));
     }
 
     #[test]
