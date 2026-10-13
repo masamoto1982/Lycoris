@@ -70,7 +70,6 @@ pub(crate) mod lane_lift;
 // bindings, which import it by that name.
 pub(crate) use self::host_profile_defaults as limit_profile;
 mod ceiling_refusal;
-mod group_key;
 pub mod interpreter_core;
 pub mod logic;
 pub mod math_ops;

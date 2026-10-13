@@ -12,9 +12,9 @@
 
 use crate::error::{AjisaiError, Result};
 use crate::interpreter::collection_meter::{charge_comparison_sort, ScanMeter};
-use crate::interpreter::group_key::GroupKey;
 use crate::interpreter::value_order::order_indices;
 use crate::interpreter::Interpreter;
+use crate::types::group_key::GroupKey;
 use crate::types::{RecordData, Value, ValueData};
 use std::collections::HashMap;
 

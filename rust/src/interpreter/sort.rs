@@ -344,6 +344,32 @@ mod sort_word_tests {
         }
     }
 
+    /// Every element's domain is read before a point over zero projects, so
+    /// malformed use is raised wherever it stands (LANG.FAILURE.TRICHOTOMY).
+    #[tokio::test]
+    async fn malformed_use_is_not_hidden_behind_a_point() {
+        for source in [
+            "[ 0/0 'b' ] SORT",
+            "[ 'b' 0/0 ] SORT",
+            "[ 1/0 TRUE ] ORDER",
+            "[ 0/0 NIL 'b' ] ORDER",
+        ] {
+            let mut interp = Interpreter::new();
+            let error = interp
+                .execute(source)
+                .await
+                .expect_err(&format!("`{source}` must be refused"));
+            assert!(
+                format!("{error:?}").contains("nonNumeric"),
+                "`{source}` must be refused as nonNumeric, got: {error:?}"
+            );
+        }
+        assert_eq!(
+            equals("[ 3 0/0 NIL ] SORT NIL-REASON", "'domainMiss'").await,
+            Some(true)
+        );
+    }
+
     /// Strings sort by Unicode scalar value and every NIL goes last, in source
     /// order, through both Words (LANG.VALUES.ORDER).
     #[tokio::test]

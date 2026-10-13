@@ -26,8 +26,8 @@
       "summary": "2つの情報源が一致するもの(LANG.VALUES.TRUTH)。`1 1 RECONCILE`は`1`で、不在はもう一方の情報源が持つ値に譲る(`NIL 5 RECONCILE`は`5`)。数の間では`0/0`がもっとも知らない値で、相手の数に譲る(LANG.VALUES.SHAPE)。`0/0 5 RECONCILE`は`5`だが、`0/0 TRUE RECONCILE`は食い違いになる。異なる2つの値は、真偽値どうしも含めて一致するものを持たず、NIL(conflict)を投影する。`TRUE FALSE RECONCILE NIL-REASON`は`'Tokyo' 'Osaka' RECONCILE NIL-REASON`と同じく`'conflict'`である。この食い違いは真偽の位置ではUNKNOWNとして読まれ、その理由は何も知らないのではなく情報源が食い違ったことを告げる。食い違いは3つ目の情報源では解消しないので、この語は結合的・可換・冪等であり、多数の情報源にFOLDしても順序に依存しない。EQと同じくオペランドを丸ごと比べる。`[ 1 2 ] [ 1 3 ] RECONCILE`は食い違いで、レーンごとに突き合わせるプログラムはZIPとMAPを使う。"
     },
     "EQ": {
-      "source": "f0872f019993a7f7",
-      "summary": "2つの値が同じ1つの値かどうか(LANG.VALUES.DENOTATION)。どう組み立てたかは問わない。`1 1/1 EQ`は`TRUE`、`2 SQRT 2 SQRT MUL 2 EQ`は`TRUE`、`100 0 DIV 1/0 EQ`は`TRUE`、`0/0 0/0 EQ`は`TRUE`、`[ 1 2 ] [ 1 2 ] EQ`は`TRUE`。EQはオペランドを丸ごと比較し、要素ごとには持ち上がらない。両オペランドを読むので、他のデータオペランドと同じく、不在のオペランドがそのまま答えになる(LANG.FAILURE.PASSTHROUGH)。`-1 SQRT 1 EQ`は、比較するものがないので、その不在がすでにそうであったUNKNOWNになる。ベクトルの中のNILは他と同じ1つの要素で、理由によって比較されるので、`[ NIL ] [ NIL ] EQ`は`TRUE`。これはSQLのIS NOT DISTINCT FROMに当たり、その=ではない。RECONCILEもこの等価性を使うが、UNIQUE・TALLY・GROUPはさらに、理由によらずすべてのNILを1つのキーとする(LANG.VALUES.ORDER)。不在かもしれない2つの値を素通しではなく比較したいときは、それぞれを先に`1 COLLECT`で包む。"
+      "source": "3ba4a8cbc385fa28",
+      "summary": "2つの値が同じ1つの値かどうか(LANG.VALUES.DENOTATION)。どう組み立てたかは問わない。`1 1/1 EQ`は`TRUE`、`2 SQRT 2 SQRT MUL 2 EQ`は`TRUE`、`100 0 DIV 1/0 EQ`は`TRUE`、`0/0 0/0 EQ`は`TRUE`、`[ 1 2 ] [ 1 2 ] EQ`は`TRUE`。EQはオペランドを丸ごと比較し、要素ごとには持ち上がらない。両オペランドを読むので、他のデータオペランドと同じく、不在のオペランドがそのまま答えになる(LANG.FAILURE.PASSTHROUGH)。`-1 SQRT 1 EQ`は、比較するものがないので、その不在がすでにそうであったUNKNOWNになる。ベクトルの中のNILは他と同じ1つの要素で、理由によって比較されるので、`[ NIL ] [ NIL ] EQ`は`TRUE`。これはSQLのIS NOT DISTINCT FROMに当たり、その=ではない。RECONCILEもこの等価性を使うが、UNIQUE・TALLY・GROUPとRecordのキーはさらに、理由によらずすべてのNILを1つのキーとする(LANG.VALUES.ORDER)。不在かもしれない2つの値を素通しではなく比較したいときは、それぞれを先に`1 COLLECT`で包む。"
     },
     "LT": {
       "source": "0d023b2924dbbd3c",
@@ -170,8 +170,8 @@
       "summary": "昇順のベクトルの中の各キーのインデックスを、区間を半分にしながら探す。`[ 1 3 5 7 ] [ 5 ] BSEARCH`は`[ 2 ]`で、単独のキーは単独のインデックスを答え、ないキーのレーンはNIL(notFound)。昇順とはSORTの順序である(LANG.VALUES.ORDER)。数でも文字列でもよく、`[ 'a' 'c' 'e' ] 'c' BSEARCH`は`1`。NILは最後に置かれ、どのキーもそれを見つけない。不在のキーのレーンはそれ自体が答えになる。SQLの= NULLがどの行にも一致しないのと同じである。ベクトルはその順序でなければならず、そうでなければ`unsortedInput`を送出する。順序のないデータの上の二分探索は、何も答えないのではなく何かを答えてしまうからである。順序を持たない0の上の点を含むベクトルはNIL(domainMiss)を投影し、0の上の点のキーも自分のレーンに同じものを投影する(LANG.VALUES.EXACT)。順序の確認はベクトルを1回走査するだけで、その後の各キーはO(log n)なので、m個のキーの費用は線形走査のO(m·n)に対してO(n + m log n)。区間が空になるまで半分にし続けるのはデータに長さが依存するループであり、際限のないループを持たない言語には書けない。"
     },
     "RECORD": {
-      "source": "f10752c3e5475b9f",
-      "summary": "キーのベクトルと値のベクトルを位置ごとに対応付けて、Record(キーによる対応。第7の値領域)を組み立てる。`[ 'x' 'y' ] [ 1 2 ] RECORD 'y' GET`は`2`。キーは与えられた順序を保ち、KEYSとVALUESがそれを読み戻す。長さが違う、あるいは同じキーが2回現れるのはプログラムの誤りなので、どちらも黙って後勝ちにするのではなくERRORになる。"
+      "source": "442831e7318efbbc",
+      "summary": "キーのベクトルと値のベクトルを位置ごとに対応付けて、Record(キーによる対応。第7の値領域)を組み立てる。`[ 'x' 'y' ] [ 1 2 ] RECORD 'y' GET`は`2`。キーは与えられた順序を保ち、KEYSとVALUESがそれを読み戻す。長さが違う、あるいは同じキーが2回現れるのはプログラムの誤りなので、どちらも黙って後勝ちにするのではなくERRORになる。キーはUNIQUEが1つの要素とみなすときに限り1つのキーになるので(LANG.VALUES.ORDER)、NILのキーは理由によらず2つあれば重複になる。"
     },
     "KEYS": {
       "source": "96f257e00a8267be",
@@ -190,8 +190,8 @@
       "summary": "Recordがキーを持つかどうか。`[ 'x' ] [ 1 ] RECORD 'x' HAS?`は`TRUE`、`[ 'x' ] [ 1 ] RECORD 'y' HAS?`は`FALSE`。値に触れずに存在を問うので、ないキーと、格納された値がNILであるキーとを区別できる。`GET`だけではどちらもNILと答える。`NIL?`と同じく述語なので`?`で終わる。第1オペランドがRecordでなければERROR。"
     },
     "MERGE": {
-      "source": "2b97d31a2de023f8",
-      "summary": "2つのRecordの合併で、右が勝つ。`[ 'x' 'y' ] [ 1 2 ] RECORD [ 'y' 'z' ] [ 9 3 ] RECORD MERGE VALUES`は`[ 1 9 3 ]`。左のRecordのキーは順序を保ち、両方が持つキーでは右の値を取る。右だけが持つキーは右の順序で末尾に足される。既定値に上書きを重ねるのがこのワードの用途である。左を勝たせたいならオペランドを入れ替える。どちらかがRecordでなければERROR。"
+      "source": "571c77d56fa62661",
+      "summary": "2つのRecordの合併で、右が勝つ。`[ 'x' 'y' ] [ 1 2 ] RECORD [ 'y' 'z' ] [ 9 3 ] RECORD MERGE VALUES`は`[ 1 9 3 ]`。左のRecordのキーは順序を保ち、両方が持つキーでは右の値を取る。右だけが持つキーは右の順序で末尾に足される。既定値に上書きを重ねるのがこのワードの用途である。左を勝たせたいならオペランドを入れ替える。どちらかがRecordでなければERROR。キーはUNIQUEが要素を照合するのと同じように照合するので、NILのキーは理由によらずNILのキーと一致し、左のRecordの綴りを保つ(LANG.VALUES.ORDER)。"
     },
     "MAP": {
       "source": "d16e96492e86d8da",

@@ -22,28 +22,17 @@ use crate::types::{Value, ValueData};
 /// and Strings side by side (LANG.FAILURE.ERROR).
 pub(crate) fn order_indices(items: &[Value]) -> Result<Option<Vec<usize>>> {
     // Whether a pair orders depends only on the domain of each element and on
-    // whether a number is a point over zero, so one pass finds the first
-    // malformed element, a mix of the two ordered domains, and the first point
-    // before the sort runs. The sort's comparator must be a total order — the
-    // standard sort panics on one that reports `Equal` for a pair it could not
-    // order — and after this pass it cannot fail.
-    let mut domain: Option<OrderedDomain> = None;
-    let mut absent = 0usize;
-    for item in items {
-        if item.is_nil() {
-            absent += 1;
-            continue;
-        }
-        let this = OrderedDomain::of(item)?;
-        match domain {
-            None => domain = Some(this),
-            Some(seen) if seen != this => return Err(mixed_domains(item)),
-            Some(_) => {}
-        }
-        if this == OrderedDomain::Number && compare_for_sort(item, item)?.is_none() {
-            return Ok(None);
-        }
+    // whether a number is a point over zero. Every domain is read first, so
+    // malformed use is raised wherever it stands rather than hidden behind a
+    // point that came before it (LANG.FAILURE.TRICHOTOMY); only then does a
+    // point project. The sort's comparator must be a total order — the
+    // standard sort panics on one that reports `Equal` for a pair it could
+    // not order — and after these passes it cannot fail.
+    let domain = ordered_domain_of(items.iter())?;
+    if domain == Some(OrderedDomain::Number) && holds_point(items.iter())? {
+        return Ok(None);
     }
+    let absent = items.iter().filter(|item| item.is_nil()).count();
 
     // The present elements, in source order: the NILs are set aside rather
     // than compared, so the comparator only ever sees one ordered domain.
@@ -74,6 +63,35 @@ pub(crate) fn order_indices(items: &[Value]) -> Result<Option<Vec<usize>>> {
     }
     perm.extend(nils);
     Ok(Some(perm))
+}
+
+/// The one ordered domain the present elements share, `None` when there are
+/// none, or the `nonNumeric` the first element outside both domains — or the
+/// first one beside the other domain — raises. NILs are not asked.
+pub(crate) fn ordered_domain_of<'a>(
+    items: impl Iterator<Item = &'a Value>,
+) -> Result<Option<OrderedDomain>> {
+    let mut domain: Option<OrderedDomain> = None;
+    for item in items {
+        if item.is_nil() {
+            continue;
+        }
+        let this = OrderedDomain::of(item)?;
+        match domain {
+            None => domain = Some(this),
+            Some(seen) if seen != this => return Err(mixed_domains(item)),
+            Some(_) => {}
+        }
+    }
+    Ok(domain)
+}
+
+/// Whether a point over zero, which has no order, is among numbers already
+/// known to be one ordered domain.
+fn holds_point<'a>(mut items: impl Iterator<Item = &'a Value>) -> Result<bool> {
+    items.try_fold(false, |found, item| {
+        Ok(found || (!item.is_nil() && compare_for_sort(item, item)?.is_none()))
+    })
 }
 
 /// The two domains an order is defined on (LANG.VALUES.ORDER).

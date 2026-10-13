@@ -302,6 +302,22 @@
   <div class="ajisai-expect-effects"></div>
 </section>
 
+<section class="ajisai-case" id="core-record-nil-keys-are-one-key" data-category="core">
+  <h3>A Record's keys are grouping keys: two NIL keys repeat whatever their reasons, and MERGE meets a NIL key across reasons (LANG.VALUES.ORDER)</h3>
+  <pre class="ajisai-source">[ 'k' NIL ] [ 1 2 ] RECORD -1 SQRT 1 COLLECT [ 9 ] RECORD MERGE VALUES 'a' ABSENT 'b' ABSENT 2 COLLECT [ 1 2 ] RECORD</pre>
+  <pre class="ajisai-expect-result">[ 1/1 9/1 ]</pre>
+  <pre class="ajisai-expect-error">the key at position 1 repeats the key at position 0</pre>
+  <div class="ajisai-expect-effects"></div>
+</section>
+
+<section class="ajisai-case" id="core-order-misuse-before-point" data-category="core">
+  <h3>Malformed use is raised wherever it stands, not hidden behind a point over zero met first (LANG.VALUES.ORDER)</h3>
+  <pre class="ajisai-source">[ 0/0 'b' ] SORT</pre>
+  <pre class="ajisai-expect-result"></pre>
+  <pre class="ajisai-expect-error">expected elements of one ordered domain</pre>
+  <div class="ajisai-expect-effects"></div>
+</section>
+
 <section class="ajisai-case" id="core-fail-raises-declared-error" data-category="core">
   <h3>FAIL raises a declared ERROR that halts evaluation; the message operand stays on the stack (LANG.FAILURE.TRICHOTOMY)</h3>
   <pre class="ajisai-source">1 'width must be positive' FAIL 2</pre>
