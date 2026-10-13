@@ -2,7 +2,7 @@
 //! comparison, rounding and logic Words, and SELECT, on plain machine-word
 //! rationals and truth values.
 //!
-//! A compiled `CallBuiltin` runs the whole dispatch for every call: the
+//! The engine's ordinary Word dispatch runs the whole machinery for every call: the
 //! declared NIL contract, the declared lift, the Word's own NIL passthrough
 //! and Record lift, the operand meter, the scalar fast path, the result-size
 //! check and the NIL trace — about a thousand instructions to add two small
@@ -16,13 +16,10 @@
 //!
 //! - one execution step (`charge_execution_step`, the same counter);
 //! - for `ADD` `SUB` `MUL` `DIV`, one unit of numeric work — two operands of
-//!   one limb each, `binary_numeric_work(1, 1)` — and a fast-path hit;
+//!   one limb each, `binary_numeric_work(1, 1)`;
 //! - for `POW`, the same one unit — a power whose answer fits a machine word
-//!   is priced as one product of machine words (`power_numeric_work`) — and
-//!   no fast-path hit;
-//! - for `LT` `GT` and an `EQ` of two numbers, a fast-path hit and no work;
-//! - for `MIN` `MAX`, `FLOOR` `ROUND`, `NOT` `AND`, `SELECT` and an `EQ` of two
-//!   truth values, neither;
+//!   is priced as one product of machine words (`power_numeric_work`);
+//! - for every other Word it answers, no work;
 //! - the nesting check the dispatch makes after every Word
 //!   (`check_fresh_nesting`), which also resets the stack's fresh mark.
 //!
@@ -43,8 +40,7 @@ use crate::types::{Value, ValueData};
 use std::cmp::Ordering;
 
 /// A plain value held unboxed: a rational whose halves each fit a machine
-/// word, or a truth value. `quickened` reads its operands as these, and the
-/// typed segments (`segment`) hold every value they compute as one.
+/// word, or a truth value. `quickened` reads its operands as these.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Slot {
     Num(Pair),
@@ -291,7 +287,7 @@ fn try_length_call(interp: &mut Interpreter) -> bool {
     let Some(target) = interp.stack.as_slice().last() else {
         return false;
     };
-    if target.absence_metadata().is_some() || !target.is_vector() || target.is_nil() {
+    if !target.is_vector() {
         return false;
     }
     let value = Value::from_fraction(Fraction::from(target.len() as i64));
@@ -353,72 +349,16 @@ pub(crate) fn try_scalar_call(interp: &mut Interpreter, word: WordId) -> bool {
     if !interp.quickening_enabled || !interp.scalar_fastpath_enabled {
         return false;
     }
-    // `LENGTH` has no `Kind`, so asking for one first leaves the common
-    // call one test shorter.
-    let Some(kind) = Kind::of(word) else {
-        if word == WordId::Length {
-            return try_length_call(interp);
-        }
-        return try_kernel_call(interp, word);
-    };
-    let pops = kind.arity();
-    let slots = interp.stack.as_slice();
-    let Some(base) = slots.len().checked_sub(pops) else {
-        return false;
-    };
-    let mut operands = [Slot::Bool(false); 3];
-    for (operand, value) in operands.iter_mut().zip(&slots[base..]) {
-        match Slot::of(value) {
-            Some(slot) => *operand = slot,
-            None => return false,
-        }
-    }
-    let Some(Answer { value, work }) = apply(kind, &operands[..pops]) else {
-        return false;
-    };
-    // Every ceiling the dispatch could stop at, checked before anything
-    // moves: past one, the dispatch runs and reports it.
-    if interp.runtime_limits.max_bigint_bits < 64
-        || interp.execution_step_count >= interp.max_execution_steps
-        || interp.numeric_work_used.saturating_add(work) > interp.runtime_limits.max_numeric_work
-    {
+    // A Word with a `Kind` compiles to `Op::Scalar`, whose own route
+    // (`Interpreter::scalar_in_place`) has already tried and declined it on
+    // this very stack: what is left to try here is `LENGTH` and the kernels.
+    if Kind::of(word).is_some() {
         return false;
     }
-
-    interp.execution_step_count += 1;
-    interp.numeric_work_used += work;
-    // The operands are plain slots — machine-word rationals and truth
-    // values with no absence — so they own nothing a destructor would free,
-    // and they are let go of rather than dropped: running the drop glue of
-    // each was a fifth of this call. The deepest one's slot takes the
-    // result, which marks the stack fresh from there as the push did.
-    for _ in 1..pops {
-        std::mem::forget(interp.stack.pop());
+    if word == WordId::Length {
+        return try_length_call(interp);
     }
-    std::mem::forget(std::mem::replace(
-        &mut interp.stack[base],
-        value.into_value(),
-    ));
-    // The dispatch's nesting check (`check_fresh_nesting`), made for the
-    // fresh mark it resets, which the dispatch resets too. A plain scalar or
-    // truth value nests nothing, so of the values the check reads — every
-    // one written since the last — only those below the result could fail
-    // it, and there are nearly always none to read.
-    let fresh = interp.stack.take_fresh_start();
-    if fresh < base {
-        let deepest = interp.stack.as_slice()[fresh..base]
-            .iter()
-            .map(Value::nesting)
-            .max()
-            .unwrap_or(0);
-        interp
-            .runtime_limits
-            .check_nesting_depth(deepest as usize)
-            .expect("a plain result is within any nesting ceiling");
-    }
-    #[cfg(test)]
-    QUICKENED.with(|c| c.set(c.get() + 1));
-    true
+    try_kernel_call(interp, word)
 }
 
 #[cfg(test)]

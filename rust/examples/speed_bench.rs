@@ -12,9 +12,9 @@
 //!
 //! Like `work_meter_calibration`, this is deliberately not a test: absolute
 //! times are a property of one machine. The cases cover each route a program
-//! can take — the fused register tier, the small-rational fused tier, the
-//! column kernels, the token-walking interpreter at top level and inside
-//! unfused blocks, User Word calls, BigInt arithmetic — so a change to one
+//! can take — the column walk over a block, its general tier, the column
+//! kernels, the engine at top level and inside unfused blocks, User Word
+//! calls, BigInt arithmetic — so a change to one
 //! route shows up in its own row.
 
 use ajisai_core::agent::time_after_setup;

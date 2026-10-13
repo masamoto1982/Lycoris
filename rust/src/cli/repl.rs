@@ -16,7 +16,8 @@ use std::io::{BufRead, Write};
 
 use crate::interpreter::{HostEffect, Interpreter};
 
-use crate::agent::{block_on, stack_display, Opts};
+use super::Opts;
+use crate::agent::{block_on, stack_display};
 
 /// Outcome kind of evaluating one REPL line.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -271,7 +272,7 @@ mod tests {
             json: true,
             compact: false,
             step_limit: None,
-            limits: crate::agent::LimitProfile::Agent,
+            limits: crate::cli::LimitProfile::Agent,
         };
         run_repl(input, &mut out, &mut err, &opts).unwrap();
         let stdout = String::from_utf8(out).unwrap();

@@ -26,7 +26,8 @@ use std::path::{Path, PathBuf};
 
 use crate::interpreter::Interpreter;
 
-use crate::agent::{block_on, contract, print_payloads, stack_display, Opts};
+use super::Opts;
+use crate::agent::{block_on, contract, print_payloads, stack_display};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ExpectedStatus {

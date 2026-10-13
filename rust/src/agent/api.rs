@@ -19,8 +19,7 @@ pub const LOCAL_AGENT_RUNTIME_LIMITS: RuntimeLimits = RuntimeLimits {
     // amount of *time* rather than the same number of units: the numeric
     // meter's slowest unbounded path charges 14,465 units/ms and the collection
     // meter's charges 30,800, so 10M and 20M both buy about 0.7 s. Their sum
-    // leaves `wallTimeMs` 5,000 a 3.7x margin. Derived in
-    // `docs/dev/collection-word-billing-2026-08-13.md` §6.
+    // leaves `wallTimeMs` 5,000 a 3.7x margin.
     max_collection_work: 20_000_000,
     max_bigint_bits: 262_144,
     // Not a round number: 512 terms is 3.0% of `responseBytes` in `exactTerms`
@@ -180,6 +179,7 @@ impl AgentResponse {
         self.report.into_json()
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn report(&self) -> &Report {
         &self.report
     }

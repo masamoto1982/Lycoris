@@ -16,7 +16,7 @@ pub fn render_stack(stack: &Stack) -> Vec<String> {
 
 impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(&format_value_recursive(&self.data, 0))
+        f.write_str(&format_value_recursive(&self.data))
     }
 }
 
@@ -42,9 +42,9 @@ impl fmt::Display for Value {
 /// A Symbol on its own renders as its bare name, which *calls* a Word rather
 /// than pushing the name, and is not claimed to round-trip; inside a
 /// `COLLECT` phrase it is written as `[ NAME ] 0 GET`, which does.
-fn format_value_recursive(data: &ValueData, depth: usize) -> String {
+fn format_value_recursive(data: &ValueData) -> String {
     match data {
-        ValueData::Truths(t) => format_value_recursive(&t.to_vector().data, depth),
+        ValueData::Truths(t) => format_value_recursive(&t.to_vector().data),
         ValueData::Nil(_) => "NIL".to_string(),
         // A String renders quoted at every depth, from its domain alone, or
         // as the phrase that joins its pieces when no literal spells it.
@@ -60,17 +60,13 @@ fn format_value_recursive(data: &ValueData, depth: usize) -> String {
         ValueData::Record(record) => {
             let keys: Vec<&Value> = record.entries().map(|(key, _)| key).collect();
             let values: Vec<&Value> = record.entries().map(|(_, value)| value).collect();
-            format!(
-                "{} {} RECORD",
-                render_vector(&keys, depth + 1),
-                render_vector(&values, depth + 1)
-            )
+            format!("{} {} RECORD", render_vector(&keys), render_vector(&values))
         }
         ValueData::Vector(v) => {
             let children: Vec<&Value> = v.iter().collect();
-            render_vector(&children, depth)
+            render_vector(&children)
         }
-        ValueData::Tensor { data, shape } => format_tensor_recursive(data, shape, depth),
+        ValueData::Tensor { data, shape } => format_tensor_recursive(data, shape),
         // A Symbol renders as its own bare name — unquoted, unlike Text.
         ValueData::Symbol(name) => name.to_string(),
     }
@@ -117,13 +113,13 @@ fn holds_phrase(data: &ValueData) -> bool {
 /// phrase would be read as data. A Symbol inside that phrase is written
 /// `[ NAME ] 0 GET`, which reads the name out of a literal rather than
 /// calling it.
-fn render_vector(children: &[&Value], depth: usize) -> String {
+fn render_vector(children: &[&Value]) -> String {
     if children.iter().any(|child| holds_phrase(&child.data)) {
         let elements: Vec<String> = children
             .iter()
             .map(|child| match &child.data {
                 ValueData::Symbol(name) => format!("[ {name} ] 0 GET"),
-                _ => format_value_recursive(&child.data, depth + 1),
+                _ => format_value_recursive(&child.data),
             })
             .collect();
         return format!("{} {} COLLECT", elements.join(" "), children.len());
@@ -132,7 +128,7 @@ fn render_vector(children: &[&Value], depth: usize) -> String {
         .iter()
         // A String child renders quoted (`'AB'`), so strings stay
         // recognizable inside a collection.
-        .map(|child| format_value_recursive(&child.data, depth + 1))
+        .map(|child| format_value_recursive(&child.data))
         .collect();
     render_delimited("[", "]", &elements)
 }
@@ -145,35 +141,15 @@ fn render_delimited(open: &str, close: &str, elements: &[String]) -> String {
     format!("{open} {} {close}", elements.join(" "))
 }
 
-fn format_tensor_recursive(data: &DenseTensor, shape: &[usize], _depth: usize) -> String {
-    if shape.is_empty() {
-        return "[ ]".to_string();
-    }
-    if shape.len() == 1 {
-        if data.is_empty() {
-            return "[ ]".to_string();
-        }
+fn format_tensor_recursive(data: &DenseTensor, shape: &[usize]) -> String {
+    if shape.len() == 1 && !data.is_empty() {
         let inner: Vec<String> = data.iter().map(|f| format_fraction(&f)).collect();
         return format!("[ {} ]", inner.join(" "));
     }
-    let outer = shape[0];
-    let rest = &shape[1..];
-    let stride: usize = rest.iter().product();
-    // A zero-length inner axis still has `outer` rows, each empty: only an
-    // empty outer axis is the empty Vector.
-    if outer == 0 {
-        return "[ ]".to_string();
-    }
-    let flat = data.to_fractions();
-    let inner: Vec<String> = (0..outer)
-        .map(|i| {
-            format_tensor_slice_recursive(&flat[i * stride..(i + 1) * stride], rest, _depth + 1)
-        })
-        .collect();
-    format!("[ {} ]", inner.join(" "))
+    format_tensor_slice_recursive(&data.to_fractions(), shape)
 }
 
-fn format_tensor_slice_recursive(data: &[Fraction], shape: &[usize], _depth: usize) -> String {
+fn format_tensor_slice_recursive(data: &[Fraction], shape: &[usize]) -> String {
     if shape.is_empty() {
         return "[ ]".to_string();
     }
@@ -193,9 +169,7 @@ fn format_tensor_slice_recursive(data: &[Fraction], shape: &[usize], _depth: usi
         return "[ ]".to_string();
     }
     let inner: Vec<String> = (0..outer)
-        .map(|i| {
-            format_tensor_slice_recursive(&data[i * stride..(i + 1) * stride], rest, _depth + 1)
-        })
+        .map(|i| format_tensor_slice_recursive(&data[i * stride..(i + 1) * stride], rest))
         .collect();
     format!("[ {} ]", inner.join(" "))
 }

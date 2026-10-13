@@ -33,7 +33,29 @@ mod test_runner;
 
 use crate::agent::api as agent_api;
 use crate::agent::report::{self, Report};
-use crate::agent::{block_on, contract, LimitProfile, Opts};
+use crate::agent::{block_on, contract};
+
+/// The command line's options.
+pub(crate) struct Opts {
+    pub json: bool,
+    /// `agent`: print the envelope compact, byte-identical to the WASM entry
+    /// points, instead of indented.
+    pub compact: bool,
+    /// `compute`: execution step budget override. `None` keeps the
+    /// interpreter default.
+    pub step_limit: Option<usize>,
+    /// `agent compute`: which resource ceilings apply.
+    pub limits: LimitProfile,
+}
+
+/// The resource ceilings an `agent compute` runs under: the tighter profile
+/// for untrusted, generated programs (the default), or the interpreter's own
+/// defaults, which `run` uses for a program its author trusts.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum LimitProfile {
+    Agent,
+    Trusted,
+}
 
 const USAGE: &str = "Usage: ajisai <command> [options]
 
@@ -246,8 +268,7 @@ fn cmd_check(path: &str) -> i32 {
 
 /// `ajisai contract <file>`: report each user word's inferred contract
 /// (`interpreter::word_contract`), the reporting companion to `check`
-/// (P2). Registers definitions and imports without executing any word body or
-/// top-level code. Observational — a well-formed file always exits 0.
+/// Registers definitions without executing any word body or top-level code. Observational — a well-formed file always exits 0.
 fn cmd_contract(path: &str) -> i32 {
     let Some(source) = read_source(path) else {
         return 2;

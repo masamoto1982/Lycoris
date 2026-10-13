@@ -34,30 +34,6 @@ use crate::word_name::canonical_word_name;
 use report::{ErrorInfo, Report};
 use std::collections::HashMap;
 
-/// Options shared across agent operations. `json` only matters to the native
-/// CLI's own text-vs-JSON command rendering; the agent operations in this
-/// module ignore it.
-pub(crate) struct Opts {
-    pub json: bool,
-    /// `agent`: print the envelope compact, byte-identical to the WASM entry
-    /// points, instead of indented.
-    pub compact: bool,
-    /// `compute`: execution step budget override. `None` keeps the
-    /// interpreter default.
-    pub step_limit: Option<usize>,
-    /// `agent compute`: which resource ceilings apply.
-    pub limits: LimitProfile,
-}
-
-/// The resource ceilings an `agent compute` runs under: the tighter profile
-/// for untrusted, generated programs (the default), or the interpreter's own
-/// defaults, which `run` uses for a program its author trusts.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum LimitProfile {
-    Agent,
-    Trusted,
-}
-
 pub(crate) fn error_report(
     interp: &Interpreter,
     mut error: ErrorInfo,
@@ -71,9 +47,6 @@ pub(crate) fn error_report(
     // The residue a failed run was holding is not worth the error that
     // explains it — see `agent::error_stack`.
     let residue = error_stack::elided_error_stack(interp);
-    // The digest is taken over the real stack, not the wire-budgeted residue:
-    // `stack`/`stackDisplay` may elide values for `responseBytes`, but the
-    // observation itself is what the interpreter actually holds.
     let resource_usage = interp.resource_usage();
     Report {
         status: "error",
@@ -204,7 +177,6 @@ pub(crate) fn resolve_words(interp: &Interpreter, tokens: &[Token]) -> ResolvedW
             .get(&regions[i])
             .is_some_and(|names| names.contains(canonical.as_ref()));
         let resolved = interp.core_vocabulary.contains_key(canonical.as_ref())
-            || crate::coreword_registry::get_coreword_metadata(&canonical).is_some()
             || defined.contains(canonical.as_ref())
             || bound_here;
         if !resolved && seen.insert(canonical.to_string()) {
@@ -248,7 +220,7 @@ fn frame_regions(tokens: &[Token]) -> Vec<usize> {
             return false;
         };
         matches!(tokens.get(close + 1), Some(Token::String(_)))
-            && matches!(tokens.get(close + 2), Some(Token::Symbol(s)) if canonical_word_name(s) == "DEF")
+            && contract::is_def_symbol(tokens.get(close + 2))
     };
 
     let mut regions = Vec::with_capacity(tokens.len());

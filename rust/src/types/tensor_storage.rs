@@ -168,9 +168,8 @@ impl DenseTensor {
 
     /// Build a 1-D pure-integer dense tensor directly from `i64` numerators,
     /// without routing through `Fraction`. The denominator is implicitly
-    /// `1`. This is the SoA fast-path constructor the integer SIMD lane uses
-    /// for its output, avoiding the `Vec<i64> → Vec<Fraction> → re-densify`
-    /// round-trip.
+    /// `1`, avoiding the `Vec<i64> → Vec<Fraction> → re-densify` round-trip
+    /// (`Value::from_int_tensor`).
     pub fn from_integers(numerators: Vec<i64>) -> Self {
         let len = numerators.len();
         let denominators = smallvec::smallvec![1; len];
@@ -191,7 +190,7 @@ impl DenseTensor {
         self.numerators.is_empty()
     }
 
-    /// `true` when every lane is a rational — no lane is one of the three
+    /// `true` when every lane is a rational — no lane is one of the two
     /// points over zero. The pair kernels that compute on `(i64, i64)` pairs
     /// with a positive denominator ask this before borrowing the columns; a
     /// pure-integer tensor answers it without a scan.

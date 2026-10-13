@@ -348,14 +348,8 @@ impl Interpreter {
                 self.stack.push(value.clone());
                 Ok(())
             }
-            Op::Scalar(kind, word) => {
-                if self.scalar_in_place(*kind) {
-                    Ok(())
-                } else {
-                    self.dispatch_core_word(word)
-                }
-            }
-            Op::Word(word) => self.dispatch_core_word(word),
+            // `run_op` has tried the in-place route and it declined.
+            Op::Scalar(_, word) | Op::Word(word) => self.dispatch_core_word(word),
             Op::Constant(value, word) => {
                 if self.execution_step_count < self.max_execution_steps {
                     self.execution_step_count += 1;

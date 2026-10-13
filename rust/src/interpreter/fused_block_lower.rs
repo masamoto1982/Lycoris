@@ -107,7 +107,7 @@ impl Lowering<'_> {
                     None => return None,
                 },
                 CodeOp::Bracket { value, .. } if next_is(WordId::Length) => {
-                    if value.absence_metadata().is_some() || !value.is_vector() || value.is_nil() {
+                    if !value.is_vector() {
                         return None;
                     }
                     self.constant(Plain::Num(Fraction::from(value.len() as i64)), false);
@@ -116,7 +116,7 @@ impl Lowering<'_> {
                 }
                 CodeOp::Bracket { value, .. } => self.constant(one_lane_of(value)?, true),
                 CodeOp::Constant(value, _) => match value.as_truth() {
-                    Some(b) if value.absence_metadata().is_none() => {
+                    Some(b) => {
                         self.constant(Plain::Bool(b), false);
                         self.words += 1;
                     }

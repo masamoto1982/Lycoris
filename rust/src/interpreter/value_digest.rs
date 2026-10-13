@@ -32,8 +32,7 @@
 //!    so two spellings of one value digest alike.
 
 use num_bigint::{BigInt, Sign};
-use num_integer::Integer;
-use num_traits::{One, Zero};
+use num_traits::One;
 
 use crate::interpreter::word_identity::content_digest;
 use crate::types::exact::algebraic::floor_scaled;
@@ -165,66 +164,33 @@ fn encode_value(bytes: &mut Vec<u8>, value: &Value) {
     }
 }
 
-/// A rational scalar in lowest terms with a positive denominator, so that
-/// equal values land on identical bytes however each was built.
-///
-/// A `Small` pair is reduced here (a machine-word gcd), which keeps the digest
-/// equal for an unreduced construction (`unreduced_fraction_matches_reduced`).
-/// A `Big` pair is written as it is held: every constructor that makes one
-/// leaves it in lowest terms with a positive denominator — `Fraction::new`
-/// divides out the gcd, the arithmetic's cross-cancellation keeps reduced
-/// operands reduced, and the one unreduced constructor, `create_unreduced`,
-/// exists only in tests (`fraction_lowest_terms_tests` holds the arithmetic to
-/// it). Re-reducing cost one gcd of the value's full width per digest, as
-/// much as the computation that produced it on a wide running product.
+/// A rational scalar as it is held: every `Fraction` is canonical — lowest
+/// terms, a positive denominator or one of the two points over zero — so
+/// equal values land on identical bytes however each was built
+/// (`fraction_lowest_terms_tests` holds the arithmetic to it).
 fn encode_rational(bytes: &mut Vec<u8>, f: &Fraction) {
-    // A pair held in two machine words is reduced and spelled in place: the
-    // same lowest terms, sign and radix-16 digits the `BigInt` route below
-    // writes, without building two `BigInt`s, a gcd and two strings per lane.
-    if let crate::types::fraction::FractionRepr::Small(n, d) = f.repr {
-        if d != 0 {
-            let (n, d) = (i128::from(n), i128::from(d));
-            let g = n.unsigned_abs().gcd(&d.unsigned_abs()) as i128;
-            let (mut n, mut d) = (n / g, d / g);
-            if d < 0 {
-                n = -n;
-                d = -d;
-            }
-            bytes.push(b'Q');
-            write_small_sint(bytes, n);
-            write_small_sint(bytes, d);
-            return;
+    bytes.push(b'Q');
+    match &f.repr {
+        // Spelled in place: the radix-16 digits the `BigInt` arm writes,
+        // without building two `BigInt`s and two strings per lane.
+        crate::types::fraction::FractionRepr::Small(n, d) => {
+            write_small_sint(bytes, i128::from(*n));
+            write_small_sint(bytes, i128::from(*d));
+        }
+        crate::types::fraction::FractionRepr::Big(big) => {
+            debug_assert!(
+                big.denominator.sign() == Sign::Plus
+                    && crate::types::fraction_arithmetic::balanced_bigint_gcd(
+                        &big.numerator,
+                        &big.denominator
+                    )
+                    .is_one(),
+                "a Big fraction is held in lowest terms with a positive denominator"
+            );
+            write_sint(bytes, &big.numerator);
+            write_sint(bytes, &big.denominator);
         }
     }
-    if let crate::types::fraction::FractionRepr::Big(big) = &f.repr {
-        debug_assert!(
-            big.denominator.sign() == Sign::Plus
-                && crate::types::fraction_arithmetic::balanced_bigint_gcd(
-                    &big.numerator,
-                    &big.denominator
-                )
-                .is_one(),
-            "a Big fraction is held in lowest terms with a positive denominator"
-        );
-        bytes.push(b'Q');
-        write_sint(bytes, &big.numerator);
-        write_sint(bytes, &big.denominator);
-        return;
-    }
-    // `Small` with a zero denominator (the NIL rational): reduced as before.
-    let (mut n, mut d) = f.to_bigint_pair();
-    let g = n.gcd(&d);
-    if !g.is_zero() {
-        n /= &g;
-        d /= &g;
-    }
-    if d.sign() == Sign::Minus {
-        n = -n;
-        d = -d;
-    }
-    bytes.push(b'Q');
-    write_sint(bytes, &n);
-    write_sint(bytes, &d);
 }
 
 /// An algebraic scalar, keyed by `floor(value * 2^DIGEST_ALGEBRAIC_BITS)` —

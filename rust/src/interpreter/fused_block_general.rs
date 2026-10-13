@@ -3,14 +3,13 @@
 //!
 //! What each op costs on the interpreted route, besides its one step:
 //!
-//! - `ADD`/`SUB`/`MUL`/`DIV` on two scalars take the scalar fast path, so a
-//!   fastpath hit and `binary_numeric_work` of the operands' widths, charged
-//!   before the operation runs; the result is held to the size ceiling.
+//! - `ADD`/`SUB`/`MUL`/`DIV` on two scalars take the scalar fast path, so
+//!   `binary_numeric_work` of the operands' widths, charged before the
+//!   operation runs; the result is held to the size ceiling.
 //! - `POW` that `quickened::small_power` answers is one unit of work, as a
 //!   power whose answer fits a machine word is; under a size ceiling below a
 //!   machine word it is the interpreted route's to refuse.
-//! - `LT`/`GT` on two scalars take the comparison fast path: a fastpath hit
-//!   and no work. `EQ` takes it only for two scalars; any other pair is
+//! - `LT`/`GT` on two scalars take the comparison fast path: no work. `EQ` takes it only for two scalars; any other pair is
 //!   decided by `pairwise_eq`, which counts nothing.
 //! - `FLOOR`, `ROUND`, `NOT`, `AND`, `SELECT` and `BIND` charge nothing else.
 //! - A Word run by its plain law (`fusion_contract`) charges what that law
@@ -24,6 +23,7 @@
 //! diagnostics.
 
 use crate::interpreter::arithmetic::ExactArithmeticSchema;
+use crate::interpreter::dense_kernels::floor_pair;
 use crate::interpreter::fused_block::{Charges, Compare, FusedBlock, FusedWalk, Op, Plain, Src};
 use crate::interpreter::runtime_limits::{
     binary_numeric_work, fraction_result_bits, fraction_work_bits,
@@ -239,9 +239,8 @@ impl Meter<'_> {
     fn pairs(&mut self, op: Op, a: &Plain, b: &Plain) -> Option<Plain> {
         use std::cmp::Ordering::{Greater, Less};
         let x = num_pair(a)?;
-        let floor = |(n, d): Pair| if d == 0 { (n, d) } else { (n.div_euclid(d), 1) };
         match op {
-            Op::Floor => return Some(small(floor(x))),
+            Op::Floor => return Some(small(floor_pair(x))),
             Op::Round if x.1 == 0 => return Some(small(x)),
             Op::Round => {
                 return Some(small((
@@ -257,7 +256,7 @@ impl Meter<'_> {
             Op::Arith(ExactArithmeticSchema::Sub) => add_total(x, y, true)?,
             Op::Arith(ExactArithmeticSchema::Mul) => mul_total(x, y)?,
             Op::Arith(ExactArithmeticSchema::Div) => div_total(x, y)?,
-            Op::FloorDiv => floor(div_total(x, y)?),
+            Op::FloorDiv => floor_pair(div_total(x, y)?),
             Op::Compare(Compare::Lt) => return Some(Plain::Bool(order_total(x, y)? == Less)),
             Op::Compare(Compare::Gt) => return Some(Plain::Bool(order_total(x, y)? == Greater)),
             // The left operand on a tie, as MIN and MAX keep it.

@@ -424,8 +424,6 @@ fn parse_number_from_string(s: &str) -> Option<Token> {
         return None;
     }
 
-    let start = i;
-
     while i < chars.len() && chars[i].is_ascii_digit() {
         i += 1;
     }
@@ -447,9 +445,7 @@ fn parse_number_from_string(s: &str) -> Option<Token> {
         }
     }
 
-    let mut has_dot = false;
     if i < chars.len() && chars[i] == b'.' {
-        has_dot = true;
         i += 1;
         // At least one digit after the point: `5.` and `5.e3` are not numbers.
         if i >= chars.len() || !chars[i].is_ascii_digit() {
@@ -471,10 +467,6 @@ fn parse_number_from_string(s: &str) -> Option<Token> {
         while i < chars.len() && chars[i].is_ascii_digit() {
             i += 1;
         }
-    }
-
-    if i == start && !has_dot {
-        return None;
     }
 
     if i == chars.len() {

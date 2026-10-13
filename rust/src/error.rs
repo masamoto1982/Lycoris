@@ -20,7 +20,7 @@ pub enum NilReason {
     /// A well-formed operation applied to an input outside its domain — the
     /// canonical case being `SQRT` of a negative rational, which
     /// LANG.FAILURE.PROJECT calls a "well-formed domain miss". The NIL
-    /// Projection Rule projects it to NIL with `absence.origin = domainMiss`
+    /// Projection Rule projects it to NIL with `absence.reason = domainMiss`
     /// (LANG.FAILURE.PROJECT).
     ///
     /// Deliberately named for the classification, not for the operation: a
@@ -110,7 +110,7 @@ pub enum ResourceLimit {
 /// 99,979 and failed both times; it needed a 94% cut and nothing in the refusal
 /// pointed there. Reporting where the scan stopped is the answer rather than a
 /// hint at it — the budget bought exactly `completed` elements of this data.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ResourceProgress {
     /// Units of `unit` fully processed before the budget ran out.
     pub completed: u64,
@@ -296,21 +296,12 @@ pub enum AjisaiError {
 }
 
 impl AjisaiError {
-    /// Raise the named condition from the failing Word's `errorWhen`.
-    ///
-    /// `condition` has to be a condition that Word declares — the diagnosis
-    /// reads the declaration back and says which of them fired, and
-    /// `a_named_condition_is_one_the_word_declares`
-    /// (`interpreter::declared_condition_tests`) pins a sample of call sites
-    /// here against `spec/words.json`. That test enumerates call sites by
-    /// hand rather than scanning the source, so it only catches a condition
-    /// this file names for a program its own list exercises — not every call
-    /// site automatically.
     /// A stack short of operands, not yet attributed to a Word.
     pub const fn stack_underflow() -> Self {
         AjisaiError::StackUnderflow { word: None }
     }
 
+    /// Raise the named condition from the failing Word's `errorWhen`.
     pub fn declared(condition: &'static str, message: impl Into<String>) -> Self {
         AjisaiError::DeclaredCondition {
             condition,

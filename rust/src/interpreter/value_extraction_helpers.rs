@@ -166,7 +166,7 @@ pub(crate) fn nil_passthrough_unary(interp: &mut Interpreter) -> bool {
     if stack_len == 0 {
         return false;
     }
-    if !interp.stack[stack_len - 1].is_operational_nil() {
+    if !interp.stack[stack_len - 1].is_nil() {
         return false;
     }
     let inherited = Value::nil_inheriting_absence_from(&interp.stack[stack_len - 1]);
@@ -180,8 +180,8 @@ pub(crate) fn nil_passthrough_binary(interp: &mut Interpreter) -> bool {
     if stack_len < 2 {
         return false;
     }
-    let a_nil = interp.stack[stack_len - 2].is_operational_nil();
-    let b_nil = interp.stack[stack_len - 1].is_operational_nil();
+    let a_nil = interp.stack[stack_len - 2].is_nil();
+    let b_nil = interp.stack[stack_len - 1].is_nil();
     if !(a_nil || b_nil) {
         return false;
     }

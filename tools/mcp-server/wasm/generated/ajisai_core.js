@@ -126,8 +126,8 @@ class AjisaiInterpreter {
     }
     /**
      * A User Word's `#:contract`-derived description, for a host affordance
-     * like the Dictionary panel's hover — never checked against the Word's
-     * actual behavior (that stays a CLI-only, opt-in `check`).
+     * like the Dictionary panel's hover. `execute` refuses a source whose
+     * declaration inference disproves, as `check` does.
      * @param {string} name
      * @returns {any}
      */

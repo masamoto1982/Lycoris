@@ -55,11 +55,8 @@ fn push_payload(bytes: &mut Vec<u8>, payload: &[u8]) {
 /// Canonical byte encoding for one token: the tag-byte assignment
 /// `body_content_key` uses (`N`/`n` for a number, parsed or raw; `S` for a
 /// string; `Y` for a canonicalized symbol; `[`/`]`/`{`/`}`/`^`/`|`/`\n` for
-/// structural tokens). Extracted so `agent::observation_digest`'s `CodeBlock`
-/// encoding can reuse the exact same byte assignment instead of a second copy
-/// silently drifting from this one. Pulling the `match` out of its loop changes
-/// no output: the caller still writes precisely the bytes it wrote inline.
-pub(crate) fn encode_token(bytes: &mut Vec<u8>, tok: &Token) {
+/// structural tokens).
+fn encode_token(bytes: &mut Vec<u8>, tok: &Token) {
     match tok {
         Token::Number(literal) => match literal.value() {
             Some(frac) => {

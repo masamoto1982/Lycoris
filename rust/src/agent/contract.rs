@@ -18,8 +18,8 @@ use crate::interpreter::Interpreter;
 use crate::types::Token;
 use std::collections::HashSet;
 
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub(crate) struct ContractDecl {
+#[derive(Debug, Clone, Default)]
+struct ContractDecl {
     pub name: String,
     pub inputs: Option<u16>,
     pub outputs: Option<u16>,
@@ -86,7 +86,7 @@ impl ContractDeclCheck {
 }
 
 /// Every `#:contract` line in `source`, and a message for each malformed one.
-pub(crate) fn parse_contract_directives(source: &str) -> (Vec<ContractDecl>, Vec<String>) {
+fn parse_contract_directives(source: &str) -> (Vec<ContractDecl>, Vec<String>) {
     let mut decls = Vec::new();
     let mut errors = Vec::new();
     for line in source.lines() {
@@ -168,22 +168,21 @@ fn collect_top_level_defs(tokens: &[Token]) -> Vec<(String, Vec<Token>, usize)> 
     defs
 }
 
-fn is_def_symbol(token: Option<&Token>) -> bool {
-    matches!(token, Some(Token::Symbol(s))
-        if crate::word_name::canonical_word_name(s).eq_ignore_ascii_case("DEF"))
+pub(super) fn is_def_symbol(token: Option<&Token>) -> bool {
+    matches!(token, Some(Token::Symbol(s)) if crate::word_name::canonical_word_name(s) == "DEF")
 }
 
 /// Names the check cannot pin to one definition without running the source:
 /// a Word defined twice, or by a `DEF` it does not read (`every` when that
 /// `DEF`'s name is itself computed).
 #[derive(Debug, Default)]
-pub(crate) struct UnsettledNames {
+struct UnsettledNames {
     names: HashSet<String>,
     every: bool,
 }
 
 impl UnsettledNames {
-    pub(crate) fn contains(&self, name: &str) -> bool {
+    fn contains(&self, name: &str) -> bool {
         self.every || self.names.contains(&name.to_uppercase())
     }
 
@@ -214,9 +213,7 @@ impl UnsettledNames {
 
 /// A fresh interpreter holding the source's top-level definitions, made by
 /// `DEF` itself and nothing else run, with the names it defined.
-pub(crate) fn build_definitions_interpreter(
-    source: &str,
-) -> (Interpreter, Vec<String>, UnsettledNames) {
+fn build_definitions_interpreter(source: &str) -> (Interpreter, Vec<String>, UnsettledNames) {
     let mut interp = Interpreter::new();
     let mut names = Vec::new();
     let mut unsettled = UnsettledNames::default();

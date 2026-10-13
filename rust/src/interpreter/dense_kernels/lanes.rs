@@ -36,7 +36,7 @@ impl Lanes<'_> {
                     integer: data.is_pure_integer,
                 })
             }
-            ValueData::Scalar(f) if value.absence_metadata().is_none() => {
+            ValueData::Scalar(f) => {
                 let (n, d) = f.extract_i64_pair()?;
                 Some(Lanes::Splat(n, d))
             }

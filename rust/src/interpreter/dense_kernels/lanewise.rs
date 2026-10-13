@@ -26,15 +26,13 @@ pub(crate) fn rounded_into(rounding: Rounding, a: Lanes, n: usize, out: &mut Out
         }
         Lanes::Columns { nums, dens, .. } => (nums, dens),
         Lanes::Splat(..) => {
-            for _ in 0..n {
-                let x = a.at(0);
-                let (rn, rd) = match rounding {
-                    Rounding::Floor => floor_pair(x),
-                    Rounding::Round if x.1 == 0 => x,
-                    Rounding::Round => (small_rational::round_half_away_from_zero(x.0, x.1), 1),
-                };
-                out.push(rn, rd);
-            }
+            let x = a.at(0);
+            let (rn, rd) = match rounding {
+                Rounding::Floor => floor_pair(x),
+                Rounding::Round if x.1 == 0 => x,
+                Rounding::Round => (small_rational::round_half_away_from_zero(x.0, x.1), 1),
+            };
+            out.extend(Lanes::Splat(rn, rd), n);
             return Some(());
         }
     };

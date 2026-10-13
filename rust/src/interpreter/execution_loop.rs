@@ -73,11 +73,6 @@ impl Interpreter {
 
 // Building a Vector literal (`[ ... ]`) from source tokens.
 //
-// Split out of `execution_loop` when that file outgrew the file-size budget
-// in docs/dev/specification-implementation-rules.md. The two concerns are
-// genuinely separate: the execution loop decides *which* token runs next,
-// and this decides what a delimited token sequence denotes.
-//
 // What an *element* denotes is one piece of knowledge: a literal value, with
 // a bare name (other than `TRUE`/`FALSE`/`NIL`, which still denote their
 // values) becoming a `Value::Symbol` rather than a `Value::Text`. Nothing is

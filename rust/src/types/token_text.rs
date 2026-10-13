@@ -313,7 +313,7 @@ impl NumberLiteral {
     }
 
     /// [`Self::parsed`] as an `Option`, for the callers that decline rather than
-    /// report — the compiled-plan lowering and the word-shape digest.
+    /// report — contract inference and the word identity's token encoding.
     pub(crate) fn value(&self) -> Option<Fraction> {
         self.parsed().ok()
     }

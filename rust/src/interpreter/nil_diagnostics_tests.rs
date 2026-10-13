@@ -5,7 +5,7 @@
 //! Coverage follows the §15 discipline: success paths, the non-NIL path, the
 //! reason-present vs reason-absent split, protocol-string (not Rust `Debug`)
 //! output, the U firewall, operand consumption, and MC/DC over the two governing
-//! decisions (`is_operational_nil` and reason `Some`/`None`).
+//! decisions (`is_nil` and reason `Some`/`None`).
 
 use crate::error::NilReason;
 use crate::interpreter::value_extraction_helpers::value_as_string;

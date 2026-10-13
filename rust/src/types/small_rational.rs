@@ -76,7 +76,7 @@ pub(crate) fn checked_mul(a: i64, b: i64) -> Option<i64> {
 }
 
 #[inline]
-pub(crate) fn fit(n: i128, d: i128) -> Option<Pair> {
+fn fit(n: i128, d: i128) -> Option<Pair> {
     Some((i64::try_from(n).ok()?, i64::try_from(d).ok()?))
 }
 

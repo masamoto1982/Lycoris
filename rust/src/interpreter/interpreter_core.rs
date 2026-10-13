@@ -8,17 +8,8 @@ pub(crate) const WORD_CACHE: usize = 8;
 
 pub(crate) type WordCacheEntry = (u64, Name, Option<Arc<WordDefinition>>);
 
-/// The dictionary epoch at one instant: what a compiled plan records so it
-/// can tell later whether the dictionary it was built against is still the one
-/// in force.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct EpochSnapshot {
-    pub dictionary_epoch: u64,
-}
-
 /// Re-exports `runtime_limits::DEFAULT_MAX_EXECUTION_STEPS` (see its doc
-/// comment for the host-time-budget derivation), mirroring
-/// `MAX_MATERIALIZED_ELEMENTS` below.
+/// comment for the host-time-budget derivation).
 pub const DEFAULT_MAX_EXECUTION_STEPS: usize = super::runtime_limits::DEFAULT_MAX_EXECUTION_STEPS;
 
 /// Cap on the user-word call stack depth. Hit before Rust's native call stack
@@ -38,22 +29,6 @@ pub const DEFAULT_MAX_EXECUTION_STEPS: usize = super::runtime_limits::DEFAULT_MA
 /// the same frames, so it counts one level too (`in_block_frame`): the depth
 /// is that of calls and blocks together.
 pub const MAX_USER_WORD_DEPTH: usize = 256;
-
-/// Default cap on the number of elements a single generative built-in
-/// (`RANGE`, `FILL`, ...) may materialize in one call. Such words loop
-/// internally to build a vector/tensor, so they each count as a *single*
-/// execution step and therefore bypass `DEFAULT_MAX_EXECUTION_STEPS`. Without
-/// this guard an input like `0 9999999999999 RANGE` or
-/// `[ 1000000 1000000 ] 7 FILL` drives an unbounded allocation that aborts the
-/// process with an OOM instead of a diagnosable `AjisaiError`.
-///
-/// CS5: this is now the *default* for [`RuntimeLimits::max_materialized_elements`]
-/// (the injectable per-interpreter limit the RANGE/FILL guards actually read);
-/// the constant remains as the shared default and for the parallelization
-/// space-waterline heuristic. Single source of truth lives in
-/// [`super::runtime_limits::DEFAULT_MAX_MATERIALIZED_ELEMENTS`].
-pub const MAX_MATERIALIZED_ELEMENTS: usize =
-    super::runtime_limits::DEFAULT_MAX_MATERIALIZED_ELEMENTS;
 
 /// What this run spent of the budgets that can refuse it.
 ///
@@ -86,7 +61,7 @@ pub struct Interpreter {
     /// Structured, ordered host effects produced during execution. This is the
     /// language-independent observation channel for the conformance suite
     /// (`tests/conformance/`): two implementations agree iff they emit the same
-    /// effect列. The legacy `output_buffer` string protocol is still emitted in
+    /// effect sequence. The legacy `output_buffer` string protocol is still emitted in
     /// parallel so existing front-ends keep working.
     pub(crate) host_effects: Vec<super::HostEffect>,
     /// Host boundary for clocks, entropy, capability checks, and effect sinks.
@@ -114,8 +89,6 @@ pub struct Interpreter {
     /// `Unknown word`. Cleared at the start of each top-level run.
     pub(crate) dictionary_changes_this_run: Vec<String>,
     pub(crate) disable_no_change_check: bool,
-    /// Type-erased caches owned by runtime subsystems.
-    pub(crate) runtime_scratch: HashMap<String, Box<dyn std::any::Any + Send>>,
     /// User-word call depth. Incremented on entry to a user-word body in
     /// `call_user_word`, and around a Word that evaluates a block
     /// (`in_block_frame`), decremented on exit. Compared against
@@ -142,7 +115,6 @@ pub struct Interpreter {
 
     pub(crate) next_registration_order: u64,
 
-    pub(crate) global_epoch: u64,
     pub(crate) dictionary_epoch: u64,
 
     /// The Word this run's failure is attributed to (`failure_site`).
@@ -166,7 +138,7 @@ pub struct Interpreter {
     pub(crate) defer_identity_recompute: bool,
 
     /// A `DEF` body's own written tokens, captured lexically when a literal
-    /// precedes `<name> DEF` (`execution_loop.rs`, `execute_def.rs`).
+    /// precedes `<name> DEF` (`engine.rs`, `execute_def.rs`).
     pub(crate) pending_def_body_tokens: Option<Vec<crate::types::Token>>,
 
     /// `#:contract NAME ...` directive text scanned out of the raw source at
@@ -237,7 +209,6 @@ impl Interpreter {
             locals: Vec::new(),
             dictionary_changes_this_run: Vec::new(),
             disable_no_change_check: true,
-            runtime_scratch: HashMap::new(),
             call_depth: 0,
             execution_step_count: 0,
             max_execution_steps: DEFAULT_MAX_EXECUTION_STEPS,
@@ -245,7 +216,6 @@ impl Interpreter {
             numeric_work_used: 0,
             collection_work_used: 0,
             next_registration_order: 1,
-            global_epoch: 0,
             dictionary_epoch: 0,
             failed_word: None,
             word_cache: std::array::from_fn(|_| (u64::MAX, Name::new(""), None)),
@@ -269,26 +239,14 @@ impl Interpreter {
         interpreter
     }
 
-    pub(crate) fn next_epoch(&mut self) -> u64 {
-        self.global_epoch += 1;
-        self.global_epoch
-    }
-
     pub(crate) fn bump_dictionary_epoch(&mut self) {
-        self.dictionary_epoch = self.next_epoch();
+        self.dictionary_epoch += 1;
     }
 
     /// One Word dispatch against the execution-step ceiling.
     ///
     /// The step is what a Word *costs*, not what any one route happens to count,
-    /// so every route that dispatches a Word calls this. The compiled route used
-    /// to call nothing: a Core Word reached through a `CompiledOp::CallBuiltin`
-    /// cost 0 steps instead of 1, which meant `resourceUsage.executionSteps`
-    /// under-reported a budget the output contract says an agent plans against,
-    /// and — worse — the ceiling could not refuse a program. Work moved inside a
-    /// User Word (whose body compiles) escaped it: 160 builtins inline were
-    /// refused at a 50-step ceiling while the same 160 inside twenty body calls
-    /// ran to completion.
+    /// so every route that dispatches a Word calls this.
     pub(crate) fn charge_execution_step(&mut self) -> crate::error::Result<()> {
         self.execution_step_count += 1;
         if self.execution_step_count > self.max_execution_steps {
@@ -320,11 +278,6 @@ impl Interpreter {
         self.runtime_limits.check_nesting_depth(deepest as usize)
     }
 
-    pub fn current_epoch_snapshot(&self) -> EpochSnapshot {
-        EpochSnapshot {
-            dictionary_epoch: self.dictionary_epoch,
-        }
-    }
     pub(crate) fn normalize_symbol<'a>(symbol: &'a str) -> std::borrow::Cow<'a, str> {
         if symbol.as_bytes().iter().any(|b| b.is_ascii_lowercase()) {
             std::borrow::Cow::Owned(symbol.to_uppercase())
@@ -397,8 +350,8 @@ impl Interpreter {
     }
 
     /// Enable or disable the D1 scalar-scalar arithmetic/comparison fast path.
-    /// In-process equivalent of `AJISAI_NO_SCALAR_FASTPATH`; unlike compiled
-    /// plan toggles this affects subsequent primitive executions immediately.
+    /// In-process equivalent of `AJISAI_NO_SCALAR_FASTPATH`; it affects
+    /// subsequent primitive executions immediately.
     pub fn set_scalar_fastpath_enabled(&mut self, enabled: bool) {
         self.scalar_fastpath_enabled = enabled;
     }
