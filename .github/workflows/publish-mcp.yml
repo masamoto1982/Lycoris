@@ -11,6 +11,13 @@ name: Publish MCP server
 # run failed part-way: the npm step skips a version npm already holds, so a run
 # that failed at the registry can be repeated. The registry refuses a version
 # it already lists, so a run that got that far has nothing left to do.
+#
+# npm authenticates this workflow by Trusted Publishing: the package's
+# settings on npmjs.com name this repository and this workflow file
+# (`publish-mcp.yml`) as its trusted publisher, and `npm publish` exchanges
+# the job's GitHub OIDC token for a short-lived publish credential. There is
+# no long-lived npm token to expire or leak; one that had expired is what
+# refused 0.9.0's first run with a 404 on the PUT.
 on:
   push:
     tags: ["mcp-v*"]
@@ -18,8 +25,8 @@ on:
 
 permissions:
   contents: read
-  # npm provenance and the MCP Registry's GitHub OIDC login both mint an
-  # identity token for this repository.
+  # npm's Trusted Publishing and provenance, and the MCP Registry's GitHub
+  # OIDC login, all mint an identity token for this repository.
   id-token: write
 
 concurrency:
@@ -41,6 +48,10 @@ jobs:
         with:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
+
+      - name: npm that publishes by Trusted Publishing
+        # The OIDC exchange needs npm 11.5.1 or later; Node 20 ships npm 10.
+        run: npm install -g npm@^11.5.1
 
       - name: Install dependencies
         run: npm ci
@@ -64,8 +75,6 @@ jobs:
         run: npm run selftest
 
       - name: Publish to npm
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           version=$(node -p 'require("./package.json").version')
           if [ "$(npm view "ajisai-mcp-server@${version}" version 2>/dev/null)" = "${version}" ]; then
