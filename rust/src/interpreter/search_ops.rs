@@ -5,7 +5,7 @@
 //! empty — a loop whose length depends on the data, which a language with no
 //! unbounded loop cannot write at all.
 
-use super::sort::compare_for_sort;
+use super::value_order::compare_for_sort;
 use crate::error::{AjisaiError, NilReason, Result};
 use crate::interpreter::collection_meter;
 use crate::interpreter::value_extraction_helpers::extract_operands;
@@ -71,35 +71,63 @@ impl<'a> Elements<'a> {
         }
     }
 
-    /// Whether the elements ascend, compared as `SORT` compares them. A flat
-    /// pure-integer Tensor compares its numerator column: every lane is an
-    /// integer there, and `compare_for_sort` orders integers as integers, so
-    /// the column answers what the pairwise comparison would. `None` when an
-    /// element is `0/0`, which has no order to ascend in.
-    fn check_ascending(&self) -> Result<Option<bool>> {
+    /// Whether the elements ascend, compared as `SORT` compares them
+    /// (LANG.VALUES.ORDER): the present elements in order, then every NIL. A
+    /// flat pure-integer Tensor compares its numerator column: every lane is
+    /// an integer there, and `compare_for_sort` orders integers as integers,
+    /// so the column answers what the pairwise comparison would.
+    fn check_ascending(&self) -> Result<Ascent> {
         if let Elements::Lanes(_, data) = self {
             if data.is_pure_integer {
-                return Ok(Some(data.ascending.get_or_init(|| {
-                    data.numerators.windows(2).all(|pair| pair[0] <= pair[1])
-                })));
+                let ascends = data
+                    .ascending
+                    .get_or_init(|| data.numerators.windows(2).all(|pair| pair[0] <= pair[1]));
+                return Ok(if ascends {
+                    Ascent::Ascending {
+                        present: data.len(),
+                    }
+                } else {
+                    Ascent::Unsorted
+                });
             }
         }
+        let mut present: Option<usize> = None;
+        let mut previous: Option<std::borrow::Cow<'_, Value>> = None;
         for index in 0..self.len() {
             let element = self.get(index);
-            let previous = if index == 0 {
-                self.get(index)
-            } else {
-                self.get(index - 1)
-            };
-            let Some(ordering) = compare_for_sort(&previous, &element)? else {
-                return Ok(None);
+            if element.is_nil() {
+                present.get_or_insert(index);
+                continue;
+            }
+            // A present element after a NIL is out of order: every NIL sorts
+            // last.
+            if present.is_some() {
+                return Ok(Ascent::Unsorted);
+            }
+            let earlier = previous.as_deref().unwrap_or(&element);
+            let Some(ordering) = compare_for_sort(earlier, &element)? else {
+                return Ok(Ascent::Unordered);
             };
             if ordering == std::cmp::Ordering::Greater {
-                return Ok(Some(false));
+                return Ok(Ascent::Unsorted);
             }
+            previous = Some(element);
         }
-        Ok(Some(true))
+        Ok(Ascent::Ascending {
+            present: present.unwrap_or(self.len()),
+        })
     }
+}
+
+/// What reading a Vector's order found.
+enum Ascent {
+    /// In `SORT`'s order, its first `present` elements present and the rest
+    /// NIL.
+    Ascending { present: usize },
+    /// Out of order: the program is wrong about its own data.
+    Unsorted,
+    /// A point over zero, which no order places (LANG.VALUES.EXACT).
+    Unordered,
 }
 
 /// What one binary search answered.
@@ -110,11 +138,13 @@ enum Found {
     Unordered,
 }
 
-/// The first index in ascending `sorted` whose element equals `key`, by
-/// halving. `compare_for_sort` decides; a structurally non-comparable key is
-/// its `nonNumeric`, and a key with no order is `Unordered`.
-fn lower_bound(sorted: &Elements<'_>, key: &Value) -> Result<Found> {
-    let (mut lo, mut hi) = (0usize, sorted.len());
+/// The first index among the first `present` elements of ascending `sorted`
+/// whose element equals `key`, by halving. `compare_for_sort` decides; a key
+/// of another domain than the elements is its `nonNumeric`, and a key with no
+/// order is `Unordered`. The NILs after them are never searched: an absence
+/// equals nothing, as SQL's `= NULL` matches no row.
+fn lower_bound(sorted: &Elements<'_>, present: usize, key: &Value) -> Result<Found> {
+    let (mut lo, mut hi) = (0usize, present);
     while lo < hi {
         let mid = lo + (hi - lo) / 2;
         match compare_for_sort(&sorted.get(mid), key)? {
@@ -123,7 +153,7 @@ fn lower_bound(sorted: &Elements<'_>, key: &Value) -> Result<Found> {
             None => return Ok(Found::Unordered),
         }
     }
-    if lo == sorted.len() {
+    if lo == present {
         // An empty vector asks nothing of the key; a key with no order is
         // still answered as one, so `[ ] 0/0 BSEARCH` and `[ 1 ] 0/0 BSEARCH`
         // agree.
@@ -170,33 +200,40 @@ fn bsearch_answer(interp: &mut Interpreter, sorted: &Value, keys: &Value) -> Res
         .probe()
         .saturating_mul(sorted.len() as u64);
     collection_meter::charge(interp, units)?;
-    match sorted.check_ascending()? {
-        Some(true) => {}
-        Some(false) => {
+    let present = match sorted.check_ascending()? {
+        Ascent::Ascending { present } => present,
+        Ascent::Unsorted => {
             return Err(AjisaiError::declared(
                 "unsortedInput",
                 "expected an ascending Vector, got one that is not in order",
             ));
         }
-        // A Vector holding `0/0` has no order, so nothing can be searched in
-        // it: a well-formed operand outside the Word's domain.
-        None => return Ok(crate::interpreter::comparison::unordered_projection()),
-    }
+        // A Vector holding a point over zero has no order, so nothing can be
+        // searched in it: a well-formed operand outside the Word's domain.
+        Ascent::Unordered => return Ok(crate::interpreter::comparison::unordered_projection()),
+    };
 
-    let lane = |found: Found| match found {
-        Found::At(index) => Value::from_int(index as i64),
-        Found::Absent => Value::nil_with_reason(NilReason::NotFound),
-        Found::Unordered => crate::interpreter::comparison::unordered_projection(),
+    // A key lane is a leaf: an absent one is its own answer
+    // (LANG.FAILURE.PASSTHROUGH).
+    let lane = |key: &Value| -> Result<Value> {
+        if key.is_nil() {
+            return Ok(key.clone());
+        }
+        Ok(match lower_bound(&sorted, present, key)? {
+            Found::At(index) => Value::from_int(index as i64),
+            Found::Absent => Value::nil_with_reason(NilReason::NotFound),
+            Found::Unordered => crate::interpreter::comparison::unordered_projection(),
+        })
     };
     Ok(match keys.as_vector_view() {
         Some(keys) => {
             let mut lanes = Vec::with_capacity(keys.len());
             for key in keys.iter() {
-                lanes.push(lane(lower_bound(&sorted, key)?));
+                lanes.push(lane(key)?);
             }
             Value::from_vector(lanes)
         }
-        None => lane(lower_bound(&sorted, keys)?),
+        None => lane(keys)?,
     })
 }
 
@@ -250,14 +287,43 @@ mod tests {
         raises("[ 3 1 2 ] [ 2 ] BSEARCH", "BSEARCH").await;
         raises(
             "[ 1 'a' ] 1 BSEARCH",
-            "expected Scalar elements, got String",
+            "expected Scalar or String elements, got String beside a Scalar",
         )
         .await;
         raises(
             "[ 1 2 3 ] 'a' BSEARCH",
-            "expected Scalar elements, got String",
+            "expected Scalar or String elements, got String beside a Scalar",
         )
         .await;
+        // Every NIL sorts last (LANG.VALUES.ORDER), so a present element
+        // after one is out of order.
+        raises("[ 1 NIL 2 ] 1 BSEARCH", "not in order").await;
+    }
+
+    /// Strings are searched in their own order, and the NILs a sort puts last
+    /// are part of an ascending Vector no key finds (LANG.VALUES.ORDER).
+    #[tokio::test]
+    async fn bsearch_reads_the_order_sort_answers() {
+        for (code, want) in [
+            ("[ 'a' 'c' 'e' ] [ 'c' 'e' ] BSEARCH", "[ 1/1 2/1 ]"),
+            ("[ 1 3 NIL NIL ] 3 BSEARCH", "1/1"),
+            ("[ 1 3 NIL ] [ 3 NIL ] BSEARCH", "[ 1/1 NIL ]"),
+            ("[ 3 NIL 1 ] SORT 3 BSEARCH", "1/1"),
+        ] {
+            assert_eq!(top(code).await, want, "`{code}`");
+        }
+        assert_eq!(
+            reason("[ 'a' 'c' ] 'b' BSEARCH").await.as_deref(),
+            Some("notFound")
+        );
+        assert_eq!(
+            reason("[ NIL NIL ] 1 BSEARCH").await.as_deref(),
+            Some("notFound")
+        );
+        assert_eq!(
+            top("[ 1 2 ] -1 SQRT 1 COLLECT BSEARCH 0 GET NIL-REASON").await,
+            "'domainMiss'"
+        );
     }
 
     #[tokio::test]

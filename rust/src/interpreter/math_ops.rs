@@ -19,11 +19,14 @@ use crate::types::fraction::Fraction;
 use crate::types::Value;
 
 /// `three_way_compare` for MIN/MAX, raising `nonNumeric` like every other
-/// Word that asks for the exact order; `None` for an operand with no order
-/// (`0/0`), which the Word projects.
+/// Word that asks for an order (LANG.VALUES.ORDER); `None` for an operand
+/// with no order (a point over zero), which the Word projects.
 fn compare_for_numeric(a: &Value, b: &Value) -> Result<Option<std::cmp::Ordering>> {
     crate::interpreter::comparison::three_way_compare(a, b).map_err(|e| {
-        AjisaiError::declared("nonNumeric", format!("expected a Scalar, got {}", e.got))
+        AjisaiError::declared(
+            "nonNumeric",
+            format!("expected two Scalars or two Strings, got {}", e.got),
+        )
     })
 }
 
@@ -79,10 +82,10 @@ pub(crate) fn lift_binary_numeric(
     })
 }
 
-/// `MIN` / `MAX` select one of two numeric operands by the order relation
-/// (LANG.VALUES.EXACT). They accept the full numeric domain, algebraic
-/// operands included, and decide the order through the same exact comparison
-/// as the relations; an operand with no order (`0/0`) projects `domainMiss`,
+/// `MIN` / `MAX` select one of two operands by the order relation
+/// (LANG.VALUES.ORDER). They accept the full numeric domain, algebraic
+/// operands included, and two Strings, and decide the order through the same
+/// comparison as the relations; an operand with no order (`0/0`) projects `domainMiss`,
 /// as `LT` does. The selected operand is returned unchanged (preserving its
 /// exact representation). NIL-passthrough. Element-wise over vectors, by
 /// [`lift_binary_numeric`].

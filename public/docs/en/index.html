@@ -1868,7 +1868,7 @@ FILTER</code></td>
 </div>
 <div class="word-entry" id="word-EQ">
 <h4><code>EQ</code> <span class="word-tier">Semantic Kernel</span></h4>
-<p>Whether two values are one value (LANG.VALUES.DENOTATION), whatever built each: <code>1 1/1 EQ</code> is <code>TRUE</code>, <code>2 SQRT 2 SQRT MUL 2 EQ</code> is <code>TRUE</code>, <code>100 0 DIV 1/0 EQ</code> is <code>TRUE</code>, <code>0/0 0/0 EQ</code> is <code>TRUE</code>, and <code>[ 1 2 ] [ 1 2 ] EQ</code> is <code>TRUE</code> — EQ compares its operands whole and does not lift. It reads both operands, so an absent one is the answer, as it is for every data operand (LANG.FAILURE.PASSTHROUGH): <code>-1 SQRT 1 EQ</code> is the UNKNOWN that absence already was, since there is nothing to compare. Inside a Vector a NIL is an element like any other and is compared by its reason, so <code>[ NIL ] [ NIL ] EQ</code> is <code>TRUE</code>; that is the equality UNIQUE and RECONCILE use, and a program that wants two possibly absent values compared rather than passed through wraps each in <code>1 COLLECT</code> first.</p>
+<p>Whether two values are one value (LANG.VALUES.DENOTATION), whatever built each: <code>1 1/1 EQ</code> is <code>TRUE</code>, <code>2 SQRT 2 SQRT MUL 2 EQ</code> is <code>TRUE</code>, <code>100 0 DIV 1/0 EQ</code> is <code>TRUE</code>, <code>0/0 0/0 EQ</code> is <code>TRUE</code>, and <code>[ 1 2 ] [ 1 2 ] EQ</code> is <code>TRUE</code> — EQ compares its operands whole and does not lift. It reads both operands, so an absent one is the answer, as it is for every data operand (LANG.FAILURE.PASSTHROUGH): <code>-1 SQRT 1 EQ</code> is the UNKNOWN that absence already was, since there is nothing to compare. Inside a Vector a NIL is an element like any other and is compared by its reason, so <code>[ NIL ] [ NIL ] EQ</code> is <code>TRUE</code> — SQL's IS NOT DISTINCT FROM rather than its =; that is the equality RECONCILE uses, while UNIQUE, TALLY and GROUP also make every NIL one key whatever its reason (LANG.VALUES.ORDER), and a program that wants two possibly absent values compared rather than passed through wraps each in <code>1 COLLECT</code> first.</p>
 <dl class="word-contract">
 <dt>Syntax</dt><dd><code>1 1 EQ</code></dd>
 <dt>Stack effect</dt><dd><span class="notation">[ a ] [ b ] -&gt; [ TRUE | FALSE ]</span></dd>
@@ -1879,12 +1879,12 @@ FILTER</code></td>
 <dt>Field</dt><dd><code>closed</code> (LANG.CONTRACT.FIELD)</dd>
 <dt>Purity / determinism</dt><dd><code>pure</code> / <code>deterministic</code></dd>
 <dt>Effects</dt><dd>none</dd>
-<dt>Clauses</dt><dd><code>LANG.VALUES.TRUTH</code>, <code>LANG.VALUES.EXACT</code>, <code>LANG.VALUES.DENOTATION</code></dd>
+<dt>Clauses</dt><dd><code>LANG.VALUES.TRUTH</code>, <code>LANG.VALUES.EXACT</code>, <code>LANG.VALUES.DENOTATION</code>, <code>LANG.VALUES.ORDER</code></dd>
 </dl>
 </div>
 <div class="word-entry" id="word-LT">
 <h4><code>LT</code> <span class="word-tier">Semantic Kernel</span></h4>
-<p>Whether the left number is less than the right: <code>1 2 LT</code> is <code>TRUE</code>, element-wise over Vectors, <code>[ 1 5 ] 3 LT</code> is <code>[ TRUE FALSE ]</code>. Order over the exact domain decides (LANG.VALUES.EXACT), irrationals included — <code>2 SQRT 3/2 LT</code> is <code>TRUE</code> — and neither point over zero has an order — <code>1/0</code> is the one unsigned point at infinity and <code>0/0</code> the wheel's bottom — so a comparison asking one projects NIL(domainMiss): <code>1/0 1 LT</code> is the UNKNOWN that absence reads as in truth position (LANG.VALUES.TRUTH). Only numbers are ordered; anything else is <code>nonNumeric</code>.</p>
+<p>Whether the left value is less than the right: <code>1 2 LT</code> is <code>TRUE</code>, element-wise over Vectors, <code>[ 1 5 ] 3 LT</code> is <code>[ TRUE FALSE ]</code>. Two numbers and two Strings are ordered (LANG.VALUES.ORDER). Numbers order over the exact domain (LANG.VALUES.EXACT), irrationals included — <code>2 SQRT 3/2 LT</code> is <code>TRUE</code> — and neither point over zero has an order — <code>1/0</code> is the one unsigned point at infinity and <code>0/0</code> the wheel's bottom — so a comparison asking one projects NIL(domainMiss): <code>1/0 1 LT</code> is the UNKNOWN that absence reads as in truth position (LANG.VALUES.TRUTH). Strings order by Unicode scalar value, character by character, SQL's binary collation: <code>'abc' 'abd' LT</code> is <code>TRUE</code>, <code>'Z' 'a' LT</code> is <code>TRUE</code> and <code>'ab' 'abc' LT</code> is <code>TRUE</code>. Any other pair, a number against a String included, is <code>nonNumeric</code>.</p>
 <dl class="word-contract">
 <dt>Syntax</dt><dd><code>1 2 LT</code></dd>
 <dt>Stack effect</dt><dd><span class="notation">[ a ] [ b ] -&gt; [ TRUE | FALSE ]</span></dd>
@@ -1896,12 +1896,12 @@ FILTER</code></td>
 <dt>Purity / determinism</dt><dd><code>pure</code> / <code>deterministic</code></dd>
 <dt>Effects</dt><dd>none</dd>
 <dt>ERROR conditions</dt><dd><code>nonNumeric</code>, <code>shapeMismatch</code></dd>
-<dt>Clauses</dt><dd><code>LANG.VALUES.TRUTH</code>, <code>LANG.VALUES.EXACT</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.FAILURE.PROJECT</code></dd>
+<dt>Clauses</dt><dd><code>LANG.VALUES.TRUTH</code>, <code>LANG.VALUES.EXACT</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.FAILURE.PROJECT</code>, <code>LANG.VALUES.ORDER</code></dd>
 </dl>
 </div>
 <div class="word-entry" id="word-GT">
 <h4><code>GT</code> <span class="word-tier">Semantic Kernel</span></h4>
-<p>Whether the left number is greater than the right: <code>2 1 GT</code> is <code>TRUE</code>, element-wise over Vectors, <code>[ 1 5 ] 3 GT</code> is <code>[ FALSE TRUE ]</code>. Order over the exact domain decides (LANG.VALUES.EXACT), irrationals included — <code>2 SQRT 3/2 LT</code> is <code>TRUE</code> — and neither point over zero has an order — <code>1/0</code> is the one unsigned point at infinity and <code>0/0</code> the wheel's bottom — so a comparison asking one projects NIL(domainMiss): <code>1/0 1 GT</code> is the UNKNOWN that absence reads as in truth position (LANG.VALUES.TRUTH). Only numbers are ordered; anything else is <code>nonNumeric</code>.</p>
+<p>Whether the left value is greater than the right: <code>2 1 GT</code> is <code>TRUE</code>, element-wise over Vectors, <code>[ 1 5 ] 3 GT</code> is <code>[ FALSE TRUE ]</code>. Two numbers and two Strings are ordered (LANG.VALUES.ORDER). Numbers order over the exact domain (LANG.VALUES.EXACT), irrationals included — <code>2 SQRT 3/2 GT</code> is <code>FALSE</code> — and neither point over zero has an order — <code>1/0</code> is the one unsigned point at infinity and <code>0/0</code> the wheel's bottom — so a comparison asking one projects NIL(domainMiss): <code>1/0 1 GT</code> is the UNKNOWN that absence reads as in truth position (LANG.VALUES.TRUTH). Strings order by Unicode scalar value, character by character, SQL's binary collation: <code>'b' 'abc' GT</code> is <code>TRUE</code>. Any other pair, a number against a String included, is <code>nonNumeric</code>.</p>
 <dl class="word-contract">
 <dt>Syntax</dt><dd><code>2 1 GT</code></dd>
 <dt>Stack effect</dt><dd><span class="notation">[ a ] [ b ] -&gt; [ TRUE | FALSE ]</span></dd>
@@ -1913,12 +1913,12 @@ FILTER</code></td>
 <dt>Purity / determinism</dt><dd><code>pure</code> / <code>deterministic</code></dd>
 <dt>Effects</dt><dd>none</dd>
 <dt>ERROR conditions</dt><dd><code>nonNumeric</code>, <code>shapeMismatch</code></dd>
-<dt>Clauses</dt><dd><code>LANG.VALUES.TRUTH</code>, <code>LANG.VALUES.EXACT</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.FAILURE.PROJECT</code></dd>
+<dt>Clauses</dt><dd><code>LANG.VALUES.TRUTH</code>, <code>LANG.VALUES.EXACT</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.FAILURE.PROJECT</code>, <code>LANG.VALUES.ORDER</code></dd>
 </dl>
 </div>
 <div class="word-entry" id="word-MIN">
 <h4><code>MIN</code> <span class="word-tier">Standard · namedPattern</span></h4>
-<p>The smaller of two numbers: <code>1 2 MIN</code> is <code>1</code>, and element-wise over Vectors with broadcasting, <code>[ 3 1 ] 2 MIN</code> is <code>[ 2 1 ]</code>. The order is the exact domain's (LANG.VALUES.EXACT): <code>-1 5 MIN</code> is <code>-1</code>, and a point over zero, <code>1/0</code> or <code>0/0</code>, which has no order, projects NIL(domainMiss) as LT does. A non-number is <code>nonNumeric</code>.</p>
+<p>The smaller of two values: <code>1 2 MIN</code> is <code>1</code>, and element-wise over Vectors with broadcasting, <code>[ 3 1 ] 2 MIN</code> is <code>[ 2 1 ]</code>. The order is LANG.VALUES.ORDER's: numbers by the exact domain (LANG.VALUES.EXACT), <code>-1 5 MIN</code> is <code>-1</code>, and Strings by Unicode scalar value, <code>'pear' 'apple' MIN</code> is <code>'apple'</code>. A point over zero, <code>1/0</code> or <code>0/0</code>, which has no order, projects NIL(domainMiss) as LT does. Any other pair, a number against a String included, is <code>nonNumeric</code>.</p>
 <dl class="word-contract">
 <dt>Syntax</dt><dd><code>1 2 MIN</code></dd>
 <dt>Stack effect</dt><dd><span class="notation">[ a ] [ b ] -&gt; [ min ]</span></dd>
@@ -1930,12 +1930,12 @@ FILTER</code></td>
 <dt>Purity / determinism</dt><dd><code>pure</code> / <code>deterministic</code></dd>
 <dt>Effects</dt><dd>none</dd>
 <dt>ERROR conditions</dt><dd><code>nonNumeric</code>, <code>shapeMismatch</code></dd>
-<dt>Clauses</dt><dd><code>LANG.VALUES.TRUTH</code>, <code>LANG.VALUES.EXACT</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.FAILURE.TRICHOTOMY</code>, <code>LANG.FAILURE.PROJECT</code></dd>
+<dt>Clauses</dt><dd><code>LANG.VALUES.TRUTH</code>, <code>LANG.VALUES.EXACT</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.FAILURE.TRICHOTOMY</code>, <code>LANG.FAILURE.PROJECT</code>, <code>LANG.VALUES.ORDER</code></dd>
 </dl>
 </div>
 <div class="word-entry" id="word-MAX">
 <h4><code>MAX</code> <span class="word-tier">Standard · namedPattern</span></h4>
-<p>The larger of two numbers: <code>1 2 MAX</code> is <code>2</code>, and element-wise over Vectors with broadcasting, <code>[ -1 2 -3 ] 0 MAX</code> is <code>[ 0 2 0 ]</code>. The order is the exact domain's (LANG.VALUES.EXACT): <code>-1 5 MAX</code> is <code>5</code>, and a point over zero, <code>1/0</code> or <code>0/0</code>, which has no order, projects NIL(domainMiss) as GT does. A non-number is <code>nonNumeric</code>.</p>
+<p>The larger of two values: <code>1 2 MAX</code> is <code>2</code>, and element-wise over Vectors with broadcasting, <code>[ -1 2 -3 ] 0 MAX</code> is <code>[ 0 2 0 ]</code>. The order is LANG.VALUES.ORDER's: numbers by the exact domain (LANG.VALUES.EXACT), <code>-1 5 MAX</code> is <code>5</code>, and Strings by Unicode scalar value, <code>'pear' 'apple' MAX</code> is <code>'pear'</code>. A point over zero, <code>1/0</code> or <code>0/0</code>, which has no order, projects NIL(domainMiss) as GT does. Any other pair, a number against a String included, is <code>nonNumeric</code>.</p>
 <dl class="word-contract">
 <dt>Syntax</dt><dd><code>1 2 MAX</code></dd>
 <dt>Stack effect</dt><dd><span class="notation">[ a ] [ b ] -&gt; [ max ]</span></dd>
@@ -1947,7 +1947,7 @@ FILTER</code></td>
 <dt>Purity / determinism</dt><dd><code>pure</code> / <code>deterministic</code></dd>
 <dt>Effects</dt><dd>none</dd>
 <dt>ERROR conditions</dt><dd><code>nonNumeric</code>, <code>shapeMismatch</code></dd>
-<dt>Clauses</dt><dd><code>LANG.VALUES.TRUTH</code>, <code>LANG.VALUES.EXACT</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.FAILURE.TRICHOTOMY</code>, <code>LANG.FAILURE.PROJECT</code></dd>
+<dt>Clauses</dt><dd><code>LANG.VALUES.TRUTH</code>, <code>LANG.VALUES.EXACT</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.FAILURE.TRICHOTOMY</code>, <code>LANG.FAILURE.PROJECT</code>, <code>LANG.VALUES.ORDER</code></dd>
 </dl>
 </div>
 <h3 id="family-knowledgeOrder">Contracts: Exact arithmetic (the knowledge order)</h3>
@@ -2662,7 +2662,7 @@ FILTER</code></td>
 </div>
 <div class="word-entry" id="word-SORT">
 <h4><code>SORT</code> <span class="word-tier">Standard · operational</span></h4>
-<p>A copy of a Vector of numbers in ascending order: <code>[ 3 1 2 ] SORT</code> is <code>[ 1 2 3 ]</code>. Order is exact, irrationals included; a Vector holding a point over zero, <code>1/0</code> or <code>0/0</code>, which has no order, has no sorted form and projects NIL(domainMiss) (LANG.VALUES.EXACT). Only numbers are ordered (<code>nonNumeric</code>), and a non-Vector is <code>nonVector</code>. ORDER answers the permutation instead.</p>
+<p>A copy of a Vector in ascending order (LANG.VALUES.ORDER): <code>[ 3 1 2 ] SORT</code> is <code>[ 1 2 3 ]</code>, and <code>[ 'b' 'B' 'a' ] SORT</code> is <code>[ 'B' 'a' 'b' ]</code>. Numbers order exactly, irrationals included, and Strings by Unicode scalar value. Every NIL goes after every present element, in its original order, as SQL's ORDER BY puts NULLS LAST: <code>[ 3 NIL 1 ] SORT</code> is <code>[ 1 3 NIL ]</code>, nothing is dropped, and <code>SORT REVERSE</code> is the descending order with the NILs first. A Vector holding a point over zero, <code>1/0</code> or <code>0/0</code>, which has no order, has no sorted form and projects NIL(domainMiss) (LANG.VALUES.EXACT). An element neither a number, a String nor NIL, or numbers and Strings side by side, is <code>nonNumeric</code>, and a non-Vector is <code>nonVector</code>. ORDER answers the permutation instead.</p>
 <dl class="word-contract">
 <dt>Syntax</dt><dd><code>[ 3 1 2 ] SORT</code></dd>
 <dt>Stack effect</dt><dd><span class="notation">[ vec ] -&gt; [ sorted ]</span></dd>
@@ -2674,12 +2674,12 @@ FILTER</code></td>
 <dt>Purity / determinism</dt><dd><code>pure</code> / <code>deterministic</code></dd>
 <dt>Effects</dt><dd>none</dd>
 <dt>ERROR conditions</dt><dd><code>nonVector</code>, <code>nonNumeric</code></dd>
-<dt>Clauses</dt><dd><code>LANG.VALUES.VECTOR</code>, <code>LANG.MACHINE.LIMITS</code>, <code>LANG.FAILURE.PROJECT</code>, <code>LANG.VALUES.EXACT</code></dd>
+<dt>Clauses</dt><dd><code>LANG.VALUES.VECTOR</code>, <code>LANG.MACHINE.LIMITS</code>, <code>LANG.FAILURE.PROJECT</code>, <code>LANG.VALUES.EXACT</code>, <code>LANG.VALUES.ORDER</code></dd>
 </dl>
 </div>
 <div class="word-entry" id="word-ORDER">
 <h4><code>ORDER</code> <span class="word-tier">Standard · operational</span></h4>
-<p>The indices that would sort a Vector of numbers ascending: <code>[ 30 10 20 ] ORDER</code> is <code>[ 1 2 0 ]</code>, so gathering by it sorts: <code>[ 30 10 20 ] 'V' BIND V V ORDER GET</code> is <code>[ 10 20 30 ]</code>. Ties keep their original order: <code>[ 2 1 2 1 ] ORDER</code> is <code>[ 1 3 0 2 ]</code>. A Vector holding a point over zero, which has no order, projects NIL(domainMiss) as SORT does (LANG.VALUES.EXACT). Only numbers are ordered (<code>nonNumeric</code>), and a non-Vector is <code>nonVector</code>.</p>
+<p>The indices that would sort a Vector ascending (LANG.VALUES.ORDER): <code>[ 30 10 20 ] ORDER</code> is <code>[ 1 2 0 ]</code>, so gathering by it sorts: <code>[ 30 10 20 ] 'V' BIND V V ORDER GET</code> is <code>[ 10 20 30 ]</code>. Ties keep their original order: <code>[ 2 1 2 1 ] ORDER</code> is <code>[ 1 3 0 2 ]</code>. The order is SORT's — numbers, or Strings, ascending, and every NIL last — so <code>[ 3 NIL 1 ] ORDER</code> is <code>[ 2 0 1 ]</code> and the same permutation gathers every other column of a table. A Vector holding a point over zero, which has no order, projects NIL(domainMiss) as SORT does (LANG.VALUES.EXACT). An element neither a number, a String nor NIL, or numbers and Strings side by side, is <code>nonNumeric</code>, and a non-Vector is <code>nonVector</code>.</p>
 <dl class="word-contract">
 <dt>Syntax</dt><dd><code>[ 30 10 20 ] ORDER</code></dd>
 <dt>Stack effect</dt><dd><span class="notation">[ vec ] -&gt; [ permutation ]</span></dd>
@@ -2691,12 +2691,12 @@ FILTER</code></td>
 <dt>Purity / determinism</dt><dd><code>pure</code> / <code>deterministic</code></dd>
 <dt>Effects</dt><dd>none</dd>
 <dt>ERROR conditions</dt><dd><code>nonVector</code>, <code>nonNumeric</code></dd>
-<dt>Clauses</dt><dd><code>LANG.VALUES.VECTOR</code>, <code>LANG.MACHINE.LIMITS</code>, <code>LANG.FAILURE.PROJECT</code>, <code>LANG.VALUES.EXACT</code></dd>
+<dt>Clauses</dt><dd><code>LANG.VALUES.VECTOR</code>, <code>LANG.MACHINE.LIMITS</code>, <code>LANG.FAILURE.PROJECT</code>, <code>LANG.VALUES.EXACT</code>, <code>LANG.VALUES.ORDER</code></dd>
 </dl>
 </div>
 <div class="word-entry" id="word-UNIQUE">
 <h4><code>UNIQUE</code> <span class="word-tier">Standard · operational</span></h4>
-<p>The distinct elements of a Vector, each at its first occurrence: <code>[ 3 1 3 ] UNIQUE</code> is <code>[ 3 1 ]</code>. Distinct means not one value (LANG.VALUES.DENOTATION), so it works on texts, nested Vectors and NILs alike, and <code>[ 2 4/2 ] UNIQUE</code> is <code>[ 2 ]</code>. A non-Vector is <code>nonVector</code>.</p>
+<p>The distinct elements of a Vector, each at its first occurrence: <code>[ 3 1 3 ] UNIQUE</code> is <code>[ 3 1 ]</code>. Distinct means not one value (LANG.VALUES.DENOTATION), so it works on texts, nested Vectors and NILs alike, and <code>[ 2 4/2 ] UNIQUE</code> is <code>[ 2 ]</code>. Every NIL is one element whatever its reason, at any depth, as every NULL is one value to SQL's DISTINCT (LANG.VALUES.ORDER): a null a source stored and a key a record lacked are kept once, as the first of them. A non-Vector is <code>nonVector</code>.</p>
 <dl class="word-contract">
 <dt>Syntax</dt><dd><code>[ 'a' 'b' 'a' ] UNIQUE</code></dd>
 <dt>Stack effect</dt><dd><span class="notation">[ vec ] -&gt; [ distinct ]</span></dd>
@@ -2708,7 +2708,7 @@ FILTER</code></td>
 <dt>Purity / determinism</dt><dd><code>pure</code> / <code>deterministic</code></dd>
 <dt>Effects</dt><dd>none</dd>
 <dt>ERROR conditions</dt><dd><code>nonVector</code></dd>
-<dt>Clauses</dt><dd><code>LANG.VALUES.VECTOR</code>, <code>LANG.MACHINE.LIMITS</code></dd>
+<dt>Clauses</dt><dd><code>LANG.VALUES.VECTOR</code>, <code>LANG.MACHINE.LIMITS</code>, <code>LANG.VALUES.ORDER</code></dd>
 </dl>
 </div>
 <div class="word-entry" id="word-ZIP">
@@ -2747,7 +2747,7 @@ FILTER</code></td>
 </div>
 <div class="word-entry" id="word-BSEARCH">
 <h4><code>BSEARCH</code> <span class="word-tier">Standard · algorithm</span></h4>
-<p>The index of each key in an ascending vector, found by halving: <code>[ 1 3 5 7 ] [ 5 ] BSEARCH</code> is <code>[ 2 ]</code>, a single key answers a single index, and a key that is not there is a NIL(notFound) lane. The vector must be in ascending order; one that is not raises <code>unsortedInput</code>, since a binary search over unordered data would answer something rather than nothing, and one holding a point over zero, which has no order, projects NIL(domainMiss), as does a key over zero in its own lane (LANG.VALUES.EXACT). Checking the order is one pass over the vector, and each key then costs O(log n), so m keys cost O(n + m log n) against a linear scan's O(m·n) — and halving a range until it is empty is a loop whose length depends on the data, which a language with no unbounded loop cannot write.</p>
+<p>The index of each key in an ascending vector, found by halving: <code>[ 1 3 5 7 ] [ 5 ] BSEARCH</code> is <code>[ 2 ]</code>, a single key answers a single index, and a key that is not there is a NIL(notFound) lane. Ascending is SORT's order (LANG.VALUES.ORDER) — numbers, or Strings, <code>[ 'a' 'c' 'e' ] 'c' BSEARCH</code> is <code>1</code> — with any NILs last, where no key finds them: an absent key lane is its own answer, as SQL's = NULL matches no row. The vector must be in that order; one that is not raises <code>unsortedInput</code>, since a binary search over unordered data would answer something rather than nothing, and one holding a point over zero, which has no order, projects NIL(domainMiss), as does a key over zero in its own lane (LANG.VALUES.EXACT). Checking the order is one pass over the vector, and each key then costs O(log n), so m keys cost O(n + m log n) against a linear scan's O(m·n) — and halving a range until it is empty is a loop whose length depends on the data, which a language with no unbounded loop cannot write.</p>
 <dl class="word-contract">
 <dt>Syntax</dt><dd><code>[ 1 3 5 7 ] [ 5 ] BSEARCH</code></dd>
 <dt>Stack effect</dt><dd><span class="notation">[ sorted ] [ keys ] -&gt; [ indices ]</span></dd>
@@ -2759,7 +2759,7 @@ FILTER</code></td>
 <dt>Purity / determinism</dt><dd><code>pure</code> / <code>deterministic</code></dd>
 <dt>Effects</dt><dd>none</dd>
 <dt>ERROR conditions</dt><dd><code>nonVector</code>, <code>unsortedInput</code>, <code>nonNumeric</code></dd>
-<dt>Clauses</dt><dd><code>LANG.VALUES.VECTOR</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.MACHINE.LIMITS</code>, <code>LANG.FAILURE.PROJECT</code>, <code>LANG.VALUES.EXACT</code></dd>
+<dt>Clauses</dt><dd><code>LANG.VALUES.VECTOR</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.MACHINE.LIMITS</code>, <code>LANG.FAILURE.PROJECT</code>, <code>LANG.VALUES.EXACT</code>, <code>LANG.VALUES.ORDER</code></dd>
 </dl>
 </div>
 <!-- END generated word contracts: vector-ops -->
@@ -2908,7 +2908,7 @@ FILTER</code></td>
 <h3 id="family-record">Contracts: Records</h3>
 <div class="word-entry" id="word-TALLY">
 <h4><code>TALLY</code> <span class="word-tier">Standard · operational</span></h4>
-<p>How many times each distinct element occurs, as a Record from element to count: <code>[ 'b' 'a' 'b' ] TALLY</code> is <code>[ 'b' 'a' ] [ 2/1 1/1 ] RECORD</code>, keys in order of first appearance. <code>KEYS</code> is exactly what <code>UNIQUE</code> answers and <code>VALUES</code> is the aligned count Vector, so no separate <code>UNIQUE</code> call is needed to learn what each count counts. Works for every value, not only numbers. A non-Vector operand is an ERROR.</p>
+<p>How many times each distinct element occurs, as a Record from element to count: <code>[ 'b' 'a' 'b' ] TALLY</code> is <code>[ 'b' 'a' ] [ 2/1 1/1 ] RECORD</code>, keys in order of first appearance. <code>KEYS</code> is exactly what <code>UNIQUE</code> answers and <code>VALUES</code> is the aligned count Vector, so no separate <code>UNIQUE</code> call is needed to learn what each count counts. Works for every value, not only numbers, and counts every NIL under one key whatever its reason, as SQL's GROUP BY counts every NULL in one group (LANG.VALUES.ORDER). A non-Vector operand is an ERROR.</p>
 <dl class="word-contract">
 <dt>Syntax</dt><dd><code>[ 'a' 'b' 'a' ] TALLY</code></dd>
 <dt>Stack effect</dt><dd><span class="notation">[ vec ] -&gt; [ record ]</span></dd>
@@ -2920,12 +2920,12 @@ FILTER</code></td>
 <dt>Purity / determinism</dt><dd><code>pure</code> / <code>deterministic</code></dd>
 <dt>Effects</dt><dd>none</dd>
 <dt>ERROR conditions</dt><dd><code>nonVector</code></dd>
-<dt>Clauses</dt><dd><code>LANG.RECORDS.STRUCTURE</code>, <code>LANG.VALUES.VECTOR</code>, <code>LANG.MACHINE.LIMITS</code></dd>
+<dt>Clauses</dt><dd><code>LANG.RECORDS.STRUCTURE</code>, <code>LANG.VALUES.VECTOR</code>, <code>LANG.MACHINE.LIMITS</code>, <code>LANG.VALUES.ORDER</code></dd>
 </dl>
 </div>
 <div class="word-entry" id="word-GROUP">
 <h4><code>GROUP</code> <span class="word-tier">Standard · operational</span></h4>
-<p>Bundle values by the key at the same position, as a Record from key to the Vector of its values: <code>[ 'a' 'b' 'a' ] [ 1 2 3 ] GROUP</code> is <code>[ 'a' 'b' ] [ [ 1/1 3/1 ] [ 2/1 ] ] RECORD</code>, keys in order of first appearance and every value kept exactly once. The core of a per-class tally, a centroid update or a stratified partition; <code>R 'a' GET</code> reads one group by name, with no <code>UNIQUE</code> or search to find it — a key that is a Scalar, String, Boolean or Symbol; a group keyed by a Vector, a Record or NIL is read through <code>KEYS</code> and <code>VALUES</code> instead. Keys come first, as they do for RECORD; both operands must be Vectors of the same length.</p>
+<p>Bundle values by the key at the same position, as a Record from key to the Vector of its values: <code>[ 'a' 'b' 'a' ] [ 1 2 3 ] GROUP</code> is <code>[ 'a' 'b' ] [ [ 1/1 3/1 ] [ 2/1 ] ] RECORD</code>, keys in order of first appearance and every value kept exactly once. Keys are one key exactly when UNIQUE calls them one element, so every NIL key, whatever its reason, bundles into one group, as SQL's GROUP BY makes one group of every NULL (LANG.VALUES.ORDER). The core of a per-class tally, a centroid update or a stratified partition; <code>R 'a' GET</code> reads one group by name, with no <code>UNIQUE</code> or search to find it — a key that is a Scalar, String, Boolean or Symbol; a group keyed by a Vector, a Record or NIL is read through <code>KEYS</code> and <code>VALUES</code> instead. Keys come first, as they do for RECORD; both operands must be Vectors of the same length.</p>
 <dl class="word-contract">
 <dt>Syntax</dt><dd><code>[ 'a' 'b' 'a' ] [ 1 2 3 ] GROUP</code></dd>
 <dt>Stack effect</dt><dd><span class="notation">[ keys ] [ values ] -&gt; [ record ]</span></dd>
@@ -2937,7 +2937,7 @@ FILTER</code></td>
 <dt>Purity / determinism</dt><dd><code>pure</code> / <code>deterministic</code></dd>
 <dt>Effects</dt><dd>none</dd>
 <dt>ERROR conditions</dt><dd><code>nonVector</code>, <code>shapeMismatch</code></dd>
-<dt>Clauses</dt><dd><code>LANG.RECORDS.STRUCTURE</code>, <code>LANG.VALUES.VECTOR</code>, <code>LANG.MACHINE.LIMITS</code></dd>
+<dt>Clauses</dt><dd><code>LANG.RECORDS.STRUCTURE</code>, <code>LANG.VALUES.VECTOR</code>, <code>LANG.MACHINE.LIMITS</code>, <code>LANG.VALUES.ORDER</code></dd>
 </dl>
 </div>
 <div class="word-entry" id="word-RECORD">
@@ -3339,7 +3339,7 @@ FILTER</code></td>
 </div>
 <div class="word-entry" id="word-JOIN">
 <h4><code>JOIN</code> <span class="word-tier">Semantic Kernel</span></h4>
-<p>A Vector of texts joined end to end into one text: <code>[ 'h' 'i' ] JOIN</code> is <code>'hi'</code>, and <code>[ ] JOIN</code> is <code>''</code>, so <code>CHARS JOIN</code> gives a text back. Every element must be a text (<code>nonText</code>), and a non-Vector is <code>nonVector</code>.</p>
+<p>A Vector of texts joined end to end into one text: <code>[ 'h' 'i' ] JOIN</code> is <code>'hi'</code>, and <code>[ ] JOIN</code> is <code>''</code>, so <code>CHARS JOIN</code> gives a text back. A NIL element is a part of the text that is not known, so the text is not known either: the first NIL is the answer, its reason kept, as SQL's 'a' || NULL is NULL — <code>[ 'a' NIL 'b' ] JOIN NIL?</code> is <code>TRUE</code>. Every other element must be a text (<code>nonText</code>), and a non-Vector is <code>nonVector</code>.</p>
 <dl class="word-contract">
 <dt>Syntax</dt><dd><code>[ 'h' 'i' ] JOIN</code></dd>
 <dt>Stack effect</dt><dd><span class="notation">[ texts ] -&gt; [ text ]</span></dd>
@@ -3351,7 +3351,7 @@ FILTER</code></td>
 <dt>Purity / determinism</dt><dd><code>pure</code> / <code>deterministic</code></dd>
 <dt>Effects</dt><dd>none</dd>
 <dt>ERROR conditions</dt><dd><code>nonVector</code>, <code>nonText</code></dd>
-<dt>Clauses</dt><dd><code>LANG.VALUES.DISJOINT</code>, <code>LANG.FAILURE.TRICHOTOMY</code></dd>
+<dt>Clauses</dt><dd><code>LANG.VALUES.DISJOINT</code>, <code>LANG.FAILURE.TRICHOTOMY</code>, <code>LANG.VALUES.ORDER</code></dd>
 </dl>
 </div>
 <div class="word-entry" id="word-TRIM">

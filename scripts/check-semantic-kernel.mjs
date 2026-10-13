@@ -59,7 +59,14 @@ const fail = report.fail;
 // The correspondence paragraph moved out of LANG.VALUES.TRUTH into the new
 // clause, so the net cost is the heading, its separators and two paragraphs of
 // new fact, not a reflow.
-const LINE_BUDGET = 414;
+// Raised to 418 for LANG.VALUES.ORDER: the SQL review (2026-10-13) found the
+// order and the grouping key were each defined nowhere but in the Words that
+// used them — Strings had no order, a NIL element stopped SORT, and UNIQUE /
+// TALLY / GROUP split NULLs by reason where SQL's DISTINCT and GROUP BY make
+// one group. One clause now fixes all three: the order of numbers and of
+// Strings, where a NIL sorts, and the key a grouping Word bundles by. Net new
+// content, at the four lines a clause costs.
+const LINE_BUDGET = 418;
 const lines = language.split('\n').length;
 if (lines > LINE_BUDGET) {
   fail(

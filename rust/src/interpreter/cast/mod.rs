@@ -50,8 +50,18 @@ pub fn op_join(interp: &mut Interpreter) -> Result<()> {
     // one-character Strings. Taking an integer as a code point here was the
     // one place a number still stood for a character, and nothing produced
     // one to pass.
-    let mut result = String::new();
+    //
+    // A NIL element is a part of the text that is not known, so the text is
+    // not known either: the first one is the answer, reason and all, as SQL's
+    // `'a' || NULL` is NULL. Every element is still checked first — a
+    // non-String is the program being wrong, which an absence does not hide.
+    let mut first_absent: Option<&Value> = None;
+    let mut bytes = 0usize;
     for (i, elem) in children.iter().enumerate() {
+        if elem.is_nil() {
+            first_absent.get_or_insert(elem);
+            continue;
+        }
         let Some(text) = elem.as_text() else {
             let got = elem.domain_name();
             interp.stack.push(val);
@@ -60,9 +70,18 @@ pub fn op_join(interp: &mut Interpreter) -> Result<()> {
                 format!("expected a Vector of Strings, got {got} at index {i}"),
             ));
         };
-        result.push_str(text);
+        bytes += text.len();
+    }
+    if let Some(absent) = first_absent {
+        let absent = absent.clone();
+        interp.stack.push(absent);
+        return Ok(());
     }
 
+    let mut result = String::with_capacity(bytes);
+    for elem in children.iter() {
+        result.push_str(elem.as_text().unwrap_or_default());
+    }
     interp.stack.push(Value::from_string(&result));
     Ok(())
 }

@@ -240,8 +240,65 @@
 
 <section class="ajisai-case" id="core-absent-text-is-identity" data-category="core">
   <h3>The declared text is part of the NIL's identity: two ABSENTs with different texts are two values (LANG.VALUES.NIL)</h3>
-  <pre class="ajisai-source">'a' ABSENT 'b' ABSENT 2 COLLECT UNIQUE LENGTH</pre>
-  <pre class="ajisai-expect-result">2/1</pre>
+  <pre class="ajisai-source">'a' ABSENT 1 COLLECT 'b' ABSENT 1 COLLECT EQ</pre>
+  <pre class="ajisai-expect-result">FALSE</pre>
+  <div class="ajisai-expect-effects"></div>
+</section>
+
+<section class="ajisai-case" id="core-order-strings-by-scalar-value" data-category="core">
+  <h3>Two Strings are ordered by Unicode scalar value, a proper prefix first: SQL's binary collation (LANG.VALUES.ORDER)</h3>
+  <pre class="ajisai-source">'abc' 'abd' LT 'Z' 'a' LT 'ab' 'abc' LT [ 'b' 'B' 'a' ] SORT</pre>
+  <pre class="ajisai-expect-result">TRUE TRUE TRUE [ 'B' 'a' 'b' ]</pre>
+  <div class="ajisai-expect-effects"></div>
+</section>
+
+<section class="ajisai-case" id="core-order-number-against-string-is-error" data-category="core">
+  <h3>A number and a String have no order between them: asking one is misuse (LANG.VALUES.ORDER)</h3>
+  <pre class="ajisai-source">'a' 1 LT</pre>
+  <pre class="ajisai-expect-result"></pre>
+  <pre class="ajisai-expect-error">expected two Scalars or two Strings, got String beside a Scalar</pre>
+  <div class="ajisai-expect-effects"></div>
+</section>
+
+<section class="ajisai-case" id="core-order-min-over-strings" data-category="core">
+  <h3>MIN and MAX choose by the same order over Strings, lane by lane (LANG.VALUES.ORDER)</h3>
+  <pre class="ajisai-source">[ 'pear' 'apple' ] 'banana' MIN</pre>
+  <pre class="ajisai-expect-result">[ 'banana' 'apple' ]</pre>
+  <div class="ajisai-expect-effects"></div>
+</section>
+
+<section class="ajisai-case" id="core-sort-nils-last" data-category="core">
+  <h3>SORT puts every NIL after every present element, in source order, as ORDER BY ... NULLS LAST; ORDER answers the same permutation (LANG.VALUES.ORDER)</h3>
+  <pre class="ajisai-source">[ 3 NIL 1 ] SORT [ 3 NIL 1 NIL ] ORDER</pre>
+  <pre class="ajisai-expect-result">[ 1/1 3/1 NIL ] [ 2/1 0/1 1/1 3/1 ]</pre>
+  <div class="ajisai-expect-effects"></div>
+</section>
+
+<section class="ajisai-case" id="core-bsearch-skips-nils" data-category="core">
+  <h3>BSEARCH reads the NILs a sort puts last as part of the order, and an absent key finds nothing (LANG.VALUES.ORDER)</h3>
+  <pre class="ajisai-source">[ 1 3 NIL ] [ 3 NIL ] BSEARCH</pre>
+  <pre class="ajisai-expect-result">[ 1/1 NIL ]</pre>
+  <div class="ajisai-expect-effects"></div>
+</section>
+
+<section class="ajisai-case" id="core-grouping-merges-nil-reasons" data-category="core">
+  <h3>UNIQUE, TALLY and GROUP make every NIL one key whatever its reason, as SQL's DISTINCT and GROUP BY make every NULL one group (LANG.VALUES.ORDER)</h3>
+  <pre class="ajisai-source">'[{"d":null,"v":1},{"v":2}]' JSON-DECODE 'T' BIND T [ 'd' GET ] MAP UNIQUE LENGTH T [ 'd' GET ] MAP T [ 'v' GET ] MAP GROUP VALUES</pre>
+  <pre class="ajisai-expect-result">1/1 [ [ 1/1 2/1 ] ]</pre>
+  <div class="ajisai-expect-effects"></div>
+</section>
+
+<section class="ajisai-case" id="core-grouping-merges-nested-nils" data-category="core">
+  <h3>The grouping key ignores NIL reasons at any depth (LANG.VALUES.ORDER)</h3>
+  <pre class="ajisai-source">[ 1 NIL ] 1 -1 SQRT 2 COLLECT 2 COLLECT TALLY VALUES</pre>
+  <pre class="ajisai-expect-result">[ 2/1 ]</pre>
+  <div class="ajisai-expect-effects"></div>
+</section>
+
+<section class="ajisai-case" id="core-join-passes-a-nil-element" data-category="core">
+  <h3>A NIL element makes the joined text unknown: the first NIL is the answer, reason kept, as 'a' || NULL is NULL (LANG.VALUES.ORDER)</h3>
+  <pre class="ajisai-source">[ 'a' NIL 'b' ] JOIN NIL-REASON</pre>
+  <pre class="ajisai-expect-result">'literal'</pre>
   <div class="ajisai-expect-effects"></div>
 </section>
 

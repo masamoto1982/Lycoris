@@ -1865,7 +1865,7 @@ FILTER</code></td>
 </div>
 <div class="word-entry" id="word-EQ">
 <h4><code>EQ</code> <span class="word-tier">Semantic Kernel</span></h4>
-<p>2つの値が同じ1つの値かどうか(LANG.VALUES.DENOTATION)。どう組み立てたかは問わない。<code>1 1/1 EQ</code>は<code>TRUE</code>、<code>2 SQRT 2 SQRT MUL 2 EQ</code>は<code>TRUE</code>、<code>100 0 DIV 1/0 EQ</code>は<code>TRUE</code>、<code>0/0 0/0 EQ</code>は<code>TRUE</code>、<code>[ 1 2 ] [ 1 2 ] EQ</code>は<code>TRUE</code>。EQはオペランドを丸ごと比較し、要素ごとには持ち上がらない。両オペランドを読むので、他のデータオペランドと同じく、不在のオペランドがそのまま答えになる(LANG.FAILURE.PASSTHROUGH)。<code>-1 SQRT 1 EQ</code>は、比較するものがないので、その不在がすでにそうであったUNKNOWNになる。ベクトルの中のNILは他と同じ1つの要素で、理由によって比較されるので、<code>[ NIL ] [ NIL ] EQ</code>は<code>TRUE</code>。これはUNIQUEとRECONCILEが使う等価性でもある。不在かもしれない2つの値を素通しではなく比較したいときは、それぞれを先に<code>1 COLLECT</code>で包む。</p>
+<p>2つの値が同じ1つの値かどうか(LANG.VALUES.DENOTATION)。どう組み立てたかは問わない。<code>1 1/1 EQ</code>は<code>TRUE</code>、<code>2 SQRT 2 SQRT MUL 2 EQ</code>は<code>TRUE</code>、<code>100 0 DIV 1/0 EQ</code>は<code>TRUE</code>、<code>0/0 0/0 EQ</code>は<code>TRUE</code>、<code>[ 1 2 ] [ 1 2 ] EQ</code>は<code>TRUE</code>。EQはオペランドを丸ごと比較し、要素ごとには持ち上がらない。両オペランドを読むので、他のデータオペランドと同じく、不在のオペランドがそのまま答えになる(LANG.FAILURE.PASSTHROUGH)。<code>-1 SQRT 1 EQ</code>は、比較するものがないので、その不在がすでにそうであったUNKNOWNになる。ベクトルの中のNILは他と同じ1つの要素で、理由によって比較されるので、<code>[ NIL ] [ NIL ] EQ</code>は<code>TRUE</code>。これはSQLのIS NOT DISTINCT FROMに当たり、その=ではない。RECONCILEもこの等価性を使うが、UNIQUE・TALLY・GROUPはさらに、理由によらずすべてのNILを1つのキーとする(LANG.VALUES.ORDER)。不在かもしれない2つの値を素通しではなく比較したいときは、それぞれを先に<code>1 COLLECT</code>で包む。</p>
 <dl class="word-contract">
 <dt>構文</dt><dd><code>1 1 EQ</code></dd>
 <dt>スタック効果</dt><dd><span class="notation">[ a ] [ b ] -&gt; [ TRUE | FALSE ]</span></dd>
@@ -1876,12 +1876,12 @@ FILTER</code></td>
 <dt>体</dt><dd><code>closed</code> (LANG.CONTRACT.FIELD)</dd>
 <dt>純粋性 / 決定性</dt><dd><code>pure</code> / <code>deterministic</code></dd>
 <dt>作用</dt><dd>なし</dd>
-<dt>条項</dt><dd><code>LANG.VALUES.TRUTH</code>, <code>LANG.VALUES.EXACT</code>, <code>LANG.VALUES.DENOTATION</code></dd>
+<dt>条項</dt><dd><code>LANG.VALUES.TRUTH</code>, <code>LANG.VALUES.EXACT</code>, <code>LANG.VALUES.DENOTATION</code>, <code>LANG.VALUES.ORDER</code></dd>
 </dl>
 </div>
 <div class="word-entry" id="word-LT">
 <h4><code>LT</code> <span class="word-tier">Semantic Kernel</span></h4>
-<p>左の数が右より小さいかどうか。<code>1 2 LT</code>は<code>TRUE</code>で、ベクトルには要素ごとに働き、<code>[ 1 5 ] 3 LT</code>は<code>[ TRUE FALSE ]</code>。厳密な定義域の上の順序が決める(LANG.VALUES.EXACT)。無理数も含まれ、<code>2 SQRT 3/2 LT</code>は<code>TRUE</code>。0の上の2つの点はどちらも順序を持たない。<code>1/0</code>は符号のない唯一の無限遠点、<code>0/0</code>は輪の底である。それを問う比較はNIL(domainMiss)を投影する。<code>1/0 1 LT</code>は、真偽の位置で不在が読まれるUNKNOWNである(LANG.VALUES.TRUTH)。順序があるのは数だけで、それ以外は<code>nonNumeric</code>。</p>
+<p>左の値が右より小さいかどうか。<code>1 2 LT</code>は<code>TRUE</code>で、ベクトルには要素ごとに働き、<code>[ 1 5 ] 3 LT</code>は<code>[ TRUE FALSE ]</code>。順序があるのは2つの数と2つの文字列である(LANG.VALUES.ORDER)。数は厳密な定義域の上で順序づけられ(LANG.VALUES.EXACT)、無理数も含まれる。<code>2 SQRT 3/2 LT</code>は<code>TRUE</code>。0の上の2つの点はどちらも順序を持たない。<code>1/0</code>は符号のない唯一の無限遠点、<code>0/0</code>は輪の底である。それを問う比較はNIL(domainMiss)を投影する。<code>1/0 1 LT</code>は、真偽の位置で不在が読まれるUNKNOWNである(LANG.VALUES.TRUTH)。文字列はUnicodeスカラー値で1文字ずつ順序づけられ、SQLのバイナリ照合順序と同じになる。<code>'abc' 'abd' LT</code>は<code>TRUE</code>、<code>'Z' 'a' LT</code>は<code>TRUE</code>、<code>'ab' 'abc' LT</code>は<code>TRUE</code>。数と文字列の組を含め、それ以外の組は<code>nonNumeric</code>。</p>
 <dl class="word-contract">
 <dt>構文</dt><dd><code>1 2 LT</code></dd>
 <dt>スタック効果</dt><dd><span class="notation">[ a ] [ b ] -&gt; [ TRUE | FALSE ]</span></dd>
@@ -1893,12 +1893,12 @@ FILTER</code></td>
 <dt>純粋性 / 決定性</dt><dd><code>pure</code> / <code>deterministic</code></dd>
 <dt>作用</dt><dd>なし</dd>
 <dt>ERROR条件</dt><dd><code>nonNumeric</code>, <code>shapeMismatch</code></dd>
-<dt>条項</dt><dd><code>LANG.VALUES.TRUTH</code>, <code>LANG.VALUES.EXACT</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.FAILURE.PROJECT</code></dd>
+<dt>条項</dt><dd><code>LANG.VALUES.TRUTH</code>, <code>LANG.VALUES.EXACT</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.FAILURE.PROJECT</code>, <code>LANG.VALUES.ORDER</code></dd>
 </dl>
 </div>
 <div class="word-entry" id="word-GT">
 <h4><code>GT</code> <span class="word-tier">Semantic Kernel</span></h4>
-<p>左の数が右より大きいかどうか。<code>2 1 GT</code>は<code>TRUE</code>で、ベクトルには要素ごとに働き、<code>[ 1 5 ] 3 GT</code>は<code>[ FALSE TRUE ]</code>。厳密な定義域の上の順序が決める(LANG.VALUES.EXACT)。無理数も含まれ、<code>2 SQRT 3/2 LT</code>は<code>TRUE</code>。0の上の2つの点はどちらも順序を持たない。<code>1/0</code>は符号のない唯一の無限遠点、<code>0/0</code>は輪の底である。それを問う比較はNIL(domainMiss)を投影する。<code>1/0 1 GT</code>は、真偽の位置で不在が読まれるUNKNOWNである(LANG.VALUES.TRUTH)。順序があるのは数だけで、それ以外は<code>nonNumeric</code>。</p>
+<p>左の値が右より大きいかどうか。<code>2 1 GT</code>は<code>TRUE</code>で、ベクトルには要素ごとに働き、<code>[ 1 5 ] 3 GT</code>は<code>[ FALSE TRUE ]</code>。順序があるのは2つの数と2つの文字列である(LANG.VALUES.ORDER)。数は厳密な定義域の上で順序づけられ(LANG.VALUES.EXACT)、無理数も含まれる。<code>2 SQRT 3/2 GT</code>は<code>FALSE</code>。0の上の2つの点はどちらも順序を持たない。<code>1/0</code>は符号のない唯一の無限遠点、<code>0/0</code>は輪の底である。それを問う比較はNIL(domainMiss)を投影する。<code>1/0 1 GT</code>は、真偽の位置で不在が読まれるUNKNOWNである(LANG.VALUES.TRUTH)。文字列はUnicodeスカラー値で1文字ずつ順序づけられ、SQLのバイナリ照合順序と同じになる。<code>'b' 'abc' GT</code>は<code>TRUE</code>。数と文字列の組を含め、それ以外の組は<code>nonNumeric</code>。</p>
 <dl class="word-contract">
 <dt>構文</dt><dd><code>2 1 GT</code></dd>
 <dt>スタック効果</dt><dd><span class="notation">[ a ] [ b ] -&gt; [ TRUE | FALSE ]</span></dd>
@@ -1910,12 +1910,12 @@ FILTER</code></td>
 <dt>純粋性 / 決定性</dt><dd><code>pure</code> / <code>deterministic</code></dd>
 <dt>作用</dt><dd>なし</dd>
 <dt>ERROR条件</dt><dd><code>nonNumeric</code>, <code>shapeMismatch</code></dd>
-<dt>条項</dt><dd><code>LANG.VALUES.TRUTH</code>, <code>LANG.VALUES.EXACT</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.FAILURE.PROJECT</code></dd>
+<dt>条項</dt><dd><code>LANG.VALUES.TRUTH</code>, <code>LANG.VALUES.EXACT</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.FAILURE.PROJECT</code>, <code>LANG.VALUES.ORDER</code></dd>
 </dl>
 </div>
 <div class="word-entry" id="word-MIN">
 <h4><code>MIN</code> <span class="word-tier">Standard · namedPattern</span></h4>
-<p>2つの数の小さい方。<code>1 2 MIN</code>は<code>1</code>で、ベクトルにはブロードキャスト付きで要素ごとに働き、<code>[ 3 1 ] 2 MIN</code>は<code>[ 2 1 ]</code>。順序は厳密な定義域のもの(LANG.VALUES.EXACT)。<code>-1 5 MIN</code>は<code>-1</code>で、順序を持たない0の上の点(<code>1/0</code>または<code>0/0</code>)はLTと同じくNIL(domainMiss)を投影する。数でないものは<code>nonNumeric</code>。</p>
+<p>2つの値の小さい方。<code>1 2 MIN</code>は<code>1</code>で、ベクトルにはブロードキャスト付きで要素ごとに働き、<code>[ 3 1 ] 2 MIN</code>は<code>[ 2 1 ]</code>。順序はLANG.VALUES.ORDERのもの。数は厳密な定義域で(LANG.VALUES.EXACT)、<code>-1 5 MIN</code>は<code>-1</code>。文字列はUnicodeスカラー値で、<code>'pear' 'apple' MIN</code>は<code>'apple'</code>。順序を持たない0の上の点(<code>1/0</code>または<code>0/0</code>)はLTと同じくNIL(domainMiss)を投影する。数と文字列の組を含め、それ以外の組は<code>nonNumeric</code>。</p>
 <dl class="word-contract">
 <dt>構文</dt><dd><code>1 2 MIN</code></dd>
 <dt>スタック効果</dt><dd><span class="notation">[ a ] [ b ] -&gt; [ min ]</span></dd>
@@ -1927,12 +1927,12 @@ FILTER</code></td>
 <dt>純粋性 / 決定性</dt><dd><code>pure</code> / <code>deterministic</code></dd>
 <dt>作用</dt><dd>なし</dd>
 <dt>ERROR条件</dt><dd><code>nonNumeric</code>, <code>shapeMismatch</code></dd>
-<dt>条項</dt><dd><code>LANG.VALUES.TRUTH</code>, <code>LANG.VALUES.EXACT</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.FAILURE.TRICHOTOMY</code>, <code>LANG.FAILURE.PROJECT</code></dd>
+<dt>条項</dt><dd><code>LANG.VALUES.TRUTH</code>, <code>LANG.VALUES.EXACT</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.FAILURE.TRICHOTOMY</code>, <code>LANG.FAILURE.PROJECT</code>, <code>LANG.VALUES.ORDER</code></dd>
 </dl>
 </div>
 <div class="word-entry" id="word-MAX">
 <h4><code>MAX</code> <span class="word-tier">Standard · namedPattern</span></h4>
-<p>2つの数の大きい方。<code>1 2 MAX</code>は<code>2</code>で、ベクトルにはブロードキャスト付きで要素ごとに働き、<code>[ -1 2 -3 ] 0 MAX</code>は<code>[ 0 2 0 ]</code>。順序は厳密な定義域のもの(LANG.VALUES.EXACT)。<code>-1 5 MAX</code>は<code>5</code>で、順序を持たない0の上の点(<code>1/0</code>または<code>0/0</code>)はGTと同じくNIL(domainMiss)を投影する。数でないものは<code>nonNumeric</code>。</p>
+<p>2つの値の大きい方。<code>1 2 MAX</code>は<code>2</code>で、ベクトルにはブロードキャスト付きで要素ごとに働き、<code>[ -1 2 -3 ] 0 MAX</code>は<code>[ 0 2 0 ]</code>。順序はLANG.VALUES.ORDERのもの。数は厳密な定義域で(LANG.VALUES.EXACT)、<code>-1 5 MAX</code>は<code>5</code>。文字列はUnicodeスカラー値で、<code>'pear' 'apple' MAX</code>は<code>'pear'</code>。順序を持たない0の上の点(<code>1/0</code>または<code>0/0</code>)はGTと同じくNIL(domainMiss)を投影する。数と文字列の組を含め、それ以外の組は<code>nonNumeric</code>。</p>
 <dl class="word-contract">
 <dt>構文</dt><dd><code>1 2 MAX</code></dd>
 <dt>スタック効果</dt><dd><span class="notation">[ a ] [ b ] -&gt; [ max ]</span></dd>
@@ -1944,7 +1944,7 @@ FILTER</code></td>
 <dt>純粋性 / 決定性</dt><dd><code>pure</code> / <code>deterministic</code></dd>
 <dt>作用</dt><dd>なし</dd>
 <dt>ERROR条件</dt><dd><code>nonNumeric</code>, <code>shapeMismatch</code></dd>
-<dt>条項</dt><dd><code>LANG.VALUES.TRUTH</code>, <code>LANG.VALUES.EXACT</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.FAILURE.TRICHOTOMY</code>, <code>LANG.FAILURE.PROJECT</code></dd>
+<dt>条項</dt><dd><code>LANG.VALUES.TRUTH</code>, <code>LANG.VALUES.EXACT</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.FAILURE.TRICHOTOMY</code>, <code>LANG.FAILURE.PROJECT</code>, <code>LANG.VALUES.ORDER</code></dd>
 </dl>
 </div>
 <h3 id="family-knowledgeOrder">契約: 厳密な算術(知識順序)</h3>
@@ -2659,7 +2659,7 @@ FILTER</code></td>
 </div>
 <div class="word-entry" id="word-SORT">
 <h4><code>SORT</code> <span class="word-tier">Standard · operational</span></h4>
-<p>数のベクトルを昇順に並べた複製。<code>[ 3 1 2 ] SORT</code>は<code>[ 1 2 3 ]</code>。順序は無理数を含めて厳密である。順序を持たない0の上の点(<code>1/0</code>または<code>0/0</code>)を含むベクトルには整列した形がなく、NIL(domainMiss)を投影する(LANG.VALUES.EXACT)。順序があるのは数だけで(<code>nonNumeric</code>)、ベクトルでないものは<code>nonVector</code>。並べ替えの置換を答えるのはORDER。</p>
+<p>ベクトルを昇順に並べた複製(LANG.VALUES.ORDER)。<code>[ 3 1 2 ] SORT</code>は<code>[ 1 2 3 ]</code>、<code>[ 'b' 'B' 'a' ] SORT</code>は<code>[ 'B' 'a' 'b' ]</code>。数は無理数を含めて厳密に、文字列はUnicodeスカラー値で順序づけられる。NILはすべて、存在する要素のすべての後ろに、元の順序のまま置かれる。SQLのORDER BYがNULLS LASTで並べるのと同じである。<code>[ 3 NIL 1 ] SORT</code>は<code>[ 1 3 NIL ]</code>で、何も捨てられない。<code>SORT REVERSE</code>はNILを先頭に置いた降順になる。順序を持たない0の上の点(<code>1/0</code>または<code>0/0</code>)を含むベクトルには整列した形がなく、NIL(domainMiss)を投影する(LANG.VALUES.EXACT)。数・文字列・NILのどれでもない要素や、数と文字列が混在するものは<code>nonNumeric</code>で、ベクトルでないものは<code>nonVector</code>。並べ替えの置換を答えるのはORDER。</p>
 <dl class="word-contract">
 <dt>構文</dt><dd><code>[ 3 1 2 ] SORT</code></dd>
 <dt>スタック効果</dt><dd><span class="notation">[ vec ] -&gt; [ sorted ]</span></dd>
@@ -2671,12 +2671,12 @@ FILTER</code></td>
 <dt>純粋性 / 決定性</dt><dd><code>pure</code> / <code>deterministic</code></dd>
 <dt>作用</dt><dd>なし</dd>
 <dt>ERROR条件</dt><dd><code>nonVector</code>, <code>nonNumeric</code></dd>
-<dt>条項</dt><dd><code>LANG.VALUES.VECTOR</code>, <code>LANG.MACHINE.LIMITS</code>, <code>LANG.FAILURE.PROJECT</code>, <code>LANG.VALUES.EXACT</code></dd>
+<dt>条項</dt><dd><code>LANG.VALUES.VECTOR</code>, <code>LANG.MACHINE.LIMITS</code>, <code>LANG.FAILURE.PROJECT</code>, <code>LANG.VALUES.EXACT</code>, <code>LANG.VALUES.ORDER</code></dd>
 </dl>
 </div>
 <div class="word-entry" id="word-ORDER">
 <h4><code>ORDER</code> <span class="word-tier">Standard · operational</span></h4>
-<p>数のベクトルを昇順に並べるインデックス。<code>[ 30 10 20 ] ORDER</code>は<code>[ 1 2 0 ]</code>なので、それで収集すれば並べ替えになる。<code>[ 30 10 20 ] 'V' BIND V V ORDER GET</code>は<code>[ 10 20 30 ]</code>。同点は元の順序を保つ。<code>[ 2 1 2 1 ] ORDER</code>は<code>[ 1 3 0 2 ]</code>。順序を持たない0の上の点を含むベクトルは、SORTと同じくNIL(domainMiss)を投影する(LANG.VALUES.EXACT)。順序があるのは数だけで(<code>nonNumeric</code>)、ベクトルでないものは<code>nonVector</code>。</p>
+<p>ベクトルを昇順に並べるインデックス(LANG.VALUES.ORDER)。<code>[ 30 10 20 ] ORDER</code>は<code>[ 1 2 0 ]</code>なので、それで収集すれば並べ替えになる。<code>[ 30 10 20 ] 'V' BIND V V ORDER GET</code>は<code>[ 10 20 30 ]</code>。同点は元の順序を保つ。<code>[ 2 1 2 1 ] ORDER</code>は<code>[ 1 3 0 2 ]</code>。順序はSORTと同じで、数または文字列の昇順、NILはすべて最後になる。そのため<code>[ 3 NIL 1 ] ORDER</code>は<code>[ 2 0 1 ]</code>で、同じ置換で表の他の列もすべて揃えて収集できる。順序を持たない0の上の点を含むベクトルは、SORTと同じくNIL(domainMiss)を投影する(LANG.VALUES.EXACT)。数・文字列・NILのどれでもない要素や、数と文字列が混在するものは<code>nonNumeric</code>で、ベクトルでないものは<code>nonVector</code>。</p>
 <dl class="word-contract">
 <dt>構文</dt><dd><code>[ 30 10 20 ] ORDER</code></dd>
 <dt>スタック効果</dt><dd><span class="notation">[ vec ] -&gt; [ permutation ]</span></dd>
@@ -2688,12 +2688,12 @@ FILTER</code></td>
 <dt>純粋性 / 決定性</dt><dd><code>pure</code> / <code>deterministic</code></dd>
 <dt>作用</dt><dd>なし</dd>
 <dt>ERROR条件</dt><dd><code>nonVector</code>, <code>nonNumeric</code></dd>
-<dt>条項</dt><dd><code>LANG.VALUES.VECTOR</code>, <code>LANG.MACHINE.LIMITS</code>, <code>LANG.FAILURE.PROJECT</code>, <code>LANG.VALUES.EXACT</code></dd>
+<dt>条項</dt><dd><code>LANG.VALUES.VECTOR</code>, <code>LANG.MACHINE.LIMITS</code>, <code>LANG.FAILURE.PROJECT</code>, <code>LANG.VALUES.EXACT</code>, <code>LANG.VALUES.ORDER</code></dd>
 </dl>
 </div>
 <div class="word-entry" id="word-UNIQUE">
 <h4><code>UNIQUE</code> <span class="word-tier">Standard · operational</span></h4>
-<p>ベクトルの重複のない要素。それぞれ最初に現れた位置に置く。<code>[ 3 1 3 ] UNIQUE</code>は<code>[ 3 1 ]</code>。重複しないとは1つの値でないことなので(LANG.VALUES.DENOTATION)、テキスト、入れ子のベクトル、NILにも同じように働き、<code>[ 2 4/2 ] UNIQUE</code>は<code>[ 2 ]</code>。ベクトルでないものは<code>nonVector</code>。</p>
+<p>ベクトルの重複のない要素。それぞれ最初に現れた位置に置く。<code>[ 3 1 3 ] UNIQUE</code>は<code>[ 3 1 ]</code>。重複しないとは1つの値でないことなので(LANG.VALUES.DENOTATION)、テキスト、入れ子のベクトル、NILにも同じように働き、<code>[ 2 4/2 ] UNIQUE</code>は<code>[ 2 ]</code>。NILは理由によらず、どの深さでもすべて1つの要素とみなす。SQLのDISTINCTがすべてのNULLを1つの値とみなすのと同じである(LANG.VALUES.ORDER)。データにnullとして入っていたものも、レコードにキーがなかったものも、最初のものが1つだけ残る。ベクトルでないものは<code>nonVector</code>。</p>
 <dl class="word-contract">
 <dt>構文</dt><dd><code>[ 'a' 'b' 'a' ] UNIQUE</code></dd>
 <dt>スタック効果</dt><dd><span class="notation">[ vec ] -&gt; [ distinct ]</span></dd>
@@ -2705,7 +2705,7 @@ FILTER</code></td>
 <dt>純粋性 / 決定性</dt><dd><code>pure</code> / <code>deterministic</code></dd>
 <dt>作用</dt><dd>なし</dd>
 <dt>ERROR条件</dt><dd><code>nonVector</code></dd>
-<dt>条項</dt><dd><code>LANG.VALUES.VECTOR</code>, <code>LANG.MACHINE.LIMITS</code></dd>
+<dt>条項</dt><dd><code>LANG.VALUES.VECTOR</code>, <code>LANG.MACHINE.LIMITS</code>, <code>LANG.VALUES.ORDER</code></dd>
 </dl>
 </div>
 <div class="word-entry" id="word-ZIP">
@@ -2744,7 +2744,7 @@ FILTER</code></td>
 </div>
 <div class="word-entry" id="word-BSEARCH">
 <h4><code>BSEARCH</code> <span class="word-tier">Standard · algorithm</span></h4>
-<p>昇順のベクトルの中の各キーのインデックスを、区間を半分にしながら探す。<code>[ 1 3 5 7 ] [ 5 ] BSEARCH</code>は<code>[ 2 ]</code>で、単独のキーは単独のインデックスを答え、ないキーのレーンはNIL(notFound)。ベクトルは昇順でなければならず、そうでなければ<code>unsortedInput</code>を送出する。順序のないデータの上の二分探索は、何も答えないのではなく何かを答えてしまうからである。順序を持たない0の上の点を含むベクトルはNIL(domainMiss)を投影し、0の上の点のキーも自分のレーンに同じものを投影する(LANG.VALUES.EXACT)。順序の確認はベクトルを1回走査するだけで、その後の各キーはO(log n)なので、m個のキーの費用は線形走査のO(m·n)に対してO(n + m log n)。区間が空になるまで半分にし続けるのはデータに長さが依存するループであり、際限のないループを持たない言語には書けない。</p>
+<p>昇順のベクトルの中の各キーのインデックスを、区間を半分にしながら探す。<code>[ 1 3 5 7 ] [ 5 ] BSEARCH</code>は<code>[ 2 ]</code>で、単独のキーは単独のインデックスを答え、ないキーのレーンはNIL(notFound)。昇順とはSORTの順序である(LANG.VALUES.ORDER)。数でも文字列でもよく、<code>[ 'a' 'c' 'e' ] 'c' BSEARCH</code>は<code>1</code>。NILは最後に置かれ、どのキーもそれを見つけない。不在のキーのレーンはそれ自体が答えになる。SQLの= NULLがどの行にも一致しないのと同じである。ベクトルはその順序でなければならず、そうでなければ<code>unsortedInput</code>を送出する。順序のないデータの上の二分探索は、何も答えないのではなく何かを答えてしまうからである。順序を持たない0の上の点を含むベクトルはNIL(domainMiss)を投影し、0の上の点のキーも自分のレーンに同じものを投影する(LANG.VALUES.EXACT)。順序の確認はベクトルを1回走査するだけで、その後の各キーはO(log n)なので、m個のキーの費用は線形走査のO(m·n)に対してO(n + m log n)。区間が空になるまで半分にし続けるのはデータに長さが依存するループであり、際限のないループを持たない言語には書けない。</p>
 <dl class="word-contract">
 <dt>構文</dt><dd><code>[ 1 3 5 7 ] [ 5 ] BSEARCH</code></dd>
 <dt>スタック効果</dt><dd><span class="notation">[ sorted ] [ keys ] -&gt; [ indices ]</span></dd>
@@ -2756,7 +2756,7 @@ FILTER</code></td>
 <dt>純粋性 / 決定性</dt><dd><code>pure</code> / <code>deterministic</code></dd>
 <dt>作用</dt><dd>なし</dd>
 <dt>ERROR条件</dt><dd><code>nonVector</code>, <code>unsortedInput</code>, <code>nonNumeric</code></dd>
-<dt>条項</dt><dd><code>LANG.VALUES.VECTOR</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.MACHINE.LIMITS</code>, <code>LANG.FAILURE.PROJECT</code>, <code>LANG.VALUES.EXACT</code></dd>
+<dt>条項</dt><dd><code>LANG.VALUES.VECTOR</code>, <code>LANG.COLLECTIONS.LIFT</code>, <code>LANG.MACHINE.LIMITS</code>, <code>LANG.FAILURE.PROJECT</code>, <code>LANG.VALUES.EXACT</code>, <code>LANG.VALUES.ORDER</code></dd>
 </dl>
 </div>
 <!-- END generated word contracts: vector-ops -->
@@ -2905,7 +2905,7 @@ FILTER</code></td>
 <h3 id="family-record">契約: Record</h3>
 <div class="word-entry" id="word-TALLY">
 <h4><code>TALLY</code> <span class="word-tier">Standard · operational</span></h4>
-<p>重複のない各要素が何回現れるかを、要素から件数へのRecordで答える。<code>[ 'b' 'a' 'b' ] TALLY</code>は<code>[ 'b' 'a' ] [ 2/1 1/1 ] RECORD</code>で、キーは最初の出現順。<code>KEYS</code>はまさに<code>UNIQUE</code>の答えであり、<code>VALUES</code>は位置の揃った件数のベクトルなので、各件数が何を数えているかを知るために<code>UNIQUE</code>を別に呼ぶ必要はない。数に限らずどの値にも働く。ベクトルでないオペランドはERROR。</p>
+<p>重複のない各要素が何回現れるかを、要素から件数へのRecordで答える。<code>[ 'b' 'a' 'b' ] TALLY</code>は<code>[ 'b' 'a' ] [ 2/1 1/1 ] RECORD</code>で、キーは最初の出現順。<code>KEYS</code>はまさに<code>UNIQUE</code>の答えであり、<code>VALUES</code>は位置の揃った件数のベクトルなので、各件数が何を数えているかを知るために<code>UNIQUE</code>を別に呼ぶ必要はない。数に限らずどの値にも働き、NILは理由によらず1つのキーで数える。SQLのGROUP BYがすべてのNULLを1つのグループで数えるのと同じである(LANG.VALUES.ORDER)。ベクトルでないオペランドはERROR。</p>
 <dl class="word-contract">
 <dt>構文</dt><dd><code>[ 'a' 'b' 'a' ] TALLY</code></dd>
 <dt>スタック効果</dt><dd><span class="notation">[ vec ] -&gt; [ record ]</span></dd>
@@ -2917,12 +2917,12 @@ FILTER</code></td>
 <dt>純粋性 / 決定性</dt><dd><code>pure</code> / <code>deterministic</code></dd>
 <dt>作用</dt><dd>なし</dd>
 <dt>ERROR条件</dt><dd><code>nonVector</code></dd>
-<dt>条項</dt><dd><code>LANG.RECORDS.STRUCTURE</code>, <code>LANG.VALUES.VECTOR</code>, <code>LANG.MACHINE.LIMITS</code></dd>
+<dt>条項</dt><dd><code>LANG.RECORDS.STRUCTURE</code>, <code>LANG.VALUES.VECTOR</code>, <code>LANG.MACHINE.LIMITS</code>, <code>LANG.VALUES.ORDER</code></dd>
 </dl>
 </div>
 <div class="word-entry" id="word-GROUP">
 <h4><code>GROUP</code> <span class="word-tier">Standard · operational</span></h4>
-<p>値を同じ位置のキーで束ね、キーからその値のベクトルへのRecordで答える。<code>[ 'a' 'b' 'a' ] [ 1 2 3 ] GROUP</code>は<code>[ 'a' 'b' ] [ [ 1/1 3/1 ] [ 2/1 ] ] RECORD</code>で、キーは最初の出現順、どの値もちょうど1回ずつ保たれる。クラスごとの集計、重心の更新、層別の分割の中核である。1つのグループは<code>R 'a' GET</code>で名前によって読めるので、<code>UNIQUE</code>や探索で探す必要はない。ただしそれはキーがScalar・String・Boolean・Symbolのときで、ベクトル・Record・NILをキーとするグループは<code>KEYS</code>と<code>VALUES</code>を通して読む。RECORDと同じくキーが先に来る。両オペランドとも同じ長さのベクトルでなければならない。</p>
+<p>値を同じ位置のキーで束ね、キーからその値のベクトルへのRecordで答える。<code>[ 'a' 'b' 'a' ] [ 1 2 3 ] GROUP</code>は<code>[ 'a' 'b' ] [ [ 1/1 3/1 ] [ 2/1 ] ] RECORD</code>で、キーは最初の出現順、どの値もちょうど1回ずつ保たれる。UNIQUEが1つの要素とみなすキーが1つのキーになるので、NILのキーは理由によらずすべて1つのグループに束ねられる。SQLのGROUP BYがすべてのNULLを1つのグループにするのと同じである(LANG.VALUES.ORDER)。クラスごとの集計、重心の更新、層別の分割の中核である。1つのグループは<code>R 'a' GET</code>で名前によって読めるので、<code>UNIQUE</code>や探索で探す必要はない。ただしそれはキーがScalar・String・Boolean・Symbolのときで、ベクトル・Record・NILをキーとするグループは<code>KEYS</code>と<code>VALUES</code>を通して読む。RECORDと同じくキーが先に来る。両オペランドとも同じ長さのベクトルでなければならない。</p>
 <dl class="word-contract">
 <dt>構文</dt><dd><code>[ 'a' 'b' 'a' ] [ 1 2 3 ] GROUP</code></dd>
 <dt>スタック効果</dt><dd><span class="notation">[ keys ] [ values ] -&gt; [ record ]</span></dd>
@@ -2934,7 +2934,7 @@ FILTER</code></td>
 <dt>純粋性 / 決定性</dt><dd><code>pure</code> / <code>deterministic</code></dd>
 <dt>作用</dt><dd>なし</dd>
 <dt>ERROR条件</dt><dd><code>nonVector</code>, <code>shapeMismatch</code></dd>
-<dt>条項</dt><dd><code>LANG.RECORDS.STRUCTURE</code>, <code>LANG.VALUES.VECTOR</code>, <code>LANG.MACHINE.LIMITS</code></dd>
+<dt>条項</dt><dd><code>LANG.RECORDS.STRUCTURE</code>, <code>LANG.VALUES.VECTOR</code>, <code>LANG.MACHINE.LIMITS</code>, <code>LANG.VALUES.ORDER</code></dd>
 </dl>
 </div>
 <div class="word-entry" id="word-RECORD">
@@ -3336,7 +3336,7 @@ FILTER</code></td>
 </div>
 <div class="word-entry" id="word-JOIN">
 <h4><code>JOIN</code> <span class="word-tier">Semantic Kernel</span></h4>
-<p>テキストのベクトルを端と端でつないで1つのテキストにする。<code>[ 'h' 'i' ] JOIN</code>は<code>'hi'</code>、<code>[ ] JOIN</code>は<code>''</code>なので、<code>CHARS JOIN</code>でテキストが元に戻る。すべての要素はテキストでなければならず(<code>nonText</code>)、ベクトルでないものは<code>nonVector</code>。</p>
+<p>テキストのベクトルを端と端でつないで1つのテキストにする。<code>[ 'h' 'i' ] JOIN</code>は<code>'hi'</code>、<code>[ ] JOIN</code>は<code>''</code>なので、<code>CHARS JOIN</code>でテキストが元に戻る。NILの要素はテキストのわからない部分なので、テキスト全体もわからない。最初のNILが理由を保ったまま答えになる。SQLの'a' || NULLがNULLになるのと同じで、<code>[ 'a' NIL 'b' ] JOIN NIL?</code>は<code>TRUE</code>。それ以外の要素はすべてテキストでなければならず(<code>nonText</code>)、ベクトルでないものは<code>nonVector</code>。</p>
 <dl class="word-contract">
 <dt>構文</dt><dd><code>[ 'h' 'i' ] JOIN</code></dd>
 <dt>スタック効果</dt><dd><span class="notation">[ texts ] -&gt; [ text ]</span></dd>
@@ -3348,7 +3348,7 @@ FILTER</code></td>
 <dt>純粋性 / 決定性</dt><dd><code>pure</code> / <code>deterministic</code></dd>
 <dt>作用</dt><dd>なし</dd>
 <dt>ERROR条件</dt><dd><code>nonVector</code>, <code>nonText</code></dd>
-<dt>条項</dt><dd><code>LANG.VALUES.DISJOINT</code>, <code>LANG.FAILURE.TRICHOTOMY</code></dd>
+<dt>条項</dt><dd><code>LANG.VALUES.DISJOINT</code>, <code>LANG.FAILURE.TRICHOTOMY</code>, <code>LANG.VALUES.ORDER</code></dd>
 </dl>
 </div>
 <div class="word-entry" id="word-TRIM">
