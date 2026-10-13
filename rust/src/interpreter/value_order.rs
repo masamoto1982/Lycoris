@@ -130,4 +130,3 @@ pub(crate) fn compare_for_sort(a: &Value, b: &Value) -> Result<Option<std::cmp::
         )
     })
 }
-

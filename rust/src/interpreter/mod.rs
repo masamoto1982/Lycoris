@@ -93,12 +93,12 @@ mod shape_words;
 #[cfg(test)]
 mod shape_words_tests;
 pub mod sort;
-mod value_order;
 pub mod tensor_cmds;
 pub(crate) mod tensor_lane_ops;
 pub mod tensor_ops;
 mod value_digest;
 pub(crate) mod value_extraction_helpers;
+mod value_order;
 pub mod vector_ops;
 pub mod word_contract;
 mod word_contract_flow;
