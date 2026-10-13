@@ -139,10 +139,27 @@ impl RecordData {
     /// The right-biased union: this Record's keys in their order with `other`'s
     /// values where the keys coincide, then `other`'s remaining keys appended
     /// in their order.
+    ///
+    /// One copy of this Record, then one index probe per key of `other`: the
+    /// cost is linear in the two Records. It was a [`RecordData::with`] per
+    /// key, and each `with` copies the whole Record it extends, so merging
+    /// two Records of `n` keys copied `n` Records — quadratic, a fifth of a
+    /// second at two thousand keys.
     pub fn merge(&self, other: &Self) -> Self {
         let mut merged = self.clone();
+        merged.keys.reserve(other.len());
+        merged.values.reserve(other.len());
         for (key, value) in other.entries() {
-            merged = merged.with(key.clone(), value.clone());
+            match merged.position(key) {
+                Some(position) => merged.values[position] = value.clone(),
+                None => {
+                    merged
+                        .index
+                        .insert(canonical_key(key).into_owned(), merged.keys.len());
+                    merged.keys.push(key.clone());
+                    merged.values.push(value.clone());
+                }
+            }
         }
         merged
     }
@@ -188,5 +205,52 @@ impl std::hash::Hash for RecordData {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.keys.hash(state);
         self.values.hash(state);
+    }
+}
+
+#[cfg(test)]
+mod merge_tests {
+    use super::RecordData;
+    use crate::error::NilReason;
+    use crate::types::Value;
+
+    /// The one-pass union answers what a `with` per key of the right Record
+    /// answers — the definition it replaced — key order, values and index
+    /// alike, over overlapping, disjoint and NIL keys.
+    #[test]
+    fn merge_is_a_with_per_right_key() {
+        let key = |i: i64| match i {
+            -1 => Value::nil_with_reason(NilReason::Literal),
+            -2 => Value::nil_with_reason(NilReason::NotFound),
+            i if i % 3 == 0 => Value::from_string(&format!("k{i}")),
+            i => Value::from_int(i),
+        };
+        let record = |keys: &[i64], base: i64| {
+            RecordData::new(
+                keys.iter().map(|&i| key(i)).collect(),
+                keys.iter().map(|&i| Value::from_int(base + i)).collect(),
+            )
+            .expect("distinct keys")
+        };
+        let cases: [(&[i64], &[i64]); 6] = [
+            (&[], &[]),
+            (&[1, 2, 3], &[]),
+            (&[], &[4, 5]),
+            (&[1, 2, 3, 4], &[3, 9, 1, 12]),
+            (&[-1, 6, 7], &[-2, 7, 8]),
+            (&[0, 1, 2, 3, 4, 5, 6, 7], &[7, 6, 5, 4, 3, 2, 1, 0, 10, 11]),
+        ];
+        for (left, right) in cases {
+            let (left, right) = (record(left, 100), record(right, 200));
+            let expected = right
+                .entries()
+                .fold(left.clone(), |acc, (k, v)| acc.with(k.clone(), v.clone()));
+            let merged = left.merge(&right);
+            assert_eq!(merged, expected);
+            for k in merged.keys() {
+                assert_eq!(merged.get(k), expected.get(k));
+            }
+            assert_eq!(merged.len(), expected.len());
+        }
     }
 }
