@@ -19818,7 +19818,7 @@
         "textShort",
         "textShort"
       ],
-      "outcome": "error:nonNumeric"
+      "outcome": "value"
     },
     {
       "word": "LT",
@@ -20970,7 +20970,7 @@
         "textShort",
         "textShort"
       ],
-      "outcome": "error:nonNumeric"
+      "outcome": "value"
     },
     {
       "word": "GT",
@@ -26898,7 +26898,7 @@
         "textShort",
         "textShort"
       ],
-      "outcome": "error:nonNumeric"
+      "outcome": "value"
     },
     {
       "word": "MIN",
@@ -28050,7 +28050,7 @@
         "textShort",
         "textShort"
       ],
-      "outcome": "error:nonNumeric"
+      "outcome": "value"
     },
     {
       "word": "MAX",

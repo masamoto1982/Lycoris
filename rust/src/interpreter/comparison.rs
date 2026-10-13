@@ -111,7 +111,10 @@ fn compare_lane(a_val: &Value, b_val: &Value, kind: OrderingKind) -> Result<Valu
     // `pairwise_eq` is total and raises nothing.
     compare_scalar_pair(a_val, b_val, kind)
         .map_err(|e| {
-            AjisaiError::declared("nonNumeric", format!("expected two Scalars, got {}", e.got))
+            AjisaiError::declared(
+                "nonNumeric",
+                format!("expected two Scalars or two Strings, got {}", e.got),
+            )
         })
         .map(|decided| match decided {
             Some(truth) => Value::from_bool(truth),
@@ -309,6 +312,34 @@ pub(crate) fn rational_pair<'a>(
     }
 }
 
+/// Two Strings, or `None` when neither operand is one. A String against
+/// anything else has no order: the two domains are disjoint
+/// (LANG.VALUES.DISJOINT), so the pair is malformed use rather than a
+/// question with an answer.
+fn text_pair<'a>(a_val: &'a Value, b_val: &'a Value) -> ScalarResult<Option<(&'a str, &'a str)>> {
+    let beside_text = |other: &Value| NotComparable {
+        got: match other.data {
+            ValueData::Scalar(_) | ValueData::ExactScalar(_) => "String beside a Scalar",
+            _ => other.domain_name(),
+        },
+    };
+    match (&a_val.data, &b_val.data) {
+        (ValueData::Text(a), ValueData::Text(b)) => Ok(Some((a, b))),
+        (ValueData::Text(_), _) => Err(beside_text(b_val)),
+        (_, ValueData::Text(_)) => Err(beside_text(a_val)),
+        _ => Ok(None),
+    }
+}
+
+/// The order of two Strings (LANG.VALUES.ORDER): by Unicode scalar value,
+/// character by character, a proper prefix first — SQL's binary (`C`)
+/// collation. UTF-8 was built so that its byte order is exactly that order,
+/// so comparing the bytes is comparing the characters, with no decoding.
+#[inline]
+pub(crate) fn text_order(a: &str, b: &str) -> std::cmp::Ordering {
+    a.as_bytes().cmp(b.as_bytes())
+}
+
 /// Compare two scalar values under an ordering kind. Returns `Err(_)` for
 /// structurally-non-comparable operands, and `Ok(None)` when an operand is
 /// `0/0`, which has no order. Both-rational operands take the Fraction fast
@@ -324,11 +355,13 @@ pub(crate) fn compare_scalar_pair(
     Ok(three_way_compare(a_val, b_val)?.map(|ordering| kind.apply_ordering(ordering)))
 }
 
-/// Three-way order of two scalar values (LANG.VALUES.EXACT), shared by the
-/// comparison-dependent words (`MIN`, `MAX`, `SORT`, `ORDER`, `BSEARCH`).
-/// Returns `Err(_)` for structurally non-comparable operands (the
-/// malformed-use path), and `Ok(None)` for a pair holding `0/0`, which is
-/// ordered against nothing — the one comparison the exact domain does not
+/// Three-way order of two values (LANG.VALUES.EXACT, LANG.VALUES.ORDER),
+/// shared by the comparison-dependent words (`LT`, `GT`, `MIN`, `MAX`,
+/// `SORT`, `ORDER`, `BSEARCH`). Two numbers order by the exact field and two
+/// Strings by their Unicode scalar values, read left to right; any other
+/// pair — a number against a String included — is `Err(_)`, the
+/// malformed-use path. `Ok(None)` is a pair holding a point over zero, which
+/// is ordered against nothing — the one comparison the exact domain does not
 /// decide, and a projection for the Word asking. Both-`Rational` operands
 /// take the exact `Fraction` fast path; any pair involving an algebraic
 /// decides through `ExactReal::cmp_exact`.
@@ -338,6 +371,9 @@ pub(crate) fn three_way_compare(
 ) -> ScalarResult<Option<std::cmp::Ordering>> {
     if let Some((a, b)) = rational_pair(a_val, b_val) {
         return Ok(a.order(b));
+    }
+    if let Some((a, b)) = text_pair(a_val, b_val)? {
+        return Ok(Some(text_order(a, b)));
     }
     let a = extract_exact_real_for_comparison(a_val)?;
     let b = extract_exact_real_for_comparison(b_val)?;

@@ -10,9 +10,10 @@
 //! - it takes a fixed number of operands, none of them a `control` operand
 //!   (a block, a name, a message), and answers exactly one value;
 //! - every operand's declared domains include a scalar or a Boolean, and
-//!   every result's are scalars, Booleans, or `any` — a value the Word picks
-//!   from its operands, as `SELECT` does (`stack.domains`,
-//!   LANG.VALUES.DISJOINT);
+//!   every result's are scalars, Booleans, `any` — a value the Word picks
+//!   from its operands, as `SELECT` does — or a domain an operand also
+//!   declares, which a plain operand never is (`MIN` over two Strings)
+//!   (`stack.domains`, LANG.VALUES.DISJOINT);
 //! - it costs exactly one execution step whatever its operands
 //!   (`cost.steps`), as every op of a fused block is charged.
 //!
@@ -56,8 +57,15 @@ pub(crate) fn admits(word: &GeneratedWord) -> bool {
     };
     let operands_fit = word.operand_domains.iter().all(|set| set.iter().any(plain));
     // `any` is a result the Word picks from its operands (`SELECT`): plain
-    // when they are, and a walk that meets anything else declines it.
-    let results_fit = word.result_domains.iter().all(|set| set.iter().all(plain));
+    // when they are, and a walk that meets anything else declines it. A result
+    // domain that is not plain is admitted on the same ground when an operand
+    // carries it too — `MIN` answers a String only from String operands, which
+    // a walk never holds.
+    let from_operand = |d: &ValueDomain| word.operand_domains.iter().any(|set| set.contains(d));
+    let results_fit = word
+        .result_domains
+        .iter()
+        .all(|set| set.iter().all(|d| plain(d) || from_operand(d)) && set.iter().any(plain));
     word.purity == Purity::Pure
         && word.determinism == Determinism::Deterministic
         && word.effects.is_empty()

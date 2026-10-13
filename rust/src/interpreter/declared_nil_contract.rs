@@ -401,12 +401,12 @@ mod declared_outcomes_tests {
     #[tokio::test]
     async fn the_text_is_part_of_the_value() {
         assert_eq!(
-            top("'a' ABSENT 'b' ABSENT 2 COLLECT UNIQUE LENGTH").await,
-            "2/1"
+            top("'a' ABSENT 1 COLLECT 'b' ABSENT 1 COLLECT EQ").await,
+            "FALSE"
         );
         assert_eq!(
-            top("'a' ABSENT 'a' ABSENT 2 COLLECT UNIQUE LENGTH").await,
-            "1/1"
+            top("'a' ABSENT 1 COLLECT 'a' ABSENT 1 COLLECT EQ").await,
+            "TRUE"
         );
         assert_ne!(Value::nil_user_declared("a"), Value::nil_user_declared("b"));
         assert_eq!(Value::nil_user_declared("a"), Value::nil_user_declared("a"));
