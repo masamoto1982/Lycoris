@@ -3,7 +3,7 @@
   "warmupRuns": 1,
   "measuredRuns": 5,
   "p95BudgetMs": 1000,
-  "medianResponseBytesBudget": 1900,
+  "medianResponseBytesBudget": 1100,
   "caseIds": [
     "exact-fraction",
     "decimal-no-float",
