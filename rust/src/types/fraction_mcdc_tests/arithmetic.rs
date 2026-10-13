@@ -104,7 +104,6 @@ mod machine_integer_fast_path {
 //     }
 //     add_reduced_bigint:
 //         if g.is_one() { .. }                       // H   g = gcd(ad, bd)
-//         if t.is_zero() { return 0 }                // T
 //         if g2.is_one() { .. }                      // H2  g2 = gcd(t, g)
 //
 // One operand is past a word, so the i64 pair path declines both rows of each
@@ -113,8 +112,8 @@ mod machine_integer_fast_path {
 //          Z = F, G = F  (W+1)/3 + 1/3 = (W+2)/3, an integer
 //   S = F: H = T (W+1)/3 + 1/7;  H = F, H2 = T  (W+1)/6 + 1/4;
 //          H = F, H2 = F  (W+1)/6 + 1/10
-//   T = T is unreachable: equal values have equal reduced denominators, so
-//   S answers first.
+//   A zero `t` has no row: values that cancel have equal reduced
+//   denominators, so S answers first.
 // ---------------------------------------------------------------------------
 mod bigint_sum_reduction {
     use super::*;

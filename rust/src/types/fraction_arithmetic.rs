@@ -164,9 +164,8 @@ impl Fraction {
         } else {
             an * &bd_g + cross
         };
-        if t.is_zero() {
-            return Fraction::from_repr(FractionRepr::Small(0, 1));
-        }
+        // `t` is never 0: two reduced values that cancel have equal
+        // denominators, which the caller's shared-denominator arm answers.
         let g2: BigInt = balanced_bigint_gcd(&t, &g);
         if g2.is_one() {
             return Self::create_already_reduced(t, ad_g * bd);
