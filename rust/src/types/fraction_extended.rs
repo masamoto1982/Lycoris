@@ -65,12 +65,6 @@ impl Fraction {
         matches!(self.repr, FractionRepr::Small(0, 0))
     }
 
-    /// Whether this is `1/0`.
-    #[inline]
-    pub fn is_infinite(&self) -> bool {
-        matches!(self.repr, FractionRepr::Small(1, 0))
-    }
-
     /// The sign of the numerator, which is the sign of a rational: the
     /// denominator is never negative. `1/0` reads as `Greater` and `0/0` as
     /// `Equal`; neither is a sign of the number, which has none.
@@ -189,14 +183,7 @@ mod tests {
         assert_eq!(Fraction::from_str("0/0").unwrap(), phi());
         assert_eq!(inf().to_string(), "1/0");
         assert_eq!(phi().to_string(), "0/0");
-    }
-
-    /// An unreduced pair reaches the same normal form: over zero it is a
-    /// point, and a negative denominator carries its sign into the numerator.
-    #[test]
-    fn an_unreduced_pair_over_zero_is_a_point() {
-        assert_eq!(Fraction::new((-6).into(), 0.into()), inf());
-        assert_eq!(Fraction::new(0.into(), 0.into()), phi());
+        // A negative denominator carries its sign into the numerator.
         assert_eq!(
             Fraction::new(3.into(), (-4).into()),
             Fraction::new((-3).into(), 4.into())

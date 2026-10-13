@@ -59,9 +59,8 @@ use super::report::{protocol_node_json, semantics_json};
 /// together.
 ///
 /// One sixteenth of the 1 MiB `responseBytes` ceiling the MCP host profile
-/// declares, which leaves the diagnosis, the flow trace and the adapter's own
-/// envelope fields room to be pathological and still arrive. Ordinary errors
-/// are nowhere near it — an unknown-Word diagnosis is about 15 KiB in total —
+/// declares, which leaves the error and the adapter's own envelope fields room
+/// to be pathological and still arrive. Ordinary errors are nowhere near it,
 /// so nothing an agent normally sees changes by a byte.
 pub(super) const MAX_ERROR_STACK_BYTES: usize = 64 * 1024;
 
@@ -207,9 +206,9 @@ fn semantics_bytes(node: &ProtocolNode) -> usize {
         // `{"approximate":true,"exactTerms":[…]}`, about 64 bytes a term.
         ValueData::ExactScalar(exact) => 38 + exact.algebraic_term_count() * EXACT_TERM_BYTES,
         _ if node.semantics.normalized_absence_metadata().is_some() => {
-            // An absence block can carry a whole diagnosis, and there is one
-            // per NIL rather than one per element, so rendering it is cheap
-            // and guessing it is not.
+            // An absence block carries a reason and perhaps a user's text,
+            // and there is one per NIL rather than one per element, so
+            // rendering it is cheap and guessing it is not.
             serde_json::to_string(&semantics_json(&node.semantics)).map_or(128, |text| text.len())
         }
         // `{"truthValue":"true"}`.
@@ -298,7 +297,7 @@ fn algebraic_term_count(node: &ProtocolNode) -> Option<usize> {
 /// this was, and nothing of the value itself.
 ///
 /// `value` is `null` rather than the node being dropped, because dropping it
-/// would renumber every slot above it and silently move what a diagnosis points
+/// would renumber every slot above it and silently move what an error points
 /// at. A reader tells this apart from a genuine `NIL` by `type` (which still
 /// names the real domain) and by the presence of `elided`.
 fn elided_node_json(

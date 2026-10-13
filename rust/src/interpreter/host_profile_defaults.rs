@@ -1,6 +1,7 @@
 //! The default resource ceilings a host gets if it does not inject its own
 //! `RuntimeLimits` — i.e. the playground / native-CLI (`ajisai run`) profile.
-//! Split out of `runtime_limits.rs` (SPECIFICATION the file-size budget in docs/dev/specification-implementation-rules.md's 500-line budget)
+//! Split out of `runtime_limits.rs` (the 500-line file budget in
+//! docs/dev/specification-implementation-rules.md)
 //! and re-exported from there (`pub use host_profile_defaults::*;`), so every
 //! existing `runtime_limits::DEFAULT_MAX_*` path keeps resolving unchanged.
 //!
@@ -13,8 +14,7 @@
 
 use super::RuntimeLimits;
 /// Default cap on elements a single generative built-in (`RANGE`, `FILL`,
-/// `RESHAPE`, …) may materialize in one call. Mirrors the historical
-/// `MAX_MATERIALIZED_ELEMENTS` constant; each generated `Value` costs a few
+/// `RESHAPE`, …) may materialize in one call. Each generated `Value` costs a few
 /// hundred bytes, so one million elements bounds a call to a few hundred MiB
 /// rather than a multi-gigabyte OOM abort.
 ///
@@ -183,8 +183,7 @@ const EXECUTION_STEPS_FLOOR_RATE_STEPS_PER_MS: u64 = 406;
 
 /// Default cap on words executed in one `execute` call — `executionSteps`.
 /// [`super::interpreter_core::DEFAULT_MAX_EXECUTION_STEPS`] re-exports this
-/// value, mirroring the existing
-/// [`super::interpreter_core::MAX_MATERIALIZED_ELEMENTS`] pattern.
+/// value.
 ///
 /// Derived the same way as the two work budgets:
 /// [`DEFAULT_HOST_TIME_BUDGET_MS`] ×

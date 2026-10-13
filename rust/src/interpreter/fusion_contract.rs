@@ -71,8 +71,8 @@ pub(crate) fn admits(word: &GeneratedWord) -> bool {
         && word.cost.steps.exact
 }
 
-/// What a kernel answered: the value and the numeric work and fast-path hits
-/// the dispatch would have charged for it, beside its one step.
+/// What a kernel answered: the value and the numeric work the dispatch would
+/// have charged for it, beside its one step.
 pub(crate) struct Answer {
     pub(crate) value: Plain,
     pub(crate) work: u64,
@@ -166,9 +166,7 @@ fn gcd(operands: &[Plain], _: &Interpreter) -> Option<Answer> {
 /// `NIL?`: a plain value is never NIL (`nil_diagnostics::op_nil_check`).
 fn nil_check(operands: &[Plain], _: &Interpreter) -> Option<Answer> {
     let [a] = operands else { return None };
-    uncharged(Value::from_bool(
-        a.clone().into_value().is_operational_nil(),
-    ))
+    uncharged(Value::from_bool(a.clone().into_value().is_nil()))
 }
 
 /// `DEPTH`: `shape_words::depth_of`, which is 0 for anything but a Vector.

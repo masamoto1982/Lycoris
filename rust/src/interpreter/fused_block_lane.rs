@@ -13,9 +13,9 @@ use crate::types::{Value, ValueData};
 /// either half outgrows one, the lift's Vector of that one scalar. The form is
 /// a function of the value alone: a lane that grows past a word and shrinks
 /// back is a Tensor again.
-fn one_lane(lane: Fraction) -> Option<Value> {
+fn one_lane(lane: Fraction) -> Value {
     let Some((n, d)) = lane.extract_i64_pair() else {
-        return Some(Value::from_vector(vec![Value::from_fraction(lane)]));
+        return Value::from_vector(vec![Value::from_fraction(lane)]);
     };
     use crate::types::Column;
     let data = crate::types::DenseTensor::from_columns(
@@ -24,13 +24,13 @@ fn one_lane(lane: Fraction) -> Option<Value> {
         [1],
         d == 1,
     );
-    Some(Value::new(
+    Value::new(
         ValueData::Tensor {
             data: std::sync::Arc::new(data),
             shape: ONE_LANE_SHAPE.with(std::sync::Arc::clone),
         },
         None,
-    ))
+    )
 }
 
 thread_local! {
@@ -46,7 +46,7 @@ thread_local! {
 /// promoted as `op_map` promotes a list of answers that are not all scalars.
 pub(crate) fn rewrap_one_lane(walk: FusedWalk, value: &Value) -> Option<Value> {
     let lane = |v: &Value| match Plain::of(v)? {
-        Plain::Num(f) => one_lane(f),
+        Plain::Num(f) => Some(one_lane(f)),
         Plain::Bool(_) => None,
     };
     match walk {

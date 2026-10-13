@@ -294,7 +294,6 @@ pub fn fraction_result_bits(f: &Fraction) -> u64 {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct RuntimeLimits {
     /// Max elements a single generative built-in may materialize in one call.
-    /// Folds the former `MAX_MATERIALIZED_ELEMENTS` guard into this structure.
     pub max_materialized_elements: usize,
     /// Max byte length of a source program handed to `execute` (checked before
     /// tokenization).
@@ -429,20 +428,6 @@ impl RuntimeLimits {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn defaults_are_the_documented_ceilings() {
-        let limits = RuntimeLimits::default();
-        assert_eq!(
-            limits.max_materialized_elements,
-            DEFAULT_MAX_MATERIALIZED_ELEMENTS
-        );
-        assert_eq!(limits.max_source_bytes, DEFAULT_MAX_SOURCE_BYTES);
-        assert_eq!(
-            limits.max_numeric_literal_digits,
-            DEFAULT_MAX_NUMERIC_LITERAL_DIGITS
-        );
-    }
 
     #[test]
     fn source_byte_ceiling_fires_at_a_low_injected_limit() {

@@ -4,37 +4,23 @@
 //! LANG.AUTHORITY.FREEDOM makes the route unobservable, so each program here
 //! runs with the kernels on and off and the two runs must agree on the
 //! stack's values (`Debug`, so a dense Tensor and a boxed Vector differ), the
-//! error, the resource usage and the error flow trace.
+//! error, the resource usage and the Word a failure is attributed to.
 
 use crate::interpreter::Interpreter;
 use proptest::prelude::*;
 
-#[derive(Debug, PartialEq)]
-pub(super) struct Observation {
-    outcome: std::result::Result<(), String>,
-    values: String,
-    usage: crate::interpreter::ResourceUsage,
-    trace: String,
-}
+use crate::interpreter::route_observation::Limits;
+pub(super) use crate::interpreter::route_observation::Observation;
 
 pub(super) fn observe(source: &str, dense: bool, bits: Option<u64>) -> Observation {
-    let mut interp = Interpreter::new();
-    interp.set_dense_kernels_enabled(dense);
-    if let Some(bits) = bits {
-        let mut limits = *interp.runtime_limits();
-        limits.max_bigint_bits = bits;
-        interp.set_runtime_limits(limits);
-    }
-    let outcome = crate::agent::block_on(interp.execute(source)).map_err(|e| format!("{e:?}"));
-    Observation {
-        outcome: outcome.map(|_| ()),
-        // The values, not the `Stack`: its `fresh_from` mark only schedules
-        // the next nesting check, and a refused general route pops and
-        // re-pushes operands the kernel never touched.
-        values: crate::test_support::representation(interp.get_stack().as_slice()),
-        usage: interp.resource_usage(),
-        trace: format!("{:?}", interp.failed_word),
-    }
+    crate::interpreter::route_observation::observe(
+        source,
+        |interp| interp.set_dense_kernels_enabled(dense),
+        Limits {
+            bits,
+            ..Limits::default()
+        },
+    )
 }
 
 pub(super) fn assert_same(source: &str, bits: Option<u64>) {

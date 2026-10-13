@@ -12,7 +12,7 @@
 //!     answer takes its place. A program that needs the value afterwards names
 //!     it with `BIND`.
 //!   * **Every absence, U included.** They key off
-//!     [`Value::is_operational_nil`], which is every `Nil` value. The logical
+//!     [`Value::is_nil`], which is every `Nil` value. The logical
 //!     Unknown (U) is a NIL read in truth position (LANG.VALUES.TRUTH), so it
 //!     is an absence: `NIL?` answers TRUE for it and `NIL-REASON` reports the
 //!     reason it arrived with. Excluding U here briefly made
@@ -34,7 +34,7 @@ use crate::types::Value;
 /// The operational-NIL metadata of a value, or `None` when it is not an
 /// operational NIL.
 fn operational_absence(value: &Value) -> Option<&AbsenceMetadata> {
-    if !value.is_operational_nil() {
+    if !value.is_nil() {
         return None;
     }
     // Every operational NIL has metadata; `absence_metadata` is `Some` for a
@@ -66,9 +66,7 @@ fn push_protocol_string_or_nil(interp: &mut Interpreter, value: Option<&str>) {
 /// (LANG.VALUES.NIL).
 pub fn op_nil_check(interp: &mut Interpreter) -> Result<()> {
     let value = interp.stack.pop().ok_or(AjisaiError::stack_underflow())?;
-    interp
-        .stack
-        .push(Value::from_bool(value.is_operational_nil()));
+    interp.stack.push(Value::from_bool(value.is_nil()));
     Ok(())
 }
 

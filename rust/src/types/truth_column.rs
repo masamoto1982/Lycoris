@@ -59,7 +59,7 @@ impl TruthColumn {
     }
 
     /// The column `lanes` are, when each is a Boolean or one NIL
-    /// shared by every NIL among them — the same reason, origin and detail.
+    /// shared by every NIL among them — the same reason and detail.
     pub(crate) fn pack(lanes: &[Value]) -> Option<Self> {
         let mut unknown: Option<&Value> = None;
         let mut codes = Vec::with_capacity(lanes.len());

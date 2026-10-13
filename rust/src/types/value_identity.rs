@@ -183,7 +183,7 @@ impl Value {
     }
 
     #[inline]
-    /// A numeric leaf from a `Fraction`: a rational, or one of the three
+    /// A numeric leaf from a `Fraction`: a rational, or one of the two
     /// points over zero, which is a Scalar like any other.
     pub fn from_fraction(f: Fraction) -> Self {
         Self::leaf(ValueData::Scalar(f))
@@ -305,26 +305,10 @@ impl Value {
     }
 
     /// NIL test: `true` only for the operational absence node
-    /// ([`ValueData::Nil(_)`]).
+    /// ([`ValueData::Nil(_)`]). UNKNOWN is a NIL read in truth position
+    /// (LANG.VALUES.TRUTH), so it is one like any other.
     #[inline]
     pub fn is_nil(&self) -> bool {
-        matches!(self.data, ValueData::Nil(_))
-    }
-
-    /// As [`is_nil`]: operational-absence test.
-    #[inline]
-    pub fn is_absent(&self) -> bool {
-        matches!(self.data, ValueData::Nil(_))
-    }
-
-    /// As [`is_nil`]: operational-absence test, and deliberately *not*
-    /// narrower than one.
-    ///
-    /// UNKNOWN is a NIL read in truth position (LANG.VALUES.TRUTH), so it is
-    /// an operational NIL like any other: `NIL?` answers TRUE for it and
-    /// `NIL-REASON` reports the reason it arrived with.
-    #[inline]
-    pub fn is_operational_nil(&self) -> bool {
         matches!(self.data, ValueData::Nil(_))
     }
 
@@ -362,33 +346,14 @@ impl Value {
         matches!(self.data, ValueData::Text(_))
     }
 
-    #[inline]
-    pub fn is_tensor(&self) -> bool {
-        matches!(self.data, ValueData::Tensor { .. })
-    }
-
-    /// Borrow the dense numeric backing of a `Tensor` value as
-    /// `(tensor, shape)`. Returns `None` for any other representation.
-    /// Use this on hot HOF paths to iterate fraction lanes directly without
-    /// materializing per-element `Value`s.
-    #[inline]
-    pub fn as_dense_tensor(&self) -> Option<(&DenseTensor, &[usize])> {
-        match &self.data {
-            ValueData::Tensor { data, shape } => Some((data.as_ref(), shape.as_slice())),
-            _ => None,
-        }
-    }
-
     /// Borrow the children of an iterable `Value` as a `Cow<[Value]>`.
     /// `Vector` and `Record` borrow their backing slice directly; `Tensor`
     /// materializes its children once into an owned `Vec<Value>`. Non-iterable
-    /// kinds (`Scalar`, `Nil`, `CodeBlock`, handles) return `None`.
+    /// kinds (`Scalar`, `Nil`, and so on) return `None`.
     ///
     /// Use this in non-hot consumers (JSON serialization, sort, structural
     /// helpers) so they only need a single iteration path regardless of
-    /// whether the value is `Vector` or `Tensor`. For tight numeric loops
-    /// prefer [`as_dense_tensor`] which returns the dense tensor without
-    /// materializing per-element `Value`s.
+    /// whether the value is `Vector` or `Tensor`.
     pub fn as_vector_view(&self) -> Option<std::borrow::Cow<'_, [Value]>> {
         match &self.data {
             ValueData::Vector(v) => Some(std::borrow::Cow::Borrowed(v.as_slice())),
@@ -442,8 +407,7 @@ impl Value {
             // inventing an emptiness rule for a domain that has none.
             ValueData::Text(_) => false,
             ValueData::Scalar(f) => !f.is_zero(),
-            // ExactScalar values from AlgebraicSqrt are always non-zero positive
-            // irrationals; Gosper nodes conservatively report truthy.
+            // An ExactScalar is an irrational, never zero.
             ValueData::ExactScalar(_) => true,
             ValueData::Vector(v) => !v.is_empty() && !v.iter().all(|c| !c.is_truthy()),
             ValueData::Truths(t) => t.to_vector().is_truthy(),

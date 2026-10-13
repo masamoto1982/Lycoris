@@ -305,25 +305,10 @@ pub(crate) fn value_contains_exact_scalar(val: &Value) -> bool {
     }
 }
 
-/// Element-wise binary broadcast over operands that may contain irrational
-/// `ExactScalar` leaves, computed lane-by-lane through exact-real arithmetic.
-///
-/// The shape rules are the rational lift's — one `broadcast_tree` walk, with
-/// [`exact_real_lane`] at the leaves — but each lane stays exact.
-/// `Value::from_exact_real` renormalizes any lane that lands back on a
-/// rational to a plain `Scalar`, so an all-rational result is byte-identical
-/// to the rational path.
-fn apply_exact_real_recursive_broadcast(
-    a: &Value,
-    b: &Value,
-    schema: ExactArithmeticSchema,
-) -> Result<Value> {
-    use crate::interpreter::broadcast_tree::broadcast_tree;
-
-    broadcast_tree(a, b, &|x, y| exact_real_lane(x, y, schema))
-}
-
-/// One lane of the exact-real lift: the passthrough law, then `schema`.
+/// One lane of the exact-real lift: the passthrough law, then `schema`. The
+/// shape rules are the rational lift's — one `broadcast_tree` walk with this
+/// at the leaves — and `Value::from_exact_real` renormalizes a lane that
+/// lands back on a rational to a plain `Scalar`.
 fn exact_real_lane(a: &Value, b: &Value, schema: ExactArithmeticSchema) -> Result<Value> {
     // Absence before arithmetic, for the reason the rational lift gives
     // (`tensor_lane_ops::lane_nil_passthrough`).
@@ -360,42 +345,6 @@ fn exact_broadcast_leaf(value: &Value) -> Option<ExactReal> {
     }
 }
 
-/// Extract aligned exact-real lanes for the *homogeneous flat* broadcast case:
-/// both operands are equal-length vectors whose every child is a numeric leaf
-/// (no nesting, no ragged shapes). Returns `None` for any shape outside that
-/// subset (scalar-broadcast, nesting, length mismatch, empty) so the caller
-/// falls back to the sequential recursion, which still handles those exactly.
-///
-/// This is the only shape eligible for the parallel kernel: it is the
-/// 戦局1「均質」case where every lane is an independent, equally-sized,
-/// compute-bound Gosper evaluation, so disjoint index ranges fan out cleanly.
-fn exact_flat_leaf_lanes(a: &Value, b: &Value) -> Option<(Vec<ExactReal>, Vec<ExactReal>)> {
-    use crate::interpreter::tensor_ops::broadcast_children;
-
-    let (a_children, b_children) = (broadcast_children(a)?, broadcast_children(b)?);
-    if a_children.is_empty() || a_children.len() != b_children.len() {
-        return None;
-    }
-    let mut a_lanes = Vec::with_capacity(a_children.len());
-    let mut b_lanes = Vec::with_capacity(b_children.len());
-    for (x, y) in a_children.iter().zip(b_children.iter()) {
-        // Any nested child must take the recursive path, not the flat kernel.
-        // So must an absent lane: the kernel computes `Send` `ExactReal`
-        // lanes, which cannot carry an `AbsenceMetadata`, and the recursion
-        // applies the passthrough law where the lane is still a `Value`.
-        if broadcast_children(x).is_some()
-            || broadcast_children(y).is_some()
-            || x.is_nil()
-            || y.is_nil()
-        {
-            return None;
-        }
-        a_lanes.push(exact_broadcast_leaf(x)?);
-        b_lanes.push(exact_broadcast_leaf(y)?);
-    }
-    Some((a_lanes, b_lanes))
-}
-
 /// Structural broadcast for operands containing irrational `ExactScalar`
 /// lanes. Returns `Ok(false)` (leaving the stack untouched) for the cases the
 /// caller still routes elsewhere — a top-level NIL — so the existing
@@ -412,18 +361,9 @@ pub(crate) fn push_exact_real_broadcast_result(
     if !value_contains_exact_scalar(a) && !value_contains_exact_scalar(b) {
         return Ok(false);
     }
-    // Homogeneous flat case (equal-length vectors of numeric leaves): each lane
-    // is an independent exact-real op. The result is identical to the
-    // sequential recursion for this shape, lane for lane.
-    let result = if let Some((a_lanes, b_lanes)) = exact_flat_leaf_lanes(a, b) {
-        let n = a_lanes.len();
-        let children: Vec<Value> = (0..n)
-            .map(|i| Value::from_exact_real(schema.exact_real(&a_lanes[i], &b_lanes[i])))
-            .collect();
-        Value::from_children(children)
-    } else {
-        apply_exact_real_recursive_broadcast(a, b, schema)?
-    };
+    let result = crate::interpreter::broadcast_tree::broadcast_tree(a, b, &|x, y| {
+        exact_real_lane(x, y, schema)
+    })?;
     // Irrational lanes are where the term count explodes, and this route used
     // to reach no size ceiling at all: `algebraicTerms` was a limit a vector
     // literal turned off.

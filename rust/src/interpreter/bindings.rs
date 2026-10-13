@@ -170,7 +170,7 @@ impl Interpreter {
 
     /// The value bound to `name` in the frames this one can see. `name` is a
     /// canonical name's text, or the canonical [`Name`] itself, which the
-    /// token walk holds and which compares without reading it as text.
+    /// engine's ops hold and which compares without reading it as text.
     #[inline]
     pub(crate) fn lookup_binding<Q>(&self, name: &Q) -> Option<Value>
     where
@@ -316,18 +316,11 @@ pub(crate) fn op_bind(interp: &mut Interpreter) -> Result<()> {
     }
 
     match names.as_slice() {
-        [_] => {
-            // The name, uppercased, as the key: the String in hand is the key
-            // already when it has no lowercase letter to fold.
-            // The key shares the name's own `Arc<str>` when it needs no
-            // folding, so a `BIND` makes no copy of the name for the table.
-            let text: Arc<str> = match &name_value.data {
-                crate::types::ValueData::Text(text) => Arc::clone(text),
-                _ => Arc::from(names[0].as_str()),
-            };
-            let key: Arc<str> = match crate::word_name::canonical_word_name(&text) {
+        [name] => {
+            // The name, uppercased, as the key (a Text name was bound above).
+            let key: Arc<str> = match crate::word_name::canonical_word_name(name) {
                 std::borrow::Cow::Owned(folded) => folded.into(),
-                std::borrow::Cow::Borrowed(_) => text,
+                std::borrow::Cow::Borrowed(name) => name.into(),
             };
             interp.bind_local(key.into(), subject);
         }

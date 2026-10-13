@@ -1,18 +1,17 @@
 //! The quickened scalar call (`quickened`) against the full dispatch.
 //!
 //! LANG.AUTHORITY.FREEDOM makes the route unobservable, so a program must
-//! leave the same stack, error, resource usage, metrics, epochs and trace
-//! whether its compiled scalar calls are quickened or dispatched. The
-//! programs run their arithmetic inside blocks the fused walk declines (each
-//! holds a Vector literal), inside User Word bodies, and at the top level:
-//! compiled call sites and the token walk's dispatch both take the route.
+//! leave the same stack, error, resource usage, epochs and trace whether its
+//! scalar calls are quickened or dispatched. The programs run their
+//! arithmetic inside blocks the fused walk declines (each holds a Vector
+//! literal), inside User Word bodies, and at the top level.
 
 use crate::interpreter::route_observation::{self, Limits, Observation};
 use crate::interpreter::Interpreter;
 use proptest::prelude::*;
 
-/// A run with quickening on or off, and the typed segments off, so every
-/// scalar call takes one of the two routes compared here.
+/// A run with quickening on or off, so every scalar call takes one of the
+/// two routes compared here.
 fn observe(source: &str, quickened: bool, limits: Limits) -> Observation {
     route_observation::observe(
         source,
@@ -243,7 +242,7 @@ proptest! {
         let source = match mode {
             0 => format!("[ 'X' BIND X {code} ] 'W' DEF [ {elements} ] [ [ 7 ] LENGTH 7 SUB ADD W ] MAP"),
             1 => format!("[ {elements} ] [ [ 7 ] LENGTH 7 SUB ADD 'X' BIND X {code} ] MAP"),
-            // The top level, where every call goes through the token walk.
+            // The top level.
             _ => format!("[ {elements} ] 1 GET 'X' BIND X {code}"),
         };
         let limits = Limits { steps, work, bits };

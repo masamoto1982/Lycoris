@@ -12,7 +12,7 @@ pub(crate) struct Observation {
     stack: Vec<String>,
     values: String,
     usage: crate::interpreter::ResourceUsage,
-    epochs: crate::interpreter::EpochSnapshot,
+    dictionary_epoch: u64,
     trace: String,
     position: Option<crate::tokenizer::SourceSpan>,
     /// Each User Word and the body it was stored with.
@@ -52,7 +52,7 @@ pub(crate) fn observe(
         stack: render_stack(interp.get_stack()),
         values: crate::test_support::representation(interp.get_stack().as_slice()),
         usage: interp.resource_usage(),
-        epochs: interp.current_epoch_snapshot(),
+        dictionary_epoch: interp.dictionary_epoch,
         trace: format!("{:?}", interp.failed_word),
         position: interp.current_source_position(),
         dictionary: {

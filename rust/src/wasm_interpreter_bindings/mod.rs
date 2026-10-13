@@ -45,10 +45,9 @@ fn set_js_prop(obj: &js_sys::Object, key: &str, value: &JsValue) {
     js_sys::Reflect::set(obj, &JsValue::from_str(key), value).unwrap();
 }
 
-/// A `serde_json` rendering as the plain JS value it describes. Every
-/// structured payload this boundary returns (diagnoses, the error-flow trace,
-/// a value's `semantics`) is rendered by the CLI's own serializer and
-/// converted here, so the GUI reads what an agent reads.
+/// A `serde_json` rendering as the plain JS value it describes: the error
+/// this boundary returns is rendered by the agent report's own serializer
+/// and converted here, so the GUI reads what an agent reads.
 fn json_to_js(value: serde_json::Value) -> JsValue {
     use serde::Serialize as _;
     value
@@ -147,7 +146,7 @@ impl AjisaiInterpreter {
                 // report, not something the failure erases: `PRINT` is the
                 // language's trace tool and the run that ends in an error is
                 // exactly the run whose trace is wanted. The native CLI has
-                // always emitted it (`render_completed_run` carries `output`
+                // always emitted it (`completed_run_report` carries `output`
                 // down the Err arm too); only this host dropped it, so a
                 // multi-line program that failed late showed the error and
                 // nothing else. Draining the buffer here also stops the

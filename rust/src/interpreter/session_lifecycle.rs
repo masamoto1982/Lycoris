@@ -103,7 +103,6 @@ impl Interpreter {
         self.host_effects.clear();
         self.pending_def_body_tokens = None;
         self.pending_word_descriptions.clear();
-        self.runtime_scratch.clear();
         self.call_depth = 0;
         self.source_spans.clear();
         self.current_source_span = None;

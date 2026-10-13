@@ -105,7 +105,7 @@ impl Interpreter {
     pub fn rebuild_dependencies(&mut self) -> crate::error::Result<()> {
         // A quiescent recompute point, reached after a bulk restore: every
         // edge is derived again from the bodies, and the epoch moves so no
-        // compiled plan from before the restore matches the dictionary after it.
+        // cached Word or fused block from before the restore is used after it.
         self.bump_dictionary_epoch();
 
         self.dependents.clear();

@@ -74,29 +74,10 @@ impl Value {
         self.len() == 0
     }
 
-    pub fn get_child(&self, index: usize) -> Option<&Value> {
-        match &self.data {
-            ValueData::Vector(v) => v.get(index),
-            ValueData::Tensor { .. } | ValueData::Truths(_) => None,
-            ValueData::Scalar(_) | ValueData::ExactScalar(_) if index == 0 => Some(self),
-            ValueData::Boolean(_)
-            | ValueData::Text(_)
-            | ValueData::Scalar(_)
-            | ValueData::ExactScalar(_)
-            | ValueData::Nil(_)
-            | ValueData::Symbol(_)
-            | ValueData::Record(_) => None,
-        }
-    }
-
     /// Representation-agnostic child accessor. Works for both `Vector` and
     /// `Tensor` payloads by materializing a sub-Value (Scalar leaf or
     /// sub-Tensor) when the receiver is dense. Cloning is cheap because
     /// inner buffers are reference-counted.
-    ///
-    /// Prefer this over [`get_child`] when the call site can be reached with
-    /// a dense `Tensor` input. Use `get_child` only when the caller is known
-    /// to operate on `Record` or already-nested `Vector` payloads.
     pub fn child(&self, index: usize) -> Option<Value> {
         match &self.data {
             ValueData::Vector(v) => v.get(index).cloned(),
@@ -120,25 +101,6 @@ impl Value {
         Children {
             value: self,
             row_shape: None,
-        }
-    }
-
-    #[inline]
-    pub fn first(&self) -> Option<&Value> {
-        self.get_child(0)
-    }
-
-    #[inline]
-    pub fn last(&self) -> Option<&Value> {
-        match &self.data {
-            ValueData::Vector(v) => v.last(),
-            ValueData::Tensor { .. } | ValueData::Truths(_) => None,
-            ValueData::Scalar(_) | ValueData::ExactScalar(_) => Some(self),
-            ValueData::Nil(_) => None,
-            ValueData::Boolean(_)
-            | ValueData::Text(_)
-            | ValueData::Symbol(_)
-            | ValueData::Record(_) => None,
         }
     }
 
@@ -320,12 +282,6 @@ impl Value {
             | ValueData::Record(_) => vec![],
         }
     }
-
-    // is_code_block/as_code_block/from_code_block removed with the CodeBlock
-    // domain — see docs/dev/type-unification-work-order-2026-08.md. Call
-    // sites now use as_vector()/as_vector_view() (Tensor-aware) plus the
-    // value-to-tokens bridge in interpreter/value_as_code.rs for "is this
-    // executable" and "run it" respectively.
 }
 
 /// `Value::child`, for a walk that reads child after child of one value: the

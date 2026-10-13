@@ -25,7 +25,7 @@ pub(crate) fn gcd(a: &BigInt, b: &BigInt) -> BigInt {
 }
 
 /// `gcd(a, b)` of two magnitudes.
-pub(crate) fn gcd_magnitude(a: &BigUint, b: &BigUint) -> BigUint {
+fn gcd_magnitude(a: &BigUint, b: &BigUint) -> BigUint {
     let mut x = a.to_u64_digits();
     let mut y = b.to_u64_digits();
     if compare(&x, &y) == Ordering::Less {

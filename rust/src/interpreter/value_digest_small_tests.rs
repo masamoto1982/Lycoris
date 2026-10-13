@@ -1,9 +1,10 @@
 //! A rational held in two machine words is encoded in place
-//! (`encode_rational`'s fast path); the bytes must be the ones the `BigInt`
-//! route writes for the same pair, reduced or not, of either sign.
+//! (`encode_rational`'s `Small` arm); the bytes must be the ones the `BigInt`
+//! spelling gives the same value's lowest terms, of either sign.
 
 use super::*;
-use crate::types::fraction::FractionRepr;
+use num_integer::Integer;
+use num_traits::Zero;
 use proptest::prelude::*;
 
 fn encoded_by_bigint(n: i64, d: i64) -> Vec<u8> {
@@ -25,7 +26,7 @@ fn encoded_by_bigint(n: i64, d: i64) -> Vec<u8> {
 
 fn encoded(n: i64, d: i64) -> Vec<u8> {
     let mut bytes = Vec::new();
-    encode_rational(&mut bytes, &Fraction::from_repr(FractionRepr::Small(n, d)));
+    encode_rational(&mut bytes, &Fraction::new(BigInt::from(n), BigInt::from(d)));
     bytes
 }
 

@@ -1,7 +1,6 @@
 //! The Words that run by their plain law (`fusion_contract`) — `GCD`, `NIL?`,
 //! `DEPTH` — on each route that runs them, against the route that does not:
-//! fused against interpreted, quickened against dispatched, and typed
-//! segments against the dispatch they replace, compared on
+//! fused against interpreted and quickened against dispatched, compared on
 //! everything a run leaves behind (`route_observation`), under step, work and
 //! size ceilings. These are what hold each kernel to its Word's dispatch.
 

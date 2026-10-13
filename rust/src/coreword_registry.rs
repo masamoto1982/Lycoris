@@ -17,7 +17,6 @@
 //! variant by construction.
 
 use crate::kernel::generated::{Arity, GENERATED_WORDS};
-use serde::Serialize;
 #[cfg(test)]
 use std::collections::HashSet;
 
@@ -25,8 +24,7 @@ pub use crate::kernel::generated::{
     Determinism, FieldClosure, GeneratedWord, NilPolicy, Partiality, Purity,
 };
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CorewordMetadata {
     pub name: String,
     pub family: String,
@@ -120,8 +118,7 @@ fn core_word_metadata(word: &GeneratedWord) -> CorewordMetadata {
 /// `Dynamic` marks a data-dependent arity (e.g. `COLLECT`'s count-driven gather
 /// or runtime-shaped vector ops) that is not statically pinned; the static
 /// mass-conservation validator abstains on `Dynamic` words.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "camelCase", tag = "kind")]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum MassContract {
     Fixed { consumes: u8, produces: u8 },
     Dynamic,
@@ -282,7 +279,7 @@ mod tests {
 
     #[test]
     fn aq_ver_contract_i_nil_diagnostic_accessors_consume_nil() {
-        // LANG.VALUES.NIL / LANG.OBSERVATION.DIAGNOSIS: the five diagnostic absence accessors inspect a
+        // LANG.VALUES.NIL / LANG.OBSERVATION.DIAGNOSIS: the two absence accessors inspect a
         // NIL rather than propagate it, so their nil_policy is ConsumesNil (the
         // OR-NIL-family "inspect or branch on NIL" classification). They are pure,
         // observations that consume what they read, like every

@@ -1,5 +1,5 @@
 //! Report assembly for a completed execution, and its JSON rendering for the
-//! `ajisai` CLI (`--json`).
+//! `ajisai agent` envelope.
 //!
 //! Assembly is I/O-free, so the typed agent API and the terminal CLI observe
 //! the same stack, NIL reasons, error, output and resource usage. Rendering
@@ -211,8 +211,7 @@ pub(crate) fn resource_usage_json(usage: &ResourceUsage) -> Json {
     })
 }
 
-/// JSON rendering of a `ProtocolNode` — the same shape `protocol_to_js`
-/// produces for the GUI: `{ type, value, semantics? }`.
+/// JSON rendering of a `ProtocolNode`: `{ type, value, semantics? }`.
 pub(crate) fn protocol_node_json(node: &ProtocolNode) -> Json {
     let mut obj = Map::new();
     obj.insert("semantics".into(), semantics_json(&node.semantics));
@@ -235,9 +234,8 @@ pub(crate) fn protocol_node_json(node: &ProtocolNode) -> Json {
     Json::Object(obj)
 }
 
-/// JSON rendering of the per-value `semantics` block — the one rendering:
-/// the WASM boundary converts this same value (`value_semantics_to_js`)
-/// rather than building its own.
+/// JSON rendering of the per-value `semantics` block — the one rendering,
+/// which the GUI's stack view shares.
 pub(crate) fn semantics_json(value: &Value) -> Json {
     let mut obj = Map::new();
     if let Some(truth) = value.truth_value() {

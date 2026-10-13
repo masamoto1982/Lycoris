@@ -211,7 +211,8 @@ pub(crate) fn lift_lanes_dyn(
         // `[ TRUE ]`, because a one-element Vector is a Vector
         // (LANG.VALUES.DISJOINT) and only its contents were reused.
         if lanes.iter().any(Lanes::is_vector) {
-            let inner = descend(&lanes, 0, lifted, scalar)?;
+            let first: Vec<&Value> = lanes.iter().map(|lane| lane.lane(0)).collect();
+            let inner = lift_lanes_dyn(&first, lifted, scalar)?;
             return Ok(Value::from_vector(vec![inner]));
         }
         return scalar(operands);
@@ -236,16 +237,6 @@ pub(crate) fn lift_lanes_dyn(
         });
     }
     Ok(Value::from_vector(result))
-}
-
-fn descend(
-    lanes: &[Lanes],
-    index: usize,
-    lifted: &[bool],
-    scalar: &mut dyn FnMut(&[&Value]) -> Result<Value>,
-) -> Result<Value> {
-    let next: Vec<&Value> = lanes.iter().map(|lane| lane.lane(index)).collect();
-    lift_lanes_dyn(&next, lifted, scalar)
 }
 
 /// Whether the lifting rule would enter `value` rather than hand it to the

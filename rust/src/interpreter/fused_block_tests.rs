@@ -2,59 +2,24 @@
 //!
 //! LANG.AUTHORITY.FREEDOM makes the route unobservable, so the two runs of each
 //! program here must agree on everything a host can read: the stack, the
-//! error, the resource usage, the epochs and the error
-//! flow trace. Hand-picked cases cover each bail-out (zero divisor, NIL lane,
+//! error, the resource usage, the epochs, the Word a failure is attributed
+//! to and the source position (`route_observation`). Hand-picked cases cover each bail-out (zero divisor, NIL lane,
 //! ceilings); the property test drives random blocks, vectors and limits.
 
 use crate::interpreter::Interpreter;
-use crate::types::display::render_stack;
 use proptest::prelude::*;
 
-#[derive(Debug, PartialEq)]
-pub(super) struct Observation {
-    outcome: std::result::Result<(), String>,
-    stack: Vec<String>,
-    /// The values themselves, not only their rendering: a dense Tensor and
-    /// a boxed Vector of the same numbers render alike.
-    values: String,
-    usage: crate::interpreter::ResourceUsage,
-    collection_work: u64,
-    epochs: crate::interpreter::EpochSnapshot,
-    trace: String,
-}
-
-#[derive(Debug, Clone, Copy, Default)]
-pub(super) struct Limits {
-    pub(super) steps: Option<usize>,
-    pub(super) work: Option<u64>,
-    pub(super) bits: Option<u64>,
-}
+pub(super) use crate::interpreter::route_observation::{Limits, Observation};
 
 fn observe(source: &str, fused: bool, limits: Limits) -> Observation {
-    let mut interp = Interpreter::new();
-    interp.set_fused_block_enabled(fused);
-    interp.set_scalar_fastpath_enabled(true);
-    if let Some(steps) = limits.steps {
-        interp.set_max_execution_steps(steps);
-    }
-    let mut runtime = *interp.runtime_limits();
-    if let Some(work) = limits.work {
-        runtime.max_numeric_work = work;
-    }
-    if let Some(bits) = limits.bits {
-        runtime.max_bigint_bits = bits;
-    }
-    interp.set_runtime_limits(runtime);
-    let outcome = crate::agent::block_on(interp.execute(source)).map_err(|e| format!("{e:?}"));
-    Observation {
-        outcome: outcome.map(|_| ()),
-        stack: render_stack(interp.get_stack()),
-        values: crate::test_support::representation(interp.get_stack().as_slice()),
-        usage: interp.resource_usage(),
-        collection_work: interp.collection_work_used(),
-        epochs: interp.current_epoch_snapshot(),
-        trace: format!("{:?}", interp.failed_word),
-    }
+    crate::interpreter::route_observation::observe(
+        source,
+        |interp| {
+            interp.set_fused_block_enabled(fused);
+            interp.set_scalar_fastpath_enabled(true);
+        },
+        limits,
+    )
 }
 
 pub(super) fn assert_same(source: &str, limits: Limits) -> Observation {

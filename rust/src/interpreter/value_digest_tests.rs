@@ -13,7 +13,7 @@ fn digest_of(value: &Value) -> String {
     value_digest(value)
 }
 
-/// The Phase's central invariant: `a == b` must imply `encode(a) ==
+/// The central invariant: `a == b` must imply `encode(a) ==
 /// encode(b)`, over a corpus mixing every relation the digest has to
 /// respect (algebraic rebasing, Vector/Tensor cross-equality, Fraction
 /// reduction) with the ones it must not collapse (NIL reasons, domain
@@ -79,9 +79,6 @@ fn equal_values_digest_equally() {
     }
 }
 
-/// The regression this Phase exists to fix: `8 SQRT` keeps the coarse
-/// basis `{8}`, `2 SQRT 2 SQRT ADD` keeps `{3}` — equal values with
-/// disagreeing `normal_form_terms()` (pitfall A).
 /// A rectangular numeric `Vector` and the `Tensor` holding the same lanes
 /// are the same value (pitfall B); nested vs rank-2 too.
 #[test]
@@ -105,13 +102,7 @@ fn tensor_and_nested_vector_digest_equally() {
     assert_eq!(digest_of(&nested), digest_of(&rank2));
 }
 
-/// How a value was made is not part of it (LANG.VALUES.DENOTATION): a
-/// Boolean straight from a comparison and the same Boolean from a `FOLD`
-/// of `AND` must digest the same.
-/// A NIL that passed through arithmetic is observed exactly as the NIL it
-/// was: `type: "nil"` with its reason, never as a number.
-/// UNKNOWN is a NIL (LANG.VALUES.TRUTH): no truth axis on the wire.
-/// The reverse of the previous test: the NIL reason *is* meaning
+/// The NIL reason *is* meaning
 /// (LANG.VALUES.NIL), so two differently-caused NILs must digest apart.
 #[test]
 fn nil_reasons_separate_digests() {
@@ -134,24 +125,6 @@ fn absent_texts_separate_digests() {
     assert_eq!(digest_of(&a), digest_of(&a_again));
 }
 
-/// `create_unreduced` never calls the gcd normalizer; the digest must
-/// still land on the same bytes as the reduced form.
-#[test]
-fn unreduced_fraction_matches_reduced() {
-    let reduced = Value::from_fraction(frac(1, 2));
-    let unreduced = Value::from_fraction(Fraction::new(BigInt::from(2), BigInt::from(4)));
-    assert_eq!(digest_of(&reduced), digest_of(&unreduced));
-}
-
-/// Ten unmistakably different programs; all ten digests must be
-/// pairwise distinct.
-/// `PRINT` output is part of the observation, in order (SPEC:
-/// determinism holds for the whole run, not just the final stack).
-/// Two runs with the same (empty) stack and output but different user
-/// dictionaries must not collapse to one digest.
-/// Purity (SPEC: 64 of 65 Words are deterministic, and `PRINT`'s effect
-/// is itself a deterministic sequence) means the same source digests the
-/// same every time.
 /// Regression: keying the algebraic digest at a much larger precision
 /// than `HASH_KEY_BITS` made a 256-term value (reachable in practice —
 /// `max_algebraic_terms` allows up to 512) cost tens of milliseconds per

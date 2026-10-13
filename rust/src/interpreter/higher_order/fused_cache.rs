@@ -12,14 +12,14 @@ pub(super) type FusedKey = (usize, usize, u64);
 
 impl ExecutableCode {
     /// The block lowered for a fused walk that starts it on `inputs` values,
-    /// when its plan is current and inside the fused subset.
+    /// when it is inside the fused subset.
     ///
     /// A block walked again — the inner `FOLD` of `[ [ 0 ] [ ADD ] FOLD ]
     /// MAP`, once per row — is lowered once: a lowering that depends only on
     /// the block, the operand count, the call depth and the dictionary is
     /// kept and handed out again while those are unchanged. One that read a
-    /// binding from outside the block, or built a called Word's plan, depends
-    /// on more, and is lowered afresh every time.
+    /// binding from outside the block depends on more, and is lowered afresh
+    /// every time.
     pub(crate) fn fused(&self, interp: &Interpreter, inputs: usize) -> Option<Arc<FusedBlock>> {
         let key = (inputs, interp.call_depth, interp.dictionary_epoch);
         let mut kept = self

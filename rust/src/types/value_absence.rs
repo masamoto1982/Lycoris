@@ -14,11 +14,6 @@ use crate::semantic::AbsenceMetadata;
 impl Value {
     #[inline]
     pub fn nil() -> Self {
-        Self::nil_literal()
-    }
-
-    #[inline]
-    pub fn nil_literal() -> Self {
         Self::new(
             ValueData::Nil(crate::semantic::NilAbsence::None),
             Some(AbsenceMetadata::literal()),
@@ -87,7 +82,7 @@ impl Value {
 
     #[inline]
     pub fn normalized_absence_metadata(&self) -> Option<AbsenceMetadata> {
-        if !self.is_absent() {
+        if !self.is_nil() {
             return None;
         }
         Some(

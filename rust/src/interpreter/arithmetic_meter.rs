@@ -257,22 +257,15 @@ impl RadicandBudget {
 
 #[cfg(test)]
 mod tests {
-    //! Behavioral coverage for the ExactScalar path of `op_div` (LANG.VALUES.EXACT).
-    //!
-    //! Regression guard for the ordering bug where the generic broadcast block
-    //! (`apply_binary_broadcast`) ran *before* the ExactScalar
-    //! block and unconditionally `return`ed on the `FlatTensor::from_value`
-    //! error for exact irrationals, making the ExactScalar `DIV` path dead code.
-    //! `op_add`/`op_sub`/`op_mul` place the ExactScalar block before broadcast;
-    //! these tests pin `op_div` to the same, correct ordering.
+    //! Behavioral coverage for the ExactScalar path of `op_div`
+    //! (LANG.VALUES.EXACT): a quotient with an irrational operand is an exact
+    //! value, never an error.
 
     use crate::test_support::run_ok;
     use crate::types::fraction::Fraction;
     use crate::types::{Value, ValueData};
 
-    /// `√2 2 /` is evaluated as an exact value rather than hard-erroring on the
-    /// (impossible) ExactScalar -> tensor conversion. This is the core P0-a
-    /// guarantee: the ExactScalar block is now reachable before broadcast.
+    /// `√2 2 /` is evaluated as an exact value.
     #[tokio::test]
     async fn sqrt2_div_rational_is_exact_not_error() {
         let stack = run_ok("2 SQRT 2 DIV").await;
@@ -288,12 +281,7 @@ mod tests {
         );
     }
 
-    /// `√2 √2 /` is evaluated exactly (a recoverable exact real), not a hard
-    /// error. NOTE: the current ExactReal engine represents this as a *lazy*
-    /// `Gosper` (x/y) and does not structurally reduce it to the rational `1/1`;
-    /// structural simplification is a CF-engine concern outside the P0-a
-    /// ordering fix. The reachable-path guarantee (exact, not error) is what
-    /// this test pins.
+    /// `√2 √2 /` is evaluated exactly, not as an error.
     #[tokio::test]
     async fn sqrt2_div_sqrt2_is_exact() {
         let stack = run_ok("2 SQRT 2 SQRT DIV").await;

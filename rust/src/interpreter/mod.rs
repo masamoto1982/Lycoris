@@ -70,6 +70,7 @@ pub(crate) mod lane_lift;
 // bindings, which import it by that name.
 pub(crate) use self::host_profile_defaults as limit_profile;
 mod ceiling_refusal;
+pub mod interpreter_core;
 pub mod logic;
 pub mod math_ops;
 pub(crate) mod naming_convention_checker;
@@ -94,18 +95,14 @@ pub mod sort;
 pub mod tensor_cmds;
 pub(crate) mod tensor_lane_ops;
 pub mod tensor_ops;
+mod value_digest;
 pub(crate) mod value_extraction_helpers;
 pub mod vector_ops;
 pub mod word_contract;
 mod word_contract_flow;
 #[cfg(test)]
 mod word_contract_tests;
-// `pub(crate)`, not private: `agent::observation_digest` calls
-// `word_identity::content_digest` and `word_identity::encode_token` directly,
-// so the crate-wide agent boundary needs to name this module.
-pub mod interpreter_core;
-pub(crate) mod value_digest;
-pub(crate) mod word_identity;
+mod word_identity;
 #[cfg(test)]
 mod word_identity_tests;
 #[cfg(test)]

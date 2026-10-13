@@ -1,18 +1,9 @@
 //! A Word costs one execution step wherever it is written.
 //!
-//! The step is what a Word *costs*, not what one route happens to count, and two
-//! routes dispatch Words: the interpreted loop, and a compiled plan. The
-//! compiled one used to count nothing. A Core Word reached through
-//! `CompiledOp::CallBuiltin` cost 0 steps instead of 1, and `TRUE`/`FALSE`/`NIL`
-//! — Core Words in the registry — were lowered to a plain literal push and cost
-//! 0 too.
-//!
-//! Two things followed, and the second is the serious one. `executionSteps`
-//! under-reported a budget `docs/dev/agent-cli-output-contract.md` says an agent
-//! plans against. And the ceiling could not refuse a program: because a User
-//! Word's body compiles, **work moved inside a User Word escaped the step
-//! ceiling entirely** — 160 builtins written inline were refused at a 50-step
-//! ceiling while the same 160 inside twenty calls of a Word ran to completion.
+//! The step is what a Word *costs*, not what one route happens to count. An
+//! earlier compiled route counted nothing for a Core Word and lowered
+//! `TRUE`/`FALSE`/`NIL` to a free literal push, so work moved inside a User
+//! Word escaped the step ceiling that refused the same Words inline.
 //!
 //! Inline is the oracle here: a program of N word dispatches costs N steps, and
 //! wrapping those same dispatches in a Word adds one step per call and nothing
@@ -142,8 +133,7 @@ async fn the_step_ceiling_refuses_work_wherever_it_is_written() {
 /// arm as any other, and that is the behaviour to match.
 #[tokio::test]
 async fn a_refusal_by_the_ceiling_names_the_word_it_fired_on() {
-    // Inline, and inside a Word body whose compiled plan is the route that
-    // dropped the name.
+    // Inline, and inside a Word body.
     // Attribution stops at a User Word (`failure_site`), so a refusal
     // inside `BUMP`'s body is `BUMP`'s from the caller's side.
     for (setup, program, word) in [

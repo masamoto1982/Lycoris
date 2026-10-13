@@ -6,12 +6,12 @@
 //! order question projects instead of answering — the places one route can
 //! drift from another unnoticed. Each case builds a random Vector of small
 //! rationals salted with `1/0`, `-1/0`, `0/0` and `0`, runs one of the shapes
-//! below on it with every route on (fused blocks, quickened calls, typed
-//! segments, dense kernels, literal lowering) and with every route off, and
-//! requires the two runs to leave the same observation (`route_observation`):
-//! stack, outcome, charges, metrics and trace. The scalar fast path stays on
-//! in both, as in `fusion_contract_route_tests`: its own hit count is one of
-//! the metrics, and the scalar law it runs is held to the dispatch there.
+//! below on it with every route on (fused blocks, quickened calls, dense
+//! kernels) and with every route off, and requires the two runs to leave the
+//! same observation (`route_observation`): stack, outcome, charges and trace.
+//! The scalar fast path stays on in both, as in
+//! `fusion_contract_route_tests`, where the scalar law it runs is held to the
+//! dispatch.
 
 use crate::interpreter::route_observation::{observe, Limits, Observation};
 use proptest::prelude::*;

@@ -240,7 +240,7 @@ mod tensor_boundary_tests {
     fn tensor_is_vector_predicate_holds() {
         let dense = Value::from_tensor(vec![Fraction::from(1)], vec![1]);
         assert!(dense.is_vector());
-        assert!(dense.is_tensor());
+        assert!(matches!(dense.data, crate::types::ValueData::Tensor { .. }));
     }
 
     #[test]

@@ -89,7 +89,7 @@ async fn removed_beta_words_are_unknown_in_a_compiled_user_word() {
         };
         assert!(
             matches!(error, AjisaiError::UnknownWord(ref name) if name == word),
-            "{word} resolved through the compiled plan: {error}"
+            "{word} resolved inside a block: {error}"
         );
     }
 }

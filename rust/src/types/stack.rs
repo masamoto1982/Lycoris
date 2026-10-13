@@ -47,13 +47,8 @@ impl Stack {
         self.fresh_from = self.fresh_from.min(index);
     }
 
-    /// The first slot written since the last check: every slot from there
-    /// to the top holds a value no check has seen yet.
-    pub fn fresh_start(&self) -> usize {
-        self.fresh_from.min(self.values.len())
-    }
-
-    /// [`Self::fresh_start`], and forget it.
+    /// The first slot written since the last check — every slot from there
+    /// to the top holds a value no check has seen yet — and forget it.
     #[inline]
     pub fn take_fresh_start(&mut self) -> usize {
         let start = self.fresh_from.min(self.values.len());
@@ -79,11 +74,6 @@ impl Stack {
 
     pub fn clear(&mut self) {
         self.values.clear();
-    }
-
-    pub fn reverse(&mut self) {
-        self.mark_fresh(0);
-        self.values.reverse();
     }
 
     pub fn insert(&mut self, index: usize, value: Value) {

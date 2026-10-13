@@ -19,9 +19,8 @@
 //!  * two `Algebraic` values equal each other by *rebasing*, so `√12` built
 //!    directly (basis `{12}`) equals `2·√3` (basis `{3}`) while sharing no
 //!    structure;
-//!  * a `Fraction` compares by cross-multiplication, so an unreduced pair
-//!    equals its reduced form, and `Small` equals a `Big` holding the same
-//!    value.
+//!  * a `Fraction` is held canonically, so equal values are equal pairs
+//!    however they were built.
 
 use crate::error::NilReason;
 use crate::test_support::{as_exact, exact_mul, frac, hash_of, sqrt_of};

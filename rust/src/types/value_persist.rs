@@ -6,13 +6,13 @@
 //! [`crate::types::value_protocol`]. The two have opposite requirements:
 //!
 //! - The observation protocol is intentionally lossy-but-honest (LANG.OBSERVATION.FIREWALL):
-//!   an `ExactScalar` is observed as a *marked* rational approximation and a
-//!   `CodeBlock` is hidden as `nil`. That is correct for a display/inspection
+//!   an `ExactScalar` is observed as a *marked* rational approximation. That
+//!   is correct for a display/inspection
 //!   surface — it must never present a hidden truncation as exact.
 //! - Persistence must be **lossless**: reloading a saved session must return
 //!   the identical value. Reusing the observation protocol for save/restore
-//!   silently changed values on reload — a `CodeBlock` came back as a genuine
-//!   NIL, and `√2` came back as the rational `768398401/543339720`.
+//!   silently changed values on reload — `√2` came back as the rational
+//!   `768398401/543339720`.
 //!
 //! This codec guarantees `decode(encode(v)) == v` for every `Value`, enforced
 //! by the property tests in `value_persist_tests.rs`, under `Value` equality
