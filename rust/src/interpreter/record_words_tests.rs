@@ -223,3 +223,46 @@ async fn a_record_survives_a_block_and_the_protocol() {
     let node = crate::types::value_protocol::value_to_protocol(&value);
     assert_eq!(node.type_str, "record");
 }
+
+/// A Record's keys are one key exactly when grouping would make them one
+/// (LANG.VALUES.ORDER): every NIL is one key whatever its reason, so two NIL
+/// keys repeat, a NIL key is replaced by `MERGE` across reasons, and two
+/// Records whose NIL keys differ only in reason lift together. `EQ` still
+/// reads the reasons, as it does inside a Vector.
+#[tokio::test]
+async fn every_nil_is_one_record_key() {
+    assert_eq!(
+        error_of("'a' ABSENT 'b' ABSENT 2 COLLECT [ 1 2 ] RECORD").await,
+        "duplicateKey"
+    );
+    assert_eq!(error_of("[ NIL NIL ] [ 1 2 ] RECORD").await, "duplicateKey");
+    assert_eq!(
+        error_of("[ 1 NIL ] 1 -1 SQRT 2 COLLECT 2 COLLECT [ 1 2 ] RECORD").await,
+        "duplicateKey"
+    );
+    assert_eq!(
+        top("[ 'k' NIL ] [ 1 2 ] RECORD -1 SQRT 1 COLLECT [ 9 ] RECORD MERGE").await,
+        "[ 'k' NIL ] [ 1/1 9/1 ] RECORD"
+    );
+    // The key keeps the spelling it was given first.
+    assert_eq!(
+        top(
+            "[ 'k' NIL ] [ 1 2 ] RECORD -1 SQRT 1 COLLECT [ 9 ] RECORD MERGE KEYS 1 GET NIL-REASON"
+        )
+        .await,
+        "'literal'"
+    );
+    assert_eq!(
+        top("[ NIL ] [ 1 ] RECORD -1 SQRT 1 COLLECT [ 10 ] RECORD ADD").await,
+        "[ NIL ] [ 11/1 ] RECORD"
+    );
+    assert_eq!(
+        top("[ NIL ] [ 1 ] RECORD -1 SQRT 1 COLLECT [ 1 ] RECORD EQ").await,
+        "FALSE"
+    );
+    // GROUP's answer is a Record under the same rule.
+    assert_eq!(
+        top("'a' ABSENT 'b' ABSENT 2 COLLECT [ 1 2 ] GROUP VALUES").await,
+        "[ [ 1/1 2/1 ] ]"
+    );
+}

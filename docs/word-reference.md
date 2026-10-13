@@ -92,7 +92,7 @@ What two sources agree on (LANG.VALUES.TRUTH): `1 1 RECONCILE` is `1`, and an ab
 
 ## `EQ`
 
-Whether two values are one value (LANG.VALUES.DENOTATION), whatever built each: `1 1/1 EQ` is `TRUE`, `2 SQRT 2 SQRT MUL 2 EQ` is `TRUE`, `100 0 DIV 1/0 EQ` is `TRUE`, `0/0 0/0 EQ` is `TRUE`, and `[ 1 2 ] [ 1 2 ] EQ` is `TRUE` — EQ compares its operands whole and does not lift. It reads both operands, so an absent one is the answer, as it is for every data operand (LANG.FAILURE.PASSTHROUGH): `-1 SQRT 1 EQ` is the UNKNOWN that absence already was, since there is nothing to compare. Inside a Vector a NIL is an element like any other and is compared by its reason, so `[ NIL ] [ NIL ] EQ` is `TRUE` — SQL's IS NOT DISTINCT FROM rather than its =; that is the equality RECONCILE uses, while UNIQUE, TALLY and GROUP also make every NIL one key whatever its reason (LANG.VALUES.ORDER), and a program that wants two possibly absent values compared rather than passed through wraps each in `1 COLLECT` first.
+Whether two values are one value (LANG.VALUES.DENOTATION), whatever built each: `1 1/1 EQ` is `TRUE`, `2 SQRT 2 SQRT MUL 2 EQ` is `TRUE`, `100 0 DIV 1/0 EQ` is `TRUE`, `0/0 0/0 EQ` is `TRUE`, and `[ 1 2 ] [ 1 2 ] EQ` is `TRUE` — EQ compares its operands whole and does not lift. It reads both operands, so an absent one is the answer, as it is for every data operand (LANG.FAILURE.PASSTHROUGH): `-1 SQRT 1 EQ` is the UNKNOWN that absence already was, since there is nothing to compare. Inside a Vector a NIL is an element like any other and is compared by its reason, so `[ NIL ] [ NIL ] EQ` is `TRUE` — SQL's IS NOT DISTINCT FROM rather than its =; that is the equality RECONCILE uses, while UNIQUE, TALLY, GROUP and a Record's keys also make every NIL one key whatever its reason (LANG.VALUES.ORDER), and a program that wants two possibly absent values compared rather than passed through wraps each in `1 COLLECT` first.
 
 - **Vocabulary tier:** Semantic Kernel
 - **Family:** `truthOrder`
@@ -628,7 +628,7 @@ The index of each key in an ascending vector, found by halving: `[ 1 3 5 7 ] [ 5
 
 ## `RECORD`
 
-Build a Record — a keyed correspondence, the seventh value domain — from a Vector of keys and a Vector of values paired position by position: `[ 'x' 'y' ] [ 1 2 ] RECORD 'y' GET` is `2`. Keys keep the order they were given, which KEYS and VALUES read back. Two lengths that differ, or a key that appears twice, is the program being wrong, so both are ERRORs rather than a silent last-one-wins.
+Build a Record — a keyed correspondence, the seventh value domain — from a Vector of keys and a Vector of values paired position by position: `[ 'x' 'y' ] [ 1 2 ] RECORD 'y' GET` is `2`. Keys keep the order they were given, which KEYS and VALUES read back. Two lengths that differ, or a key that appears twice, is the program being wrong, so both are ERRORs rather than a silent last-one-wins. Keys are one key exactly when UNIQUE calls them one element (LANG.VALUES.ORDER), so two NIL keys repeat whatever their reasons.
 
 - **Vocabulary tier:** Semantic Kernel
 - **Family:** `record`
@@ -637,7 +637,7 @@ Build a Record — a keyed correspondence, the seventh value domain — from a V
 - **NIL policy:** `passthrough`; projection: none
 - **Purity / determinism:** `pure` / `deterministic`
 - **Effects:** none
-- **Clauses:** `LANG.RECORDS.STRUCTURE`, `LANG.VALUES.DISJOINT`, `LANG.VALUES.VECTOR`
+- **Clauses:** `LANG.RECORDS.STRUCTURE`, `LANG.VALUES.DISJOINT`, `LANG.VALUES.VECTOR`, `LANG.VALUES.ORDER`
 - **Syntax:** `[ 'x' 'y' ] [ 1 2 ] RECORD`
 - **ERROR conditions:** `nonVector`, `shapeMismatch`, `duplicateKey`
 
@@ -703,7 +703,7 @@ Whether a Record holds a key: `[ 'x' ] [ 1 ] RECORD 'x' HAS?` is `TRUE` and `[ '
 
 ## `MERGE`
 
-The union of two Records, the right one winning: `[ 'x' 'y' ] [ 1 2 ] RECORD [ 'y' 'z' ] [ 9 3 ] RECORD MERGE VALUES` is `[ 1 9 3 ]`. The left Record's keys keep their order and take the right Record's value wherever both hold the key; keys only the right holds are appended in the right's order. Layering overrides on defaults is the shape this Word is for; swap the operands for the left to win. Either operand not a Record is an ERROR.
+The union of two Records, the right one winning: `[ 'x' 'y' ] [ 1 2 ] RECORD [ 'y' 'z' ] [ 9 3 ] RECORD MERGE VALUES` is `[ 1 9 3 ]`. The left Record's keys keep their order and take the right Record's value wherever both hold the key; keys only the right holds are appended in the right's order. A key is matched as UNIQUE matches elements, so a NIL key meets a NIL key of any reason and keeps the left one's spelling (LANG.VALUES.ORDER). Layering overrides on defaults is the shape this Word is for; swap the operands for the left to win. Either operand not a Record is an ERROR.
 
 - **Vocabulary tier:** Semantic Kernel
 - **Family:** `record`
@@ -712,7 +712,7 @@ The union of two Records, the right one winning: `[ 'x' 'y' ] [ 1 2 ] RECORD [ '
 - **NIL policy:** `passthrough`; projection: none
 - **Purity / determinism:** `pure` / `deterministic`
 - **Effects:** none
-- **Clauses:** `LANG.RECORDS.STRUCTURE`, `LANG.VALUES.DISJOINT`
+- **Clauses:** `LANG.RECORDS.STRUCTURE`, `LANG.VALUES.DISJOINT`, `LANG.VALUES.ORDER`
 - **Syntax:** `[ 'x' 'y' ] [ 1 2 ] RECORD [ 'y' 'z' ] [ 9 3 ] RECORD MERGE`
 - **ERROR conditions:** `nonRecord`
 
@@ -802,7 +802,7 @@ A Vector of texts joined end to end into one text: `[ 'h' 'i' ] JOIN` is `'hi'`,
 - **NIL policy:** `passthrough`; projection: none
 - **Purity / determinism:** `pure` / `deterministic`
 - **Effects:** none
-- **Clauses:** `LANG.VALUES.DISJOINT`, `LANG.FAILURE.TRICHOTOMY`, `LANG.VALUES.ORDER`
+- **Clauses:** `LANG.VALUES.DISJOINT`, `LANG.FAILURE.TRICHOTOMY`, `LANG.FAILURE.PASSTHROUGH`
 - **Syntax:** `[ 'h' 'i' ] JOIN`
 - **ERROR conditions:** `nonVector`, `nonText`
 

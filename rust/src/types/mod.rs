@@ -19,6 +19,7 @@ mod fraction_lowest_terms_tests;
 mod fraction_mcdc_tests;
 mod fraction_order;
 mod fraction_word_term;
+pub(crate) mod group_key;
 pub mod record;
 pub(crate) mod small_rational;
 pub mod stack;

@@ -25,7 +25,8 @@ NULL の伝わり方、`FILTER` と WHERE、NOT IN の罠）は SQL と一致し
    どの深さでも 1 つのキーとみなす。SQL の DISTINCT と GROUP BY が、すべての NULL を
    1 つのグループにするのと同じである。グループのキーは最初に出会った NIL で、その理由が
    残る。`EQ` と `RECONCILE` はこれまでどおり理由で区別する（LANG.VALUES.NIL）。
-   実装は `rust/src/interpreter/group_key.rs`。NIL を含まないキーは、NIL を含むかどうかの
+   Record のキーも同じ規則で 1 つのキーになる（下の「追補」）。
+   実装は `rust/src/types/group_key.rs`。NIL を含まないキーは、NIL を含むかどうかの
    判定（スカラーと文字列なら 1 回の `match`）のほかは `Value` のハッシュと等価性を
    そのまま使うので、よくあるキーの費用は変わらない。
 2. **NIL は最後に並ぶ。** `SORT` と `ORDER` は、NIL の要素を比較せずに脇へ置き、
@@ -54,6 +55,28 @@ NULL の伝わり方、`FILTER` と WHERE、NOT IN の罠）は SQL と一致し
 
 `0/0` と `1/0` を含むベクトルは、これまでどおり `NIL(domainMiss)` を投影する。
 それらは不在ではなく、順序を持たない数だからである（LANG.VALUES.EXACT）。
+
+### 追補：検証で見つかった点（2026-10-14）
+
+別のモデルによる検証で、次の 3 点を直した。
+
+- **誤用が順序を持たない数の陰に隠れていた。** `SORT`・`ORDER`・`BSEARCH` は、
+  `0/0` や `1/0` に出会った時点で `domainMiss` を返し、その後ろの要素の種類を
+  見ていなかった。そのため `[ 0/0 'b' ] SORT` は NIL、`[ 'b' 0/0 ] SORT` は ERROR と、
+  要素の並びで答えが変わり、誤用が NIL に変わっていた（LANG.FAILURE.TRICHOTOMY に反する）。
+  今はすべての要素とキーの種類を先に確かめ、そのあとで順序を持たない数を投影する。
+  この挙動は今回の変更より前からあった。
+- **Record のキーとグループ化のキーが食い違っていた。** `RECORD` は理由の違う 2 つの
+  NIL を別のキーとして受け入れたので、`KEYS UNIQUE` が `KEYS` より短い Record が作れた。
+  一貫性を取るため、Record のキーの同一性をグループ化と同じにした。理由の違う 2 つの
+  NIL のキーは `duplicateKey` になり、`MERGE` は NIL のキーを理由によらず同じキーとして
+  上書きし（最初の綴りを保つ）、Record どうしの持ち上げもキーをこの規則で揃える。
+  `EQ` で Record を比べるときは、ベクトルと同じく理由まで読む。
+  Record の索引は、すべての NIL を 1 つの NIL に置き換えた正準形で引く。NIL を含まない
+  キー（ほぼすべて）は置き換えずにそのまま使うので、引く費用は変わらない。
+- **対応表の誤り。** `'a' || x` の行に、ベクトルのリテラルの中に変数を書く形
+  （`[ 'a' X ] JOIN`）を載せていた。リテラルの中の名前はシンボルなので、これは
+  ERROR になる。`'a' X 2 COLLECT JOIN` に直した。
 
 ## 変えなかったもの
 
@@ -97,7 +120,7 @@ NULL の伝わり方、`FILTER` と WHERE、NOT IN の罠）は SQL と一致し
 | `COUNT(DISTINCT x)` | `X UNIQUE [ NIL? NOT ] FILTER LENGTH` | |
 | `GROUP BY k` で `SUM(v)` | `K V GROUP VALUES [ [ NIL? NOT ] FILTER 0 [ ADD ] FOLD ] MAP` | NULL のキーは 1 グループ |
 | `x LIKE '%or%'` | `[ 'or' SEARCH NIL? NOT ] FILTER` | |
-| `'a' \|\| x` | `[ 'a' X ] JOIN` | `X` が NULL なら NULL |
+| `'a' \|\| x` | `'a' X 2 COLLECT JOIN` | `X` が NULL なら NULL |
 | `ROUND(x, 2)` で NUMERIC へ | `2 FORMAT NUM` | 下の境界を参照 |
 
 `1 IN (…)` の FOLD の初期値は `FALSE`（OR の単位元）、`NOT IN` は `TRUE`（AND の単位元）である。

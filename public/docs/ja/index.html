@@ -1865,7 +1865,7 @@ FILTER</code></td>
 </div>
 <div class="word-entry" id="word-EQ">
 <h4><code>EQ</code> <span class="word-tier">Semantic Kernel</span></h4>
-<p>2つの値が同じ1つの値かどうか(LANG.VALUES.DENOTATION)。どう組み立てたかは問わない。<code>1 1/1 EQ</code>は<code>TRUE</code>、<code>2 SQRT 2 SQRT MUL 2 EQ</code>は<code>TRUE</code>、<code>100 0 DIV 1/0 EQ</code>は<code>TRUE</code>、<code>0/0 0/0 EQ</code>は<code>TRUE</code>、<code>[ 1 2 ] [ 1 2 ] EQ</code>は<code>TRUE</code>。EQはオペランドを丸ごと比較し、要素ごとには持ち上がらない。両オペランドを読むので、他のデータオペランドと同じく、不在のオペランドがそのまま答えになる(LANG.FAILURE.PASSTHROUGH)。<code>-1 SQRT 1 EQ</code>は、比較するものがないので、その不在がすでにそうであったUNKNOWNになる。ベクトルの中のNILは他と同じ1つの要素で、理由によって比較されるので、<code>[ NIL ] [ NIL ] EQ</code>は<code>TRUE</code>。これはSQLのIS NOT DISTINCT FROMに当たり、その=ではない。RECONCILEもこの等価性を使うが、UNIQUE・TALLY・GROUPはさらに、理由によらずすべてのNILを1つのキーとする(LANG.VALUES.ORDER)。不在かもしれない2つの値を素通しではなく比較したいときは、それぞれを先に<code>1 COLLECT</code>で包む。</p>
+<p>2つの値が同じ1つの値かどうか(LANG.VALUES.DENOTATION)。どう組み立てたかは問わない。<code>1 1/1 EQ</code>は<code>TRUE</code>、<code>2 SQRT 2 SQRT MUL 2 EQ</code>は<code>TRUE</code>、<code>100 0 DIV 1/0 EQ</code>は<code>TRUE</code>、<code>0/0 0/0 EQ</code>は<code>TRUE</code>、<code>[ 1 2 ] [ 1 2 ] EQ</code>は<code>TRUE</code>。EQはオペランドを丸ごと比較し、要素ごとには持ち上がらない。両オペランドを読むので、他のデータオペランドと同じく、不在のオペランドがそのまま答えになる(LANG.FAILURE.PASSTHROUGH)。<code>-1 SQRT 1 EQ</code>は、比較するものがないので、その不在がすでにそうであったUNKNOWNになる。ベクトルの中のNILは他と同じ1つの要素で、理由によって比較されるので、<code>[ NIL ] [ NIL ] EQ</code>は<code>TRUE</code>。これはSQLのIS NOT DISTINCT FROMに当たり、その=ではない。RECONCILEもこの等価性を使うが、UNIQUE・TALLY・GROUPとRecordのキーはさらに、理由によらずすべてのNILを1つのキーとする(LANG.VALUES.ORDER)。不在かもしれない2つの値を素通しではなく比較したいときは、それぞれを先に<code>1 COLLECT</code>で包む。</p>
 <dl class="word-contract">
 <dt>構文</dt><dd><code>1 1 EQ</code></dd>
 <dt>スタック効果</dt><dd><span class="notation">[ a ] [ b ] -&gt; [ TRUE | FALSE ]</span></dd>
@@ -2939,7 +2939,7 @@ FILTER</code></td>
 </div>
 <div class="word-entry" id="word-RECORD">
 <h4><code>RECORD</code> <span class="word-tier">Semantic Kernel</span></h4>
-<p>キーのベクトルと値のベクトルを位置ごとに対応付けて、Record(キーによる対応。第7の値領域)を組み立てる。<code>[ 'x' 'y' ] [ 1 2 ] RECORD 'y' GET</code>は<code>2</code>。キーは与えられた順序を保ち、KEYSとVALUESがそれを読み戻す。長さが違う、あるいは同じキーが2回現れるのはプログラムの誤りなので、どちらも黙って後勝ちにするのではなくERRORになる。</p>
+<p>キーのベクトルと値のベクトルを位置ごとに対応付けて、Record(キーによる対応。第7の値領域)を組み立てる。<code>[ 'x' 'y' ] [ 1 2 ] RECORD 'y' GET</code>は<code>2</code>。キーは与えられた順序を保ち、KEYSとVALUESがそれを読み戻す。長さが違う、あるいは同じキーが2回現れるのはプログラムの誤りなので、どちらも黙って後勝ちにするのではなくERRORになる。キーはUNIQUEが1つの要素とみなすときに限り1つのキーになるので(LANG.VALUES.ORDER)、NILのキーは理由によらず2つあれば重複になる。</p>
 <dl class="word-contract">
 <dt>構文</dt><dd><code>[ 'x' 'y' ] [ 1 2 ] RECORD</code></dd>
 <dt>スタック効果</dt><dd><span class="notation">[ keys ] [ values ] -&gt; [ record ]</span></dd>
@@ -2951,7 +2951,7 @@ FILTER</code></td>
 <dt>純粋性 / 決定性</dt><dd><code>pure</code> / <code>deterministic</code></dd>
 <dt>作用</dt><dd>なし</dd>
 <dt>ERROR条件</dt><dd><code>nonVector</code>, <code>shapeMismatch</code>, <code>duplicateKey</code></dd>
-<dt>条項</dt><dd><code>LANG.RECORDS.STRUCTURE</code>, <code>LANG.VALUES.DISJOINT</code>, <code>LANG.VALUES.VECTOR</code></dd>
+<dt>条項</dt><dd><code>LANG.RECORDS.STRUCTURE</code>, <code>LANG.VALUES.DISJOINT</code>, <code>LANG.VALUES.VECTOR</code>, <code>LANG.VALUES.ORDER</code></dd>
 </dl>
 </div>
 <div class="word-entry" id="word-KEYS">
@@ -3024,7 +3024,7 @@ FILTER</code></td>
 </div>
 <div class="word-entry" id="word-MERGE">
 <h4><code>MERGE</code> <span class="word-tier">Semantic Kernel</span></h4>
-<p>2つのRecordの合併で、右が勝つ。<code>[ 'x' 'y' ] [ 1 2 ] RECORD [ 'y' 'z' ] [ 9 3 ] RECORD MERGE VALUES</code>は<code>[ 1 9 3 ]</code>。左のRecordのキーは順序を保ち、両方が持つキーでは右の値を取る。右だけが持つキーは右の順序で末尾に足される。既定値に上書きを重ねるのがこのワードの用途である。左を勝たせたいならオペランドを入れ替える。どちらかがRecordでなければERROR。</p>
+<p>2つのRecordの合併で、右が勝つ。<code>[ 'x' 'y' ] [ 1 2 ] RECORD [ 'y' 'z' ] [ 9 3 ] RECORD MERGE VALUES</code>は<code>[ 1 9 3 ]</code>。左のRecordのキーは順序を保ち、両方が持つキーでは右の値を取る。右だけが持つキーは右の順序で末尾に足される。既定値に上書きを重ねるのがこのワードの用途である。左を勝たせたいならオペランドを入れ替える。どちらかがRecordでなければERROR。キーはUNIQUEが要素を照合するのと同じように照合するので、NILのキーは理由によらずNILのキーと一致し、左のRecordの綴りを保つ(LANG.VALUES.ORDER)。</p>
 <dl class="word-contract">
 <dt>構文</dt><dd><code>[ 'x' 'y' ] [ 1 2 ] RECORD [ 'y' 'z' ] [ 9 3 ] RECORD MERGE</code></dd>
 <dt>スタック効果</dt><dd><span class="notation">[ record ] [ record ] -&gt; [ record ]</span></dd>
@@ -3036,7 +3036,7 @@ FILTER</code></td>
 <dt>純粋性 / 決定性</dt><dd><code>pure</code> / <code>deterministic</code></dd>
 <dt>作用</dt><dd>なし</dd>
 <dt>ERROR条件</dt><dd><code>nonRecord</code></dd>
-<dt>条項</dt><dd><code>LANG.RECORDS.STRUCTURE</code>, <code>LANG.VALUES.DISJOINT</code></dd>
+<dt>条項</dt><dd><code>LANG.RECORDS.STRUCTURE</code>, <code>LANG.VALUES.DISJOINT</code>, <code>LANG.VALUES.ORDER</code></dd>
 </dl>
 </div>
 <!-- END generated word contracts: records -->
@@ -3348,7 +3348,7 @@ FILTER</code></td>
 <dt>純粋性 / 決定性</dt><dd><code>pure</code> / <code>deterministic</code></dd>
 <dt>作用</dt><dd>なし</dd>
 <dt>ERROR条件</dt><dd><code>nonVector</code>, <code>nonText</code></dd>
-<dt>条項</dt><dd><code>LANG.VALUES.DISJOINT</code>, <code>LANG.FAILURE.TRICHOTOMY</code>, <code>LANG.VALUES.ORDER</code></dd>
+<dt>条項</dt><dd><code>LANG.VALUES.DISJOINT</code>, <code>LANG.FAILURE.TRICHOTOMY</code>, <code>LANG.FAILURE.PASSTHROUGH</code></dd>
 </dl>
 </div>
 <div class="word-entry" id="word-TRIM">

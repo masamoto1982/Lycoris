@@ -1868,7 +1868,7 @@ FILTER</code></td>
 </div>
 <div class="word-entry" id="word-EQ">
 <h4><code>EQ</code> <span class="word-tier">Semantic Kernel</span></h4>
-<p>Whether two values are one value (LANG.VALUES.DENOTATION), whatever built each: <code>1 1/1 EQ</code> is <code>TRUE</code>, <code>2 SQRT 2 SQRT MUL 2 EQ</code> is <code>TRUE</code>, <code>100 0 DIV 1/0 EQ</code> is <code>TRUE</code>, <code>0/0 0/0 EQ</code> is <code>TRUE</code>, and <code>[ 1 2 ] [ 1 2 ] EQ</code> is <code>TRUE</code> — EQ compares its operands whole and does not lift. It reads both operands, so an absent one is the answer, as it is for every data operand (LANG.FAILURE.PASSTHROUGH): <code>-1 SQRT 1 EQ</code> is the UNKNOWN that absence already was, since there is nothing to compare. Inside a Vector a NIL is an element like any other and is compared by its reason, so <code>[ NIL ] [ NIL ] EQ</code> is <code>TRUE</code> — SQL's IS NOT DISTINCT FROM rather than its =; that is the equality RECONCILE uses, while UNIQUE, TALLY and GROUP also make every NIL one key whatever its reason (LANG.VALUES.ORDER), and a program that wants two possibly absent values compared rather than passed through wraps each in <code>1 COLLECT</code> first.</p>
+<p>Whether two values are one value (LANG.VALUES.DENOTATION), whatever built each: <code>1 1/1 EQ</code> is <code>TRUE</code>, <code>2 SQRT 2 SQRT MUL 2 EQ</code> is <code>TRUE</code>, <code>100 0 DIV 1/0 EQ</code> is <code>TRUE</code>, <code>0/0 0/0 EQ</code> is <code>TRUE</code>, and <code>[ 1 2 ] [ 1 2 ] EQ</code> is <code>TRUE</code> — EQ compares its operands whole and does not lift. It reads both operands, so an absent one is the answer, as it is for every data operand (LANG.FAILURE.PASSTHROUGH): <code>-1 SQRT 1 EQ</code> is the UNKNOWN that absence already was, since there is nothing to compare. Inside a Vector a NIL is an element like any other and is compared by its reason, so <code>[ NIL ] [ NIL ] EQ</code> is <code>TRUE</code> — SQL's IS NOT DISTINCT FROM rather than its =; that is the equality RECONCILE uses, while UNIQUE, TALLY, GROUP and a Record's keys also make every NIL one key whatever its reason (LANG.VALUES.ORDER), and a program that wants two possibly absent values compared rather than passed through wraps each in <code>1 COLLECT</code> first.</p>
 <dl class="word-contract">
 <dt>Syntax</dt><dd><code>1 1 EQ</code></dd>
 <dt>Stack effect</dt><dd><span class="notation">[ a ] [ b ] -&gt; [ TRUE | FALSE ]</span></dd>
@@ -2942,7 +2942,7 @@ FILTER</code></td>
 </div>
 <div class="word-entry" id="word-RECORD">
 <h4><code>RECORD</code> <span class="word-tier">Semantic Kernel</span></h4>
-<p>Build a Record — a keyed correspondence, the seventh value domain — from a Vector of keys and a Vector of values paired position by position: <code>[ 'x' 'y' ] [ 1 2 ] RECORD 'y' GET</code> is <code>2</code>. Keys keep the order they were given, which KEYS and VALUES read back. Two lengths that differ, or a key that appears twice, is the program being wrong, so both are ERRORs rather than a silent last-one-wins.</p>
+<p>Build a Record — a keyed correspondence, the seventh value domain — from a Vector of keys and a Vector of values paired position by position: <code>[ 'x' 'y' ] [ 1 2 ] RECORD 'y' GET</code> is <code>2</code>. Keys keep the order they were given, which KEYS and VALUES read back. Two lengths that differ, or a key that appears twice, is the program being wrong, so both are ERRORs rather than a silent last-one-wins. Keys are one key exactly when UNIQUE calls them one element (LANG.VALUES.ORDER), so two NIL keys repeat whatever their reasons.</p>
 <dl class="word-contract">
 <dt>Syntax</dt><dd><code>[ 'x' 'y' ] [ 1 2 ] RECORD</code></dd>
 <dt>Stack effect</dt><dd><span class="notation">[ keys ] [ values ] -&gt; [ record ]</span></dd>
@@ -2954,7 +2954,7 @@ FILTER</code></td>
 <dt>Purity / determinism</dt><dd><code>pure</code> / <code>deterministic</code></dd>
 <dt>Effects</dt><dd>none</dd>
 <dt>ERROR conditions</dt><dd><code>nonVector</code>, <code>shapeMismatch</code>, <code>duplicateKey</code></dd>
-<dt>Clauses</dt><dd><code>LANG.RECORDS.STRUCTURE</code>, <code>LANG.VALUES.DISJOINT</code>, <code>LANG.VALUES.VECTOR</code></dd>
+<dt>Clauses</dt><dd><code>LANG.RECORDS.STRUCTURE</code>, <code>LANG.VALUES.DISJOINT</code>, <code>LANG.VALUES.VECTOR</code>, <code>LANG.VALUES.ORDER</code></dd>
 </dl>
 </div>
 <div class="word-entry" id="word-KEYS">
@@ -3027,7 +3027,7 @@ FILTER</code></td>
 </div>
 <div class="word-entry" id="word-MERGE">
 <h4><code>MERGE</code> <span class="word-tier">Semantic Kernel</span></h4>
-<p>The union of two Records, the right one winning: <code>[ 'x' 'y' ] [ 1 2 ] RECORD [ 'y' 'z' ] [ 9 3 ] RECORD MERGE VALUES</code> is <code>[ 1 9 3 ]</code>. The left Record's keys keep their order and take the right Record's value wherever both hold the key; keys only the right holds are appended in the right's order. Layering overrides on defaults is the shape this Word is for; swap the operands for the left to win. Either operand not a Record is an ERROR.</p>
+<p>The union of two Records, the right one winning: <code>[ 'x' 'y' ] [ 1 2 ] RECORD [ 'y' 'z' ] [ 9 3 ] RECORD MERGE VALUES</code> is <code>[ 1 9 3 ]</code>. The left Record's keys keep their order and take the right Record's value wherever both hold the key; keys only the right holds are appended in the right's order. A key is matched as UNIQUE matches elements, so a NIL key meets a NIL key of any reason and keeps the left one's spelling (LANG.VALUES.ORDER). Layering overrides on defaults is the shape this Word is for; swap the operands for the left to win. Either operand not a Record is an ERROR.</p>
 <dl class="word-contract">
 <dt>Syntax</dt><dd><code>[ 'x' 'y' ] [ 1 2 ] RECORD [ 'y' 'z' ] [ 9 3 ] RECORD MERGE</code></dd>
 <dt>Stack effect</dt><dd><span class="notation">[ record ] [ record ] -&gt; [ record ]</span></dd>
@@ -3039,7 +3039,7 @@ FILTER</code></td>
 <dt>Purity / determinism</dt><dd><code>pure</code> / <code>deterministic</code></dd>
 <dt>Effects</dt><dd>none</dd>
 <dt>ERROR conditions</dt><dd><code>nonRecord</code></dd>
-<dt>Clauses</dt><dd><code>LANG.RECORDS.STRUCTURE</code>, <code>LANG.VALUES.DISJOINT</code></dd>
+<dt>Clauses</dt><dd><code>LANG.RECORDS.STRUCTURE</code>, <code>LANG.VALUES.DISJOINT</code>, <code>LANG.VALUES.ORDER</code></dd>
 </dl>
 </div>
 <!-- END generated word contracts: records -->
@@ -3351,7 +3351,7 @@ FILTER</code></td>
 <dt>Purity / determinism</dt><dd><code>pure</code> / <code>deterministic</code></dd>
 <dt>Effects</dt><dd>none</dd>
 <dt>ERROR conditions</dt><dd><code>nonVector</code>, <code>nonText</code></dd>
-<dt>Clauses</dt><dd><code>LANG.VALUES.DISJOINT</code>, <code>LANG.FAILURE.TRICHOTOMY</code>, <code>LANG.VALUES.ORDER</code></dd>
+<dt>Clauses</dt><dd><code>LANG.VALUES.DISJOINT</code>, <code>LANG.FAILURE.TRICHOTOMY</code>, <code>LANG.FAILURE.PASSTHROUGH</code></dd>
 </dl>
 </div>
 <div class="word-entry" id="word-TRIM">

@@ -5,7 +5,7 @@
 //! empty — a loop whose length depends on the data, which a language with no
 //! unbounded loop cannot write at all.
 
-use super::value_order::compare_for_sort;
+use super::value_order::{compare_for_sort, mixed_domains, ordered_domain_of, OrderedDomain};
 use crate::error::{AjisaiError, NilReason, Result};
 use crate::interpreter::collection_meter;
 use crate::interpreter::value_extraction_helpers::extract_operands;
@@ -189,6 +189,33 @@ pub fn op_bsearch(interp: &mut Interpreter) -> Result<()> {
     }
 }
 
+/// Every domain the search reads, checked before anything is projected: the
+/// elements share one ordered domain and each key lies in it
+/// (LANG.VALUES.ORDER). Malformed use is raised wherever it stands rather than
+/// hidden behind a point over zero met first (LANG.FAILURE.TRICHOTOMY). A
+/// NIL key lane is its own answer and a nested key Vector is searched lane by
+/// lane, so neither is asked here.
+fn check_domains(sorted: &Elements<'_>, keys: &Value) -> Result<()> {
+    let domain = match sorted {
+        Elements::Lanes(_, data) => (!data.is_empty()).then_some(OrderedDomain::Number),
+        Elements::Boxed(items) => ordered_domain_of(items.iter())?,
+    };
+    let check_key = |key: &Value| -> Result<()> {
+        if key.is_nil() || key.is_vector() || key.as_record().is_some() {
+            return Ok(());
+        }
+        let this = OrderedDomain::of(key)?;
+        match domain {
+            Some(seen) if seen != this => Err(mixed_domains(key)),
+            _ => Ok(()),
+        }
+    };
+    match keys.as_vector_view() {
+        Some(lanes) => lanes.iter().try_for_each(check_key),
+        None => check_key(keys),
+    }
+}
+
 fn bsearch_answer(interp: &mut Interpreter, sorted: &Value, keys: &Value) -> Result<Value> {
     let Some(sorted) = Elements::of(sorted) else {
         return Err(non_vector(sorted));
@@ -200,6 +227,7 @@ fn bsearch_answer(interp: &mut Interpreter, sorted: &Value, keys: &Value) -> Res
         .probe()
         .saturating_mul(sorted.len() as u64);
     collection_meter::charge(interp, units)?;
+    check_domains(&sorted, keys)?;
     let present = match sorted.check_ascending()? {
         Ascent::Ascending { present } => present,
         Ascent::Unsorted => {
@@ -287,14 +315,19 @@ mod tests {
         raises("[ 3 1 2 ] [ 2 ] BSEARCH", "BSEARCH").await;
         raises(
             "[ 1 'a' ] 1 BSEARCH",
-            "expected Scalar or String elements, got String beside a Scalar",
+            "expected elements of one ordered domain, got String beside a Scalar",
         )
         .await;
         raises(
             "[ 1 2 3 ] 'a' BSEARCH",
-            "expected Scalar or String elements, got String beside a Scalar",
+            "expected elements of one ordered domain, got String beside a Scalar",
         )
         .await;
+        // Every domain is read before a point over zero projects
+        // (LANG.FAILURE.TRICHOTOMY).
+        raises("[ 1 0/0 ] 'a' BSEARCH", "one ordered domain").await;
+        raises("[ 1 0/0 'a' ] 1 BSEARCH", "one ordered domain").await;
+        raises("[ 0/0 ] TRUE BSEARCH", "expected Scalar or String").await;
         // Every NIL sorts last (LANG.VALUES.ORDER), so a present element
         // after one is out of order.
         raises("[ 1 NIL 2 ] 1 BSEARCH", "not in order").await;

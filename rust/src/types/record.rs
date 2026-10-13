@@ -21,6 +21,7 @@
 
 use std::collections::HashMap;
 
+use super::group_key::canonical_key;
 use super::Value;
 
 /// The keyed correspondence behind [`super::ValueData::Record`].
@@ -28,8 +29,10 @@ use super::Value;
 pub struct RecordData {
     keys: Vec<Value>,
     values: Vec<Value>,
-    /// Position of each key in `keys`. Rebuilt by every constructor; never
-    /// observed directly (LANG.AUTHORITY.FREEDOM).
+    /// Position of each key in `keys`, keyed by its canonical form: two keys
+    /// are one key when grouping would make them one (LANG.VALUES.ORDER), so
+    /// every NIL is one key whatever its reason. Rebuilt by every
+    /// constructor; never observed directly (LANG.AUTHORITY.FREEDOM).
     index: HashMap<Value, usize>,
 }
 
@@ -54,7 +57,7 @@ impl RecordData {
         }
         let mut index = HashMap::with_capacity(keys.len());
         for (position, key) in keys.iter().enumerate() {
-            if let Some(first) = index.insert(key.clone(), position) {
+            if let Some(first) = index.insert(canonical_key(key).into_owned(), position) {
                 return Err(RecordBuildError::DuplicateKey {
                     first,
                     second: position,
@@ -89,7 +92,7 @@ impl RecordData {
 
     /// The position of `key`, if present.
     pub fn position(&self, key: &Value) -> Option<usize> {
-        self.index.get(key).copied()
+        self.index.get(canonical_key(key).as_ref()).copied()
     }
 
     /// The value under `key`, if present.
@@ -98,7 +101,7 @@ impl RecordData {
     }
 
     pub fn has(&self, key: &Value) -> bool {
-        self.index.contains_key(key)
+        self.position(key).is_some()
     }
 
     /// The pairs, in order.
@@ -107,13 +110,15 @@ impl RecordData {
     }
 
     /// A copy with `key` set to `value`: replaced in place when the key is
-    /// present, appended when it is not.
+    /// present, appended when it is not. A present key keeps the spelling it
+    /// has — a NIL key keeps its first reason.
     pub fn with(&self, key: Value, value: Value) -> Self {
         let mut next = self.clone();
-        match next.index.get(&key) {
-            Some(&position) => next.values[position] = value,
+        match next.position(&key) {
+            Some(position) => next.values[position] = value,
             None => {
-                next.index.insert(key.clone(), next.keys.len());
+                next.index
+                    .insert(canonical_key(&key).into_owned(), next.keys.len());
                 next.keys.push(key);
                 next.values.push(value);
             }
@@ -156,10 +161,16 @@ impl RecordData {
         })
     }
 
-    /// Whether `other` has the same key sequence, so that the two pair
-    /// position by position (LANG.COLLECTIONS.LIFT over Records).
+    /// Whether `other` has the same key sequence, key for key as the index
+    /// compares them, so that the two pair position by position
+    /// (LANG.COLLECTIONS.LIFT over Records).
     pub fn same_keys(&self, other: &Self) -> bool {
-        self.keys == other.keys
+        self.keys.len() == other.keys.len()
+            && self
+                .keys
+                .iter()
+                .zip(&other.keys)
+                .all(|(a, b)| canonical_key(a) == canonical_key(b))
     }
 }
 
