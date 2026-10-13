@@ -165,11 +165,11 @@ async fn a_literal_over_zero_leaves_the_field_wherever_it_is_written() {
 }
 
 fn field_decls(source: &str) -> serde_json::Value {
-    check(source, true).to_json()["contractDecls"].clone()
+    check(source).to_json()["contractDecls"].clone()
 }
 
 fn decl_exit_code(source: &str) -> i32 {
-    check(source, true).exit_code()
+    check(source).exit_code()
 }
 
 // -----------------------------------------------------------------

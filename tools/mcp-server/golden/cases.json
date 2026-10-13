@@ -234,7 +234,7 @@
         "/output": [],
         "/stackDisplay": []
       },
-      "comment": "The PRINT never runs: LANG.CONTRACT.CHECK is a pre-execution check, and compute is where execution happens. The same report, less the receipt and the outcome id, is what check answers."
+      "comment": "The PRINT never runs: LANG.CONTRACT.CHECK is a pre-execution check, and compute is where execution happens. The same report, less the outcome id, is what check answers."
     },
     {
       "name": "a verified #:contract declaration is reported beside the run",

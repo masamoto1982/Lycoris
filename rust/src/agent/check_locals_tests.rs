@@ -9,14 +9,14 @@ fn bound_names_are_not_unknown_words() {
         "1 'Q' BIND Q",
         "[ 2 7 ] [ 'W' 'B' ] BIND W B ADD",
     ] {
-        let response = super::api::check(source, false).to_json();
+        let response = super::api::check(source).to_json();
         assert_eq!(response["status"], "ok", "`{source}`: {response}");
     }
 }
 
 #[test]
 fn a_name_nothing_binds_is_still_unknown() {
-    let response = super::api::check("[ 'V' BIND W ] 'M' DEF", false).to_json();
+    let response = super::api::check("[ 'V' BIND W ] 'M' DEF").to_json();
     assert_eq!(response["status"], "error");
     assert!(
         response["message"].as_str().unwrap_or("").contains('W'),
@@ -35,7 +35,7 @@ fn a_binding_does_not_reach_into_a_word_body() {
         "[ 'X' BIND ] 'W' DEF 1 W X",
         "[ 'A' 'B' ] BIND [ A B ADD ] 'W' DEF",
     ] {
-        let response = super::api::check(source, false).to_json();
+        let response = super::api::check(source).to_json();
         assert_eq!(response["status"], "error", "`{source}`: {response}");
         assert!(
             response["message"]
@@ -57,7 +57,7 @@ fn bindings_reach_blocks_written_in_their_frame() {
         "[ 'V' BIND V [ V ADD ] MAP ] 'W' DEF [ 1 2 ] W",
         "[ [ 'Y' BIND Y ] 'INNER' DEF 'X' BIND X ] 'OUTER' DEF",
     ] {
-        let response = super::api::check(source, false).to_json();
+        let response = super::api::check(source).to_json();
         assert_eq!(response["status"], "ok", "`{source}`: {response}");
     }
 }

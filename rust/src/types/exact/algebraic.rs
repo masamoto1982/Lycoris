@@ -384,7 +384,7 @@ impl Eq for Algebraic {}
 const HASH_KEY_BITS: u64 = 64;
 
 /// `floor(f * 2^target_bits)`, exactly (`BigInt` division, not `f64`). Also
-/// the observation digest's algebraic key (`agent::observation_digest`).
+/// the value digest's algebraic key (`interpreter::value_digest`).
 pub(crate) fn floor_scaled(f: &Fraction, target_bits: u64) -> BigInt {
     let (num, den) = f.to_bigint_pair();
     (num << target_bits).div_floor(&den)

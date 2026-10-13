@@ -109,7 +109,7 @@ export class NativeCliBackend {
     // ceiling on the WASM backend and fail it here (a 7,000-element MAP:
     // 608 KB compact against over 1 MB indented). Measuring the same bytes is
     // what makes the ceiling one limit rather than two.
-    const stdout = await this.#exec(["agent", operation, "-", "--json", "--compact", ...extraArgs], source);
+    const stdout = await this.#exec(["agent", operation, "-", "--compact", ...extraArgs], source);
     // The child's own `maxBuffer` bounds what it may write, but a backend must
     // not depend on a limit only one of the two implementations enforces.
     if (Buffer.byteLength(stdout, "utf8") > this.responseBytes) {

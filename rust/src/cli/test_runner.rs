@@ -26,7 +26,7 @@ use std::path::{Path, PathBuf};
 
 use crate::interpreter::Interpreter;
 
-use crate::agent::{block_on, contract_violation, print_payloads, stack_display, Opts};
+use crate::agent::{block_on, contract, print_payloads, stack_display, Opts};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ExpectedStatus {
@@ -131,10 +131,8 @@ fn run_test_source(name: &str, source: &str) -> TestOutcome {
     let mut interp = Interpreter::new();
     // `run` checks `#:contract` declarations first and refuses a program
     // that violates one (LANG.CONTRACT.CHECK), so the test does too.
-    let error_message = match contract_violation::declared_contract_check(source) {
-        Some(check) if check.violated => {
-            contract_violation::violation_report(&interp, &check, None).message
-        }
+    let error_message = match contract::declared_contract_check(source) {
+        Some(check) if check.violated => contract::violation_report(&interp, &check).message,
         _ => block_on(interp.execute(source))
             .err()
             .map(|e| e.to_string()),

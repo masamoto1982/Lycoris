@@ -34,7 +34,7 @@ const resultSchemaPath = join(here, "result.schema.json");
 // numbering separately. The selftest compares a `word_contract` envelope
 // against a backend report, not this constant, so a bump in report.rs is
 // mirrored here by hand.
-const ENVELOPE_SCHEMA_VERSION = 4;
+const ENVELOPE_SCHEMA_VERSION = 5;
 
 export const LIMITS = Object.freeze({
   sourceBytes: 64 * 1024,
@@ -427,14 +427,12 @@ function provenance() {
   return {
     serverVersion: serverVersion(),
     engineVersion: engineVersion(),
-    // Named for what it digests. It was `registryDigest`, beside an engine
-    // `receipt.registryDigest` of a different hash over different content.
+    // Named for what it digests: the packaged asset, not the engine.
     assetDigest: registryDigest(),
     backend: { kind: selected?.kind ?? null },
     // The profile by name; the twelve ceilings themselves are one resource
     // read away (`ajisai://limits`) and never change between calls. They
-    // used to travel on every result — 300 bytes of constants, repeated
-    // again inside the engine's `receipt.limitProfile` — and a ceiling that
+    // used to travel on every result — 300 bytes of constants — and a ceiling that
     // fires names itself in `error.resource` and its value in `message`, so
     // no result needs the table to be read.
     limitProfile: LIMIT_PROFILE,
@@ -463,38 +461,6 @@ function withoutEmptyFields(value) {
 }
 
 /**
- * The engine's report, as this adapter presents it: what an agent reads, and
- * nothing twice.
- *
- * `1 2 ADD` answered 3.7 KB, of which the answer (`stack`, `stackDisplay`)
- * was 85 bytes. The rest was constant metadata an agent cannot act on:
- * a `receipt` that
- * repeated the limit profile `mcp.limits` already carried, the
- * `observationDigest` and `resourceUsage` the top level already carried, and
- * the engine version `mcp.engineVersion` already carried. Five calls in one
- * turn cost 5,000 tokens of that.
- *
- * What the receipt is for survives: `digest` is the receipt, `sourceDigest`
- * and `registryDigest` are the two inputs nothing else in the envelope
- * carries, and a verifier rebuilds the rest from the fields beside it —
- * `status`, `observationDigest`, `resourceUsage`, `mcp.engineVersion` — and
- * from the profile `ajisai://limits` serves (its engine-side entries are the
- * receipt's `limitProfile`). The native CLI's own `--json` envelope is
- * untouched: this is presentation, and `backend/parity-test.js`, which
- * compares what the backends return, is unaffected.
- */
-const RECEIPT_FIELDS_KEPT = ["digest", "sourceDigest", "registryDigest"];
-function presented(report) {
-  const { receipt, ...rest } = report;
-  if (receipt && typeof receipt === "object") {
-    rest.receipt = Object.fromEntries(
-      Object.entries(receipt).filter(([key]) => RECEIPT_FIELDS_KEPT.includes(key)),
-    );
-  }
-  return rest;
-}
-
-/**
  * One result, in the two shapes MCP asks for.
  *
  * `structuredContent` is what a caller branches on. `content` carries the
@@ -509,7 +475,7 @@ function presented(report) {
  * Both shapes are built from one object, so the mirror cannot drift.
  */
 function envelope(value, context = "tool call") {
-  const result = withoutEmptyFields(presented(value));
+  const result = withoutEmptyFields(value);
   const toolResult = { content: [{ type: "text", text: JSON.stringify(result) }], structuredContent: result };
   // `responseBytes` bounds what the caller receives, and what it receives is
   // this: the result twice — structured, and serialized into the text block

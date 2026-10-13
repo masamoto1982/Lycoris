@@ -16,7 +16,7 @@
 //! in the browser console.
 
 use crate::agent::report::{error_json, ErrorInfo};
-use crate::agent::{api, contract_violation};
+use crate::agent::{api, contract};
 use crate::error::ErrorCategory;
 use crate::interpreter::Interpreter;
 use crate::types::Value;
@@ -75,8 +75,7 @@ impl AjisaiInterpreter {
     /// The resource ceilings this interpreter is actually running under, as
     /// JSON, under the same names every other Ajisai host publishes them by —
     /// literally the same, since `interpreter::limit_profile` is the one place
-    /// the ceiling set is enumerated and the receipt reads it too. This
-    /// sentence used to be a claim with nothing checking it.
+    /// the ceiling set is enumerated.
     ///
     /// LANG.MACHINE.LIMITS makes limits a host safety control rather than value
     /// semantics, so two conforming hosts legitimately disagree about them —
@@ -115,9 +114,9 @@ impl AjisaiInterpreter {
 
         // LANG.CONTRACT.CHECK: a program whose `#:contract` declaration is
         // violated is not executed, here as in every other host.
-        if let Some(check) = contract_violation::declared_contract_check(code) {
+        if let Some(check) = contract::declared_contract_check(code) {
             if check.violated {
-                let (message, word) = contract_violation::violation_message(&check);
+                let (message, word) = contract::violation_message(&check);
                 let info = ErrorInfo::of(ErrorCategory::ContractViolation, word);
                 set_js_prop(&obj, "status", &("ERROR".into()));
                 set_js_prop(&obj, "message", &(message.into()));
@@ -267,7 +266,7 @@ pub async fn agent_compute(source: &str, step_limit: Option<u32>) -> String {
 /// `#:contract` declarations conservatively, matching `ajisai agent check`.
 #[wasm_bindgen]
 pub fn agent_check(source: &str) -> String {
-    api::check(source, true).to_json().to_string()
+    api::check(source).to_json().to_string()
 }
 
 /// Infer machine-readable contracts for user-defined Words without

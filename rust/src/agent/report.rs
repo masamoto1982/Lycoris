@@ -8,9 +8,7 @@
 //! source position) into the camelCase wire format documented in
 //! `docs/dev/agent-cli-output-contract.md`.
 
-use super::execution_receipt::build_receipt;
-use super::observation_digest::{observation_digest, ObservationDigestInput};
-use super::{error_report, user_word_identities};
+use super::error_report;
 use crate::error::ErrorCategory;
 use crate::interpreter::{Interpreter, ResourceUsage};
 use crate::semantic::AbsenceMetadata;
@@ -26,7 +24,10 @@ use serde_json::{json, Map, Value as Json};
 /// `error` object — `category`, `resource` for a ceiling, `word`, `line`,
 /// `column` — the whole of what LANG.OBSERVATION.DIAGNOSIS asks an error to
 /// carry beside its message.
-pub(crate) const SCHEMA_VERSION: u64 = 4;
+///
+/// 5: `observationDigest` and `receipt` are gone. No host verified either;
+/// a value's digest is the `DIGEST` Word's.
+pub(crate) const SCHEMA_VERSION: u64 = 5;
 
 /// What an error report says about the failure beside its message: its
 /// category, the ceiling that refused it, the Word it is attributed to
@@ -100,7 +101,7 @@ pub(crate) struct Report {
     /// counters the ceilings read, so it cannot disagree with them.
     pub resource_usage: ResourceUsage,
     /// Per-word contract declarations checked against inference
-    /// (`check --contract`, P2). `None` unless the user opted in; additive
+    /// (`check`, P2). `None` unless the user opted in; additive
     /// field. Prebuilt JSON so `report` stays decoupled from the declaration
     /// types.
     pub contract_decls: Option<Json>,
@@ -108,21 +109,6 @@ pub(crate) struct Report {
     /// (`agent::error_stack`). `None` whenever nothing was dropped, which is
     /// every success and every ordinary error.
     pub stack_elided: Option<Json>,
-    /// Canonical `#`-prefixed 64-hex-char BLAKE3 digest of the whole
-    /// observation (`status` / stack / output / user-dictionary identities /
-    /// error category) — `agent::observation_digest`, Phase 1 of
-    /// `docs/dev/competitive-advantage-work-order-2026-08.md`.
-    pub observation_digest: String,
-    /// The execution receipt (`agent::execution_receipt`, Phase 4 of
-    /// `docs/dev/auditable-kernel-work-order-2026-09.md`): source digest,
-    /// engine version, registry digest, limit profile, outcome status,
-    /// `observation_digest` and `resourceUsage`, bundled and folded into one
-    /// more digest — the material a third party needs to verify "this
-    /// source, on this engine, under these limits, produced this outcome"
-    /// rather than merely being told what the outcome was. `None` for
-    /// `check`/`infer-contracts`, which never execute and so have nothing to
-    /// receipt.
-    pub receipt: Option<Json>,
     /// The outcome id (`spec/outcomes.json`) a `compute` run produced —
     /// `value`, `nil:<reason>` or `error:<category>`, from
     /// [`Report::outcome_id`]. `None` for `check`, which never runs, and for
@@ -181,8 +167,6 @@ impl Report {
             "resourceUsage": resource_usage_json(&self.resource_usage),
             "contractDecls": self.contract_decls,
             "stackElided": self.stack_elided,
-            "observationDigest": self.observation_digest,
-            "receipt": self.receipt,
         });
         doc["stack"] = stack;
         if let Some(outcome) = &self.outcome {
@@ -290,10 +274,6 @@ pub(crate) fn semantics_json(value: &Value) -> Json {
 /// Assemble the report for a completed execution without performing host I/O.
 /// The typed agent API and the terminal renderer share this boundary.
 ///
-/// `source` is the exact program text that was run — carried through only to
-/// name it in the execution receipt (`Report::receipt`); nothing here
-/// re-parses or re-executes it.
-///
 /// `stack_budget` is the byte budget a successful result's stack may take
 /// before its largest slots are elided (`agent::error_stack`); `None` sends
 /// the stack whole.
@@ -301,27 +281,11 @@ pub(crate) fn completed_run_report(
     interp: &Interpreter,
     result: crate::error::Result<()>,
     output: Vec<String>,
-    source: &str,
     stack_budget: Option<usize>,
 ) -> Report {
     match result {
         Ok(()) => {
-            let digest = observation_digest(ObservationDigestInput {
-                status: "ok",
-                stack: interp.get_stack(),
-                output: &output,
-                user_words: &user_word_identities(interp),
-                error_category: None,
-            });
             let resource_usage = interp.resource_usage();
-            let receipt = build_receipt(
-                source,
-                interp.runtime_limits(),
-                interp.max_execution_steps(),
-                "ok",
-                &resource_usage,
-                &digest,
-            );
             // The answer is the stack, so a success is sent whole wherever
             // the host can take it; under a budget, the slots that do not
             // fit are replaced by a record of what they were rather than
@@ -340,14 +304,12 @@ pub(crate) fn completed_run_report(
                 resource_usage,
                 contract_decls: None,
                 stack_elided: residue.elided,
-                observation_digest: digest,
-                receipt: Some(receipt),
                 outcome: None,
             }
         }
         Err(err) => {
             let error = ErrorInfo::of_run(interp, &err);
-            error_report(interp, error, err.to_string(), output, Some(source))
+            error_report(interp, error, err.to_string(), output)
         }
     }
 }

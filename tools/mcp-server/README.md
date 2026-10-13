@@ -177,9 +177,9 @@ alone.
 
 What was removed is everything constant. `1 2 ADD` answered 3,732 bytes, of
 which the answer — `stack` and `stackDisplay` — was 85: the rest was the
-twelve-entry limit table on every result (`mcp.limits`), the same table again
-inside the engine's `receipt.limitProfile`, the receipt's copies of
-`observationDigest` and `resourceUsage`. Five calls in one turn cost 5,000 tokens of that. Now:
+twelve-entry limit table on every result (`mcp.limits`), and an execution
+receipt and observation digest no host verified. Five calls in one turn cost
+5,000 tokens of that. Now:
 
 - `mcp.limitProfile` names the profile (`mcp-local-stdio`); the ceilings are
   the `ajisai://limits` resource, read once. A ceiling that fires still names
@@ -187,16 +187,12 @@ inside the engine's `receipt.limitProfile`, the receipt's copies of
   about one in `error.limit`, so no result needs the table to be acted on.
 - `resourceUsage` — what the run spent against each ceiling — is sent; the
   engine reports no optimizer counters at all.
-- `receipt` keeps `digest`, `sourceDigest` and `registryDigest`, the three
-  things nothing else in the envelope carries; a verifier takes `status`,
-  `observationDigest`, `resourceUsage` and `mcp.engineVersion` from beside
-  them and the limit profile from `ajisai://limits`. The native CLI's own
-  envelope is untouched — this is the adapter's presentation of it.
+- The engine sends no receipt and no observation digest (envelope schema 5).
 - An optional field carrying no value is absent, not `null` — `message` and
   `error` on a plain success, `contractDecls` on a
   source that declares nothing. **Test for presence, not for `null`.**
 
-`1 2 ADD` is 1.8 KB as sent, and what remains constant is the three digests a receipt and its provenance need. `npm run eval:performance` measures the whole
+`1 2 ADD` is about 1.4 KB as sent, and what remains constant is its provenance. `npm run eval:performance` measures the whole
 response and the text block alone over the seven benchmark cases and fails
 against a committed `medianResponseBytesBudget`, so none of it can come back
 unnoticed. The budget is a ceiling to lower when a response genuinely shrinks,

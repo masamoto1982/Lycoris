@@ -1,5 +1,4 @@
 use super::{set_js_prop, stack_to_js, AjisaiInterpreter, UserWordData};
-use crate::agent::sorted_user_word_names;
 use crate::builtins;
 use serde_wasm_bindgen::to_value;
 use wasm_bindgen::prelude::*;
@@ -79,7 +78,7 @@ impl AjisaiInterpreter {
 
     /// A User Word's `#:contract`-derived description, for a host affordance
     /// like the Dictionary panel's hover — never checked against the Word's
-    /// actual behavior (that stays a CLI-only, opt-in `check --contract`).
+    /// actual behavior (that stays a CLI-only, opt-in `check`).
     #[wasm_bindgen]
     pub fn lookup_word_description(&self, name: &str) -> JsValue {
         let upper_name = name.to_uppercase();
@@ -217,4 +216,11 @@ impl AjisaiInterpreter {
         }
         Ok(js_array.into())
     }
+}
+
+/// The user dictionary's Word names, sorted, the order every dictionary view lists them in.
+fn sorted_user_word_names(interp: &crate::interpreter::Interpreter) -> Vec<&String> {
+    let mut names: Vec<&String> = interp.user_words.keys().collect();
+    names.sort();
+    names
 }

@@ -1376,7 +1376,7 @@
         "core-contract-rejects-scalar"
       ],
       "status": "Formalized",
-      "notes": "Answers a Core Word's registered contract from the generated registry as a Record, and a User Word's or a bare block's inferred contract through the one inference ajisai check --contract runs (word_contract.rs, infer_word_contract / infer_contract_for_block), in one shape (contract_record.rs). A block is never evaluated. A Symbol naming nothing projects notFound; an operand that is neither a Symbol nor a block is notASymbol. Absorbed PROBE after the vocabulary-100 review.",
+      "notes": "Answers a Core Word's registered contract from the generated registry as a Record, and a User Word's or a bare block's inferred contract through the one inference ajisai check runs (word_contract.rs, infer_word_contract / infer_contract_for_block), in one shape (contract_record.rs). A block is never evaluated. A Symbol naming nothing projects notFound; an operand that is neither a Symbol nor a block is notASymbol. Absorbed PROBE after the vocabulary-100 review.",
       "semantic_role": "Derived",
       "primitive": false,
       "derived_from": [

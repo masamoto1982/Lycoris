@@ -6,11 +6,11 @@ use crate::agent::api::check;
 use serde_json::Value as Json;
 
 fn contract_decls(source: &str) -> Json {
-    check(source, true).to_json()["contractDecls"].clone()
+    check(source).to_json()["contractDecls"].clone()
 }
 
 fn exit_code(source: &str) -> i32 {
-    check(source, true).exit_code()
+    check(source).exit_code()
 }
 
 #[test]

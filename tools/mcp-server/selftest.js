@@ -736,17 +736,8 @@ if (compute.structuredContent?.error?.code === "backendUnavailable") {
     "a budget is reported once, under resourceUsage, and the optimizer counters not at all",
     !("runtimeMetrics" in (spent.structuredContent ?? {})),
   );
-  // The receipt keeps what nothing else in the envelope carries, and a
-  // verifier rebuilds the rest from beside it.
-  check(
-    "the receipt carries its digest and the two inputs the envelope has nowhere else",
-    JSON.stringify(Object.keys(spent.structuredContent?.receipt ?? {}).sort()) ===
-      JSON.stringify(["digest", "registryDigest", "sourceDigest"]) &&
-      /^#[a-f0-9]{64}$/.test(spent.structuredContent?.receipt?.digest ?? ""),
-  );
   // What the constant blocks cost, measured: `1 2 ADD` was 3,732 bytes as
-  // sent, of which the answer was 85; it is 1,782 now, the remaining
-  // constants being the three digests a receipt and its provenance need.
+  // sent, of which the answer was 85; the constants left are the provenance.
   // The ceiling is a ceiling, not a target — lower it when a response
   // genuinely shrinks; `eval/performance.json` holds the exact median.
   const small = await client.callTool({ name: "compute", arguments: { source: "1 2 ADD" } });
