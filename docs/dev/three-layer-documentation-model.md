@@ -78,7 +78,7 @@ Reference must include a concept page for the Bubble Rule. The page explains: we
 
 (2026-09-14: the water metaphor was removed from `README.md` and `public/docs/ja/index.html` as reader-facing noise. The concept page still exists under `#nil` and still explains this rule — it now just says `NIL` throughout instead of the borrowed word "泡"/"Bubble". `Bubble/NIL` unchanged in LOOKUP text below, which is Rust source, out of scope for that cleanup.
 
-What was removed is the mapping — 器=Stack, 水=値, 流れ=dataflow, 波紋=`PRINT`, 泡=`NIL`, 決壊=error — used as an explanatory system across both documents. What remains, deliberately, is a single closing image in the "Why Ajisai" / 「なぜAjisaiを作ったのか」 section: the author's account of picturing water in a vessel while designing the language, and the hydrangea etymology behind the name. That image is authorial history, not a device a reader must decode to read the mechanics, and it is not leftover text to clean up. Do not reintroduce the mapping, and do not delete the closing image.)
+What was removed is the mapping — 器=Stack, 水=値, 流れ=dataflow, 波紋=`PRINT`, 泡=`NIL`, 決壊=error — used as an explanatory system across both documents. Do not reintroduce it. (2026-10-14: at the owner's request the Japanese Reference also dropped its 「なぜAjisaiを作ったのか」 section, and its closing water-vessel image and hydrangea etymology moved into a hover tooltip on the first "Ajisai" of the introduction, which now leads with what Ajisai can do. README's "Why Ajisai" and the English Reference are unchanged for now.)
 
 ---
 
