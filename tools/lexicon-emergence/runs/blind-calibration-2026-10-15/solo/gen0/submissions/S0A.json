@@ -1,0 +1,39 @@
+{
+  "agent": "S0A", "generation": 0, "condition": "solo",
+  "definitions": [
+    { "name": "S0A.IF", "body": "'S0A.IFT' BIND 2 COLLECT 0 1 S0A.IFT SELECT GET", "note": "X Y T -> X when T is TRUE else Y, choosing whole values of any shape (no lane-wise lifting)" },
+    { "name": "S0A.RLE", "body": "'S0A.RV' BIND S0A.RV 1 DROP S0A.RV 0 GET 1 2 COLLECT 1 COLLECT [ 'S0A.RE' BIND 'S0A.RA' BIND S0A.RA S0A.RA LENGTH 1 SUB S0A.RE S0A.RA -1 GET 1 GET 1 ADD 2 COLLECT PUT S0A.RA S0A.RE 1 2 COLLECT 1 COLLECT CONCAT S0A.RA -1 GET 0 GET S0A.RE EQ S0A.IF ] FOLD", "note": "non-empty Vector -> run-length encoding as [ [ value count ] ... ]" },
+    { "name": "S0A.UPRUNS", "body": "'S0A.UV' BIND S0A.UV 1 DROP S0A.UV -1 DROP GT 1 [ 'S0A.UB' BIND 'S0A.UC' BIND S0A.UC 1 ADD 1 S0A.UB SELECT ] SCAN 1 [ MAX ] FOLD", "note": "non-empty Vector -> length of the longest strictly increasing adjacent stretch" },
+    { "name": "S0A.DEDUPE", "body": "'S0A.DV' BIND S0A.DV 1 DROP S0A.DV 0 GET 1 COLLECT [ 'S0A.DE' BIND 'S0A.DA' BIND S0A.DA S0A.DA S0A.DE 1 COLLECT CONCAT S0A.DA -1 GET S0A.DE EQ S0A.IF ] FOLD", "note": "non-empty Vector -> each run of equal adjacent values collapsed to one" },
+    { "name": "S0A.SECOND", "body": "UNIQUE SORT 'S0A.SU' BIND NIL S0A.SU -2 GET S0A.SU LENGTH 2 LT SELECT", "note": "Vector -> second-largest distinct value, or NIL when fewer than two distinct values" },
+    { "name": "S0A.MAJORITY", "body": "'S0A.MV' BIND S0A.MV TALLY 'S0A.MT' BIND S0A.MT KEYS S0A.MT VALUES 2 COLLECT ZIP [ 1 GET 2 MUL S0A.MV LENGTH GT ] FILTER [ 0 GET ] MAP NIL 1 COLLECT CONCAT 0 GET", "note": "Vector -> the value occurring in more than half the positions, or NIL" },
+    { "name": "S0A.DIVISORS", "body": "'S0A.DN' BIND 1 S0A.DN RANGE [ 'S0A.DD' BIND S0A.DN S0A.DD DIV FLOOR S0A.DD MUL S0A.DN EQ ] FILTER", "note": "positive integer -> ascending Vector of its positive divisors" },
+    { "name": "S0A.NDIV", "body": "'S0A.NP' BIND S0A.NP 1 S0A.NP RANGE DIV 'S0A.NQ' BIND S0A.NQ FLOOR S0A.NQ SUB FLOOR 0 [ ADD ] FOLD S0A.NP ADD", "note": "positive integer -> number of its positive divisors (vectorized)" },
+    { "name": "S0A.PRIMES", "body": "'S0A.PN' BIND 1 S0A.PN RANGE [ S0A.NDIV 2 EQ ] FILTER", "note": "positive integer -> ascending Vector of primes up to it" },
+    { "name": "S0A.BINARY", "body": "'S0A.BN' BIND [ 32 16 8 4 2 1 ] [ S0A.BN GT NOT ] FILTER [ 'S0A.BP' BIND S0A.BN S0A.BP DIV FLOOR 'S0A.BQ' BIND S0A.BQ S0A.BQ 2 DIV FLOOR 2 MUL SUB STR ] MAP JOIN", "note": "integer 1..63 -> base-2 String without leading zeros" },
+    { "name": "S0A.COLLATZ", "body": "'S0A.CN' BIND 1 200 RANGE S0A.CN [ 'S0A.CI' BIND 'S0A.CX' BIND S0A.CX 2 DIV 'S0A.CH' BIND 1 S0A.CH S0A.CX 3 MUL 1 ADD S0A.CH FLOOR S0A.CH EQ SELECT S0A.CX 1 EQ SELECT ] SCAN 'S0A.CS' BIND S0A.CN 1 COLLECT S0A.CS CONCAT [ 1 GT ] FILTER LENGTH", "note": "positive integer (needing under 200 steps) -> Collatz step count to reach 1" },
+    { "name": "S0A.DIGROOT", "body": "1 SUB 'S0A.RM' BIND S0A.RM S0A.RM 9 DIV FLOOR 9 MUL SUB 1 ADD", "note": "positive integer -> digital root, 1 + (n-1) mod 9" },
+    { "name": "S0A.FIBIDX", "body": "'S0A.FN' BIND [ 1 1 2 3 5 8 13 21 34 55 89 ] [ S0A.FN LT ] FILTER LENGTH 1 ADD", "note": "integer 1..89 -> smallest k with F(k) >= n" },
+    { "name": "S0A.DEPTH", "body": "'[' '(' REPLACE ']' ')' REPLACE CHARS [ 'S0A.DC' BIND 1 -1 S0A.DC '(' EQ SELECT ] MAP 0 [ ADD 0 MAX ] SCAN 0 [ MAX ] FOLD", "note": "bracket String -> greatest number of brackets open at once (count never below 0)" },
+    { "name": "S0A.BRSTEP", "body": "'S0A.KC' BIND 'S0A.KA' BIND S0A.KA -1 GET S0A.KC 2 COLLECT JOIN 'S0A.KP' BIND S0A.KA -1 DROP S0A.KA S0A.KC 1 COLLECT CONCAT S0A.KP '()' EQ NOT S0A.KP '[]' EQ NOT AND NOT S0A.IF", "note": "stack-Vector char -> pop when char closes the top opener, else push char" },
+    { "name": "S0A.BRSTACK", "body": "CHARS '#' 1 COLLECT [ S0A.BRSTEP ] FOLD", "note": "bracket String -> unmatched-character stack, with sentinel '#' at the bottom" },
+    { "name": "S0A.BRPREFIX", "body": "CHARS '#' 1 COLLECT [ S0A.BRSTEP ] SCAN 0 0 2 COLLECT [ 'S0A.QL' BIND [ 'S0A.QI' 'S0A.QB' ] BIND S0A.QI 1 ADD 'S0A.QJ' BIND S0A.QJ S0A.QJ S0A.QB S0A.QL LENGTH 1 EQ SELECT 2 COLLECT ] FOLD 1 GET", "note": "bracket String -> length of the longest balanced prefix" }
+  ],
+  "solutions": {
+    "runs.rle": "S0A.RLE",
+    "runs.upruns": "S0A.UPRUNS",
+    "runs.dedupe": "S0A.DEDUPE",
+    "runs.second_largest": "S0A.SECOND",
+    "runs.majority": "S0A.MAJORITY",
+    "number.primes": "S0A.PRIMES",
+    "number.divisors": "S0A.DIVISORS",
+    "number.binary": "S0A.BINARY",
+    "number.collatz": "S0A.COLLATZ",
+    "number.digital_root": "S0A.DIGROOT",
+    "number.fib_index": "S0A.FIBIDX",
+    "brackets.depth": "S0A.DEPTH",
+    "brackets.balanced": "S0A.BRSTACK LENGTH 1 EQ",
+    "brackets.balanced_prefix": "S0A.BRPREFIX",
+    "brackets.unmatched": "S0A.BRSTACK LENGTH 1 SUB"
+  }
+}

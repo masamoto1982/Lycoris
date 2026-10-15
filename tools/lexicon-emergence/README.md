@@ -12,7 +12,8 @@ in `lib/harness.mjs` (route B).
 Nothing here defines Ajisai. Results are observation notes: the pilot's are
 `docs/dev/lexicon-emergence-pilot-results-2026-09-23.md`, Phase 2's
 `docs/dev/lexicon-emergence-phase2-results-2026-10-15.md`; each holds the
-numbers from its run's `report.md`. No run is kept under `runs/` (each run's
+numbers from its run's `report.md`; the difficulty calibration's is
+`docs/dev/lexicon-emergence-difficulty-calibration-2026-10-15.md`. No run is kept under `runs/` (each run's
 raw data was committed and then removed, and lives in git history);
 the experiment's original work order was removed from `docs/dev/` at the
 same time, and the hypotheses H1–H5 it named are restated in the pilot
@@ -22,7 +23,7 @@ results.
 
 | Path | What |
 | --- | --- |
-| `tasks/<family>.json` | Task families: prompts, inputs (the subject sees only the first), and a reference solution per task. `stats` and `text` are the pilot's; `series`, `prose` and `ledger` are Phase 2's, whose tasks share sub-computations and whose unseen inputs carry the edge cases |
+| `tasks/<family>.json` | Task families: prompts, inputs (the subject sees only the first), and a reference solution per task. `stats` and `text` are the pilot's; `series`, `prose` and `ledger` are Phase 2's, whose tasks share sub-computations and whose unseen inputs carry the edge cases; `sensor`, `orders` and `messy` (Ajisai's own traps) and `runs`, `number` and `brackets` (algorithms a total language must bound) come from the difficulty calibration |
 | `lib/ajisai.mjs` | MCP client over `tools/mcp-server` — the grader uses the same `compute` tool as the subjects |
 | `lib/source.mjs` | Tokenizing, bound-variable renaming, and expanding user Words into Core-only source |
 | `lib/grade.mjs` | A solution is correct when every input leaves the reference's final stack; also runs the Core-only expansion (H5) |
@@ -34,7 +35,7 @@ results.
 | `lib/lexicon-phrasebook.mjs` | Route B: a generation's lexicon written as a phrasebook file with each Word's `#:digest`, served to that generation's subjects through the MCP server's `words` argument (`AJISAI_PHRASEBOOK`), and the check that a result's `prelude` matches it by content |
 | `lib/harness.mjs` | Route B: one subject through the Claude API. Offers the MCP server's own `compute` / `check` / `word_contract` definitions plus `submit`, relays calls unchanged, caps turns and spending, records every request's served model, usage and cost |
 | `test/` | The harness against a scripted model (no API call) with the real server and grader: `npm test` |
-| `runs/<run>/design.json` | The families a run uses and the model behind each subject letter (`"models": { "A": "opus", … }`) |
+| `runs/<run>/design.json` | The families a run uses, the model behind each subject letter (`"models": { "A": "opus", … }`) and, optionally, how many times each subject may run code (`"callBudget"`; 0 forbids running at all, and the prompt says so) |
 | `runs/<run>/<condition>/gen<g>/` | `lexicon.json`, `submissions/`, `graded/`; with a lexicon, `phrasebook.ajisai` and `lexicon-digests.json`; for route B `transcripts/`; for the cli route `calls/<agent>.jsonl` (every run, its `--words` and its `prelude`) and `work/<agent>/` |
 
 ## Use
