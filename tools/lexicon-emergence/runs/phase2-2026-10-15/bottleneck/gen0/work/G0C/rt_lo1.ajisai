@@ -1,2 +1,0 @@
-'ab cd ef abc xyz'
-' ' TOKENIZE 'PS' BIND PS PS [ CHARS LENGTH ] MAP -1 MUL ORDER 0 GET GET

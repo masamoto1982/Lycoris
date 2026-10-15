@@ -1,3 +1,0 @@
-[ 'X' BIND X 0 X SUB MAX ] 'G2C.ABS' DEF
-[ [ 'a' 1 ] ]
-G0A.BYNAME 'R' BIND R KEYS [ 'N' BIND R N GET 0 LT ] FILTER

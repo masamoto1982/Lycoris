@@ -1,3 +1,0 @@
-[ 'X' BIND X 0 X SUB MAX ] 'G2C.ABS' DEF
-[ -7/2 4 0 0 ]
-G0A.MEDIAN

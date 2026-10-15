@@ -1,2 +1,0 @@
-[ [ 'x' 1 ] [ 'y' 2 ] ]
-G0A.BYNAME 'R' BIND R KEYS R VALUES 2 COLLECT ZIP [ 1 GET 0 LT ] FILTER [ 0 GET ] MAP

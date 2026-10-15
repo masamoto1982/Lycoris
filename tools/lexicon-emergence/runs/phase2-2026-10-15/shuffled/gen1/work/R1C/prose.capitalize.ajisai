@@ -1,4 +1,0 @@
-[ 'D' BIND D D -1 MUL MAX ] 'R1C.ABS' DEF
-[ CHARS 'C' BIND C 0 GET UPPER 1 COLLECT C 1 DROP CONCAT JOIN ] 'R1C.CAPWORD' DEF
-'the quick brown fox jumps over the lazy dog the end'
-X1.VIDIKO [ R1C.CAPWORD ] MAP X1.FAGAMO

@@ -1,2 +1,0 @@
-'the quick brown fox jumps over the lazy dog the end'
-' ' TOKENIZE TALLY 'PR' BIND PR KEYS PR VALUES -1 MUL ORDER 0 GET GET

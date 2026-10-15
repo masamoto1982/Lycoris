@@ -1,2 +1,0 @@
-'the quick brown fox jumps over the lazy dog the end'
-' ' TOKENIZE UNIQUE SORT [ ' ' 2 COLLECT JOIN ] MAP JOIN TRIM

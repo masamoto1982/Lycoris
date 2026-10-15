@@ -1,2 +1,0 @@
-'the quick brown fox jumps over the lazy dog the end'
-G0A.WORDS [ CHARS 'C' BIND C 0 GET UPPER C 1 DROP JOIN 2 COLLECT JOIN ] MAP G0A.UNWORDS

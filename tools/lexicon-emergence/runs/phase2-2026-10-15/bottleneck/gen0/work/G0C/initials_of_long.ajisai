@@ -1,2 +1,0 @@
-'the quick brown fox jumps over the lazy dog the end'
-' ' TOKENIZE [ CHARS LENGTH 3 GT ] FILTER [ CHARS 0 GET UPPER ] MAP JOIN
