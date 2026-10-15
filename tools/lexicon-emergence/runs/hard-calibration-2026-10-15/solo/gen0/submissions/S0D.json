@@ -1,0 +1,41 @@
+{
+  "agent": "S0D", "generation": 0, "condition": "solo",
+  "definitions": [
+    { "name": "S0D.SUM", "body": "0 [ ADD ] FOLD", "note": "Sum of a Vector of numbers (0 for an empty one)." },
+    { "name": "S0D.PRESENT", "body": "[ NIL? NOT ] FILTER", "note": "The non-NIL elements of a Vector, in order." },
+    { "name": "S0D.MEAN", "body": "'P' BIND P S0D.SUM P LENGTH DIV", "note": "Mean of a non-empty Vector of numbers." },
+    { "name": "S0D.FFILL", "body": "'V' BIND V V S0D.PRESENT 0 GET [ 'X' BIND 'A' BIND A X X NIL? SELECT ] SCAN", "note": "Forward-fill: each NIL takes the nearest present element before it; leading NILs take the first present element." },
+    { "name": "S0D.GAP-STARTS", "body": "[ NIL? ] MAP 'M' BIND M [ FALSE ] M -1 DROP CONCAT NOT AND", "note": "Truth Vector marking each position that begins a run of NILs." },
+    { "name": "S0D.COUNT-TRUE", "body": "'T' BIND 1 0 T SELECT S0D.SUM", "note": "How many lanes of a truth Vector are TRUE." },
+    { "name": "S0D.LONGEST-GAP", "body": "0 [ 'X' BIND 'A' BIND A 1 ADD 0 X NIL? SELECT ] SCAN 0 [ MAX ] FOLD", "note": "Length of the longest run of consecutive NILs in a Vector (0 if none)." },
+    { "name": "S0D.RATIOS", "body": "'V' BIND V 1 DROP V -1 DROP DIV", "note": "Each element divided by the one before it (one shorter than the input); NIL where either is NIL." },
+    { "name": "S0D.SCALED", "body": "'V' BIND V V S0D.PRESENT 'P' BIND P P 0 GET [ MAX ] FOLD DIV", "note": "Each element divided by the largest present element; NILs stay NIL." },
+    { "name": "S0D.ORDERS", "body": "JSON-DECODE 'orders' GET", "note": "Decode a JSON text and take its 'orders' array (a Vector of Records)." },
+    { "name": "S0D.REVENUE", "body": "[ 'price' HAS? ] FILTER [ 'R' BIND R 'qty' GET R 'price' GET MUL ] MAP S0D.SUM", "note": "Sum of qty times price over the order Records that hold a 'price' key." },
+    { "name": "S0D.QTY-BY-SKU", "body": "'O' BIND O [ 'sku' GET ] MAP O [ 'qty' GET ] MAP GROUP 'G' BIND G KEYS G VALUES [ S0D.SUM ] MAP RECORD", "note": "Record from each 'sku' to the sum of its 'qty' over a Vector of order Records, keys in order of first appearance." },
+    { "name": "S0D.ARGMAX-KEY", "body": "'T' BIND T KEYS T VALUES -1 MUL ORDER 0 GET GET", "note": "The key of a Record whose numeric value is largest; on ties the earliest key." },
+    { "name": "S0D.WORDS", "body": "' ' TOKENIZE [ '' EQ NOT ] FILTER", "note": "Split a text on spaces into its words, dropping empty pieces from repeated or edge spaces." },
+    { "name": "S0D.UNWORDS", "body": "[ 'X' BIND ' ' X 2 COLLECT JOIN ] MAP JOIN TRIM", "note": "Join a Vector of texts with single spaces." },
+    { "name": "S0D.TITLE-WORD", "body": "LOWER CHARS 'C' BIND C 0 GET UPPER 1 COLLECT C 1 DROP CONCAT JOIN", "note": "A word with its first letter upper-cased and the rest lower-cased." }
+  ],
+  "solutions": {
+    "sensor.present_mean": "S0D.PRESENT S0D.MEAN",
+    "sensor.filled": "S0D.FFILL",
+    "sensor.gap_count": "S0D.GAP-STARTS S0D.COUNT-TRUE",
+    "sensor.longest_gap": "S0D.LONGEST-GAP",
+    "sensor.ratios": "S0D.RATIOS",
+    "sensor.scaled": "S0D.SCALED",
+    "orders.revenue": "S0D.ORDERS S0D.REVENUE",
+    "orders.report": "S0D.ORDERS S0D.REVENUE 2 FORMAT",
+    "orders.unpriced": "S0D.ORDERS [ 'price' HAS? NOT ] FILTER [ 'sku' GET ] MAP UNIQUE",
+    "orders.qty_by_sku": "S0D.ORDERS S0D.QTY-BY-SKU",
+    "orders.top_sku": "S0D.ORDERS S0D.QTY-BY-SKU S0D.ARGMAX-KEY",
+    "orders.tag_counts": "S0D.ORDERS [ 'tags' HAS? ] FILTER [ 'tags' GET UNIQUE ] MAP FLATTEN TALLY",
+    "messy.count": "S0D.WORDS LENGTH",
+    "messy.normalize": "LOWER S0D.WORDS S0D.UNWORDS",
+    "messy.distinct": "LOWER S0D.WORDS UNIQUE LENGTH",
+    "messy.top_word": "LOWER S0D.WORDS TALLY S0D.ARGMAX-KEY",
+    "messy.title": "S0D.WORDS [ S0D.TITLE-WORD ] MAP S0D.UNWORDS",
+    "messy.sorted_unique": "LOWER S0D.WORDS UNIQUE SORT S0D.UNWORDS"
+  }
+}

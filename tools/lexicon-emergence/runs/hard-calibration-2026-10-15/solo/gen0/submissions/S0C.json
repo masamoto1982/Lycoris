@@ -1,0 +1,32 @@
+{
+  "agent": "S0C", "generation": 0, "condition": "solo",
+  "definitions": [
+    { "name": "S0C.SUM", "body": "0 [ ADD ] FOLD", "note": "Sum of a Vector of numbers; an empty Vector sums to 0." },
+    { "name": "S0C.ORDERS", "body": "JSON-DECODE 'orders' GET", "note": "Parse the JSON String and answer its orders Vector." },
+    { "name": "S0C.REVENUE", "body": "[ 'Q' BIND 0 Q 'qty' GET Q 'price' GET MUL Q 'price' GET NIL? SELECT ] MAP 0 [ ADD ] FOLD", "note": "Total of qty times price over a Vector of orders; an order without a price contributes 0." },
+    { "name": "S0C.QTY_BY_SKU", "body": "'O' BIND O [ 'sku' GET ] MAP O [ 'qty' GET ] MAP GROUP 'G' BIND G KEYS G VALUES [ S0C.SUM ] MAP RECORD", "note": "Record from sku to summed qty over a Vector of orders, skus in first-appearance order." },
+    { "name": "S0C.ARGMAX_FIRST", "body": "'R' BIND R KEYS R VALUES -1 MUL ORDER 0 GET GET", "note": "Key of a Record holding the largest value; ties go to the key that comes first." },
+    { "name": "S0C.WORDS", "body": "' ' TOKENIZE [ 'Q' BIND Q '' EQ NOT ] FILTER", "note": "Split a String on spaces and drop the empty pieces, giving its words in order." },
+    { "name": "S0C.CAPWORD", "body": "'W' BIND W CHARS 1 TAKE JOIN UPPER W CHARS 1 DROP JOIN LOWER 2 COLLECT JOIN", "note": "Capitalise one word: first letter upper case, the rest lower case." }
+  ],
+  "solutions": {
+    "sensor.present_mean": "'R' BIND R [ NIL? NOT ] FILTER 'P' BIND P S0C.SUM P LENGTH DIV",
+    "sensor.filled": "'R' BIND R R [ NIL? NOT ] FILTER 0 GET [ 'E' BIND 'A' BIND A E E NIL? SELECT ] SCAN",
+    "sensor.gap_count": "'R' BIND 1 0 R [ NIL? ] MAP SELECT 'G' BIND [ 0 ] G CONCAT G LENGTH TAKE 'GP' BIND G S0C.SUM G GP MUL S0C.SUM SUB",
+    "sensor.longest_gap": "'R' BIND R 0 [ 'E' BIND 'A' BIND A 1 ADD 0 E NIL? SELECT ] SCAN 0 [ MAX ] FOLD",
+    "sensor.ratios": "'R' BIND R 1 DROP R R LENGTH 1 SUB TAKE DIV",
+    "sensor.scaled": "'R' BIND R [ NIL? NOT ] FILTER 'P' BIND P 1 DROP P 0 GET [ MAX ] FOLD 'M' BIND R M DIV",
+    "orders.revenue": "S0C.ORDERS S0C.REVENUE",
+    "orders.report": "S0C.ORDERS S0C.REVENUE 2 FORMAT",
+    "orders.unpriced": "S0C.ORDERS [ 'Q' BIND Q 'price' GET NIL? ] FILTER [ 'sku' GET ] MAP UNIQUE",
+    "orders.qty_by_sku": "S0C.ORDERS S0C.QTY_BY_SKU",
+    "orders.top_sku": "S0C.ORDERS S0C.QTY_BY_SKU S0C.ARGMAX_FIRST",
+    "orders.tag_counts": "S0C.ORDERS [ 'Q' BIND Q 'tags' GET NIL? NOT ] FILTER [ 'tags' GET UNIQUE ] MAP FLATTEN TALLY",
+    "messy.count": "S0C.WORDS LENGTH",
+    "messy.normalize": "LOWER S0C.WORDS [ ' ' 2 COLLECT JOIN ] MAP JOIN TRIM",
+    "messy.distinct": "LOWER S0C.WORDS UNIQUE LENGTH",
+    "messy.top_word": "LOWER S0C.WORDS TALLY S0C.ARGMAX_FIRST",
+    "messy.title": "S0C.WORDS [ S0C.CAPWORD ' ' 2 COLLECT JOIN ] MAP JOIN TRIM",
+    "messy.sorted_unique": "LOWER S0C.WORDS UNIQUE SORT [ ' ' 2 COLLECT JOIN ] MAP JOIN TRIM"
+  }
+}
