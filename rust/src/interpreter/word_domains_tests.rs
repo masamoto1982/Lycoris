@@ -35,7 +35,14 @@ fn samples(domain: ValueDomain) -> Vec<&'static str> {
             "[ 1 ADD ]",
             "[ 2 2 ]",
         ],
-        ValueDomain::Record => vec!["[ 'a' 'b' ] [ 1 2 ] RECORD", "[ 'x' ] [ 5 ] RECORD"],
+        // Keys of every domain a key is addressed by (LANG.RECORDS.STRUCTURE):
+        // a String, a Scalar, a Boolean and a Symbol.
+        ValueDomain::Record => vec![
+            "[ 'a' 'b' ] [ 1 2 ] RECORD",
+            "[ 'x' ] [ 5 ] RECORD",
+            "[ 1 TRUE ] [ 'one' 'yes' ] RECORD",
+            "[ ADD ] [ 9 ] RECORD",
+        ],
         ValueDomain::Nil => vec!["NIL"],
         ValueDomain::Symbol => vec!["[ ADD ] 0 GET"],
         ValueDomain::Any => [

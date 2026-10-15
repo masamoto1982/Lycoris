@@ -1345,7 +1345,9 @@
             ],
             [
               "scalar",
-              "string"
+              "boolean",
+              "string",
+              "symbol"
             ]
           ],
           "results": [
@@ -1834,7 +1836,8 @@
             [
               "scalar",
               "boolean",
-              "string"
+              "string",
+              "symbol"
             ]
           ],
           "results": [
@@ -1842,7 +1845,8 @@
               "vector",
               "scalar",
               "boolean",
-              "string"
+              "string",
+              "symbol"
             ]
           ]
         }
@@ -2447,7 +2451,9 @@
             ],
             [
               "scalar",
-              "string"
+              "boolean",
+              "string",
+              "symbol"
             ],
             "any"
           ],
@@ -2836,7 +2842,12 @@
         "domains": {
           "operands": [
             "record",
-            "string"
+            [
+              "scalar",
+              "boolean",
+              "string",
+              "symbol"
+            ]
           ],
           "results": [
             "record"
@@ -2898,7 +2909,12 @@
         "domains": {
           "operands": [
             "record",
-            "string"
+            [
+              "scalar",
+              "boolean",
+              "string",
+              "symbol"
+            ]
           ],
           "results": [
             "boolean"
@@ -3825,7 +3841,8 @@
             [
               "scalar",
               "boolean",
-              "string"
+              "string",
+              "symbol"
             ]
           ],
           "results": [
