@@ -12,7 +12,7 @@
         "SPLIT": "'a b c' ' ' TOKENIZE",
         "REORDER": "[ 'a' 'b' 'c' ] [ 2 0 1 ] GET",
         "CONTAINS": "'hello' 'ell' SEARCH NIL? NOT",
-        "STARTS-WITH?": "'hello' 'he' SEARCH 0 EQ"
+        "STARTS-WITH?": "'hello' 'he' SEARCH 'I' BIND FALSE I 0 EQ I NIL? SELECT"
       }
     },
     {

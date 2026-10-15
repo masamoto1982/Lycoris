@@ -547,7 +547,11 @@ Generated from `docs/word-manifest.json` — the complete inventory:
 49 form the Semantic Kernel and 28 are Standard Words. Both are
 ordinary Core Words called by their plain names; the split is a design
 classification, not a namespace. A word absent here does not exist. There is
-no module system and nothing to import.
+no module system and nothing to import. For a phrase you would otherwise
+write out again and again — a remainder, a disjunction, a sum or mean, text
+joined with a separator — `docs/phrasebook/phrasebook.ajisai` holds User Word
+definitions whose contracts and examples CI verifies; copy the definitions
+you need to the top of your program.
 
 | word | family | summary |
 |---|---|---|
