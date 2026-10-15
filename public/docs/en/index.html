@@ -3322,6 +3322,50 @@ FILTER</code></td>
                         </div>
                     </div>
                 
+                    <h3 id="json-sql">The JSON and SQL boundary: where a number becomes a string</h3>
+                    <p>Ajisai numbers are exact rationals, so they do not map one to one onto JSON or SQL number types. These are the only cases where the type changes at the boundary.</p>
+                    <div class="ref-table-wrap">
+                    <table class="ref-table">
+                        <thead><tr><th>Ajisai value</th><th><code>JSON-ENCODE</code></th><th>Back through <code>JSON-DECODE</code></th><th>In an SQL column</th></tr></thead>
+                        <tbody>
+                            <tr><td>A rational with a finite decimal (<code>1/4</code>)</td><td><code>0.25</code> (a number)</td><td>The same number</td><td class="notes">Fits NUMERIC as it is</td></tr>
+                            <tr><td>Any other rational (<code>1/3</code>)</td><td><code>"1/3"</code> (a string)</td><td>The string <code>'1/3'</code>; <code>NUM</code> recovers the number</td><td class="notes">A type error in a NUMERIC column</td></tr>
+                            <tr><td><code>1/0</code>, <code>0/0</code></td><td><code>"1/0"</code>, <code>"0/0"</code> (strings)</td><td>A string; <code>NUM</code> recovers the number</td><td class="notes">The same</td></tr>
+                            <tr><td>An irrational (<code>2 SQRT</code>)</td><td><code>NIL</code> with <code>domainMiss</code></td><td>—</td><td class="notes">Cannot be written</td></tr>
+                            <tr><td><code>NIL</code></td><td><code>null</code></td><td><code>NIL</code> (reason <code>literal</code>)</td><td class="notes">NULL; the reason is lost</td></tr>
+                        </tbody>
+                    </table>
+                    </div>
+                    <p>When the receiver must get a number as a number, choose the digits and pass the value through <code>FORMAT NUM</code> before encoding. The program says where to round, and the encoder never rounds. <code>FORMAT</code> projects <code>domainMiss</code> for the points over zero, so <code>1/0</code> and <code>0/0</code> become NULL.</p>
+                    <div class="sample">
+                        <div class="ref-table-wrap">
+                        <table class="ref-table">
+                            <thead>
+                                <tr><th>Sample code</th><th>Expected value</th><th>Notes</th></tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><code>[ 1/0 1/3 ] JSON-ENCODE JSON-DECODE</code></td>
+                                    <td><code>[ '1/0' '1/3' ]</code></td>
+                                    <td class="notes">The numbers come back as lexeme strings.</td>
+                                </tr>
+                                <tr>
+                                    <td><code>[ 1/0 1/3 ] JSON-ENCODE JSON-DECODE NUM [ 1/0 1/3 ] EQ</code></td>
+                                    <td><code>TRUE</code></td>
+                                    <td class="notes"><code>NUM</code> recovers the original numbers.</td>
+                                </tr>
+                                <tr>
+                                    <td><code>1 3 DIV 2 FORMAT NUM JSON-ENCODE</code></td>
+                                    <td><code>'0.33'</code></td>
+                                    <td class="notes">Choose the digits first, and the result is a JSON number.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        </div>
+                        <div class="sample-actions">
+                            <a class="btn js-open-playground" href="../../index.html">Open in Playground</a>
+                        </div>
+                    </div>
                 <!-- BEGIN generated word contracts: strings-ops -->
 <h3 id="family-text">Contracts: Text</h3>
 <div class="word-entry" id="word-CHARS">

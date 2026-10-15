@@ -29,7 +29,7 @@ reaching for it exactly where it would have helped. The 77 Words are:
 | records (keyed data) | `RECORD` `KEYS` `VALUES` `WITHOUT` `HAS?` `MERGE` · read and written by key with `GET` `PUT` · `TALLY` `GROUP` answer Records |
 | blocks over a collection | `MAP` `FILTER` `FOLD` `SCAN` |
 | text | `CHARS` `JOIN` `TOKENIZE` `TRIM` `UPPER` `LOWER` `SEARCH` `REPLACE` `NUM` `STR` · `FORMAT` (decimal text at a stated precision, the one place rounding happens) |
-| JSON in and out | `JSON-DECODE` (object → Record, array → Vector, numbers exact) `JSON-ENCODE` (no rounding: `1/3` travels as `"1/3"`) |
+| JSON in and out | `JSON-DECODE` (object → Record, array → Vector, numbers exact) `JSON-ENCODE` (no rounding: `1/3` travels as `"1/3"`, and so do `1/0` and `0/0`; decoding gives back the String, so apply `NUM`, or write `2 FORMAT NUM` first when the receiver needs a JSON number) |
 | absence | `NIL` `NIL?` `NIL-REASON` `ABSENT` (declare a reasoned NIL from your own text) |
 | naming, control, output | `DEF` `BIND` `DEL` · `EXEC` `FAIL` (raise a declared ERROR) · `PRINT` |
 | reflection | `DIGEST` (content identity of a Word, denotation digest of a value) `CONTRACT` (a Word's or a block's contract as a Record keyed `inputs` `outputs` `field`, inferred without running it) |

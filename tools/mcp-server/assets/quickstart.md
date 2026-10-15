@@ -29,7 +29,7 @@ reaching for it exactly where it would have helped. The 77 Words are:
 | records (keyed data) | `RECORD` `KEYS` `VALUES` `WITHOUT` `HAS?` `MERGE` · read and written by key with `GET` `PUT` · `TALLY` `GROUP` answer Records |
 | blocks over a collection | `MAP` `FILTER` `FOLD` `SCAN` |
 | text | `CHARS` `JOIN` `TOKENIZE` `TRIM` `UPPER` `LOWER` `SEARCH` `REPLACE` `NUM` `STR` · `FORMAT` (decimal text at a stated precision, the one place rounding happens) |
-| JSON in and out | `JSON-DECODE` (object → Record, array → Vector, numbers exact) `JSON-ENCODE` (no rounding: `1/3` travels as `"1/3"`) |
+| JSON in and out | `JSON-DECODE` (object → Record, array → Vector, numbers exact) `JSON-ENCODE` (no rounding: `1/3` travels as `"1/3"`, and so do `1/0` and `0/0`; decoding gives back the String, so apply `NUM`, or write `2 FORMAT NUM` first when the receiver needs a JSON number) |
 | absence | `NIL` `NIL?` `NIL-REASON` `ABSENT` (declare a reasoned NIL from your own text) |
 | naming, control, output | `DEF` `BIND` `DEL` · `EXEC` `FAIL` (raise a declared ERROR) · `PRINT` |
 | reflection | `DIGEST` (content identity of a Word, denotation digest of a value) `CONTRACT` (a Word's or a block's contract as a Record keyed `inputs` `outputs` `field`, inferred without running it) |
@@ -389,6 +389,7 @@ declaration without guessing, run `infer_contracts` first and paste its
 - Iterate data, not counters: `MAP` / `FILTER` / `FOLD` with block operands (examples in §6). `FOLD` requires an explicit initial value: `[ 1 2 3 ] 0 [ ADD ] FOLD`. The block leaves **exactly one** value — the mapped element, the truth, the next accumulator; leaving none or a surplus is a `blockContractViolation` (§7).
 - Budget: a block iteration costs one step per element for every Word the block runs (literals are free), so under the MCP profile's 100,000-step budget a one-Word block (`[ ADD ] FOLD`) walks 100,000 elements, a two-Word block (`[ 3 MUL 1 ADD ] MAP`) 50,000, a three-Word block 33,000 — tens of thousands of elements divided by the Words in the block, not more. Beyond that, write the operation on whole vectors — `V 3 MUL 1 ADD` over 100,000 lanes is two steps — and leave no large intermediate on the stack.
 - No recursion: `DEF` refuses a word whose body names itself, directly or through other user words (a diagnosed error at definition time, not at the call). Repetition is expressed only through MAP / FILTER / FOLD / SCAN over an already-finite vector.
+- JSON boundary: `JSON-ENCODE` writes a rational with no finite decimal, and `1/0` and `0/0`, as its lexeme in a string (`"1/3"`), so `JSON-DECODE` gives back a String and `NUM` recovers the number. For a receiver that needs a JSON or SQL number, choose the digits first: `1 3 DIV 2 FORMAT NUM JSON-ENCODE` is `'0.33'`.
 - Naming a Word: `DEF`, `BIND`, `DEL` and `CONTRACT` take its name as a String (`'INC' CONTRACT`); `CONTRACT` also takes a Symbol, written `[ INC ] 0 GET`. A bare `INC` *calls* the Word, so `INC CONTRACT` runs INC first. `DIGEST` is the one exception: a String is text there, so `'INC' DIGEST` digests the text and `[ INC ] 0 GET DIGEST` is the Word's content identity.
 
 ## 4. NIL — absence is a value, not an exception

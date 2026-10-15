@@ -3319,6 +3319,50 @@ FILTER</code></td>
                         </div>
                     </div>
                 
+                    <h3 id="json-sql">JSONとSQLの境界: 数が文字列になるところ</h3>
+                    <p>Ajisaiの数は厳密な有理数なので、JSONやSQLの数の型とは1対1に対応しません。境界で型が変わるのは次の場合だけです。</p>
+                    <div class="ref-table-wrap">
+                    <table class="ref-table">
+                        <thead><tr><th>Ajisaiの値</th><th><code>JSON-ENCODE</code></th><th><code>JSON-DECODE</code>で戻すと</th><th>SQLの列では</th></tr></thead>
+                        <tbody>
+                            <tr><td>有限の十進表記を持つ有理数(<code>1/4</code>)</td><td><code>0.25</code>(数)</td><td>同じ数</td><td class="notes">NUMERICにそのまま入る</td></tr>
+                            <tr><td>それ以外の有理数(<code>1/3</code>)</td><td><code>"1/3"</code>(文字列)</td><td>文字列<code>'1/3'</code>。<code>NUM</code>で数に戻す</td><td class="notes">NUMERIC列では型エラー</td></tr>
+                            <tr><td><code>1/0</code>・<code>0/0</code></td><td><code>"1/0"</code>・<code>"0/0"</code>(文字列)</td><td>文字列。<code>NUM</code>で数に戻す</td><td class="notes">同上</td></tr>
+                            <tr><td>無理数(<code>2 SQRT</code>)</td><td><code>domainMiss</code>の<code>NIL</code></td><td>—</td><td class="notes">書き出せない</td></tr>
+                            <tr><td><code>NIL</code></td><td><code>null</code></td><td><code>NIL</code>(理由は<code>literal</code>)</td><td class="notes">NULL。理由は失われる</td></tr>
+                        </tbody>
+                    </table>
+                    </div>
+                    <p>受け手が数を数として受け取る必要があるときは、桁数を決めて<code>FORMAT NUM</code>を通してから書き出します。どこで丸めるかはプログラムが書き、エンコーダーは丸めません。<code>FORMAT</code>は0の上の点に<code>domainMiss</code>を投影するので、<code>1/0</code>と<code>0/0</code>はNULLになります。</p>
+                    <div class="sample">
+                        <div class="ref-table-wrap">
+                        <table class="ref-table">
+                            <thead>
+                                <tr><th>サンプルコード</th><th>期待値</th><th>注記</th></tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><code>[ 1/0 1/3 ] JSON-ENCODE JSON-DECODE</code></td>
+                                    <td><code>[ '1/0' '1/3' ]</code></td>
+                                    <td class="notes">数は字句の文字列で戻る。</td>
+                                </tr>
+                                <tr>
+                                    <td><code>[ 1/0 1/3 ] JSON-ENCODE JSON-DECODE NUM [ 1/0 1/3 ] EQ</code></td>
+                                    <td><code>TRUE</code></td>
+                                    <td class="notes"><code>NUM</code>で元の数に戻る。</td>
+                                </tr>
+                                <tr>
+                                    <td><code>1 3 DIV 2 FORMAT NUM JSON-ENCODE</code></td>
+                                    <td><code>'0.33'</code></td>
+                                    <td class="notes">桁を決めてから書けば、JSONの数になる。</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        </div>
+                        <div class="sample-actions">
+                            <a class="btn js-open-playground" href="../../index.html">Playgroundで開く</a>
+                        </div>
+                    </div>
                 <!-- BEGIN generated word contracts: strings-ops -->
 <h3 id="family-text">契約: 文字列</h3>
 <div class="word-entry" id="word-CHARS">

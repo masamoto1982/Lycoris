@@ -3235,6 +3235,13 @@ W</pre>
   <div class="ajisai-expect-effects"></div>
 </section>
 
+<section class="ajisai-case" id="standard-json-round-trip-lexeme" data-category="core">
+  <h3>JSON-DECODE after JSON-ENCODE is not the identity for a number JSON cannot spell: a point over zero or a rational with no finite decimal comes back as its lexeme in a String, and NUM recovers the number (LANG.RECORDS.STRUCTURE)</h3>
+  <pre class="ajisai-source">[ 1/0 1/3 1/4 ] JSON-ENCODE JSON-DECODE [ 1/0 1/3 ] JSON-ENCODE JSON-DECODE NUM [ 1/0 1/3 ] EQ</pre>
+  <pre class="ajisai-expect-result">[ '1/0' '1/3' 1/4 ] TRUE</pre>
+  <div class="ajisai-expect-effects"></div>
+</section>
+
 <!-- GCD and RATIO read the rationals (LANG.VALUES.EXACT): the reduction the
      machine performs on every rational, and the two parts it keeps. -->
 
