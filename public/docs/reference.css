@@ -607,7 +607,7 @@ a {
     top: calc(100% + 6px);
     z-index: 10;
     width: max-content;
-    max-width: min(22rem, calc(100vw - 32px));
+    max-width: min(30rem, calc(100vw - 32px));
     padding: 0.5rem 0.75rem;
     border-radius: var(--radius-button);
     background: var(--color-text);
