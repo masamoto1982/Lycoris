@@ -1151,6 +1151,64 @@
    "expectedTool": null,
    "arguments": null,
    "expect": null
+  },
+  {
+   "id": "phrasebook-mean",
+   "category": "phrasebook",
+   "prompts": {
+    "en": "Using the phrasebook's MEAN, find the exact average of 3, 4 and 8.",
+    "ja": "フレーズブックの MEAN を使って、3・4・8 の平均を厳密に求めてください。"
+   },
+   "expectedTool": "compute",
+   "arguments": {
+    "source": "[ 3 4 8 ] MEAN",
+    "words": [
+     "MEAN"
+    ]
+   },
+   "expect": {
+    "/status": "ok",
+    "/stackDisplay/0": "5/1",
+    "/prelude/1/name": "MEAN"
+   }
+  },
+  {
+   "id": "phrasebook-mod",
+   "category": "phrasebook",
+   "prompts": {
+    "en": "With the phrasebook Word MOD, compute -7 modulo 3, with the divisor's sign.",
+    "ja": "フレーズブックのワード MOD で、-7 を 3 で割った余りを除数の符号で求めてください。"
+   },
+   "expectedTool": "compute",
+   "arguments": {
+    "source": "-7 3 MOD",
+    "words": [
+     "MOD"
+    ]
+   },
+   "expect": {
+    "/status": "ok",
+    "/stackDisplay/0": "2/1"
+   }
+  },
+  {
+   "id": "phrasebook-join-with",
+   "category": "phrasebook",
+   "prompts": {
+    "en": "Use the phrasebook's JOIN-WITH to join 'a', 'b' and 'c' with commas.",
+    "ja": "フレーズブックの JOIN-WITH で 'a'・'b'・'c' をカンマでつないでください。"
+   },
+   "expectedTool": "compute",
+   "arguments": {
+    "source": "[ 'a' 'b' 'c' ] ',' JOIN-WITH",
+    "words": [
+     "JOIN-WITH"
+    ]
+   },
+   "expect": {
+    "/status": "ok",
+    "/stackDisplay/0": "'a,b,c'"
+   }
   }
  ]
 }

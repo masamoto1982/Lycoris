@@ -17,6 +17,7 @@ import { fileURLToPath } from "node:url";
 import { NativeCliBackend } from "./backend/native-cli.js";
 import { WasmWorkerBackend } from "./backend/wasm-worker.js";
 import { HostError, logHostError } from "./host-error.js";
+import { phrasebook, preludeFor, withoutPrelude } from "./phrasebook.js";
 import { suggestWords } from "./word-candidates.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -27,6 +28,7 @@ const skillPath = join(assetsPath, "quickstart.md");
 const metadataPath = join(assetsPath, "metadata.json");
 const serverPackagePath = join(here, "package.json");
 const resultSchemaPath = join(here, "result.schema.json");
+const phrasebookPath = join(assetsPath, "phrasebook.ajisai");
 // The one envelope every Ajisai MCP tool result is wrapped in
 // (`result.schema.json`) carries one version: the backend's report
 // (`rust/src/agent/report.rs::SCHEMA_VERSION`), which the adapter's own
@@ -183,6 +185,17 @@ const sourceSchema = {
         "A string is single-quoted (`'hi'`, never \"hi\"). " +
         "A block passed to MAP/FILTER/FOLD/SCAN is a Vector like any other, written with `[ ]` — there is no separate block bracket (`[ 1 2 3 4 ] [ 2 GT ] FILTER`). " +
         "A Word's operand shape is part of its contract and is worth checking with word_contract when unsure — several take a vector where one number looks natural, e.g. `0 4 RANGE` and `[ [ 1 2 ] [ 3 4 ] ] ZIP`.",
+    },
+    words: {
+      type: "array",
+      items: { type: "string", minLength: 1 },
+      uniqueItems: true,
+      maxItems: 32,
+      description:
+        "Optional names of phrasebook User Words to define before `source` runs — phrases programs write again and again, such as a remainder, " +
+        "a mean or a disjunction; ajisai://phrasebook lists them with their contracts and examples. " +
+        "Each comes with the phrasebook Words it calls and its verified `#:contract`. The result's `prelude` names every Word added with its content " +
+        "digest, error lines count from the first line of `source`, and the definitions count against the source byte limit.",
     },
   },
   required: ["source"],
@@ -534,13 +547,35 @@ function fail(error, context = "tool call") {
   };
 }
 
-async function runAgent(source, command) {
+async function runAgent(callerSource, command, words) {
   // An empty program is a program — whitespace alone always ran, and the
   // engine answers "" the same way — so only a missing or non-text `source` is
   // the caller's mistake.
-  if (typeof source !== "string") {
+  if (typeof callerSource !== "string") {
     return fail(new HostError("invalidRequest", "Provide `source` as text."), command);
   }
+  let prelude = null;
+  if (words !== undefined) {
+    if (!Array.isArray(words) || words.some((word) => typeof word !== "string" || word.length === 0)) {
+      return fail(new HostError("invalidRequest", "Provide `words` as an array of phrasebook Word names."), command);
+    }
+    const { entries } = phrasebook(phrasebookPath);
+    prelude = preludeFor(words, entries);
+    if (prelude.unknown) {
+      const hints = prelude.unknown.map((name) => {
+        const near = suggestWords(name, entries).map((s) => s.name ?? s);
+        return near.length ? `${name} (did you mean ${near.slice(0, 3).join(", ")}?)` : name;
+      });
+      return fail(
+        new HostError(
+          "invalidRequest",
+          `The phrasebook has no Word ${hints.join("; ")}. It holds ${entries.map((e) => e.name).join(" ")} (ajisai://phrasebook).`,
+        ),
+        command,
+      );
+    }
+  }
+  const source = prelude ? prelude.text + callerSource : callerSource;
   if (Buffer.byteLength(source, "utf8") > LIMITS.sourceBytes) {
     return fail(
       new HostError(
@@ -581,7 +616,8 @@ async function runAgent(source, command) {
     // `nil:<reason>`, `error:<category>`): the engine classifies the run it
     // produced (`rust/src/agent/report.rs::outcome_id`), so this adapter
     // passes the field through rather than re-deriving it from the stack.
-    const result = await selected[operation](source);
+    const answer = await selected[operation](source);
+    const result = prelude ? withoutPrelude(answer, prelude) : answer;
     result.mcp = provenance();
     return envelope(result, command);
   } catch (error) {
@@ -630,6 +666,9 @@ const RESOURCES = [
   { uri: "ajisai://contracts", name: "Ajisai canonical Word contracts", mimeType: "application/json" },
   { uri: "ajisai://schema/result", name: "Ajisai MCP result contract", mimeType: "application/json" },
   { uri: "ajisai://limits", name: "Ajisai MCP host profile limits", mimeType: "application/json" },
+  // The User Words a call can name in `words`: definitions, verified
+  // contracts, examples and the content digest of each.
+  { uri: "ajisai://phrasebook", name: "Ajisai phrasebook of User Words", mimeType: "text/plain" },
 ];
 const RESOURCE_TEMPLATES = [
   {
@@ -653,6 +692,7 @@ export function validateAssets() {
   manifest();
   contracts();
   metadata();
+  phrasebook(phrasebookPath);
   serverVersion();
   registryDigest();
   readFileSync(skillPath, "utf8");
@@ -686,9 +726,9 @@ export function createServer() {
         );
       }
     }
-    if (params.name === "compute") return runAgent(args.source, "run");
-    if (params.name === "check") return runAgent(args.source, "check");
-    if (params.name === "infer_contracts") return runAgent(args.source, "contract");
+    if (params.name === "compute") return runAgent(args.source, "run", args.words);
+    if (params.name === "check") return runAgent(args.source, "check", args.words);
+    if (params.name === "infer_contracts") return runAgent(args.source, "contract", args.words);
     if (params.name === "word_contract") return wordContract(args.word);
     return fail(new HostError("unknownTool", `No such tool: ${params.name}`), "tools/call");
   });
@@ -701,6 +741,7 @@ export function createServer() {
     if (uri === "ajisai://guide/quickstart") return { contents: [{ uri, mimeType: "text/markdown", text: readFileSync(skillPath, "utf8") }] };
     if (uri === "ajisai://vocabulary") return { contents: [{ uri, mimeType: "application/json", text: JSON.stringify(vocabulary(), null, 2) }] };
     if (uri === "ajisai://contracts") return { contents: [{ uri, mimeType: "application/json", text: JSON.stringify(contracts(), null, 2) }] };
+    if (uri === "ajisai://phrasebook") return { contents: [{ uri, mimeType: "text/plain", text: phrasebook(phrasebookPath).text }] };
     if (uri === "ajisai://schema/result") return { contents: [{ uri, mimeType: "application/json", text: readFileSync(resultSchemaPath, "utf8") }] };
     if (uri === "ajisai://limits") {
       return {

@@ -336,7 +336,7 @@ explicit `hostDivergence` block on the golden case that shows it.
 ## Resources
 
 `ajisai://guide/quickstart`, `ajisai://vocabulary`, `ajisai://contracts`,
-`ajisai://schema/result` and `ajisai://limits`. `ajisai://contracts` is every
+`ajisai://schema/result`, `ajisai://limits` and `ajisai://phrasebook`. `ajisai://contracts` is every
 Word's full contract in one read; `ajisai://vocabulary` is the inventory only —
 each name with its `kind`, `family` and `vocabularyTier`. The
 `ajisai://words/{name}` template exposes the same complete Word contract as
@@ -346,6 +346,15 @@ the canonical specification, not from a reduced documentation manifest.
 
 `ajisai://guide/quickstart` is an MCP preface (`mcp-quickstart.md`) followed by
 the generated writing protocol (`SKILL.md`), joined by `sync-assets.js`.
+
+`ajisai://phrasebook` is the repository's `docs/phrasebook/phrasebook.ajisai`:
+User Words for phrases programs write again and again, each with a verified
+`#:contract`, examples, and a `#:digest` line naming its content identity.
+`compute`, `check` and `infer_contracts` take an optional `words` array of
+those names and define them, with the phrasebook Words they call, before the
+source runs; the result's `prelude` lists each Word added with its digest, so
+what ran is checkable by content rather than by name. Each call is still one
+fresh source: nothing persists between calls.
 Reading `ajisai://words/{name}` with a name that is not a valid percent-encoded
 string is refused as an invalid request, and a tool call carrying an argument
 its schema does not declare is refused as `invalidRequest` naming the

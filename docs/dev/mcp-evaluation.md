@@ -19,8 +19,11 @@ npm run eval:capture       # drive a real model (needs Anthropic credentials)
 npm run eval:capture-repairs
 ```
 
-`eval/cases.json` is the agent-evaluation corpus: 78 cases (58 positive, 20
-negative), each asked in English and Japanese, so 156 prompts. `npm run eval:traces` scores the
+`eval/cases.json` is the agent-evaluation corpus: 81 cases (61 positive, 20
+negative), each asked in English and Japanese, so 162 prompts. Three of the
+positive cases (`phrasebook-*`, added 2026-10-15) expect a `words` argument
+naming a phrasebook Word, so they measure whether a model reaches for the
+phrasebook rather than rewriting the phrase. `npm run eval:traces` scores the
 corpus answering itself — `score-traces.js --reference` — which executes every case's expected
 tool call against the real backend. It measures backend semantic correctness only; model tool
 selection and source generation require captured model traces and are not claimed by this score.

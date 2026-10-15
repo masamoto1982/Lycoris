@@ -34,6 +34,7 @@
     "doctor.js",
     "host-error.js",
     "word-candidates.js",
+    "phrasebook.js",
     "backend/native-cli.js",
     "backend/wasm-worker.js",
     "backend/wasm-worker-entry.js",

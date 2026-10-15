@@ -41,6 +41,12 @@ name that is not here does not exist under another spelling. When unsure, call
 `word_contract` — it answers a near miss with `suggestions` — or read
 `ajisai://contracts` for every contract at once.
 
+A few phrases programs write again and again — a remainder, a mean, a
+disjunction, text joined with a separator — are User Words in
+`ajisai://phrasebook`. Name them in the `words` argument (`words: ["MEAN"]`)
+instead of writing their definitions into `source`: the result's `prelude`
+says which definitions ran.
+
 Out of domain, and not worth a call: transcendental functions, floating point,
 I/O, and anything that is really a program rather than a calculation.
 

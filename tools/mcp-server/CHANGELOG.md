@@ -23,6 +23,8 @@ Specification: 1.0.0-beta.2.
 
 ### Added
 
+- **`words` on `compute`, `check` and `infer_contracts`.** Name phrasebook User Words — a remainder, a mean, a disjunction and others — and their definitions, with those of the phrasebook Words they call and their verified `#:contract` lines, run before `source`. The result's `prelude` names each Word added with its content digest, error lines still count from the caller's first line, and the Words count against `sourceBytes`. A name the phrasebook does not hold is `invalidRequest` with the nearest names. Nothing persists between calls.
+- **`ajisai://phrasebook`.** The phrasebook itself, with each Word's contract, examples and a `#:digest` line the repository's tests hold to the engine.
 - **`specificationVersion`.** Every engine result names the specification version the engine implements, at the top level, as the engine's own envelope states it. `result.schema.json` declares it, and `--version` prints it. A stored result now says which rules produced it.
 
 ## 0.9.0

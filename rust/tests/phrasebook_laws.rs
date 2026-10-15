@@ -1,8 +1,11 @@
 //! The phrasebook (`docs/phrasebook/phrasebook.ajisai`) says what it does.
 //!
 //! Every `#:contract` line in it is verified by the pre-execution check
-//! (LANG.CONTRACT.CHECK), and every `#= program → stack` line, run after the
-//! whole file under the agent profile, leaves exactly that stack. The file is
+//! (LANG.CONTRACT.CHECK), every `#= program → stack` line, run after the
+//! whole file under the agent profile, leaves exactly that stack, and every
+//! `#:digest NAME HEX` line is the content identity NAME has once the file
+//! has run (LANG.DICTIONARY.MUTATION). The MCP server's `words` argument and
+//! its `prelude` read those digests, so a stale one would mislabel a Word. The file is
 //! User Words over the Core vocabulary and nothing else, so a change to a Core
 //! Word that breaks a phrase breaks this suite rather than a reader's program.
 
@@ -71,4 +74,32 @@ async fn the_phrasebook_alone_leaves_nothing_behind() {
         .to_json();
     assert_eq!(report["status"], "ok", "{report}");
     assert_eq!(report["stackDisplay"], serde_json::json!([]), "{report}");
+}
+
+#[tokio::test]
+async fn every_digest_line_is_the_identity_of_the_word_it_names() {
+    let digests: Vec<(&str, &str)> = PHRASEBOOK
+        .lines()
+        .filter_map(|line| line.strip_prefix("#:digest "))
+        .map(|rest| rest.split_once(' ').expect("`#:digest NAME HEX`"))
+        .collect();
+    let defined = PHRASEBOOK
+        .lines()
+        .filter(|line| line.ends_with("' DEF"))
+        .count();
+    assert_eq!(digests.len(), defined, "one #:digest line per definition");
+    let reads: Vec<String> = digests
+        .iter()
+        .map(|(name, _)| format!("[ {name} ] 0 GET DIGEST"))
+        .collect();
+    let source = format!("{PHRASEBOOK}\n{}\n", reads.join(" "));
+    let report = compute(&source, ComputeOptions::agent(None))
+        .await
+        .to_json();
+    assert_eq!(report["status"], "ok", "{report}");
+    let shown = report["stackDisplay"].as_array().expect("stackDisplay");
+    for ((name, recorded), actual) in digests.iter().zip(shown) {
+        let actual = actual.as_str().expect("a display string").trim_matches('\'');
+        assert_eq!(*recorded, actual, "#:digest {name} is stale");
+    }
 }

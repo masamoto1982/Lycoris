@@ -10,6 +10,8 @@ const assetsDir = join(here, "assets");
 const sources = [
   [join(repoRoot, "spec", "words.json"), join(assetsDir, "words.json")],
   [join(repoRoot, "docs", "word-manifest.json"), join(assetsDir, "word-manifest.json")],
+  // What `words` defines and `ajisai://phrasebook` serves.
+  [join(repoRoot, "docs", "phrasebook", "phrasebook.ajisai"), join(assetsDir, "phrasebook.ajisai")],
   // The package is published on its own, so it carries the repository's
   // licence text rather than only naming it in `package.json`: an MIT grant
   // is conditioned on the notice travelling with the software.

@@ -181,6 +181,28 @@
    },
    "description": "Inferred contracts for the user-defined Words in the submitted source (`infer_contracts` only). `inputs`, `outputs` and `field` are spelled as in the Record `CONTRACT` answers inside the language, so an inferred and a registered contract compare directly."
   },
+  "prelude": {
+   "type": "array",
+   "description": "The phrasebook Words a `words` argument defined before `source` ran, in the order they ran, each with its content digest (`[ NAME ] 0 GET DIGEST`), which matches the `#:digest` line of ajisai://phrasebook. Absent when the call named no `words`.",
+   "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+     "name",
+     "digest"
+    ],
+    "properties": {
+     "name": {
+      "type": "string",
+      "minLength": 1
+     },
+     "digest": {
+      "type": "string",
+      "pattern": "^#[0-9a-f]{64}$"
+     }
+    }
+   }
+  },
   "resourceUsage": {
    "type": "object",
    "additionalProperties": false,
