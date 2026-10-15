@@ -39,12 +39,6 @@
       <code>data-payload</code>, in order. The observation target is the
       structured host-effect channel, never the human-readable output buffer.
       An empty <code>ajisai-expect-effects</code> means no effects.</li>
-  <li>Hosted cases may request a deterministic host using
-      <code>data-host-now-millis</code>, <code>data-host-random-hex</code>, and
-      <code>data-host-capabilities</code>. Capability names use protocol spelling
-      (<code>clock</code>, <code>secureRandom</code>, <code>serial</code>,
-      <code>audio</code>, <code>jsonExport</code>, <code>config</code>,
-      <code>effect</code>).</li>
 </ol>
 
 <h2>Normalization (minimal, strict-leaning)</h2>
@@ -54,7 +48,8 @@
   value. Everything else is matched exactly: numeric notation (every number is
   a reduced <code>numerator/denominator</code>, integers included &mdash;
   <code>3</code> renders as <code>3/1</code>), element order, nesting, and the
-  spellings <code>NIL</code> and <code>UNKNOWN</code>. This line may only be
+  spelling <code>NIL</code> (an UNKNOWN is the NIL it is, LANG.VALUES.TRUTH,
+  and renders as one). This line may only be
   <em>loosened</em> in future, never tightened, and any change must record why.
 </p>
 
