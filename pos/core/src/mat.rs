@@ -1,30 +1,45 @@
-//! MAT（スタッフ携行端末）への通知配信（問題10への対策）。
+//! MAT（携帯用情報端末）＝呼び鈴（問題10への対策）。
 //!
-//! 投げっぱなしのイベント通知ではなく、**状態同期 + ACK + 再送 + 死活監視**
-//! で配信する。
+//! MAT は「鳴る」ことだけが役目で、呼び出しの中身は表示しない。店員は
+//! 鳴動を合図にレジカウンターへ近づき、どのレジが鳴っているかで状況を
+//! 判断し、そのレジの画面で対応する。
 //!
-//! - レジ側は呼び出し一覧の版数 (`Calls::seq`) を持つ。MAT は受け取った
-//!   一覧の版数を ACK で返す。ACK された版数が最新に追いつくまで、
-//!   一定間隔で **一覧全体** を再送する（冪等なので重複しても壊れない）。
-//! - 変化がなくてもハートビートとして定期送信する。ACK が一定時間
-//!   返らない MAT は「不通」として全スタッフ画面に警告を出す。
-//!   「届いていないかもしれない」状態を黙って放置しない。
+//! 役目が単純なぶん、確実に鳴らすことに集中する。
+//!
+//! - 投げっぱなしのイベント通知ではなく、**状態同期 + ACK + 再送 + 死活監視**。
+//!   レジ側は「鳴動状態」の版数を持ち、MAT は受け取った版数を ACK で返す。
+//!   ACK が最新に追いつくまで一定間隔で再送する（状態の丸ごと送信なので
+//!   重複しても壊れない）。
+//! - 未対応の呼び出しが残っている間は、一定間隔で鳴らし直す。
+//! - 変化がなくてもハートビートを送り、ACK が途絶えた MAT は「不通」として
+//!   MAT とレジの両方に表示する。鳴らない状態を黙って放置しない。
 
 use serde::Serialize;
 
-use crate::calls::Call;
 use crate::rng::Rng;
 
 pub const RETRY_MS: u64 = 600;
 pub const HEARTBEAT_MS: u64 = 2_000;
 pub const LINK_TIMEOUT_MS: u64 = 5_000;
 pub const BUZZ_MS: u64 = 1_500;
+/// 未対応の呼び出しがある間、鳴らし直す間隔
+pub const RERING_MS: u64 = 10_000;
+
+/// レジ側から MAT へ送る鳴動状態。
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize)]
+pub struct Bell {
+    /// 版数（変化のたびに増える）
+    pub seq: u64,
+    /// 鳴らす合図。増えたら MAT は鳴る（新しい呼び出し・鳴らし直し）
+    pub ring_token: u64,
+    /// 未対応の呼び出し件数
+    pub open_calls: usize,
+}
 
 #[derive(Clone, Debug)]
 struct Packet {
-    seq: u64,
+    bell: Bell,
     deliver_at: u64,
-    calls: Vec<Call>,
     lost_down: bool,
     lost_up: bool,
 }
@@ -32,10 +47,8 @@ struct Packet {
 #[derive(Clone, Debug, Serialize)]
 pub struct Mat {
     pub id: String,
-    pub staff_name: String,
-    /// MAT 側が表示している呼び出し一覧（最後に受信できたもの）
-    pub view: Vec<Call>,
-    pub view_seq: u64,
+    /// MAT 側が最後に受け取った鳴動状態
+    pub received: Bell,
     /// レジ側が把握している、この MAT の ACK 済み版数
     pub acked_seq: u64,
     pub last_rx_at: u64,
@@ -47,20 +60,18 @@ pub struct Mat {
     #[serde(skip)]
     in_flight: Vec<Packet>,
     pub sent: u64,
-    pub delivered: u64,
     pub retries: u64,
     /// 障害注入：電源断・圏外
     pub offline: bool,
     pub buzz_until: u64,
+    pub rings: u64,
 }
 
 impl Mat {
-    pub fn new(id: &str, staff_name: &str) -> Mat {
+    pub fn new(id: &str) -> Mat {
         Mat {
             id: id.into(),
-            staff_name: staff_name.into(),
-            view: vec![],
-            view_seq: 0,
+            received: Bell::default(),
             acked_seq: 0,
             last_rx_at: 0,
             last_ack_at: 0,
@@ -68,10 +79,10 @@ impl Mat {
             last_sent_seq: 0,
             in_flight: vec![],
             sent: 0,
-            delivered: 0,
             retries: 0,
             offline: false,
             buzz_until: 0,
+            rings: 0,
         }
     }
 
@@ -85,7 +96,11 @@ impl Mat {
         now.saturating_sub(self.last_rx_at) <= LINK_TIMEOUT_MS
     }
 
-    pub fn tick(&mut self, now: u64, seq: u64, calls: &[Call], loss_percent: u8, rng: &mut Rng) {
+    pub fn buzzing(&self, now: u64) -> bool {
+        self.buzz_until > now
+    }
+
+    pub fn tick(&mut self, now: u64, bell: Bell, loss_percent: u8, rng: &mut Rng) {
         // 到着処理
         let (arrived, pending): (Vec<Packet>, Vec<Packet>) = std::mem::take(&mut self.in_flight)
             .into_iter()
@@ -95,50 +110,46 @@ impl Mat {
             if p.lost_down {
                 continue;
             }
-            if p.seq >= self.view_seq {
-                let had: Vec<u32> = self.view.iter().map(|c| c.id).collect();
-                let new_alert = p.calls.iter().any(|c| c.alert && !had.contains(&c.id));
-                self.view = p.calls;
-                self.view_seq = p.seq;
-                if new_alert {
+            if p.bell.seq >= self.received.seq {
+                if p.bell.ring_token > self.received.ring_token {
                     self.buzz_until = now + BUZZ_MS;
+                    self.rings += 1;
                 }
+                self.received = p.bell;
             }
             self.last_rx_at = now;
-            self.delivered += 1;
             if !p.lost_up {
-                self.acked_seq = self.acked_seq.max(p.seq);
+                self.acked_seq = self.acked_seq.max(p.bell.seq);
                 self.last_ack_at = now;
             }
         }
 
         // 送信判定：未 ACK の版があれば RETRY_MS ごとに再送、なければハートビート
         let since = self.last_sent_at.map(|t| now.saturating_sub(t));
-        let behind = self.acked_seq < seq;
+        let behind = self.acked_seq < bell.seq;
         let due = match since {
             None => true,
             Some(s) => (behind && s >= RETRY_MS) || s >= HEARTBEAT_MS,
         };
         if due {
-            if behind && self.last_sent_at.is_some() && self.last_sent_seq == seq {
+            if behind && self.last_sent_at.is_some() && self.last_sent_seq == bell.seq {
                 self.retries += 1;
             }
             let lost_down = self.offline || rng.chance(loss_percent);
             let lost_up = self.offline || rng.chance(loss_percent);
             self.in_flight.push(Packet {
-                seq,
+                bell,
                 deliver_at: now + rng.range(60, 200),
-                calls: calls.to_vec(),
                 lost_down,
                 lost_up,
             });
             self.sent += 1;
             self.last_sent_at = Some(now);
-            self.last_sent_seq = seq;
+            self.last_sent_seq = bell.seq;
         }
     }
 
-    /// 呼び出しが変化したら次の tick で即送信させる
+    /// 鳴動状態が変わったら次の tick で即送信させる
     pub fn kick(&mut self) {
         self.last_sent_at = None;
     }

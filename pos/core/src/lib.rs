@@ -4,6 +4,7 @@
 //! で業務ルールを検証できるようにしている。ブラウザからは `wasm` feature の
 //! [`wasm::PosSimulator`] を通して JSON でやり取りする。
 
+pub mod age_rules;
 pub mod auth;
 pub mod authority;
 pub mod calls;

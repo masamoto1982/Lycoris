@@ -1,21 +1,48 @@
-//! 新型レジで報告された問題ごとに、このシミュレーターがどう振る舞うかを検証する。
+//! 新型レジで報告された問題と、壁打ちで決めた仕様を、シナリオで検証する。
 
-use lycoris_pos_core::authority::{Action, Mode, Phase, Side};
+use lycoris_pos_core::authority::{Action, Mode, Phase, Side, StaffState};
 use lycoris_pos_core::calls::CallKind;
-use lycoris_pos_core::store::{Command, RegisterView, Snapshot, Store};
+use lycoris_pos_core::store::{Command, RegisterView, Store};
+use serde_json::{json, Value};
 
-fn cmd(json: serde_json::Value) -> Command {
-    serde_json::from_value(json).expect("valid command")
+const ONIGIRI: &str = "4900000000011";
+const BEER: &str = "4900000000103";
+const LIGHTER: &str = "4900000000134";
+const LOTTERY: &str = "4900000000158";
+const PARCEL: &str = "2100000000014";
+
+fn run(s: &mut Store, v: Value) -> Result<Option<String>, String> {
+    let cmd: Command = serde_json::from_value(v.clone()).unwrap_or_else(|e| panic!("{v}: {e}"));
+    s.dispatch(cmd).map(|o| o.message)
 }
 
-fn run(s: &mut Store, json: serde_json::Value) -> Result<Option<String>, String> {
-    s.dispatch(cmd(json)).map(|o| o.message)
-}
-
-fn ok(s: &mut Store, json: serde_json::Value) {
-    if let Err(e) = run(s, json.clone()) {
-        panic!("{json} failed: {e}");
+fn ok(s: &mut Store, v: Value) {
+    if let Err(e) = run(s, v.clone()) {
+        panic!("{v} failed: {e}");
     }
+}
+
+fn reg(s: &Store, id: u8) -> RegisterView {
+    s.snapshot()
+        .registers
+        .into_iter()
+        .find(|r| r.id == id)
+        .unwrap()
+}
+
+fn allowed(v: &RegisterView, side: Side, a: Action) -> bool {
+    let list = match side {
+        Side::Staff => &v.staff.actions,
+        Side::Customer => &v.customer.actions,
+    };
+    list.iter().find(|x| x.action == a).unwrap().allowed
+}
+
+fn scan(s: &mut Store, r: u8, side: &str, code: &str) {
+    ok(
+        s,
+        json!({"type":"scan","register":r,"side":side,"code":code}),
+    );
 }
 
 fn advance(s: &mut Store, ms: u64) {
@@ -26,546 +53,304 @@ fn advance(s: &mut Store, ms: u64) {
     }
 }
 
-fn reg(snap: &Snapshot, id: u8) -> &RegisterView {
-    &snap.registers[usize::from(id) - 1]
-}
-
-fn allowed(v: &RegisterView, side: Side, a: Action) -> bool {
-    let list = match side {
-        Side::Staff => &v.staff_actions,
-        Side::Customer => &v.customer_actions,
-    };
-    list.iter().find(|x| x.action == a).expect("listed").allowed
-}
-
-fn mat(n: usize) -> serde_json::Value {
-    serde_json::json!({"kind":"mat","mat":n})
-}
-
-fn at_register(n: u8) -> serde_json::Value {
-    serde_json::json!({"kind":"register","register":n})
-}
-
-/// 問題3・5：有人モードでは、お客様側から会計に進めず、スタッフの操作は常に有効。
-/// セミセルフで支払い中でも、スタッフは登録・取消・戻しを一切ブロックされない。
+/// 会計画面までは、どのバーコードも順番の縛りなく受け付ける。
 #[test]
-fn issue_5_customer_never_takes_over_attended_register() {
-    let mut s = Store::new(1);
-    ok(
+fn any_barcode_is_accepted_in_any_order() {
+    let mut s = Store::new(1, 2, 1);
+    scan(&mut s, 1, "staff", ONIGIRI);
+    scan(&mut s, 1, "customer", "PC12345678");
+    scan(&mut s, 1, "staff", "2000000000015");
+    scan(&mut s, 1, "customer", ONIGIRI);
+    let v = reg(&s, 1);
+    assert_eq!(v.staff.lines.len(), 2);
+    assert_eq!(v.staff.total, 160 * 2 + 3);
+    assert!(v.customer.point_card);
+    assert!(run(
         &mut s,
-        serde_json::json!({"type":"scan","register":1,"side":"staff","sku":"4900001"}),
-    );
-    let e = run(
-        &mut s,
-        serde_json::json!({"type":"checkout","register":1,"side":"customer"}),
-    );
-    assert!(
-        e.is_err(),
-        "customer checkout must be rejected in attended mode"
-    );
-    ok(
-        &mut s,
-        serde_json::json!({"type":"checkout","register":1,"side":"staff"}),
-    );
-    // お客様が現金を入れても、スタッフは明細を追加・取消できる
-    ok(
-        &mut s,
-        serde_json::json!({"type":"insert_cash","register":1,"denomination":100}),
-    );
-    ok(
-        &mut s,
-        serde_json::json!({"type":"scan","register":1,"side":"staff","sku":"4900003"}),
-    );
-    let snap = s.snapshot();
-    let r = reg(&snap, 1);
-    assert_eq!(
-        r.phase,
-        Phase::Registering,
-        "staff scan pulls the register back to registering"
-    );
-    assert_eq!(r.inserted, 100, "inserted cash is kept as credit");
-    for a in [
-        Action::Scan,
-        Action::RemoveLine,
-        Action::Checkout,
-        Action::VoidTransaction,
-    ] {
-        assert!(allowed(r, Side::Staff, a), "{a:?}");
-    }
-}
-
-/// 問題3：セルフモードで在庫切れの FF を、スタッフの 1 操作で取り消せる。
-/// お客様は支払い中のまま止められず、残額で支払いが完了する。
-#[test]
-fn issue_3_out_of_stock_ff_is_one_staff_action() {
-    let mut s = Store::new(1);
-    ok(
-        &mut s,
-        serde_json::json!({"type":"scan","register":3,"side":"customer","sku":"4900003"}),
-    );
-    ok(
-        &mut s,
-        serde_json::json!({"type":"order_ff","register":3,"side":"customer","sku":"FF01"}),
-    );
-    ok(
-        &mut s,
-        serde_json::json!({"type":"checkout","register":3,"side":"customer"}),
-    );
-    ok(
-        &mut s,
-        serde_json::json!({"type":"insert_cash","register":3,"denomination":100}),
-    );
-    ok(
-        &mut s,
-        serde_json::json!({"type":"insert_cash","register":3,"denomination":50}),
-    );
-    let snap = s.snapshot();
-    let call = snap
-        .calls
-        .iter()
-        .find(|c| c.kind == CallKind::FastFood)
-        .expect("ff call");
-    let line_id = call.ff_items[0].line_id;
-    // スタッフは MAT から 1 操作で取り消す（レジ3のスタッフ画面はロック中）
-    ok(
-        &mut s,
-        serde_json::json!({"type":"mark_ff_out_of_stock","call_id":call.id,"line_id":line_id,"by":mat(0)}),
-    );
-    let snap = s.snapshot();
-    let r = reg(&snap, 3);
-    // 150円投入済み・残りは緑茶 150円 → 確認なしでそのまま精算が完了する
-    assert_eq!(r.phase, Phase::Registering);
-    assert!(
-        r.thanks.is_some(),
-        "payment completed without any extra confirmation"
-    );
-    assert!(snap.calls.iter().all(|c| c.kind != CallKind::FastFood));
-    assert_eq!(
-        snap.ff_menu.iter().find(|m| m.sku == "FF01").unwrap().stock,
-        Some(0)
-    );
-}
-
-/// 問題3：在庫 0 の FF はお客様が注文できない（そもそも取り消しが発生しない）。
-#[test]
-fn issue_3_sold_out_ff_cannot_be_ordered() {
-    let mut s = Store::new(1);
-    let e = run(
-        &mut s,
-        serde_json::json!({"type":"order_ff","register":3,"side":"customer","sku":"FF04"}),
-    );
-    assert!(e.unwrap_err().contains("品切れ"));
-}
-
-/// 問題4：ポイントカードは確認ボタンなしで反映される。
-#[test]
-fn issue_4_point_card_needs_no_confirmation() {
-    let mut s = Store::new(1);
-    ok(
-        &mut s,
-        serde_json::json!({"type":"scan","register":1,"side":"staff","sku":"4900001"}),
-    );
-    let msg = run(
-        &mut s,
-        serde_json::json!({"type":"read_point_card","register":1,"card_no":"1234-5678-9012"}),
+        json!({"type":"scan","register":1,"side":"staff","code":"0000"})
     )
-    .unwrap();
-    assert!(msg.unwrap().contains("****9012"));
-    let snap = s.snapshot();
-    assert_eq!(reg(&snap, 1).point_card.as_deref(), Some("****9012"));
+    .is_err());
+}
+
+/// 会計画面で読んだら登録画面に戻って追加し、投入済みの現金は残る。
+#[test]
+fn scanning_on_payment_screen_returns_to_registering() {
+    let mut s = Store::new(1, 2, 1);
+    scan(&mut s, 1, "staff", ONIGIRI);
+    ok(
+        &mut s,
+        json!({"type":"checkout","register":1,"side":"staff"}),
+    );
+    ok(
+        &mut s,
+        json!({"type":"insert_cash","register":1,"denomination":100,"count":1}),
+    );
+    scan(&mut s, 1, "customer", ONIGIRI);
+    let v = reg(&s, 1);
+    assert_eq!(v.staff.phase, Phase::Registering);
+    assert_eq!(v.staff.inserted, 100);
+    ok(
+        &mut s,
+        json!({"type":"checkout","register":1,"side":"staff"}),
+    );
+    ok(
+        &mut s,
+        json!({"type":"insert_cash","register":1,"denomination":500,"count":1}),
+    );
+    let v = reg(&s, 1);
+    assert_eq!(v.last_receipt.as_ref().unwrap().change_total, 600 - 320);
+}
+
+/// 問題7：年確は会計ボタンの時点だけ。年確が済むまで決済できない。
+#[test]
+fn age_check_happens_at_checkout_and_blocks_payment() {
+    let mut s = Store::new(1, 2, 1);
+    scan(&mut s, 1, "staff", BEER);
     assert_eq!(
-        reg(&snap, 1).phase,
-        Phase::Registering,
-        "no extra step was inserted"
+        reg(&s, 1).customer.age_check,
+        None,
+        "no age check at scan time"
+    );
+    ok(
+        &mut s,
+        json!({"type":"checkout","register":1,"side":"staff"}),
+    );
+    let v = reg(&s, 1);
+    assert_eq!(v.customer.age_check, Some(20));
+    assert!(run(
+        &mut s,
+        json!({"type":"insert_cash","register":1,"denomination":1000,"count":1})
+    )
+    .is_err());
+    ok(&mut s, json!({"type":"confirm_age","register":1}));
+    // 同じ取引で戻って追加しても、再確認はしない
+    scan(&mut s, 1, "staff", BEER);
+    ok(
+        &mut s,
+        json!({"type":"checkout","register":1,"side":"staff"}),
+    );
+    assert_eq!(reg(&s, 1).customer.age_check, None);
+    ok(
+        &mut s,
+        json!({"type":"insert_cash","register":1,"denomination":1000,"count":1}),
     );
 }
 
-/// 問題4：現金を入れるだけで現金払いになり、金額に達した時点で自動で精算される。
+/// セルフでは年確が店員呼び出しになり、店員が来るまでお客様は確認できない。
 #[test]
-fn issue_4_cash_payment_needs_no_extra_buttons() {
-    let mut s = Store::new(1);
+fn self_mode_age_check_calls_staff() {
+    let mut s = Store::new(1, 2, 1);
+    scan(&mut s, 2, "customer", BEER);
     ok(
         &mut s,
-        serde_json::json!({"type":"scan","register":2,"side":"staff","sku":"4900001"}),
+        json!({"type":"checkout","register":2,"side":"customer"}),
     );
-    ok(
-        &mut s,
-        serde_json::json!({"type":"checkout","register":2,"side":"staff"}),
-    );
-    ok(
-        &mut s,
-        serde_json::json!({"type":"insert_cash","register":2,"denomination":1000}),
-    );
-    let snap = s.snapshot();
-    assert_eq!(reg(&snap, 2).phase, Phase::Settling);
-}
-
-/// 問題6：ログイン中・画面表示中でも、責任者の PIN なしでは返金・緊急出金はできない。
-#[test]
-fn issue_6_privileged_operations_require_manager_pin() {
-    let mut s = Store::new(1);
-    ok(
-        &mut s,
-        serde_json::json!({"type":"scan","register":1,"side":"staff","sku":"4900001"}),
-    );
-    ok(
-        &mut s,
-        serde_json::json!({"type":"checkout","register":1,"side":"staff"}),
-    );
-    ok(
-        &mut s,
-        serde_json::json!({"type":"insert_cash","register":1,"denomination":1000}),
-    );
-    advance(&mut s, 5_000);
-    ok(
-        &mut s,
-        serde_json::json!({"type":"take_change","register":1}),
-    );
-    let receipt = s.snapshot().receipts[0].id;
-
-    // ログイン中のクルー自身の PIN では通らない
-    let e = run(
-        &mut s,
-        serde_json::json!({"type":"refund","register":1,"receipt_id":receipt,"manager_id":"1001","pin":"1111"}),
-    );
-    assert!(e.is_err());
-    // PIN 空欄・推測でも通らない
-    for pin in ["", "0000"] {
-        let e = run(
-            &mut s,
-            serde_json::json!({"type":"emergency_withdrawal","register":1,"amount":10000,"manager_id":"9001","pin":pin}),
-        );
-        assert!(e.is_err());
-    }
-    let snap = s.snapshot();
-    assert!(
-        snap.audit.iter().all(|a| !a.ok),
-        "denied attempts are audited"
-    );
-    assert_eq!(snap.audit.len(), 3);
-    // 責任者 PIN なら通る
-    ok(
-        &mut s,
-        serde_json::json!({"type":"refund","register":1,"receipt_id":receipt,"manager_id":"9001","pin":"9999"}),
-    );
-    assert!(s.snapshot().receipts[0].refunded);
-}
-
-/// 問題6：ロック中のスタッフ画面からは何もできない（部外者が身を乗り出しても無効）。
-#[test]
-fn issue_6_locked_screen_rejects_staff_operations() {
-    let mut s = Store::new(1);
-    // レジ3は初期状態でロック中
-    let e = run(
-        &mut s,
-        serde_json::json!({"type":"scan","register":3,"side":"staff","sku":"4900001"}),
-    );
-    assert!(e.unwrap_err().contains("ロック"));
-    let e = run(
-        &mut s,
-        serde_json::json!({"type":"set_mode","register":3,"mode":"attended"}),
-    );
-    assert!(e.is_err());
-}
-
-/// 問題7：年確の要求は、モードや支払方法に関係なく「スキャンした瞬間」に必ず立つ。
-#[test]
-fn issue_7_age_check_always_triggers_at_scan_time() {
-    for (register, side) in [(1u8, "staff"), (2, "staff"), (3, "customer")] {
-        let mut s = Store::new(1);
-        ok(
-            &mut s,
-            serde_json::json!({"type":"scan","register":register,"side":side,"sku":"4900010"}),
-        );
-        let snap = s.snapshot();
-        let r = reg(&snap, register);
-        assert_eq!(r.age, "pending", "register {register}");
-        assert!(snap
-            .calls
-            .iter()
-            .any(|c| c.kind == CallKind::AgeCheck && c.register == register));
-        // 会計は年確が済むまで進めない（会計時に新たな判定は起きない）
-        assert!(!allowed(
-            r,
-            if side == "staff" {
-                Side::Staff
-            } else {
-                Side::Customer
-            },
-            Action::Checkout
-        ));
-    }
-}
-
-/// 問題7：「来たよ」と「年確」は MAT の 1 操作にまとまる。2 本目の酒では再要求しない。
-#[test]
-fn issue_7_single_action_confirms_age() {
-    let mut s = Store::new(1);
-    ok(
-        &mut s,
-        serde_json::json!({"type":"scan","register":3,"side":"customer","sku":"4900010"}),
-    );
-    let call = s.snapshot().calls[0].id;
-    ok(
-        &mut s,
-        serde_json::json!({"type":"resolve_call","call_id":call,"by":mat(0)}),
-    );
-    ok(
-        &mut s,
-        serde_json::json!({"type":"scan","register":3,"side":"customer","sku":"4900011"}),
-    );
-    let snap = s.snapshot();
-    assert_eq!(reg(&snap, 3).age, "verified");
-    assert!(snap.calls.is_empty());
-    assert!(allowed(reg(&snap, 3), Side::Customer, Action::Checkout));
-}
-
-/// 問題8：呼び出しは発生したレジにだけ鳴動し、互いをブロックしない。
-#[test]
-fn issue_8_calls_are_per_register_and_non_blocking() {
-    let mut s = Store::new(1);
-    ok(
-        &mut s,
-        serde_json::json!({"type":"order_ff","register":3,"side":"customer","sku":"FF01"}),
-    );
-    ok(
-        &mut s,
-        serde_json::json!({"type":"set_mode","register":2,"mode":"full_self"}),
-    );
-    ok(
-        &mut s,
-        serde_json::json!({"type":"call_staff","register":2}),
-    );
-    let snap = s.snapshot();
-    assert!(reg(&snap, 3).alerting);
-    assert!(reg(&snap, 2).alerting);
-    assert!(
-        !reg(&snap, 1).alerting,
-        "register 1 is not interrupted by other registers"
-    );
-    // レジ3の FF が未完了のまま、レジ2の呼び出しを先に完了できる
-    let help = snap
+    assert!(s
+        .snapshot()
         .calls
         .iter()
-        .find(|c| c.kind == CallKind::CustomerHelp)
-        .unwrap()
-        .id;
-    ok(
-        &mut s,
-        serde_json::json!({"type":"resolve_call","call_id":help,"by":mat(1)}),
-    );
-    let snap = s.snapshot();
-    assert_eq!(snap.calls.len(), 1);
-    assert_eq!(snap.calls[0].kind, CallKind::FastFood);
-}
-
-/// 問題9：FF の呼び出しには、何を何個渡すかが含まれる。
-#[test]
-fn issue_9_ff_call_lists_items() {
-    let mut s = Store::new(1);
-    for sku in ["FF01", "FF01", "FF03"] {
-        ok(
-            &mut s,
-            serde_json::json!({"type":"order_ff","register":3,"side":"customer","sku":sku}),
-        );
-    }
-    let snap = s.snapshot();
-    let call = &snap.calls[0];
-    assert_eq!(call.ff_items.len(), 2);
-    assert_eq!(call.ff_items[0].name, "フライドチキン");
-    assert_eq!(call.ff_items[0].qty, 2);
-    assert_eq!(call.detail, "フライドチキン×2、アメリカンドッグ×1");
-    // 1 品ずつ渡し済みにできる
-    let first = call.ff_items[0].line_id;
-    ok(
-        &mut s,
-        serde_json::json!({"type":"hand_over_ff","call_id":call.id,"line_id":first,"by":mat(0)}),
-    );
-    let snap = s.snapshot();
-    assert_eq!(snap.calls[0].detail, "アメリカンドッグ×1");
-    // スタッフ画面（他レジ）からは「その場の作業」はできない
-    let e = run(
-        &mut s,
-        serde_json::json!({"type":"hand_over_ff","call_id":snap.calls[0].id,"line_id":null,"by":at_register(1)}),
-    );
-    assert!(e.is_err());
-}
-
-/// 問題10：通信ロスがあっても、両方の MAT が必ず最新の呼び出しに追いつく。
-/// 届かない MAT は「不通」として検知される。
-#[test]
-fn issue_10_mats_converge_under_packet_loss() {
-    let mut s = Store::new(42);
-    ok(
-        &mut s,
-        serde_json::json!({"type":"set_fault","fault":{"kind":"mat_loss","percent":60}}),
-    );
-    advance(&mut s, 1_000);
-    ok(
-        &mut s,
-        serde_json::json!({"type":"order_ff","register":3,"side":"customer","sku":"FF02"}),
-    );
-    advance(&mut s, 10_000);
-    let snap = s.snapshot();
-    for m in &snap.mats {
-        assert_eq!(m.view_seq, snap.call_seq, "MAT-{} is up to date", m.id);
-        assert_eq!(m.view.len(), 1);
-    }
-    assert!(
-        snap.mats.iter().any(|m| m.retries > 0),
-        "loss was recovered by retries"
-    );
-
-    ok(
-        &mut s,
-        serde_json::json!({"type":"set_fault","fault":{"kind":"mat_loss","percent":0}}),
-    );
-    ok(
-        &mut s,
-        serde_json::json!({"type":"set_fault","fault":{"kind":"mat_offline","mat":1,"offline":true}}),
-    );
-    advance(&mut s, 7_000);
-    let snap = s.snapshot();
-    assert!(snap.mats[0].link_ok);
-    assert!(
-        !snap.mats[1].link_ok,
-        "an unreachable MAT is detected, not silently ignored"
-    );
-}
-
-/// 問題11：紙幣保持センサーの異常時は、放出せず回収・再排出する。
-/// 問題12：紙幣と硬貨は両方そろってから同時に提示する。
-#[test]
-fn issues_11_12_change_is_presented_together_and_never_scattered() {
-    let mut s = Store::new(1);
-    ok(
-        &mut s,
-        serde_json::json!({"type":"set_fault","fault":{"kind":"coin_delay","enabled":true}}),
-    );
-    ok(
-        &mut s,
-        serde_json::json!({"type":"set_fault","fault":{"kind":"bill_glitch","enabled":true}}),
-    );
-    ok(
-        &mut s,
-        serde_json::json!({"type":"scan","register":1,"side":"staff","sku":"4900001"}),
-    );
-    ok(
-        &mut s,
-        serde_json::json!({"type":"checkout","register":1,"side":"staff"}),
-    );
-    ok(
-        &mut s,
-        serde_json::json!({"type":"insert_cash","register":1,"denomination":5000}),
-    );
-    // 釣銭 4,840円：紙幣 4,000円 + 硬貨 840円
-    let mut presented_during_staging = false;
-    for _ in 0..500 {
-        advance(&mut s, 20);
-        let snap = s.snapshot();
-        let v = serde_json::to_value(&reg(&snap, 1).dispenser).unwrap();
-        if v["state"] == "presented" {
-            assert_eq!(v["bills"].as_array().unwrap().len(), 1);
-            assert!(!v["coins"].as_array().unwrap().is_empty());
-            presented_during_staging = true;
-            break;
-        }
-    }
-    assert!(presented_during_staging);
-    let snap = s.snapshot();
-    assert!(snap
-        .events
-        .iter()
-        .any(|e| e.text.contains("回収して再排出")));
-    // 取り忘れは呼び出しになる
-    advance(&mut s, 16_000);
-    let snap = s.snapshot();
-    assert!(snap
-        .calls
-        .iter()
-        .any(|c| c.kind == CallKind::ChangeNotTaken && c.alert));
-    ok(
-        &mut s,
-        serde_json::json!({"type":"take_change","register":1}),
-    );
+        .any(|c| c.register == 2 && c.kind == CallKind::AgeCheck));
+    assert!(!allowed(&reg(&s, 2), Side::Customer, Action::ConfirmAge));
+    scan(&mut s, 2, "staff", "ST1002");
+    ok(&mut s, json!({"type":"confirm_age","register":2}));
+    // 用件が片付いたので店員操作モードは自動で終わる
+    assert_eq!(reg(&s, 2).staff.state, StaffState::Absent);
     assert!(s.snapshot().calls.is_empty());
 }
 
-/// スタッフはセルフモードのレジでも、ロック解除すれば即座に操作できる。
+/// 店舗ルール：オーナーだけが追加でき、法令ルールは外せない。
 #[test]
-fn staff_can_take_over_self_register_after_unlock() {
-    let mut s = Store::new(1);
+fn only_owner_changes_age_rules() {
+    let mut s = Store::new(1, 2, 1);
+    let add = |id: &str, pw: &str| {
+        json!({"type":"add_age_rule","owner_id":id,"password":pw,
+               "target":{"kind":"product","code":LOTTERY},"min_age":20})
+    };
+    assert!(run(&mut s, add("1001", "1111")).is_err());
+    ok(&mut s, add("9001", "9999"));
+    assert!(run(
+        &mut s,
+        json!({"type":"remove_age_rule","owner_id":"9001","password":"9999","rule_id":1})
+    )
+    .is_err());
+    scan(&mut s, 1, "staff", LOTTERY);
+    scan(&mut s, 1, "staff", LIGHTER);
     ok(
         &mut s,
-        serde_json::json!({"type":"scan","register":3,"side":"customer","sku":"4900001"}),
+        json!({"type":"checkout","register":1,"side":"staff"}),
     );
+    assert_eq!(reg(&s, 1).customer.age_check, Some(20));
+    assert_eq!(s.snapshot().age_rules.history.len(), 1);
+}
+
+/// 問題3・5：有人モードのお客様は流れを変えられず、店員はどのモードでも操作できる。
+#[test]
+fn customer_cannot_take_over_attended_register() {
+    let mut s = Store::new(1, 2, 1);
     ok(
         &mut s,
-        serde_json::json!({"type":"checkout","register":3,"side":"customer"}),
+        json!({"type":"set_mode","register":1,"mode":"attended"}),
     );
+    scan(&mut s, 1, "staff", ONIGIRI);
+    assert!(run(
+        &mut s,
+        json!({"type":"checkout","register":1,"side":"customer"})
+    )
+    .is_err());
     ok(
         &mut s,
-        serde_json::json!({"type":"unlock","register":3,"staff_id":"1001","pin":"1111"}),
+        json!({"type":"checkout","register":1,"side":"staff"}),
     );
+    assert!(run(
+        &mut s,
+        json!({"type":"select_payment","register":1,"side":"customer","method":"qr"})
+    )
+    .is_err());
     ok(
         &mut s,
-        serde_json::json!({"type":"back_to_scanning","register":3,"side":"staff"}),
+        json!({"type":"back_to_registering","register":1,"side":"staff"}),
     );
-    let snap = s.snapshot();
-    assert_eq!(reg(&snap, 3).phase, Phase::Registering);
+    assert_eq!(reg(&s, 1).staff.phase, Phase::Registering);
+}
+
+/// FF：FF ボタンで呼び出し → 店員操作モードで登録 → お渡し → お客様の受取確認。
+#[test]
+fn fast_food_flow_in_self_mode() {
+    let mut s = Store::new(1, 2, 1);
+    scan(&mut s, 2, "customer", ONIGIRI);
+    assert!(run(
+        &mut s,
+        json!({"type":"register_ff","register":2,"code":"FF01","qty":1})
+    )
+    .is_err());
+    ok(&mut s, json!({"type":"ff_button","register":2}));
+    scan(&mut s, 2, "staff", "ST1001");
+    ok(
+        &mut s,
+        json!({"type":"register_ff","register":2,"code":"FF01","qty":2}),
+    );
     assert!(
-        reg(&snap, 3).customer_notice.is_some(),
-        "customer is told what happened"
-    );
-    assert_eq!(reg(&snap, 3).mode, Mode::FullSelf);
-}
-
-/// 取引中止では投入済みの現金が返却され、FF 在庫も戻る。
-#[test]
-fn void_returns_cash_and_restores_stock() {
-    let mut s = Store::new(1);
-    ok(
-        &mut s,
-        serde_json::json!({"type":"order_ff","register":1,"side":"staff","sku":"FF02"}),
+        run(
+            &mut s,
+            json!({"type":"register_ff","register":2,"code":"FF04","qty":1})
+        )
+        .is_err(),
+        "sold out"
     );
     ok(
         &mut s,
-        serde_json::json!({"type":"checkout","register":1,"side":"staff"}),
+        json!({"type":"checkout","register":2,"side":"customer"}),
     );
-    ok(
-        &mut s,
-        serde_json::json!({"type":"insert_cash","register":1,"denomination":100}),
-    );
-    ok(
-        &mut s,
-        serde_json::json!({"type":"void_transaction","register":1}),
-    );
-    let snap = s.snapshot();
-    assert_eq!(reg(&snap, 1).phase, Phase::Settling);
+    assert!(run(&mut s, json!({"type":"tap_emoney","register":2})).is_err());
+    ok(&mut s, json!({"type":"hand_over_ff","register":2}));
     assert_eq!(
-        snap.ff_menu.iter().find(|m| m.sku == "FF02").unwrap().stock,
-        Some(2)
+        reg(&s, 2).staff.state,
+        StaffState::Absent,
+        "staff mode ends at hand-over"
     );
-    assert!(snap.calls.is_empty());
-    advance(&mut s, 3_000);
+    ok(&mut s, json!({"type":"confirm_ff_receipt","register":2}));
     ok(
         &mut s,
-        serde_json::json!({"type":"take_change","register":1}),
+        json!({"type":"select_payment","register":2,"side":"customer","method":"emoney"}),
     );
-    let snap = s.snapshot();
-    assert!(reg(&snap, 1).thanks.is_none(), "a void issues no receipt");
-    assert!(snap.receipts.is_empty());
+    ok(&mut s, json!({"type":"tap_emoney","register":2}));
+    assert_eq!(reg(&s, 2).last_receipt.unwrap().total, 160 + 440);
 }
 
+/// 要店員のサービス商品：お客様が読むと呼び出し、店員の受付まで決済できない。
 #[test]
-fn json_boundary_reports_errors_without_panicking() {
-    let mut s = Store::new(1);
-    let out = lycoris_pos_core::dispatch_json(&mut s, "{not json");
-    assert!(out.contains("\"ok\":false"));
-    let out = lycoris_pos_core::dispatch_json(
+fn service_item_needs_staff() {
+    let mut s = Store::new(1, 2, 1);
+    scan(&mut s, 2, "customer", PARCEL);
+    assert!(s
+        .snapshot()
+        .calls
+        .iter()
+        .any(|c| c.kind == CallKind::Service));
+    scan(&mut s, 2, "staff", "ST1001");
+    let id = reg(&s, 2).staff.lines[0].line.id;
+    ok(
         &mut s,
-        r#"{"type":"scan","register":9,"side":"staff","sku":"4900001"}"#,
+        json!({"type":"complete_service","register":2,"line_id":id,"amount":1200}),
     );
-    assert!(out.contains("存在しません"));
-    let _: serde_json::Value = serde_json::from_str(&lycoris_pos_core::snapshot_json(&s)).unwrap();
+    assert_eq!(reg(&s, 2).staff.state, StaffState::Absent);
+    assert_eq!(reg(&s, 2).customer.total, 1200);
+}
+
+/// 問題6：出金は毎回、ログインとは別の出金パスワードが要り、記録が残る。
+#[test]
+fn cash_out_requires_separate_password_every_time() {
+    let mut s = Store::new(1, 2, 1);
+    let co = |pw: &str| json!({"type":"cash_out","register":1,"kind":"emergency","amount":5000,"password":pw});
+    assert!(
+        run(&mut s, co("1111")).is_err(),
+        "login password is not the cash-out password"
+    );
+    ok(&mut s, co("7777"));
+    ok(&mut s, co("7777"));
+    let a = s.snapshot().audit;
+    assert_eq!(a.len(), 3);
+    assert_eq!(a[1].staff, "山田");
+    // 未ログインのレジでは出金できない
+    assert!(run(
+        &mut s,
+        json!({"type":"cash_out","register":2,"kind":"refund","amount":100,"password":"7777"})
+    )
+    .is_err());
+}
+
+/// 問題8：呼び出しは発生したレジだけに出て、ほかのレジには出ない。
+#[test]
+fn calls_stay_on_originating_register() {
+    let mut s = Store::new(1, 4, 2);
+    ok(&mut s, json!({"type":"call_staff","register":2}));
+    ok(&mut s, json!({"type":"call_staff","register":4}));
+    let snap = s.snapshot();
+    assert_eq!(snap.registers[1].staff.calls.len(), 1);
+    assert!(snap.registers[0].staff.calls.is_empty());
+    assert!(snap.registers[2].staff.calls.is_empty());
+    // 後から来たレジ4を先に片付けても、レジ2は残る
+    scan(&mut s, 4, "staff", "ST1002");
+    let snap = s.snapshot();
+    assert_eq!(snap.calls.len(), 1);
+    assert_eq!(snap.calls[0].register, 2);
+}
+
+/// 問題10：通信ロスがあっても再送で MAT は鳴り、不通は検知される。
+#[test]
+fn mat_rings_despite_loss_and_reports_link_down() {
+    let mut s = Store::new(7, 2, 1);
+    ok(&mut s, json!({"type":"set_mat_loss","percent":60}));
+    advance(&mut s, 3_000);
+    ok(&mut s, json!({"type":"call_staff","register":2}));
+    advance(&mut s, 8_000);
+    let snap = s.snapshot();
+    assert!(snap.mats[0].rings >= 1);
+    assert!(snap.mat_links[0].retries > 0 || snap.mat_links[0].acked_seq == snap.bell.seq);
+    // 未対応の間は鳴らし直す
+    let before = snap.mats[0].rings;
+    advance(&mut s, 25_000);
+    assert!(s.snapshot().mats[0].rings > before);
+
+    ok(
+        &mut s,
+        json!({"type":"set_mat_offline","mat":0,"offline":true}),
+    );
+    advance(&mut s, 8_000);
+    let snap = s.snapshot();
+    assert!(!snap.mats[0].link_ok);
+    assert_eq!(snap.registers[0].staff.mat_down, vec!["MAT-1".to_string()]);
+}
+
+/// お客様画面には分類や年確対象の情報を出さない（店員画面にだけ出す）。
+#[test]
+fn customer_view_hides_staff_only_information() {
+    let mut s = Store::new(1, 2, 1);
+    scan(&mut s, 1, "staff", BEER);
+    scan(&mut s, 1, "staff", "PC12345678");
+    let v = serde_json::to_value(reg(&s, 1)).unwrap();
+    let c = v["customer"].to_string();
+    assert!(!c.contains("alcohol") && !c.contains(BEER) && !c.contains("12345678"));
+    assert_eq!(v["staff"]["lines"][0]["age"], 20);
+    assert_eq!(reg(&s, 1).mode, Mode::SemiSelf);
 }

@@ -1,11 +1,12 @@
-//! 店員呼び出し（問題8・9への対策）。
+//! 店員呼び出し（問題8への対策）。
 //!
-//! - 呼び出しは **発生したレジに紐づく独立したレコード** であり、
-//!   単一の FIFO キューでも、後続をブロックするモーダルでもない。
-//!   どの呼び出しも、他の呼び出しの状態と無関係に応答・完了できる。
-//! - 鳴動（アラート）は発生したレジと MAT にだけ出す。他のレジには
-//!   一覧に載るだけで割り込まない。
-//! - FF の呼び出しは「何を何個渡すか」を明細として持つ（問題9）。
+//! - 通知先は「発生したレジ」と「全 MAT」だけ。他のレジには出さない。
+//!   どのレジが鳴っているかが、そのまま店員への情報になる。
+//! - 呼び出しは一件ずつ独立した記録で、単一の順番待ちキューも、後続を
+//!   止めるモーダルも持たない。どれか一件の対応が、他の呼び出しの通知を
+//!   妨げることはない。
+//! - 呼び出しは原因が片付いたとき（年確が済んだ、FF を登録した、
+//!   サービス商品の受付が済んだ、店員がそのレジに来た）に自動で閉じる。
 
 use serde::Serialize;
 
@@ -13,50 +14,20 @@ use serde::Serialize;
 #[serde(rename_all = "snake_case")]
 pub enum CallKind {
     AgeCheck,
-    ChangeNotTaken,
-    Hardware,
-    CustomerHelp,
     FastFood,
+    Service,
+    CustomerHelp,
 }
 
 impl CallKind {
-    /// 小さいほど優先。表示順にのみ使い、処理順は強制しない。
-    pub fn priority(self) -> u8 {
-        match self {
-            CallKind::AgeCheck => 0,
-            CallKind::ChangeNotTaken => 1,
-            CallKind::Hardware => 1,
-            CallKind::CustomerHelp => 2,
-            CallKind::FastFood => 3,
-        }
-    }
-
     pub fn label(self) -> &'static str {
         match self {
             CallKind::AgeCheck => "年齢確認",
-            CallKind::ChangeNotTaken => "釣銭取り忘れ",
-            CallKind::Hardware => "機器",
+            CallKind::FastFood => "FF の注文",
+            CallKind::Service => "サービス受付",
             CallKind::CustomerHelp => "お呼び出し",
-            CallKind::FastFood => "FF お渡し",
         }
     }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub enum FfStatus {
-    Waiting,
-    Handed,
-    OutOfStock,
-}
-
-#[derive(Clone, Debug, Serialize)]
-pub struct FfItem {
-    pub line_id: u32,
-    pub sku: String,
-    pub name: String,
-    pub qty: u32,
-    pub status: FfStatus,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -65,20 +36,8 @@ pub struct Call {
     pub register: u8,
     pub kind: CallKind,
     pub label: &'static str,
-    pub txn_id: u32,
     pub created_at: u64,
-    /// true のとき、発生レジと MAT で鳴動させる
-    pub alert: bool,
-    /// 「向かいます」を押したスタッフ
-    pub acked_by: Option<String>,
     pub detail: String,
-    pub ff_items: Vec<FfItem>,
-}
-
-impl Call {
-    pub fn ff_done(&self) -> bool {
-        self.ff_items.iter().all(|i| i.status != FfStatus::Waiting)
-    }
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -86,8 +45,8 @@ pub struct ResolvedCall {
     pub id: u32,
     pub register: u8,
     pub label: &'static str,
+    pub created_at: u64,
     pub resolved_at: u64,
-    pub resolved_by: String,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -95,93 +54,71 @@ pub struct Calls {
     next_id: u32,
     pub open: Vec<Call>,
     pub history: Vec<ResolvedCall>,
-    /// 呼び出し状態の版数。変化するたびに増え、MAT 同期の基準になる。
-    pub seq: u64,
+    /// 新しい呼び出しが立った回数（MAT の鳴動合図に使う）
+    pub raised: u64,
 }
 
 impl Calls {
-    pub fn bump(&mut self) {
-        self.seq += 1;
-    }
-
-    pub fn open_call(
+    /// 同じレジ・同じ種類の呼び出しがすでに開いていれば、新たには立てない
+    pub fn raise(
         &mut self,
         register: u8,
         kind: CallKind,
-        txn_id: u32,
         now: u64,
-        alert: bool,
-        detail: String,
-    ) -> u32 {
+        detail: impl Into<String>,
+    ) -> bool {
+        if self
+            .open
+            .iter()
+            .any(|c| c.register == register && c.kind == kind)
+        {
+            return false;
+        }
         self.next_id += 1;
-        let id = self.next_id;
         self.open.push(Call {
-            id,
+            id: self.next_id,
             register,
             kind,
             label: kind.label(),
-            txn_id,
             created_at: now,
-            alert,
-            acked_by: None,
-            detail,
-            ff_items: vec![],
+            detail: detail.into(),
         });
-        self.bump();
-        id
-    }
-
-    pub fn find(&self, register: u8, kind: CallKind, txn_id: u32) -> Option<&Call> {
-        self.open
-            .iter()
-            .find(|c| c.register == register && c.kind == kind && c.txn_id == txn_id)
-    }
-
-    pub fn find_mut_by(&mut self, register: u8, kind: CallKind, txn_id: u32) -> Option<&mut Call> {
-        self.open
-            .iter_mut()
-            .find(|c| c.register == register && c.kind == kind && c.txn_id == txn_id)
-    }
-
-    pub fn get(&self, id: u32) -> Option<&Call> {
-        self.open.iter().find(|c| c.id == id)
-    }
-
-    pub fn get_mut(&mut self, id: u32) -> Option<&mut Call> {
-        self.open.iter_mut().find(|c| c.id == id)
-    }
-
-    pub fn resolve(&mut self, id: u32, now: u64, by: &str) -> bool {
-        let Some(i) = self.open.iter().position(|c| c.id == id) else {
-            return false;
-        };
-        let c = self.open.remove(i);
-        self.history.push(ResolvedCall {
-            id: c.id,
-            register: c.register,
-            label: c.label,
-            resolved_at: now,
-            resolved_by: by.to_string(),
-        });
-        if self.history.len() > 30 {
-            self.history.remove(0);
-        }
-        self.bump();
+        self.raised += 1;
         true
     }
 
-    pub fn resolve_where(&mut self, now: u64, by: &str, pred: impl Fn(&Call) -> bool) {
-        let ids: Vec<u32> = self.open.iter().filter(|c| pred(c)).map(|c| c.id).collect();
-        for id in ids {
-            self.resolve(id, now, by);
+    pub fn resolve(&mut self, register: u8, kind: CallKind, now: u64) {
+        while let Some(i) = self
+            .open
+            .iter()
+            .position(|c| c.register == register && c.kind == kind)
+        {
+            let c = self.open.remove(i);
+            self.history.push(ResolvedCall {
+                id: c.id,
+                register: c.register,
+                label: c.label,
+                created_at: c.created_at,
+                resolved_at: now,
+            });
+            if self.history.len() > 30 {
+                self.history.remove(0);
+            }
         }
     }
 
-    /// 表示用：優先度 → 発生時刻の順。
-    pub fn sorted(&self) -> Vec<Call> {
-        let mut v = self.open.clone();
-        v.sort_by_key(|c| (c.kind.priority(), c.created_at, c.id));
-        v
+    pub fn for_register(&self, register: u8) -> Vec<Call> {
+        self.open
+            .iter()
+            .filter(|c| c.register == register)
+            .cloned()
+            .collect()
+    }
+
+    pub fn is_open(&self, register: u8, kind: CallKind) -> bool {
+        self.open
+            .iter()
+            .any(|c| c.register == register && c.kind == kind)
     }
 }
 
@@ -190,13 +127,17 @@ mod tests {
     use super::*;
 
     #[test]
-    fn calls_resolve_independently_of_order() {
-        let mut calls = Calls::default();
-        let a = calls.open_call(3, CallKind::FastFood, 1, 0, true, String::new());
-        let b = calls.open_call(1, CallKind::CustomerHelp, 2, 10, true, String::new());
-        // 後から来たレジ1の呼び出しを先に完了できる（FIFO ブロックなし）
-        assert!(calls.resolve(b, 20, "MAT-A"));
-        assert!(calls.get(a).is_some());
-        assert!(calls.get(b).is_none());
+    fn calls_are_independent_per_register_and_kind() {
+        let mut c = Calls::default();
+        assert!(c.raise(2, CallKind::FastFood, 0, ""));
+        assert!(c.raise(1, CallKind::CustomerHelp, 1, ""));
+        assert!(
+            !c.raise(2, CallKind::FastFood, 2, ""),
+            "duplicate is not raised twice"
+        );
+        // 後から来たレジ1を先に片付けても、レジ2はそのまま
+        c.resolve(1, CallKind::CustomerHelp, 3);
+        assert!(c.is_open(2, CallKind::FastFood));
+        assert!(!c.is_open(1, CallKind::CustomerHelp));
     }
 }

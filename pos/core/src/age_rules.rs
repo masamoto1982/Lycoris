@@ -1,0 +1,213 @@
+//! 年齢確認ルール（問題7への対策と、店舗判断での年確）。
+//!
+//! - 年確の対象は商品マスタに固定せず、このルール表で決める。
+//! - 法令ルール（酒・たばこ 20 歳）は全店共通で、店舗からは外せない。
+//! - 店舗ルールはオーナーだけが追加・削除できる（ライター、18禁書籍など）。
+//!   分類単位でも、個別の商品単位でも指定できる。
+//! - 判定するのは会計ボタンを押した時点だけ。対象品が複数あれば、
+//!   最も厳しい年齢で 1 回だけ確認する。
+
+use serde::{Deserialize, Serialize};
+
+use crate::catalog::{self, Category};
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum RuleTarget {
+    Category { category: Category },
+    Product { code: String },
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct AgeRule {
+    pub id: u32,
+    pub target: RuleTarget,
+    pub label: String,
+    pub min_age: u8,
+    /// 法令ルールは削除できない
+    pub legal: bool,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct RuleChange {
+    pub at: u64,
+    pub by: String,
+    pub change: String,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct AgeRules {
+    pub rules: Vec<AgeRule>,
+    pub history: Vec<RuleChange>,
+    #[serde(skip)]
+    next_id: u32,
+}
+
+fn label_of(target: &RuleTarget) -> String {
+    match target {
+        RuleTarget::Category { category } => format!("分類：{}", category.label()),
+        RuleTarget::Product { code } => match catalog::find(code) {
+            Some(p) => format!("商品：{}", p.name),
+            None => format!("商品：{code}"),
+        },
+    }
+}
+
+impl Default for AgeRules {
+    fn default() -> Self {
+        let mut r = AgeRules {
+            rules: vec![],
+            history: vec![],
+            next_id: 1,
+        };
+        r.push(
+            RuleTarget::Category {
+                category: Category::Alcohol,
+            },
+            20,
+            true,
+        );
+        r.push(
+            RuleTarget::Category {
+                category: Category::Tobacco,
+            },
+            20,
+            true,
+        );
+        // 店舗ルールの初期値（オーナーが変更できる）
+        r.push(
+            RuleTarget::Category {
+                category: Category::SmokingGoods,
+            },
+            20,
+            false,
+        );
+        r.push(
+            RuleTarget::Category {
+                category: Category::AdultBook,
+            },
+            18,
+            false,
+        );
+        r.push(
+            RuleTarget::Category {
+                category: Category::AdultGoods,
+            },
+            18,
+            false,
+        );
+        r
+    }
+}
+
+impl AgeRules {
+    fn push(&mut self, target: RuleTarget, min_age: u8, legal: bool) -> u32 {
+        let id = self.next_id;
+        self.next_id += 1;
+        self.rules.push(AgeRule {
+            id,
+            label: label_of(&target),
+            target,
+            min_age,
+            legal,
+        });
+        id
+    }
+
+    /// この商品に適用される最も厳しい年齢（対象外なら None）
+    pub fn age_for(&self, code: &str, category: Category) -> Option<u8> {
+        self.rules
+            .iter()
+            .filter(|r| match &r.target {
+                RuleTarget::Category { category: c } => *c == category,
+                RuleTarget::Product { code: c } => c == code,
+            })
+            .map(|r| r.min_age)
+            .max()
+    }
+
+    pub fn add(
+        &mut self,
+        target: RuleTarget,
+        min_age: u8,
+        by: &str,
+        now: u64,
+    ) -> Result<u32, String> {
+        if !(1..=99).contains(&min_age) {
+            return Err("年齢は 1〜99 で指定してください".into());
+        }
+        if let RuleTarget::Product { code } = &target {
+            if catalog::find(code).is_none() {
+                return Err("商品が見つかりません".into());
+            }
+        }
+        if self.rules.iter().any(|r| r.target == target) {
+            return Err("同じ対象のルールがすでにあります".into());
+        }
+        let label = label_of(&target);
+        let id = self.push(target, min_age, false);
+        self.history.push(RuleChange {
+            at: now,
+            by: by.into(),
+            change: format!("追加：{label}（{min_age}歳以上）"),
+        });
+        Ok(id)
+    }
+
+    pub fn remove(&mut self, id: u32, by: &str, now: u64) -> Result<(), String> {
+        let i = self
+            .rules
+            .iter()
+            .position(|r| r.id == id)
+            .ok_or("ルールが見つかりません")?;
+        if self.rules[i].legal {
+            return Err("法令ルールは外せません".into());
+        }
+        let r = self.rules.remove(i);
+        self.history.push(RuleChange {
+            at: now,
+            by: by.into(),
+            change: format!("削除：{}（{}歳以上）", r.label, r.min_age),
+        });
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn legal_rules_cannot_be_removed() {
+        let mut r = AgeRules::default();
+        assert!(r.remove(1, "オーナー", 0).is_err());
+        assert_eq!(r.age_for("4900000000103", Category::Alcohol), Some(20));
+    }
+
+    #[test]
+    fn store_rule_by_product_takes_the_strictest_age() {
+        let mut r = AgeRules::default();
+        assert_eq!(r.age_for("4900000000158", Category::Lottery), None);
+        r.add(
+            RuleTarget::Product {
+                code: "4900000000158".into(),
+            },
+            20,
+            "オーナー",
+            0,
+        )
+        .unwrap();
+        assert_eq!(r.age_for("4900000000158", Category::Lottery), Some(20));
+        r.add(
+            RuleTarget::Category {
+                category: Category::Lottery,
+            },
+            18,
+            "オーナー",
+            0,
+        )
+        .unwrap();
+        assert_eq!(r.age_for("4900000000158", Category::Lottery), Some(20));
+        assert_eq!(r.history.len(), 2);
+    }
+}

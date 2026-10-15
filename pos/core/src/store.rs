@@ -1,97 +1,91 @@
-//! 店舗全体（レジ3台・MAT 2台）の状態と、コマンド処理。
+//! 店舗全体（レジ・MAT・共有設定）の状態と、コマンド処理。
 //!
-//! すべての画面（スタッフ画面・お客様画面・MAT）は、ここが生成する
-//! **単一のスナップショット** から描画される。画面ごとに別の状態を持たない
-//! ため、スタッフ画面にお客様画面をそのまま映し出せる（問題2）。
+//! レジ 1 台につき情報空間は 1 つだけ。店員画面とお客様画面は、同じ取引を
+//! 別の切り口で見せる「ビュー」にすぎない（問題2）。お客様ビューには公開してよい
+//! 情報だけを載せる。画面が 1 枚の機種になっても、ビューの出し分けを変えるだけで済む。
 
 use serde::{Deserialize, Serialize};
 
-use crate::auth::{Authenticator, Role, ACCOUNTS};
+use crate::age_rules::{AgeRules, RuleTarget};
+use crate::auth::{self, Authenticator, Role, ACCOUNTS};
 use crate::authority::{
     permitted, Action, Context, Mode, PaymentMethod, Phase, Side, StaffState, CUSTOMER_ACTIONS,
     STAFF_ACTIONS,
 };
-use crate::calls::{Call, CallKind, Calls, FfItem, FfStatus, ResolvedCall};
-use crate::cash::{is_valid_denomination, Cash, Dispenser, DispenserEvent, Drawer};
-use crate::catalog::{self, TaxRate, CATALOG, INITIAL_FF_STOCK};
-use crate::mat::Mat;
+use crate::calls::{Call, CallKind, Calls, ResolvedCall};
+use crate::cash::{is_valid_denomination, Cash, Drawer};
+use crate::catalog::{self, Category, Product, Scanned, TaxRate, CATALOG, INITIAL_FF_STOCK};
+use crate::mat::{Bell, Mat, RERING_MS};
 use crate::rng::Rng;
 
-pub const REGISTER_COUNT: u8 = 3;
-pub const IDLE_LOCK_MS: u64 = 180_000;
-pub const CHANGE_REMIND_MS: u64 = 6_000;
-pub const CHANGE_CALL_MS: u64 = 15_000;
-pub const NOTICE_MS: u64 = 4_000;
-pub const THANKS_MS: u64 = 4_000;
+pub const MAX_REGISTERS: u8 = 10;
+pub const MAX_MATS: u8 = 5;
 
 // ---------------------------------------------------------------------------
 // コマンド
 // ---------------------------------------------------------------------------
 
-/// 「その場の作業」を誰が行ったか。MAT は携行者の認証済み端末として扱う。
-#[derive(Clone, Copy, Debug, Deserialize)]
-#[serde(tag = "kind", rename_all = "snake_case")]
-pub enum Operator {
-    Register { register: u8 },
-    Mat { mat: usize },
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CashOutKind {
+    /// 返品返金
+    Refund,
+    /// 経費支出
+    Expense,
+    /// 緊急出金
+    Emergency,
+    /// 途中集金
+    Pickup,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize)]
-#[serde(tag = "kind", rename_all = "snake_case")]
-pub enum Fault {
-    MatLoss { percent: u8 },
-    MatOffline { mat: usize, offline: bool },
-    CoinDelay { enabled: bool },
-    BillGlitch { enabled: bool },
+impl CashOutKind {
+    pub fn label(self) -> &'static str {
+        match self {
+            CashOutKind::Refund => "返品返金",
+            CashOutKind::Expense => "経費支出",
+            CashOutKind::Emergency => "緊急出金",
+            CashOutKind::Pickup => "途中集金",
+        }
+    }
 }
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Command {
-    Login {
-        register: u8,
-        staff_id: String,
-        pin: String,
-    },
-    Logout {
-        register: u8,
-    },
-    Lock {
-        register: u8,
-    },
-    Unlock {
-        register: u8,
-        staff_id: String,
-        pin: String,
-    },
-    SetMode {
-        register: u8,
-        mode: Mode,
-    },
     Scan {
         register: u8,
         side: Side,
-        sku: String,
+        code: String,
     },
-    OrderFf {
+    RegisterFf {
         register: u8,
-        side: Side,
-        sku: String,
+        code: String,
+        qty: u32,
+    },
+    FfButton {
+        register: u8,
+    },
+    HandOverFf {
+        register: u8,
+    },
+    ConfirmFfReceipt {
+        register: u8,
+    },
+    CompleteService {
+        register: u8,
+        line_id: u32,
+        amount: u32,
     },
     RemoveLine {
         register: u8,
         side: Side,
         line_id: u32,
     },
-    ReadPointCard {
-        register: u8,
-        card_no: String,
-    },
     Checkout {
         register: u8,
         side: Side,
     },
-    BackToScanning {
+    BackToRegistering {
         register: u8,
         side: Side,
     },
@@ -100,96 +94,104 @@ pub enum Command {
         side: Side,
         method: PaymentMethod,
     },
+    ConfirmAge {
+        register: u8,
+    },
     InsertCash {
         register: u8,
         denomination: u32,
+        count: u32,
     },
     TapEmoney {
-        register: u8,
-    },
-    TakeChange {
-        register: u8,
-    },
-    CollectChange {
         register: u8,
     },
     CallStaff {
         register: u8,
     },
-    ConfirmAge {
-        register: u8,
-        by: Operator,
-    },
-    AckCall {
-        call_id: u32,
-        by: Operator,
-    },
-    ResolveCall {
-        call_id: u32,
-        by: Operator,
-    },
-    HandOverFf {
-        call_id: u32,
-        line_id: Option<u32>,
-        by: Operator,
-    },
-    MarkFfOutOfStock {
-        call_id: u32,
-        line_id: u32,
-        by: Operator,
-    },
     VoidTransaction {
         register: u8,
     },
-    Refund {
+    SetMode {
         register: u8,
-        receipt_id: u32,
-        manager_id: String,
-        pin: String,
+        mode: Mode,
     },
-    EmergencyWithdrawal {
+    Lock {
         register: u8,
+    },
+    EndStaffMode {
+        register: u8,
+    },
+    CashOut {
+        register: u8,
+        kind: CashOutKind,
         amount: u32,
-        manager_id: String,
-        pin: String,
+        password: String,
     },
-    SetFault {
-        fault: Fault,
+    AddAgeRule {
+        owner_id: String,
+        password: String,
+        target: RuleTarget,
+        min_age: u8,
+    },
+    RemoveAgeRule {
+        owner_id: String,
+        password: String,
+        rule_id: u32,
+    },
+    SetMatLoss {
+        percent: u8,
+    },
+    SetMatOffline {
+        mat: usize,
+        offline: bool,
     },
 }
 
-/// 成功時の補足メッセージ。UI は閉じるボタンのないトーストで一定時間だけ表示する。
-#[derive(Clone, Debug, Default, Serialize)]
+#[derive(Clone, Debug, Default)]
 pub struct Outcome {
     pub message: Option<String>,
 }
 
-impl Outcome {
-    fn none() -> Self {
-        Outcome { message: None }
-    }
-    fn msg(s: impl Into<String>) -> Self {
-        Outcome {
-            message: Some(s.into()),
-        }
-    }
+fn done(msg: impl Into<String>) -> Result<Outcome, String> {
+    Ok(Outcome {
+        message: Some(msg.into()),
+    })
 }
 
 // ---------------------------------------------------------------------------
-// 状態
+// 取引
 // ---------------------------------------------------------------------------
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum FfState {
+    /// 登録済み・お渡し前
+    Waiting,
+    /// お渡し済み・お客様の受取確認待ち
+    Presented,
+    /// 受取確認済み
+    Received,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum LineKind {
+    Item,
+    Ff { state: FfState },
+    Service { done: bool },
+}
 
 #[derive(Clone, Debug, Serialize)]
 pub struct Line {
     pub id: u32,
-    pub sku: String,
-    pub name: String,
+    pub code: &'static str,
+    pub name: &'static str,
     pub unit_price: u32,
     pub qty: u32,
     pub tax: TaxRate,
-    pub age_restricted: bool,
-    pub fast_food: bool,
-    pub added_by: Side,
+    pub category: Category,
+    #[serde(flatten)]
+    pub kind: LineKind,
 }
 
 impl Line {
@@ -198,1317 +200,797 @@ impl Line {
     }
 }
 
-#[derive(Clone, Debug, Serialize)]
-pub struct Session {
-    pub staff_id: String,
-    pub name: String,
-    pub role: Role,
-    pub locked: bool,
-    #[serde(skip)]
-    last_activity: u64,
-}
-
-#[derive(Clone, Debug)]
-struct Transaction {
-    id: u32,
+#[derive(Clone, Debug, Default)]
+struct Txn {
     lines: Vec<Line>,
     next_line: u32,
-    phase: Phase,
+    paying: bool,
+    point_card: Option<String>,
+    /// 会計ボタンの時点で求められた年齢（年確不要なら None）
+    required_age: Option<u8>,
     age_verified: bool,
     method: Option<PaymentMethod>,
     inserted: Cash,
-    point_card: Option<String>,
-    /// 精算中の取引に対応するレシート（取引中止・返金の払い出しでは None）
-    receipt_id: Option<u32>,
 }
 
-impl Transaction {
-    fn new(id: u32) -> Self {
-        Transaction {
-            id,
-            lines: vec![],
-            next_line: 1,
-            phase: Phase::Registering,
-            age_verified: false,
-            method: None,
-            inserted: Cash::default(),
-            point_card: None,
-            receipt_id: None,
-        }
-    }
-
+impl Txn {
     fn total(&self) -> u32 {
         self.lines.iter().map(Line::amount).sum()
     }
 
+    fn tax_of(&self, rate: TaxRate) -> u32 {
+        let gross: u32 = self
+            .lines
+            .iter()
+            .filter(|l| l.tax == rate)
+            .map(Line::amount)
+            .sum();
+        match rate {
+            TaxRate::Reduced8 => gross * 8 / 108,
+            TaxRate::Standard10 => gross * 10 / 110,
+        }
+    }
+
+    fn any_ff(&self, s: FfState) -> bool {
+        self.lines
+            .iter()
+            .any(|l| matches!(l.kind, LineKind::Ff { state } if state == s))
+    }
+
+    fn service_pending(&self) -> bool {
+        self.lines
+            .iter()
+            .any(|l| matches!(l.kind, LineKind::Service { done: false }))
+    }
+
     fn age_pending(&self) -> bool {
-        !self.age_verified && self.lines.iter().any(|l| l.age_restricted)
+        self.paying && self.required_age.is_some() && !self.age_verified
+    }
+
+    fn push(&mut self, p: &'static Product, qty: u32, kind: LineKind) {
+        // 同じ商品はまとめる（FF は状態が同じお渡し前どうしだけ）
+        if let Some(l) = self.lines.iter_mut().find(|l| {
+            l.code == p.code && l.kind == kind && !matches!(kind, LineKind::Service { .. })
+        }) {
+            l.qty += qty;
+            return;
+        }
+        self.next_line += 1;
+        self.lines.push(Line {
+            id: self.next_line,
+            code: p.code,
+            name: p.name,
+            unit_price: p.price,
+            qty,
+            tax: p.tax,
+            category: p.category,
+            kind,
+        });
     }
 }
 
 #[derive(Clone, Debug, Serialize)]
 pub struct Receipt {
-    pub id: u32,
-    pub register: u8,
+    pub no: u32,
     pub at: u64,
-    pub lines: Vec<Line>,
     pub total: u32,
-    pub method: PaymentMethod,
+    pub method: &'static str,
     pub paid: u32,
-    pub change: u32,
+    pub change: Cash,
+    pub change_total: u32,
+    pub items: u32,
     pub point_card: Option<String>,
     pub points: u32,
-    pub refunded: bool,
 }
 
-#[derive(Clone, Debug, Serialize)]
-pub struct Notice {
-    pub text: String,
-    pub until: u64,
-}
-
-#[derive(Clone, Debug, Serialize)]
-pub struct Activity {
-    pub at: u64,
-    pub text: String,
+#[derive(Clone, Copy, Debug)]
+struct StaffSession {
+    account: &'static auth::StaffAccount,
+    locked: bool,
 }
 
 #[derive(Clone, Debug)]
 struct Register {
     id: u8,
     mode: Mode,
-    session: Option<Session>,
-    txn: Transaction,
+    staff: Option<StaffSession>,
+    txn: Txn,
     drawer: Drawer,
-    dispenser: Dispenser,
-    customer_notice: Option<Notice>,
-    staff_notice: Option<Notice>,
-    customer_activity: Vec<Activity>,
-    last_receipt: Option<(u32, u64)>,
+    last_receipt: Option<Receipt>,
+}
+
+impl Register {
+    fn staff_state(&self) -> StaffState {
+        match self.staff {
+            None => StaffState::Absent,
+            Some(s) if s.locked => StaffState::Locked,
+            Some(_) => StaffState::Ready,
+        }
+    }
+
+    fn context(&self) -> Context {
+        let t = &self.txn;
+        Context {
+            mode: self.mode,
+            phase: if t.paying {
+                Phase::Paying
+            } else {
+                Phase::Registering
+            },
+            staff: self.staff_state(),
+            has_lines: !t.lines.is_empty(),
+            age_pending: t.age_pending(),
+            ff_waiting: t.any_ff(FfState::Waiting),
+            ff_presented: t.any_ff(FfState::Presented),
+            service_pending: t.service_pending(),
+            method: t.method,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Serialize)]
 pub struct AuditEntry {
     pub at: u64,
     pub register: u8,
-    pub operation: String,
-    pub staff: String,
+    pub staff: &'static str,
+    pub operation: &'static str,
+    pub amount: u32,
     pub result: String,
-    pub ok: bool,
 }
 
-#[derive(Clone, Debug, Serialize)]
-pub struct Event {
-    pub at: u64,
-    pub register: Option<u8>,
-    pub text: String,
-}
-
-#[derive(Clone, Copy, Debug, Default, Serialize)]
-pub struct Faults {
-    pub mat_loss_percent: u8,
-    pub coin_delay: bool,
-    pub bill_glitch: bool,
-}
+// ---------------------------------------------------------------------------
+// 店舗
+// ---------------------------------------------------------------------------
 
 pub struct Store {
     now: u64,
-    registers: Vec<Register>,
-    calls: Calls,
-    kicked_seq: u64,
-    mats: Vec<Mat>,
-    ff_stock: Vec<(&'static str, u32)>,
-    receipts: Vec<Receipt>,
-    next_txn: u32,
-    next_receipt: u32,
-    auth: Authenticator,
-    audit: Vec<AuditEntry>,
-    events: Vec<Event>,
-    faults: Faults,
     rng: Rng,
-}
-
-type R<T> = Result<T, String>;
-
-fn deny(reason: &str) -> String {
-    reason.to_string()
-}
-
-fn yen(n: u32) -> String {
-    let s = n.to_string();
-    let mut out = String::new();
-    for (i, c) in s.chars().enumerate() {
-        if i > 0 && (s.len() - i).is_multiple_of(3) {
-            out.push(',');
-        }
-        out.push(c);
-    }
-    format!("{out}円")
-}
-
-fn mask_card(card: &str) -> String {
-    let digits: String = card.chars().filter(char::is_ascii_digit).collect();
-    let tail: String = digits
-        .chars()
-        .rev()
-        .take(4)
-        .collect::<Vec<_>>()
-        .into_iter()
-        .rev()
-        .collect();
-    format!("****{tail}")
+    registers: Vec<Register>,
+    mats: Vec<Mat>,
+    calls: Calls,
+    age_rules: AgeRules,
+    auth: Authenticator,
+    ff_stock: Vec<(&'static str, u32)>,
+    audit: Vec<AuditEntry>,
+    mat_loss: u8,
+    bell: Bell,
+    seen_raised: u64,
+    last_ring_at: u64,
+    receipts: u32,
 }
 
 impl Store {
-    pub fn new(seed: u64) -> Store {
-        let mut s = Store {
-            now: 0,
-            registers: (1..=REGISTER_COUNT)
-                .map(|id| Register {
+    /// 基本構成はレジ 2 台・MAT 1 台。レジは 10 台、MAT は 5 台まで増やせる。
+    pub fn new(seed: u64, registers: u8, mats: u8) -> Store {
+        let registers = registers.clamp(1, MAX_REGISTERS);
+        let mats = mats.clamp(1, MAX_MATS);
+        let regs = (1..=registers)
+            .map(|id| {
+                // デモ用の初期状態：奇数番はセミセルフで店員ログイン済み、偶数番はセルフ
+                let semi = id % 2 == 1;
+                Register {
                     id,
-                    mode: Mode::Attended,
-                    session: None,
-                    txn: Transaction::new(u32::from(id)),
+                    mode: if semi { Mode::SemiSelf } else { Mode::FullSelf },
+                    staff: semi.then(|| StaffSession {
+                        account: &ACCOUNTS[0],
+                        locked: false,
+                    }),
+                    txn: Txn::default(),
                     drawer: Drawer::default(),
-                    dispenser: Dispenser::Idle,
-                    customer_notice: None,
-                    staff_notice: None,
-                    customer_activity: vec![],
                     last_receipt: None,
-                })
-                .collect(),
-            calls: Calls::default(),
-            kicked_seq: 0,
-            mats: vec![Mat::new("A", "山田"), Mat::new("B", "鈴木")],
-            ff_stock: INITIAL_FF_STOCK.to_vec(),
-            receipts: vec![],
-            next_txn: u32::from(REGISTER_COUNT) + 1,
-            next_receipt: 1,
-            auth: Authenticator::default(),
-            audit: vec![],
-            events: vec![],
-            faults: Faults::default(),
+                }
+            })
+            .collect();
+        Store {
+            now: 0,
             rng: Rng::new(seed),
-        };
-        // 初期シナリオ：ワンオペ。レジ1 有人、レジ2 セミセルフ、レジ3 セルフ（スタッフ離席でロック）
-        for (id, mode, locked) in [
-            (1u8, Mode::Attended, false),
-            (2, Mode::SemiSelf, false),
-            (3, Mode::FullSelf, true),
-        ] {
-            let r = &mut s.registers[usize::from(id) - 1];
-            r.mode = mode;
-            r.session = Some(Session {
-                staff_id: "1001".into(),
-                name: "山田".into(),
-                role: Role::Crew,
-                locked,
-                last_activity: 0,
-            });
+            registers: regs,
+            mats: (1..=mats).map(|i| Mat::new(&format!("MAT-{i}"))).collect(),
+            calls: Calls::default(),
+            age_rules: AgeRules::default(),
+            auth: Authenticator::default(),
+            ff_stock: INITIAL_FF_STOCK.to_vec(),
+            audit: vec![],
+            mat_loss: 0,
+            bell: Bell::default(),
+            seen_raised: 0,
+            last_ring_at: 0,
+            receipts: 0,
         }
-        s
     }
 
     pub fn now(&self) -> u64 {
         self.now
     }
 
-    // ---- helpers ---------------------------------------------------------
+    // ---- 時間の経過：MAT の鳴動状態の同期 --------------------------------
 
-    fn idx(&self, register: u8) -> R<usize> {
-        if (1..=REGISTER_COUNT).contains(&register) {
-            Ok(usize::from(register) - 1)
-        } else {
-            Err(format!("レジ{register} は存在しません"))
-        }
-    }
-
-    fn staff_state(r: &Register) -> StaffState {
-        match &r.session {
-            None => StaffState::LoggedOut,
-            Some(s) if s.locked => StaffState::Locked,
-            Some(_) => StaffState::Ready,
-        }
-    }
-
-    fn context(r: &Register, staff: StaffState) -> Context {
-        Context {
-            mode: r.mode,
-            phase: r.txn.phase,
-            staff,
-            has_lines: !r.txn.lines.is_empty(),
-            age_pending: r.txn.age_pending(),
-            method: r.txn.method,
-            change_presented: matches!(r.dispenser, Dispenser::Presented { .. }),
-        }
-    }
-
-    fn check(&mut self, i: usize, side: Side, action: Action) -> R<()> {
-        let r = &self.registers[i];
-        let c = Self::context(r, Self::staff_state(r));
-        permitted(side, action, &c).map_err(deny)?;
-        if side == Side::Staff {
-            self.touch(i);
-        }
-        Ok(())
-    }
-
-    fn touch(&mut self, i: usize) {
+    pub fn tick(&mut self, now: u64) {
+        self.now = self.now.max(now);
         let now = self.now;
-        if let Some(s) = self.registers[i].session.as_mut() {
-            s.last_activity = now;
+        // 「未対応」の呼び出し＝そのレジに店員がまだ来ていないもの
+        let open = self
+            .calls
+            .open
+            .iter()
+            .filter(|c| {
+                self.reg(c.register)
+                    .is_some_and(|r| r.staff_state() == StaffState::Absent)
+            })
+            .count();
+        let mut bell = self.bell;
+        bell.open_calls = open;
+        if self.calls.raised > self.seen_raised {
+            self.seen_raised = self.calls.raised;
+            bell.ring_token += 1;
+            self.last_ring_at = now;
+        } else if open > 0 && now.saturating_sub(self.last_ring_at) >= RERING_MS {
+            bell.ring_token += 1;
+            self.last_ring_at = now;
         }
-    }
-
-    /// 「その場の作業」の実行者を検証し、表示名を返す。
-    fn operator(&mut self, register_idx: usize, by: Operator, action: Action) -> R<String> {
-        match by {
-            Operator::Mat { mat } => {
-                let m = self
-                    .mats
-                    .get(mat)
-                    .ok_or_else(|| deny("MAT が存在しません"))?;
-                let name = format!("{}（MAT-{}）", m.staff_name, m.id);
-                let r = &self.registers[register_idx];
-                permitted(Side::Staff, action, &Self::context(r, StaffState::Ready))
-                    .map_err(deny)?;
-                Ok(name)
-            }
-            Operator::Register { register } => {
-                let i = self.idx(register)?;
-                if i != register_idx {
-                    return Err(deny("この作業は対象レジか MAT で行ってください"));
-                }
-                self.check(i, Side::Staff, action)?;
-                let s = self.registers[i].session.as_ref().expect("checked");
-                Ok(format!("{}（レジ{}）", s.name, register))
+        if bell != self.bell {
+            bell.seq += 1;
+            self.bell = bell;
+            for m in &mut self.mats {
+                m.kick();
             }
         }
-    }
-
-    /// 呼び出しの確認・完了だけを行う実行者（どのレジのスタッフ画面からでも可）。
-    fn any_operator(&mut self, by: Operator) -> R<String> {
-        match by {
-            Operator::Mat { mat } => {
-                let m = self
-                    .mats
-                    .get(mat)
-                    .ok_or_else(|| deny("MAT が存在しません"))?;
-                Ok(format!("{}（MAT-{}）", m.staff_name, m.id))
-            }
-            Operator::Register { register } => {
-                let i = self.idx(register)?;
-                match Self::staff_state(&self.registers[i]) {
-                    StaffState::Ready => {}
-                    StaffState::Locked => return Err(deny("画面ロック中です（PIN で解除）")),
-                    StaffState::LoggedOut => return Err(deny("ログインしていません")),
-                }
-                self.touch(i);
-                let s = self.registers[i].session.as_ref().expect("ready");
-                Ok(format!("{}（レジ{}）", s.name, register))
-            }
+        for m in &mut self.mats {
+            m.tick(now, self.bell, self.mat_loss, &mut self.rng);
         }
     }
 
-    fn event(&mut self, register: Option<u8>, text: impl Into<String>) {
-        self.events.push(Event {
-            at: self.now,
-            register,
-            text: text.into(),
-        });
-        if self.events.len() > 80 {
-            self.events.remove(0);
-        }
+    // ---- コマンド --------------------------------------------------------
+
+    fn reg(&self, id: u8) -> Option<&Register> {
+        self.registers.iter().find(|r| r.id == id)
     }
 
-    fn audit(
-        &mut self,
-        register: u8,
-        operation: &str,
-        staff: &str,
-        result: Result<String, String>,
-    ) {
-        let (ok, result) = match result {
-            Ok(s) => (true, s),
-            Err(s) => (false, s),
-        };
-        self.audit.push(AuditEntry {
-            at: self.now,
-            register,
-            operation: operation.into(),
-            staff: staff.into(),
-            result,
-            ok,
-        });
-        if self.audit.len() > 50 {
-            self.audit.remove(0);
-        }
-    }
-
-    fn customer_notice(&mut self, i: usize, text: impl Into<String>) {
-        self.registers[i].customer_notice = Some(Notice {
-            text: text.into(),
-            until: self.now + NOTICE_MS,
-        });
-    }
-
-    fn staff_notice(&mut self, i: usize, text: impl Into<String>) {
-        self.registers[i].staff_notice = Some(Notice {
-            text: text.into(),
-            until: self.now + NOTICE_MS,
-        });
-    }
-
-    fn activity(&mut self, i: usize, text: impl Into<String>) {
-        let a = Activity {
-            at: self.now,
-            text: text.into(),
-        };
-        let v = &mut self.registers[i].customer_activity;
-        v.push(a);
-        if v.len() > 8 {
-            v.remove(0);
-        }
-    }
-
-    fn stock_mut(&mut self, sku: &str) -> Option<&mut u32> {
-        self.ff_stock
+    fn reg_mut(&mut self, id: u8) -> Result<&mut Register, String> {
+        self.registers
             .iter_mut()
-            .find(|(s, _)| *s == sku)
-            .map(|(_, n)| n)
+            .find(|r| r.id == id)
+            .ok_or_else(|| format!("レジ{id}はありません"))
     }
 
-    fn alert_for(mode: Mode, kind: CallKind) -> bool {
-        match kind {
-            // スタッフが目の前にいるモードでは、年確・FF は鳴動させずに明細として扱う
-            CallKind::AgeCheck | CallKind::FastFood => mode == Mode::FullSelf,
-            CallKind::CustomerHelp | CallKind::ChangeNotTaken | CallKind::Hardware => true,
-        }
+    fn check(&self, register: u8, side: Side, action: Action) -> Result<(), String> {
+        let r = self
+            .reg(register)
+            .ok_or_else(|| format!("レジ{register}はありません"))?;
+        permitted(side, action, &r.context()).map_err(String::from)
     }
 
-    // ---- 明細 --------------------------------------------------------------
-
-    fn add_line(&mut self, i: usize, product: &catalog::Product, side: Side) -> u32 {
-        let reg_id = self.registers[i].id;
-        let txn_id = self.registers[i].txn.id;
-        // FF は渡し待ちの行にだけ数量を足す（渡し済みの行は別行にする）
-        let waiting_ff_line = |line: &Line, calls: &Calls| {
-            calls
-                .find(reg_id, CallKind::FastFood, txn_id)
-                .and_then(|c| c.ff_items.iter().find(|it| it.line_id == line.id))
-                .is_some_and(|it| it.status == FfStatus::Waiting)
-        };
-        let existing = self.registers[i].txn.lines.iter().position(|l| {
-            l.sku == product.sku && (!l.fast_food || waiting_ff_line(l, &self.calls))
-        });
-        let txn = &mut self.registers[i].txn;
-        let line_id = if let Some(p) = existing {
-            txn.lines[p].qty += 1;
-            txn.lines[p].id
-        } else {
-            let id = txn.next_line;
-            txn.next_line += 1;
-            txn.lines.push(Line {
-                id,
-                sku: product.sku.into(),
-                name: product.name.into(),
-                unit_price: product.price,
-                qty: 1,
-                tax: product.tax,
-                age_restricted: product.age_restricted,
-                fast_food: product.fast_food,
-                added_by: side,
-            });
-            id
-        };
-        self.on_line_added(i, product, line_id);
-        line_id
-    }
-
-    /// 明細追加時の後処理。年確の判定は **ここだけ** で行う（問題7）。
-    /// スキャンした瞬間に必ず年確要求が立ち、会計時に改めて判定することはない。
-    fn on_line_added(&mut self, i: usize, product: &catalog::Product, line_id: u32) {
-        let reg_id = self.registers[i].id;
-        let mode = self.registers[i].mode;
-        let txn_id = self.registers[i].txn.id;
-        let now = self.now;
-        if product.age_restricted
-            && !self.registers[i].txn.age_verified
-            && self
-                .calls
-                .find(reg_id, CallKind::AgeCheck, txn_id)
-                .is_none()
-        {
-            let alert = Self::alert_for(mode, CallKind::AgeCheck);
-            self.calls.open_call(
-                reg_id,
-                CallKind::AgeCheck,
-                txn_id,
-                now,
-                alert,
-                format!("{} をスキャン", product.name),
-            );
-            self.event(
-                Some(reg_id),
-                format!("年確要求（スキャン時）: {}", product.name),
-            );
-        }
-        if product.fast_food {
-            if self
-                .calls
-                .find(reg_id, CallKind::FastFood, txn_id)
-                .is_none()
-            {
-                let alert = Self::alert_for(mode, CallKind::FastFood);
-                self.calls.open_call(
-                    reg_id,
-                    CallKind::FastFood,
-                    txn_id,
-                    now,
-                    alert,
-                    String::new(),
-                );
-            }
-            let call = self
-                .calls
-                .find_mut_by(reg_id, CallKind::FastFood, txn_id)
-                .expect("just ensured");
-            if let Some(it) = call.ff_items.iter_mut().find(|it| it.line_id == line_id) {
-                it.qty += 1;
-            } else {
-                call.ff_items.push(FfItem {
-                    line_id,
-                    sku: product.sku.into(),
-                    name: product.name.into(),
-                    qty: 1,
-                    status: FfStatus::Waiting,
-                });
-            }
-            call.detail = ff_summary(&call.ff_items);
-            self.calls.bump();
-        }
-    }
-
-    /// 明細が減ったときの後処理：不要になった年確・FF 呼び出しを自動で閉じる。
-    fn on_lines_changed(&mut self, i: usize, by: &str) {
-        let reg_id = self.registers[i].id;
-        let txn_id = self.registers[i].txn.id;
-        let now = self.now;
-        if !self.registers[i].txn.lines.iter().any(|l| l.age_restricted) {
-            if let Some(id) = self
-                .calls
-                .find(reg_id, CallKind::AgeCheck, txn_id)
-                .map(|c| c.id)
-            {
-                self.calls.resolve(id, now, by);
-            }
-        }
-        if let Some(c) = self.calls.find(reg_id, CallKind::FastFood, txn_id) {
-            if c.ff_done() {
-                let id = c.id;
-                self.calls.resolve(id, now, by);
-            }
-        }
-        if self.registers[i].txn.lines.is_empty() && self.registers[i].txn.phase == Phase::Paying {
-            self.registers[i].txn.phase = Phase::Registering;
-            self.registers[i].txn.method = None;
-        }
-    }
-
-    // ---- 精算 --------------------------------------------------------------
-
-    fn settle(&mut self, i: usize, method: PaymentMethod) {
-        let now = self.now;
-        let reg_id = self.registers[i].id;
-        let txn = &self.registers[i].txn;
-        let total = txn.total();
-        let inserted = txn.inserted.total();
-        let (paid, change) = match method {
-            PaymentMethod::Cash => (inserted, inserted - total),
-            // 現金投入後に電子決済へ切り替えた場合、投入分はそのまま返却する
-            _ => (total, inserted),
-        };
-        let points = if txn.point_card.is_some() {
-            total / 200
-        } else {
-            0
-        };
-        let receipt = Receipt {
-            id: self.next_receipt,
-            register: reg_id,
-            at: now,
-            lines: txn.lines.clone(),
-            total,
-            method,
-            paid,
-            change,
-            point_card: txn.point_card.clone(),
-            points,
-            refunded: false,
-        };
-        self.next_receipt += 1;
-        let rid = receipt.id;
-        self.receipts.push(receipt);
-        self.registers[i].txn.receipt_id = Some(rid);
-        self.registers[i].txn.method = Some(method);
-        self.event(
-            Some(reg_id),
-            format!("会計完了 #{rid} {} {}", method.label(), yen(total)),
-        );
-        self.pay_out(i, change, "おつり");
-    }
-
-    /// 払い出し（釣銭・取引中止の返却・返金）。0 円なら即時に取引を締める。
-    fn pay_out(&mut self, i: usize, amount: u32, what: &str) {
-        let reg_id = self.registers[i].id;
-        let txn_id = self.registers[i].txn.id;
-        let now = self.now;
-        self.registers[i].txn.phase = Phase::Settling;
-        if amount == 0 {
-            self.finish_txn(i);
-            return;
-        }
-        let cash = match self.registers[i].drawer.take(amount) {
-            Ok(c) => c,
-            Err((partial, short)) => {
-                self.calls.open_call(
-                    reg_id,
-                    CallKind::Hardware,
-                    txn_id,
-                    now,
-                    true,
-                    format!("{what}の釣銭不足 {} — 手渡しをお願いします", yen(short)),
-                );
-                partial
-            }
-        };
-        if cash.total() == 0 {
-            self.finish_txn(i);
-            return;
-        }
-        self.registers[i].dispenser = Dispenser::start(cash, now, self.faults.coin_delay);
-    }
-
-    fn finish_txn(&mut self, i: usize) {
-        let now = self.now;
-        let r = &mut self.registers[i];
-        r.last_receipt = r.txn.receipt_id.map(|id| (id, now));
-        r.txn = Transaction::new(self.next_txn);
-        r.dispenser = Dispenser::Idle;
-        self.next_txn += 1;
-    }
-
-    fn try_settle_cash(&mut self, i: usize) {
-        let txn = &self.registers[i].txn;
-        if txn.phase == Phase::Paying
-            && matches!(txn.method, None | Some(PaymentMethod::Cash))
-            && !txn.lines.is_empty()
-            && txn.inserted.total() >= txn.total()
-        {
-            self.settle(i, PaymentMethod::Cash);
-        }
-    }
-
-    // ---- dispatch ----------------------------------------------------------
-
-    pub fn dispatch(&mut self, cmd: Command) -> R<Outcome> {
+    pub fn dispatch(&mut self, cmd: Command) -> Result<Outcome, String> {
+        use Command as C;
         match cmd {
-            Command::Login {
+            C::Scan {
                 register,
-                staff_id,
-                pin,
-            }
-            | Command::Unlock {
+                side,
+                code,
+            } => self.scan(register, side, &code),
+            C::RegisterFf {
                 register,
-                staff_id,
-                pin,
-            } => {
-                let i = self.idx(register)?;
-                let acc = self
-                    .auth
-                    .verify(&staff_id, &pin, self.now)
-                    .map_err(|e| e.message())?;
-                self.registers[i].session = Some(Session {
-                    staff_id: acc.id.into(),
-                    name: acc.name.into(),
-                    role: acc.role,
-                    locked: false,
-                    last_activity: self.now,
-                });
-                self.event(Some(register), format!("{} がログイン", acc.name));
-                Ok(Outcome::none())
+                code,
+                qty,
+            } => self.register_ff(register, &code, qty),
+            C::FfButton { register } => {
+                self.check(register, Side::Customer, Action::FfButton)?;
+                self.call(register, CallKind::FastFood, "FF のご注文");
+                done("係員をお呼びしました。FF のご注文を伺います")
             }
-            Command::Logout { register } => {
-                let i = self.idx(register)?;
-                if Self::staff_state(&self.registers[i]) != StaffState::Ready {
-                    return Err(deny("ログアウトするにはロックを解除してください"));
-                }
-                self.registers[i].session = None;
-                self.event(Some(register), "ログアウト");
-                Ok(Outcome::none())
-            }
-            Command::Lock { register } => {
-                let i = self.idx(register)?;
-                match self.registers[i].session.as_mut() {
-                    Some(s) => {
-                        s.locked = true;
-                        Ok(Outcome::none())
+            C::HandOverFf { register } => {
+                self.check(register, Side::Staff, Action::HandOverFf)?;
+                let r = self.reg_mut(register)?;
+                for l in &mut r.txn.lines {
+                    if l.kind
+                        == (LineKind::Ff {
+                            state: FfState::Waiting,
+                        })
+                    {
+                        l.kind = LineKind::Ff {
+                            state: FfState::Presented,
+                        };
                     }
-                    None => Err(deny("ログインしていません")),
                 }
+                self.maybe_end_staff_mode(register);
+                done("お渡ししました。お客様画面で受取確認を待っています")
             }
-            Command::SetMode { register, mode } => {
-                let i = self.idx(register)?;
-                self.check(i, Side::Staff, Action::SetMode)?;
-                self.registers[i].mode = mode;
-                for c in self
-                    .calls
-                    .open
+            C::ConfirmFfReceipt { register } => {
+                self.check(register, Side::Customer, Action::ConfirmFfReceipt)?;
+                let r = self.reg_mut(register)?;
+                for l in &mut r.txn.lines {
+                    if l.kind
+                        == (LineKind::Ff {
+                            state: FfState::Presented,
+                        })
+                    {
+                        l.kind = LineKind::Ff {
+                            state: FfState::Received,
+                        };
+                    }
+                }
+                done("FF の受け取りを確認しました")
+            }
+            C::CompleteService {
+                register,
+                line_id,
+                amount,
+            } => {
+                self.check(register, Side::Staff, Action::CompleteService)?;
+                let r = self.reg_mut(register)?;
+                let l = r
+                    .txn
+                    .lines
                     .iter_mut()
-                    .filter(|c| c.register == register)
-                {
-                    c.alert = Self::alert_for(mode, c.kind);
+                    .find(|l| {
+                        l.id == line_id && matches!(l.kind, LineKind::Service { done: false })
+                    })
+                    .ok_or("受付待ちのサービス商品が見つかりません")?;
+                l.unit_price = amount;
+                l.kind = LineKind::Service { done: true };
+                let name = l.name;
+                if !self.reg_mut(register)?.txn.service_pending() {
+                    self.calls.resolve(register, CallKind::Service, self.now);
                 }
-                self.calls.bump();
-                self.event(Some(register), format!("{}モードに切替", mode.label()));
-                Ok(Outcome::none())
+                self.maybe_end_staff_mode(register);
+                done(format!("{name}を受け付けました（{amount}円）"))
             }
-            Command::Scan {
-                register,
-                side,
-                sku,
-            } => {
-                let i = self.idx(register)?;
-                let p = catalog::find(&sku).ok_or_else(|| deny("登録されていない商品です"))?;
-                if p.fast_food {
-                    return Err(deny("FF はメニューから注文してください"));
-                }
-                self.check(i, side, Action::Scan)?;
-                self.back_to_registering_if_paying(i, side);
-                self.add_line(i, p, side);
-                if side == Side::Customer {
-                    self.activity(i, format!("{} をスキャン", p.name));
-                }
-                Ok(Outcome::none())
-            }
-            Command::OrderFf {
-                register,
-                side,
-                sku,
-            } => {
-                let i = self.idx(register)?;
-                let p = catalog::find(&sku)
-                    .filter(|p| p.fast_food)
-                    .ok_or_else(|| deny("FF 商品ではありません"))?;
-                self.check(i, side, Action::OrderFf)?;
-                let stock = self
-                    .stock_mut(p.sku)
-                    .ok_or_else(|| deny("在庫情報がありません"))?;
-                if *stock == 0 {
-                    return Err(format!("{} は品切れです", p.name));
-                }
-                *stock -= 1;
-                self.back_to_registering_if_paying(i, side);
-                self.add_line(i, p, side);
-                if side == Side::Customer {
-                    self.activity(i, format!("{} を注文", p.name));
-                }
-                Ok(Outcome::none())
-            }
-            Command::RemoveLine {
+            C::RemoveLine {
                 register,
                 side,
                 line_id,
             } => {
-                let i = self.idx(register)?;
-                self.check(i, side, Action::RemoveLine)?;
-                let name = self.remove_unit(i, line_id)?;
-                let by = match side {
-                    Side::Staff => "スタッフ",
-                    Side::Customer => "お客様",
-                };
-                self.on_lines_changed(i, by);
-                match side {
-                    Side::Staff if self.registers[i].mode != Mode::Attended => {
-                        self.customer_notice(i, format!("係員が「{name}」を1点取り消しました"));
-                    }
-                    Side::Customer => self.activity(i, format!("{name} を取消")),
-                    _ => {}
+                self.check(register, side, Action::RemoveLine)?;
+                let r = self.reg_mut(register)?;
+                let i = r
+                    .txn
+                    .lines
+                    .iter()
+                    .position(|l| l.id == line_id)
+                    .ok_or("明細が見つかりません")?;
+                let l = r.txn.lines.remove(i);
+                if l.kind
+                    == (LineKind::Ff {
+                        state: FfState::Waiting,
+                    })
+                {
+                    self.restock(l.code, l.qty);
                 }
-                self.try_settle_cash(i);
-                Ok(Outcome::none())
-            }
-            Command::ReadPointCard { register, card_no } => {
-                let i = self.idx(register)?;
-                self.check(i, Side::Customer, Action::ReadPointCard)?;
-                let masked = mask_card(&card_no);
-                self.registers[i].txn.point_card = Some(masked.clone());
-                self.activity(i, format!("ポイントカード {masked}"));
-                // 問題4：読み取り結果は確認ボタンなしで反映し、トーストで知らせるだけ
-                Ok(Outcome::msg(format!(
-                    "ポイントカード {masked} を読み取りました"
-                )))
-            }
-            Command::Checkout { register, side } => {
-                let i = self.idx(register)?;
-                self.check(i, side, Action::Checkout)?;
-                let txn = &mut self.registers[i].txn;
-                txn.phase = Phase::Paying;
-                txn.method = None;
-                if side == Side::Customer {
-                    self.activity(i, "お会計へ進む");
+                let r = self.reg_mut(register)?;
+                if !r.txn.service_pending() {
+                    self.calls.resolve(register, CallKind::Service, self.now);
                 }
-                self.try_settle_cash(i);
-                Ok(Outcome::none())
-            }
-            Command::BackToScanning { register, side } => {
-                let i = self.idx(register)?;
-                self.check(i, side, Action::BackToScanning)?;
-                let txn = &mut self.registers[i].txn;
-                txn.phase = Phase::Registering;
-                txn.method = None;
-                match side {
-                    Side::Staff if self.registers[i].mode != Mode::Attended => {
-                        self.customer_notice(
-                            i,
-                            "係員が商品登録に戻しました（投入済みの現金はそのままです）",
-                        );
-                    }
-                    Side::Customer => self.activity(i, "商品登録に戻る"),
-                    _ => {}
+                if side == Side::Staff {
+                    self.maybe_end_staff_mode(register);
                 }
-                Ok(Outcome::none())
+                done(format!("{}を取り消しました", l.name))
             }
-            Command::SelectPayment {
+            C::Checkout { register, side } => self.checkout(register, side),
+            C::BackToRegistering { register, side } => {
+                self.check(register, side, Action::BackToRegistering)?;
+                let r = self.reg_mut(register)?;
+                r.txn.paying = false;
+                r.txn.method = None;
+                done("登録画面に戻りました")
+            }
+            C::SelectPayment {
                 register,
                 side,
                 method,
             } => {
-                let i = self.idx(register)?;
-                self.check(i, side, Action::SelectPayment)?;
-                self.registers[i].txn.method = Some(method);
-                if side == Side::Customer {
-                    self.activity(i, format!("{} を選択", method.label()));
+                self.check(register, side, Action::SelectPayment)?;
+                let r = self.reg_mut(register)?;
+                if r.txn.inserted.total() > 0 && method != PaymentMethod::Cash {
+                    return Err("現金が投入済みです。現金でお支払いください".into());
                 }
-                self.try_settle_cash(i);
-                Ok(Outcome::none())
+                r.txn.method = Some(method);
+                done(format!("{}を選びました", method.label()))
             }
-            Command::InsertCash {
+            C::ConfirmAge { register } => {
+                self.check(register, Side::Customer, Action::ConfirmAge)?;
+                let r = self.reg_mut(register)?;
+                r.txn.age_verified = true;
+                let age = r.txn.required_age.unwrap_or(0);
+                self.calls.resolve(register, CallKind::AgeCheck, self.now);
+                self.maybe_end_staff_mode(register);
+                done(format!("{age}歳以上であることを確認しました"))
+            }
+            C::InsertCash {
                 register,
                 denomination,
-            } => {
-                let i = self.idx(register)?;
-                if !is_valid_denomination(denomination) {
-                    return Err(deny("取り扱えない金種です"));
-                }
-                self.check(i, Side::Customer, Action::InsertCash)?;
-                // 問題4：現金を入れた時点で「現金払い」とみなす。選択ボタンを挟まない
-                let r = &mut self.registers[i];
-                r.txn.method.get_or_insert(PaymentMethod::Cash);
-                r.txn.inserted.add(denomination, 1);
-                r.drawer.cash.add(denomination, 1);
-                self.activity(i, format!("{} 投入", yen(denomination)));
-                self.try_settle_cash(i);
-                Ok(Outcome::none())
+                count,
+            } => self.insert_cash(register, denomination, count),
+            C::TapEmoney { register } => {
+                self.check(register, Side::Customer, Action::TapEmoney)?;
+                let r = self.reg_mut(register)?;
+                let method = r.txn.method.unwrap_or(PaymentMethod::Emoney);
+                let total = r.txn.total();
+                self.settle(register, method, total, Cash::default())
             }
-            Command::TapEmoney { register } => {
-                let i = self.idx(register)?;
-                self.check(i, Side::Customer, Action::TapEmoney)?;
-                let method = self.registers[i].txn.method.expect("checked");
-                self.activity(i, format!("{} で支払い", method.label()));
-                self.settle(i, method);
-                Ok(Outcome::none())
+            C::CallStaff { register } => {
+                self.check(register, Side::Customer, Action::CallStaff)?;
+                self.call(register, CallKind::CustomerHelp, "お客様からの呼び出し");
+                done("係員をお呼びしました")
             }
-            Command::TakeChange { register } => {
-                let i = self.idx(register)?;
-                self.check(i, Side::Customer, Action::TakeChange)?;
-                self.activity(i, "おつりを受け取り");
-                self.release_change(i, "お客様");
-                Ok(Outcome::none())
-            }
-            Command::CollectChange { register } => {
-                let i = self.idx(register)?;
-                self.check(i, Side::Staff, Action::CollectChange)?;
-                let name = self.registers[i]
-                    .session
-                    .as_ref()
-                    .map(|s| s.name.clone())
-                    .unwrap_or_default();
-                self.event(Some(register), "取り忘れ釣銭を回収・保管");
-                self.release_change(i, &name);
-                Ok(Outcome::msg("取り忘れ釣銭を回収しました"))
-            }
-            Command::CallStaff { register } => {
-                let i = self.idx(register)?;
-                self.check(i, Side::Customer, Action::CallStaff)?;
-                let txn_id = self.registers[i].txn.id;
-                self.activity(i, "店員呼び出し");
-                if self
-                    .calls
-                    .find(register, CallKind::CustomerHelp, txn_id)
-                    .is_some()
-                {
-                    return Ok(Outcome::msg("係員を呼び出し中です"));
-                }
-                self.calls.open_call(
-                    register,
-                    CallKind::CustomerHelp,
-                    txn_id,
-                    self.now,
-                    true,
-                    "お客様が呼び出しボタンを押しました".into(),
-                );
-                Ok(Outcome::msg("係員を呼び出しました"))
-            }
-            Command::ConfirmAge { register, by } => {
-                let i = self.idx(register)?;
-                self.confirm_age(i, by)
-            }
-            Command::AckCall { call_id, by } => {
-                let name = self.any_operator(by)?;
-                let c = self
-                    .calls
-                    .get_mut(call_id)
-                    .ok_or_else(|| deny("呼び出しは完了済みです"))?;
-                c.acked_by = Some(name);
-                self.calls.bump();
-                Ok(Outcome::none())
-            }
-            Command::ResolveCall { call_id, by } => self.resolve_call(call_id, by),
-            Command::HandOverFf {
-                call_id,
-                line_id,
-                by,
-            } => self.hand_over_ff(call_id, line_id, by),
-            Command::MarkFfOutOfStock {
-                call_id,
-                line_id,
-                by,
-            } => self.mark_out_of_stock(call_id, line_id, by),
-            Command::VoidTransaction { register } => {
-                let i = self.idx(register)?;
-                self.check(i, Side::Staff, Action::VoidTransaction)?;
-                let txn_id = self.registers[i].txn.id;
-                for l in self.registers[i].txn.lines.clone() {
-                    if l.fast_food {
-                        if let Some(s) = self.stock_mut(&l.sku) {
-                            *s += l.qty;
-                        }
+            C::VoidTransaction { register } => {
+                self.check(register, Side::Staff, Action::VoidTransaction)?;
+                let now = self.now;
+                let r = self.reg_mut(register)?;
+                let txn = std::mem::take(&mut r.txn);
+                let back = txn.inserted.total();
+                for l in &txn.lines {
+                    if l.kind
+                        == (LineKind::Ff {
+                            state: FfState::Waiting,
+                        })
+                    {
+                        self.restock(l.code, l.qty);
                     }
                 }
-                self.calls.resolve_where(self.now, "取引中止", |c| {
-                    c.register == register && c.txn_id == txn_id
-                });
-                let refund = self.registers[i].txn.inserted.total();
-                self.registers[i].txn.lines.clear();
-                self.registers[i].txn.receipt_id = None;
-                self.event(Some(register), "取引中止");
-                self.customer_notice(i, "お取引を中止しました");
-                self.pay_out(i, refund, "取引中止の返却");
-                Ok(Outcome::msg("取引を中止しました"))
+                for k in [CallKind::AgeCheck, CallKind::FastFood, CallKind::Service] {
+                    self.calls.resolve(register, k, now);
+                }
+                self.maybe_end_staff_mode(register);
+                if back > 0 {
+                    done(format!("取引を中止しました。投入金 {back}円を返却します"))
+                } else {
+                    done("取引を中止しました")
+                }
             }
-            Command::Refund {
+            C::SetMode { register, mode } => {
+                self.check(register, Side::Staff, Action::SetMode)?;
+                let r = self.reg_mut(register)?;
+                if !r.txn.lines.is_empty() {
+                    return Err("取引中は運用モードを変更できません".into());
+                }
+                r.mode = mode;
+                done(format!("{}モードにしました", mode.label()))
+            }
+            C::Lock { register } => {
+                self.check(register, Side::Staff, Action::Lock)?;
+                if let Some(s) = &mut self.reg_mut(register)?.staff {
+                    s.locked = true;
+                }
+                done("画面をロックしました（スタッフバーコードで解除）")
+            }
+            C::EndStaffMode { register } => {
+                self.check(register, Side::Staff, Action::EndStaffMode)?;
+                self.reg_mut(register)?.staff = None;
+                done("ログアウトしました")
+            }
+            C::CashOut {
                 register,
-                receipt_id,
-                manager_id,
-                pin,
-            } => self.refund(register, receipt_id, &manager_id, &pin),
-            Command::EmergencyWithdrawal {
-                register,
+                kind,
                 amount,
-                manager_id,
-                pin,
-            } => self.withdraw(register, amount, &manager_id, &pin),
-            Command::SetFault { fault } => {
-                match fault {
-                    Fault::MatLoss { percent } => self.faults.mat_loss_percent = percent.min(100),
-                    Fault::MatOffline { mat, offline } => {
-                        if let Some(m) = self.mats.get_mut(mat) {
-                            m.offline = offline;
-                        }
-                    }
-                    Fault::CoinDelay { enabled } => self.faults.coin_delay = enabled,
-                    Fault::BillGlitch { enabled } => self.faults.bill_glitch = enabled,
-                }
-                Ok(Outcome::none())
+                password,
+            } => self.cash_out(register, kind, amount, &password),
+            C::AddAgeRule {
+                owner_id,
+                password,
+                target,
+                min_age,
+            } => {
+                let by = self.owner(&owner_id, &password)?;
+                self.age_rules.add(target, min_age, by, self.now)?;
+                done("年確ルールを追加しました")
+            }
+            C::RemoveAgeRule {
+                owner_id,
+                password,
+                rule_id,
+            } => {
+                let by = self.owner(&owner_id, &password)?;
+                self.age_rules.remove(rule_id, by, self.now)?;
+                done("年確ルールを削除しました")
+            }
+            C::SetMatLoss { percent } => {
+                self.mat_loss = percent.min(100);
+                done(format!("MAT の通信ロスを {}% にしました", self.mat_loss))
+            }
+            C::SetMatOffline { mat, offline } => {
+                let m = self.mats.get_mut(mat).ok_or("MAT が見つかりません")?;
+                m.offline = offline;
+                done(format!(
+                    "{}を{}にしました",
+                    m.id,
+                    if offline { "不通" } else { "復旧" }
+                ))
             }
         }
     }
 
-    fn back_to_registering_if_paying(&mut self, i: usize, side: Side) {
-        let txn = &mut self.registers[i].txn;
-        if side == Side::Staff && txn.phase == Phase::Paying {
-            txn.phase = Phase::Registering;
-            txn.method = None;
+    fn owner(&mut self, id: &str, password: &str) -> Result<&'static str, String> {
+        self.auth.verify_owner(id, password, self.now)?;
+        Ok(auth::account(id).map_or("?", |a| a.name))
+    }
+
+    fn call(&mut self, register: u8, kind: CallKind, detail: &str) {
+        // 店員がすでにそのレジで操作できる状態なら、呼び出しは不要
+        if self
+            .reg(register)
+            .is_some_and(|r| r.staff_state() == StaffState::Ready)
+        {
+            return;
+        }
+        self.calls.raise(register, kind, self.now, detail);
+    }
+
+    fn restock(&mut self, code: &str, qty: u32) {
+        if let Some(e) = self.ff_stock.iter_mut().find(|(c, _)| *c == code) {
+            e.1 += qty;
         }
     }
 
-    /// 1 点取り消す。戻り値は商品名。
-    fn remove_unit(&mut self, i: usize, line_id: u32) -> R<String> {
-        let reg_id = self.registers[i].id;
-        let txn_id = self.registers[i].txn.id;
-        let txn = &mut self.registers[i].txn;
-        let p = txn
+    /// セルフモードの店員操作モードは、呼ばれた用件が片付いた時点で自動で終わる。
+    /// FF はお渡しまでが店員の用件（受取確認はお客様が行う）。
+    fn maybe_end_staff_mode(&mut self, register: u8) {
+        let open = !self.calls.for_register(register).is_empty();
+        let Ok(r) = self.reg_mut(register) else {
+            return;
+        };
+        if r.mode != Mode::FullSelf || r.staff_state() != StaffState::Ready || open {
+            return;
+        }
+        let c = r.context();
+        if !(c.age_pending || c.ff_waiting || c.service_pending) {
+            r.staff = None;
+        }
+    }
+
+    fn scan(&mut self, register: u8, side: Side, code: &str) -> Result<Outcome, String> {
+        let scanned = catalog::classify(code);
+        // スタッフバーコードは、ロック中・未ログインでも読む（ログイン・解除）
+        if let Scanned::Staff(id) = &scanned {
+            let acc = auth::account(id).ok_or("登録されていないスタッフバーコードです")?;
+            let now = self.now;
+            let r = self.reg_mut(register)?;
+            let was = r.staff_state();
+            r.staff = Some(StaffSession {
+                account: acc,
+                locked: false,
+            });
+            self.calls.resolve(register, CallKind::CustomerHelp, now);
+            return done(match was {
+                StaffState::Locked => format!("{}さんがロックを解除しました", acc.name),
+                _ => format!("{}さんが店員操作モードに入りました", acc.name),
+            });
+        }
+        self.check(register, side, Action::Scan)?;
+        let now = self.now;
+        let r = self.reg_mut(register)?;
+        r.last_receipt = None;
+        // 会計画面で読まれたら、登録画面に引き返して追加する（投入済みの現金はそのまま）
+        let back = if r.txn.paying {
+            r.txn.paying = false;
+            r.txn.method = None;
+            "（登録画面に戻りました）"
+        } else {
+            ""
+        };
+        match scanned {
+            Scanned::Staff(_) => unreachable!(),
+            Scanned::Unknown => Err("登録されていないバーコードです".into()),
+            Scanned::PointCard(no) => {
+                r.txn.point_card = Some(no);
+                done(format!("ポイントカードを読みました{back}"))
+            }
+            Scanned::Product(p) if p.needs_staff => {
+                r.txn.push(p, 1, LineKind::Service { done: false });
+                let ready = r.staff_state() == StaffState::Ready;
+                if !ready {
+                    self.calls.raise(register, CallKind::Service, now, p.name);
+                }
+                done(if ready {
+                    format!("{}：受付内容を入力してください{back}", p.name)
+                } else {
+                    format!("{}：係員をお呼びしました{back}", p.name)
+                })
+            }
+            Scanned::Product(p) => {
+                r.txn.push(p, 1, LineKind::Item);
+                done(format!("{} {}円{back}", p.name, p.price))
+            }
+        }
+    }
+
+    fn register_ff(&mut self, register: u8, code: &str, qty: u32) -> Result<Outcome, String> {
+        self.check(register, Side::Staff, Action::RegisterFf)?;
+        let p = catalog::find(code)
+            .filter(|p| p.category == Category::FastFood)
+            .ok_or("FF の商品が見つかりません")?;
+        let qty = qty.max(1);
+        let stock = self
+            .ff_stock
+            .iter_mut()
+            .find(|(c, _)| *c == code)
+            .ok_or("在庫がありません")?;
+        if stock.1 < qty {
+            return Err(format!("{}は在庫が足りません（残り {}）", p.name, stock.1));
+        }
+        stock.1 -= qty;
+        let now = self.now;
+        let r = self.reg_mut(register)?;
+        r.last_receipt = None;
+        if r.txn.paying {
+            r.txn.paying = false;
+            r.txn.method = None;
+        }
+        r.txn.push(
+            p,
+            qty,
+            LineKind::Ff {
+                state: FfState::Waiting,
+            },
+        );
+        self.calls.resolve(register, CallKind::FastFood, now);
+        done(format!(
+            "{} ×{qty} を登録しました。準備ができたら「お渡し」を押してください",
+            p.name
+        ))
+    }
+
+    fn checkout(&mut self, register: u8, side: Side) -> Result<Outcome, String> {
+        self.check(register, side, Action::Checkout)?;
+        let rules = &self.age_rules;
+        let r = self
+            .registers
+            .iter_mut()
+            .find(|r| r.id == register)
+            .ok_or("レジがありません")?;
+        // 年確の判定はこの時点だけ。対象品が複数あっても最も厳しい年齢で 1 回
+        let age = r
+            .txn
             .lines
             .iter()
-            .position(|l| l.id == line_id)
-            .ok_or_else(|| deny("明細が見つかりません"))?;
-        let line = &mut txn.lines[p];
-        let name = line.name.clone();
-        let sku = line.sku.clone();
-        let ff = line.fast_food;
-        line.qty -= 1;
-        if line.qty == 0 {
-            txn.lines.remove(p);
+            .filter_map(|l| rules.age_for(l.code, l.category))
+            .max();
+        r.txn.paying = true;
+        r.txn.required_age = age;
+        let ready = r.staff_state() == StaffState::Ready;
+        let pending = r.txn.age_pending();
+        let mode = r.mode;
+        if pending && mode == Mode::FullSelf && !ready {
+            self.calls.raise(
+                register,
+                CallKind::AgeCheck,
+                self.now,
+                format!("{}歳以上", age.unwrap_or(0)),
+            );
+            return done("年齢確認のため係員をお呼びしました");
         }
-        if ff {
-            if let Some(s) = self.stock_mut(&sku) {
-                *s += 1;
-            }
-            if let Some(c) = self.calls.find_mut_by(reg_id, CallKind::FastFood, txn_id) {
-                if let Some(pos) = c.ff_items.iter().position(|it| it.line_id == line_id) {
-                    c.ff_items[pos].qty -= 1;
-                    if c.ff_items[pos].qty == 0 {
-                        c.ff_items.remove(pos);
+        if !pending {
+            self.calls.resolve(register, CallKind::AgeCheck, self.now);
+        }
+        if pending {
+            done(format!(
+                "お客様画面で「{}歳以上です」の確認をお願いします",
+                age.unwrap_or(0)
+            ))
+        } else {
+            done("お会計に進みました")
+        }
+    }
+
+    fn insert_cash(&mut self, register: u8, d: u32, count: u32) -> Result<Outcome, String> {
+        self.check(register, Side::Customer, Action::InsertCash)?;
+        if !is_valid_denomination(d) {
+            return Err("使えない金種です".into());
+        }
+        let r = self.reg_mut(register)?;
+        r.txn.method = Some(PaymentMethod::Cash);
+        r.txn.inserted.add(d, count.max(1));
+        let paid = r.txn.inserted.total();
+        let total = r.txn.total();
+        if paid < total {
+            return done(format!("{paid}円 投入（あと {}円）", total - paid));
+        }
+        let inserted = r.txn.inserted.clone();
+        self.settle(register, PaymentMethod::Cash, paid, inserted)
+    }
+
+    fn settle(
+        &mut self,
+        register: u8,
+        method: PaymentMethod,
+        paid: u32,
+        inserted: Cash,
+    ) -> Result<Outcome, String> {
+        self.receipts += 1;
+        let no = self.receipts;
+        let now = self.now;
+        let r = self.reg_mut(register)?;
+        let total = r.txn.total();
+        // 釣銭は紙幣・硬貨をそろえて一度に渡したものとする（排出タイミングは扱わない。cash.rs 参照）
+        for (d, n) in &inserted.0 {
+            r.drawer.cash.add(*d, *n);
+        }
+        let change = match r.drawer.take(paid - total, true) {
+            Ok(c) => c,
+            Err(e) => {
+                for (d, n) in &inserted.0 {
+                    if let Some(x) = r.drawer.cash.0.iter_mut().find(|(x, _)| x == d) {
+                        x.1 -= n;
                     }
                 }
-                c.detail = ff_summary(&c.ff_items);
-                self.calls.bump();
-            }
-        }
-        Ok(name)
-    }
-
-    fn release_change(&mut self, i: usize, by: &str) {
-        let reg_id = self.registers[i].id;
-        let txn_id = self.registers[i].txn.id;
-        self.calls.resolve_where(self.now, by, |c| {
-            c.register == reg_id && c.txn_id == txn_id && c.kind == CallKind::ChangeNotTaken
-        });
-        self.finish_txn(i);
-    }
-
-    fn confirm_age(&mut self, i: usize, by: Operator) -> R<Outcome> {
-        let name = self.operator(i, by, Action::ConfirmAge)?;
-        let reg_id = self.registers[i].id;
-        let txn_id = self.registers[i].txn.id;
-        self.registers[i].txn.age_verified = true;
-        if let Some(id) = self
-            .calls
-            .find(reg_id, CallKind::AgeCheck, txn_id)
-            .map(|c| c.id)
-        {
-            self.calls.resolve(id, self.now, &name);
-        }
-        self.event(Some(reg_id), format!("年齢確認 OK — {name}"));
-        self.customer_notice(i, "年齢確認が完了しました");
-        Ok(Outcome::msg("年齢確認を完了しました"))
-    }
-
-    fn call_register(&self, call_id: u32) -> R<(Call, usize)> {
-        let c = self
-            .calls
-            .get(call_id)
-            .cloned()
-            .ok_or_else(|| deny("呼び出しは完了済みです"))?;
-        let i = self.idx(c.register)?;
-        Ok((c, i))
-    }
-
-    /// 種類に応じた「完了」操作。MAT のボタン一つで適切な処理になる。
-    fn resolve_call(&mut self, call_id: u32, by: Operator) -> R<Outcome> {
-        let (c, i) = self.call_register(call_id)?;
-        match c.kind {
-            CallKind::AgeCheck => self.confirm_age(i, by),
-            CallKind::FastFood => self.hand_over_ff(call_id, None, by),
-            CallKind::ChangeNotTaken => {
-                let name = self.operator(i, by, Action::CollectChange)?;
-                self.event(
-                    Some(c.register),
-                    format!("取り忘れ釣銭を回収・保管 — {name}"),
-                );
-                self.release_change(i, &name);
-                Ok(Outcome::msg("取り忘れ釣銭を回収しました"))
-            }
-            CallKind::CustomerHelp | CallKind::Hardware => {
-                let name = self.any_operator(by)?;
-                self.calls.resolve(call_id, self.now, &name);
-                Ok(Outcome::none())
-            }
-        }
-    }
-
-    fn hand_over_ff(&mut self, call_id: u32, line_id: Option<u32>, by: Operator) -> R<Outcome> {
-        let (c, i) = self.call_register(call_id)?;
-        if c.kind != CallKind::FastFood {
-            return Err(deny("FF の呼び出しではありません"));
-        }
-        let name = self.ff_operator(i, by)?;
-        let call = self.calls.get_mut(call_id).expect("exists");
-        let mut handed = vec![];
-        for it in call
-            .ff_items
-            .iter_mut()
-            .filter(|it| it.status == FfStatus::Waiting && line_id.is_none_or(|l| l == it.line_id))
-        {
-            it.status = FfStatus::Handed;
-            handed.push(format!("{}×{}", it.name, it.qty));
-        }
-        if handed.is_empty() {
-            return Err(deny("お渡し待ちの FF はありません"));
-        }
-        call.detail = ff_summary(&call.ff_items);
-        let done = call.ff_done();
-        self.calls.bump();
-        if done {
-            self.calls.resolve(call_id, self.now, &name);
-        }
-        self.event(
-            Some(c.register),
-            format!("FF お渡し {} — {name}", handed.join("、")),
-        );
-        Ok(Outcome::none())
-    }
-
-    /// FF 作業の実行者：対象レジのスタッフ画面か MAT（その場の作業）。
-    fn ff_operator(&mut self, i: usize, by: Operator) -> R<String> {
-        match by {
-            Operator::Mat { .. } => self.any_operator(by),
-            Operator::Register { register } => {
-                if self.idx(register)? != i {
-                    return Err(deny("この作業は対象レジか MAT で行ってください"));
-                }
-                self.any_operator(by)
-            }
-        }
-    }
-
-    /// 在庫切れ FF の取り消し（問題3）。スタッフの 1 操作で完結し、
-    /// お客様側の確認や操作権の受け渡しを挟まない。
-    fn mark_out_of_stock(&mut self, call_id: u32, line_id: u32, by: Operator) -> R<Outcome> {
-        let (c, i) = self.call_register(call_id)?;
-        if c.kind != CallKind::FastFood {
-            return Err(deny("FF の呼び出しではありません"));
-        }
-        let name = self.ff_operator(i, by)?;
-        let item = c
-            .ff_items
-            .iter()
-            .find(|it| it.line_id == line_id && it.status == FfStatus::Waiting)
-            .cloned()
-            .ok_or_else(|| deny("お渡し待ちの明細ではありません"))?;
-        let r = &self.registers[i];
-        if r.txn.id != c.txn_id || r.txn.phase == Phase::Settling {
-            return Err(deny("会計済みのため返品で対応してください"));
-        }
-        let txn = &mut self.registers[i].txn;
-        if let Some(p) = txn.lines.iter().position(|l| l.id == line_id) {
-            txn.lines.remove(p);
-        }
-        if let Some(s) = self.stock_mut(&item.sku) {
-            *s = 0;
-        }
-        let call = self.calls.get_mut(call_id).expect("exists");
-        if let Some(it) = call.ff_items.iter_mut().find(|it| it.line_id == line_id) {
-            it.status = FfStatus::OutOfStock;
-        }
-        call.detail = ff_summary(&call.ff_items);
-        self.calls.bump();
-        self.on_lines_changed(i, &name);
-        self.customer_notice(
-            i,
-            format!(
-                "「{}」は品切れのため取り消しました（係員操作）。そのままお会計を続けられます",
-                item.name
-            ),
-        );
-        self.event(
-            Some(c.register),
-            format!("品切れ取消 {}×{} — {name}", item.name, item.qty),
-        );
-        self.try_settle_cash(i);
-        Ok(Outcome::msg(format!(
-            "{} を品切れで取り消しました",
-            item.name
-        )))
-    }
-
-    fn refund(&mut self, register: u8, receipt_id: u32, manager_id: &str, pin: &str) -> R<Outcome> {
-        let i = self.idx(register)?;
-        let op = format!("返品返金 #{receipt_id}");
-        let acc = match self.auth.verify_manager(manager_id, pin, self.now) {
-            Ok(a) => a,
-            Err(e) => {
-                let msg = e.message();
-                self.audit(register, &op, manager_id, Err(msg.clone()));
-                return Err(msg);
+                self.receipts -= 1;
+                return Err(format!("{e}。係員をお呼びください"));
             }
         };
-        let result = (|| {
-            let r = &self.registers[i];
-            if !r.txn.lines.is_empty()
-                || r.txn.phase != Phase::Registering
-                || !r.dispenser.is_idle()
-            {
-                return Err(deny("取引中は返金できません"));
-            }
-            let rc = self
-                .receipts
-                .iter()
-                .find(|rc| rc.id == receipt_id)
-                .ok_or_else(|| deny("レシートが見つかりません"))?;
-            if rc.refunded {
-                return Err(deny("返金済みのレシートです"));
-            }
-            Ok((rc.total, rc.method))
-        })();
-        match result {
-            Ok((total, method)) => {
-                if let Some(rc) = self.receipts.iter_mut().find(|rc| rc.id == receipt_id) {
-                    rc.refunded = true;
-                }
-                let msg = format!("{} を{}で返金", yen(total), method.label());
-                self.audit(register, &op, acc.name, Ok(msg.clone()));
-                self.event(Some(register), msg.clone());
-                if method == PaymentMethod::Cash {
-                    self.pay_out(i, total, "返金");
-                }
-                Ok(Outcome::msg(msg))
+        let txn = std::mem::take(&mut r.txn);
+        let receipt = Receipt {
+            no,
+            at: now,
+            total,
+            method: method.label(),
+            paid,
+            change_total: change.total(),
+            change,
+            items: txn.lines.iter().map(|l| l.qty).sum(),
+            points: if txn.point_card.is_some() {
+                total / 100
+            } else {
+                0
+            },
+            point_card: txn.point_card,
+        };
+        let msg = if receipt.change_total > 0 {
+            format!("お支払いが完了しました。おつり {}円", receipt.change_total)
+        } else {
+            "お支払いが完了しました".to_string()
+        };
+        r.last_receipt = Some(receipt);
+        for k in [CallKind::AgeCheck, CallKind::FastFood, CallKind::Service] {
+            self.calls.resolve(register, k, now);
+        }
+        self.maybe_end_staff_mode(register);
+        done(msg)
+    }
+
+    fn cash_out(
+        &mut self,
+        register: u8,
+        kind: CashOutKind,
+        amount: u32,
+        password: &str,
+    ) -> Result<Outcome, String> {
+        self.check(register, Side::Staff, Action::CashOut)?;
+        let now = self.now;
+        let staff = self
+            .reg(register)
+            .and_then(|r| r.staff)
+            .map_or("?", |s| s.account.name);
+        let log = |s: &mut Store, result: String| {
+            s.audit.push(AuditEntry {
+                at: now,
+                register,
+                staff,
+                operation: kind.label(),
+                amount,
+                result,
+            });
+        };
+        if amount == 0 {
+            return Err("金額を入力してください".into());
+        }
+        // ログイン中でも、出金のたびに出金パスワードを求める（問題6）
+        if let Err(e) = self.auth.verify_cash_out(password, now) {
+            log(self, format!("拒否：{e}"));
+            return Err(e);
+        }
+        let r = self.reg_mut(register)?;
+        match r.drawer.take(amount, false) {
+            Ok(_) => {
+                log(self, "実行".into());
+                done(format!("{} {amount}円を出金しました", kind.label()))
             }
             Err(e) => {
-                self.audit(register, &op, acc.name, Err(e.clone()));
+                log(self, format!("失敗：{e}"));
                 Err(e)
             }
         }
     }
 
-    fn withdraw(&mut self, register: u8, amount: u32, manager_id: &str, pin: &str) -> R<Outcome> {
-        let i = self.idx(register)?;
-        let op = format!("緊急出金 {}", yen(amount));
-        let acc = match self.auth.verify_manager(manager_id, pin, self.now) {
-            Ok(a) => a,
-            Err(e) => {
-                let msg = e.message();
-                self.audit(register, &op, manager_id, Err(msg.clone()));
-                return Err(msg);
-            }
-        };
-        let drawer = &mut self.registers[i].drawer;
-        if amount == 0 || amount > drawer.cash.total() {
-            let e = deny("出金額が在高を超えています");
-            self.audit(register, &op, acc.name, Err(e.clone()));
-            return Err(e);
-        }
-        // 金庫へ移すため、一万円札を含む大きい金種から取り出す
-        let mut rest = amount;
-        let mut out = Cash::default();
-        for (d, n) in drawer.cash.0.iter_mut() {
-            let k = (rest / *d).min(*n);
-            *n -= k;
-            rest -= k * *d;
-            out.add(*d, k);
-        }
-        if rest > 0 {
-            for (d, n) in &out.0 {
-                drawer.cash.add(*d, *n);
-            }
-            let e = format!("金種の都合で {} ちょうどは出金できません", yen(amount));
-            self.audit(register, &op, acc.name, Err(e.clone()));
-            return Err(e);
-        }
-        let msg = format!("{} を金庫へ出金", yen(amount));
-        self.audit(register, &op, acc.name, Ok(msg.clone()));
-        self.event(Some(register), msg.clone());
-        Ok(Outcome::msg(msg))
-    }
-
-    // ---- 時間経過 ----------------------------------------------------------
-
-    pub fn tick(&mut self, now: u64) {
-        if now < self.now {
-            return;
-        }
-        self.now = now;
-        for i in 0..self.registers.len() {
-            let reg_id = self.registers[i].id;
-            let mut glitch = self.faults.bill_glitch;
-            let ev = self.registers[i].dispenser.tick(now, &mut glitch);
-            self.faults.bill_glitch = glitch;
-            match ev {
-                Some(DispenserEvent::BillRefed) => {
-                    self.event(
-                        Some(reg_id),
-                        "紙幣保持センサー異常を検知 → 放出せず回収して再排出",
-                    );
-                    self.staff_notice(i, "紙幣を回収して再排出しています（自動復旧）");
-                }
-                Some(DispenserEvent::Presented) => {
-                    if let Dispenser::Presented {
-                        bill_ready_ms,
-                        coin_ready_ms,
-                        bills,
-                        coins,
-                        ..
-                    } = &self.registers[i].dispenser
-                    {
-                        let text = format!(
-                            "釣銭を同時提示（紙幣{} 準備 {:.1}s / 硬貨{} 準備 {:.1}s）",
-                            yen(bills.total()),
-                            *bill_ready_ms as f64 / 1000.0,
-                            yen(coins.total()),
-                            *coin_ready_ms as f64 / 1000.0
-                        );
-                        self.event(Some(reg_id), text);
-                    }
-                }
-                None => {}
-            }
-            if let Dispenser::Presented { presented_at, .. } = self.registers[i].dispenser {
-                let txn_id = self.registers[i].txn.id;
-                if now - presented_at >= CHANGE_CALL_MS
-                    && self
-                        .calls
-                        .find(reg_id, CallKind::ChangeNotTaken, txn_id)
-                        .is_none()
-                {
-                    self.calls.open_call(
-                        reg_id,
-                        CallKind::ChangeNotTaken,
-                        txn_id,
-                        now,
-                        true,
-                        "取り出し口に釣銭が残っています".into(),
-                    );
-                }
-            }
-            let r = &mut self.registers[i];
-            if let Some(s) = r.session.as_mut() {
-                if !s.locked && now.saturating_sub(s.last_activity) > IDLE_LOCK_MS {
-                    s.locked = true;
-                }
-            }
-            if r.customer_notice.as_ref().is_some_and(|n| n.until <= now) {
-                r.customer_notice = None;
-            }
-            if r.staff_notice.as_ref().is_some_and(|n| n.until <= now) {
-                r.staff_notice = None;
-            }
-        }
-        if self.calls.seq != self.kicked_seq {
-            self.kicked_seq = self.calls.seq;
-            for m in &mut self.mats {
-                m.kick();
-            }
-        }
-        let calls = self.calls.sorted();
-        let seq = self.calls.seq;
-        let loss = self.faults.mat_loss_percent;
-        for m in &mut self.mats {
-            m.tick(now, seq, &calls, loss, &mut self.rng);
-        }
-    }
-
-    // ---- スナップショット ---------------------------------------------------
+    // ---- スナップショット ------------------------------------------------
 
     pub fn snapshot(&self) -> Snapshot {
         let now = self.now;
@@ -1519,266 +1001,319 @@ impl Store {
                 .iter()
                 .map(|r| self.register_view(r))
                 .collect(),
-            calls: self.calls.sorted(),
-            call_history: self.calls.history.iter().rev().take(10).cloned().collect(),
-            call_seq: self.calls.seq,
             mats: self
                 .mats
                 .iter()
                 .map(|m| MatView {
                     id: m.id.clone(),
-                    staff_name: m.staff_name.clone(),
-                    view: m.view.clone(),
-                    view_seq: m.view_seq,
-                    acked_seq: m.acked_seq,
-                    link_ok: m.link_ok(now),
-                    rx_ok: m.rx_ok(now),
-                    buzzing: m.buzz_until > now,
-                    sent: m.sent,
-                    delivered: m.delivered,
-                    retries: m.retries,
+                    buzzing: m.buzzing(now),
+                    link_ok: m.rx_ok(now),
+                    rings: m.rings,
                     offline: m.offline,
-                    last_rx_ago_ms: now.saturating_sub(m.last_rx_at),
                 })
                 .collect(),
-            ff_menu: CATALOG
+            mat_links: self
+                .mats
                 .iter()
-                .filter(|p| p.fast_food)
-                .map(|p| MenuItem {
-                    sku: p.sku,
-                    name: p.name,
-                    price: p.price,
-                    age_restricted: p.age_restricted,
-                    stock: self
-                        .ff_stock
-                        .iter()
-                        .find(|(s, _)| *s == p.sku)
-                        .map(|(_, n)| *n),
+                .map(|m| MatLink {
+                    id: m.id.clone(),
+                    link_ok: m.link_ok(now),
+                    acked_seq: m.acked_seq,
+                    sent: m.sent,
+                    retries: m.retries,
                 })
                 .collect(),
-            items: CATALOG
-                .iter()
-                .filter(|p| !p.fast_food)
-                .map(|p| MenuItem {
-                    sku: p.sku,
-                    name: p.name,
-                    price: p.price,
-                    age_restricted: p.age_restricted,
-                    stock: None,
-                })
-                .collect(),
-            receipts: self.receipts.iter().rev().take(10).cloned().collect(),
-            audit: self.audit.iter().rev().take(20).cloned().collect(),
-            events: self.events.iter().rev().take(40).cloned().collect(),
-            faults: self.faults,
-            mat_offline: self.mats.iter().map(|m| m.offline).collect(),
+            bell: self.bell,
+            calls: self.calls.open.clone(),
+            call_history: self.calls.history.clone(),
+            age_rules: AgeRulesView {
+                rules: self.age_rules.rules.clone(),
+                history: self.age_rules.history.clone(),
+            },
+            audit: self.audit.clone(),
+            ff_stock: self.ff_menu(),
+            mat_loss: self.mat_loss,
             accounts: ACCOUNTS
                 .iter()
                 .map(|a| AccountView {
+                    barcode: format!("{}{}", catalog::STAFF_PREFIX, a.id),
                     id: a.id,
                     name: a.name,
                     role: a.role,
                 })
                 .collect(),
+            catalog: CATALOG
+                .iter()
+                .filter(|p| p.category != Category::FastFood)
+                .map(|p| CatalogItem {
+                    code: p.code,
+                    name: p.name,
+                    price: p.price,
+                    category: p.category,
+                    category_label: p.category.label(),
+                    age: self.age_rules.age_for(p.code, p.category),
+                })
+                .collect(),
+            categories: Category::ALL.iter().map(|c| (*c, c.label())).collect(),
         }
     }
 
+    fn ff_menu(&self) -> Vec<FfMenuItem> {
+        self.ff_stock
+            .iter()
+            .filter_map(|(code, stock)| {
+                catalog::find(code).map(|p| FfMenuItem {
+                    code: p.code,
+                    name: p.name,
+                    price: p.price,
+                    stock: *stock,
+                })
+            })
+            .collect()
+    }
+
     fn register_view(&self, r: &Register) -> RegisterView {
-        let now = self.now;
-        let staff = Self::staff_state(r);
-        let ctx = Self::context(r, staff);
-        let actions = |side: Side, list: &[Action]| -> Vec<ActionView> {
+        let c = r.context();
+        let t = &r.txn;
+        let actions = |side: Side, list: &[Action]| {
             list.iter()
                 .map(|&a| {
-                    let res = permitted(side, a, &ctx);
-                    ActionView {
+                    let res = permitted(side, a, &c);
+                    ActionState {
                         action: a,
                         allowed: res.is_ok(),
                         reason: res.err(),
                     }
                 })
-                .collect()
+                .collect::<Vec<_>>()
         };
-        let txn = &r.txn;
-        let total = txn.total();
-        let taxable = |rate: TaxRate| -> u32 {
-            txn.lines
-                .iter()
-                .filter(|l| l.tax == rate)
-                .map(Line::amount)
-                .sum()
-        };
-        let thanks = r
-            .last_receipt
-            .filter(|(_, at)| now.saturating_sub(*at) < THANKS_MS && txn.lines.is_empty())
-            .and_then(|(id, _)| self.receipts.iter().find(|rc| rc.id == id).cloned());
-        let presented_at = match &r.dispenser {
-            Dispenser::Presented { presented_at, .. } => Some(*presented_at),
-            _ => None,
-        };
-        let age = if txn.age_verified {
-            "verified"
-        } else if txn.age_pending() {
-            "pending"
-        } else {
-            "none"
-        };
-        let ff_call = self.calls.find(r.id, CallKind::FastFood, txn.id);
+        let total = t.total();
+        let inserted = t.inserted.total();
+        let calls = self.calls.for_register(r.id);
+        let staff_called = !calls.is_empty() && c.staff != StaffState::Ready;
+        let staff = r.staff.map(|s| s.account);
+        let mat_down = self
+            .mats
+            .iter()
+            .filter(|m| !m.link_ok(self.now))
+            .map(|m| m.id.clone())
+            .collect();
+
+        let lines: Vec<StaffLine> = t
+            .lines
+            .iter()
+            .map(|l| StaffLine {
+                line: l.clone(),
+                amount: l.amount(),
+                age: self.age_rules.age_for(l.code, l.category),
+            })
+            .collect();
+
+        let customer_lines = t
+            .lines
+            .iter()
+            .map(|l| CustomerLine {
+                id: l.id,
+                name: l.name,
+                qty: l.qty,
+                amount: l.amount(),
+                kind: l.kind,
+            })
+            .collect();
+
         RegisterView {
             id: r.id,
             mode: r.mode,
-            phase: txn.phase,
-            staff_state: staff,
-            session: r.session.clone(),
-            txn_id: txn.id,
-            lines: txn
-                .lines
-                .iter()
-                .map(|l| LineView {
-                    line: l.clone(),
-                    ff_status: ff_call
-                        .and_then(|c| c.ff_items.iter().find(|it| it.line_id == l.id))
-                        .map(|it| it.status),
-                })
-                .collect(),
-            total,
-            item_count: txn.lines.iter().map(|l| l.qty).sum(),
-            taxable8: taxable(TaxRate::Reduced8),
-            taxable10: taxable(TaxRate::Standard10),
-            point_card: txn.point_card.clone(),
-            age,
-            method: txn.method,
-            inserted: txn.inserted.total(),
-            remaining: total.saturating_sub(txn.inserted.total()),
-            dispenser: r.dispenser.clone(),
-            change_reminder: presented_at.is_some_and(|t| now - t >= CHANGE_REMIND_MS),
-            drawer_total: r.drawer.cash.total(),
-            staff_actions: actions(Side::Staff, STAFF_ACTIONS),
-            customer_actions: actions(Side::Customer, CUSTOMER_ACTIONS),
-            customer_notice: r.customer_notice.as_ref().map(|n| n.text.clone()),
-            staff_notice: r.staff_notice.as_ref().map(|n| n.text.clone()),
-            customer_activity: r.customer_activity.iter().rev().cloned().collect(),
-            thanks,
-            alerting: self
-                .calls
-                .open
-                .iter()
-                .any(|c| c.register == r.id && c.alert),
-            open_calls: self
-                .calls
-                .open
-                .iter()
-                .filter(|c| c.register == r.id)
-                .count(),
+            mode_label: r.mode.label(),
+            staff: StaffView {
+                state: c.staff,
+                name: staff.map(|a| a.name),
+                role: staff.map(|a| a.role),
+                phase: c.phase,
+                lines,
+                total,
+                tax8: t.tax_of(TaxRate::Reduced8),
+                tax10: t.tax_of(TaxRate::Standard10),
+                point_card: t.point_card.clone(),
+                required_age: t.required_age.filter(|_| t.paying),
+                age_verified: t.age_verified,
+                age_pending: c.age_pending,
+                method: t.method,
+                inserted,
+                due: total.saturating_sub(inserted),
+                payment_blocker: c.payment_blocker(),
+                calls,
+                actions: actions(Side::Staff, STAFF_ACTIONS),
+                drawer_total: r.drawer.cash.total(),
+                mat_down,
+            },
+            customer: CustomerView {
+                phase: c.phase,
+                lines: customer_lines,
+                total,
+                inserted,
+                due: total.saturating_sub(inserted),
+                point_card: t.point_card.is_some(),
+                age_check: c.age_pending.then_some(t.required_age.unwrap_or(0)),
+                staff_called,
+                staff_present: c.staff == StaffState::Ready,
+                method: t.method,
+                payment_blocker: c.payment_blocker(),
+                actions: actions(Side::Customer, CUSTOMER_ACTIONS),
+            },
+            last_receipt: r.last_receipt.clone(),
         }
     }
 }
 
-fn ff_summary(items: &[FfItem]) -> String {
-    items
-        .iter()
-        .filter(|it| it.status == FfStatus::Waiting)
-        .map(|it| format!("{}×{}", it.name, it.qty))
-        .collect::<Vec<_>>()
-        .join("、")
-}
-
 // ---------------------------------------------------------------------------
-// スナップショット（UI が読む唯一の状態）
+// ビュー
 // ---------------------------------------------------------------------------
 
 #[derive(Clone, Debug, Serialize)]
-pub struct ActionView {
+pub struct ActionState {
     pub action: Action,
     pub allowed: bool,
     pub reason: Option<&'static str>,
 }
 
 #[derive(Clone, Debug, Serialize)]
-pub struct LineView {
+pub struct StaffLine {
     #[serde(flatten)]
     pub line: Line,
-    pub ff_status: Option<FfStatus>,
+    pub amount: u32,
+    /// 年確ルールに該当する年齢（店員画面のみの参考表示。判定は会計時）
+    pub age: Option<u8>,
+}
+
+/// お客様画面に出してよい明細（分類・年確対象かどうか・商品コードは出さない）
+#[derive(Clone, Debug, Serialize)]
+pub struct CustomerLine {
+    pub id: u32,
+    pub name: &'static str,
+    pub qty: u32,
+    pub amount: u32,
+    #[serde(flatten)]
+    pub kind: LineKind,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct StaffView {
+    pub state: StaffState,
+    pub name: Option<&'static str>,
+    pub role: Option<Role>,
+    pub phase: Phase,
+    pub lines: Vec<StaffLine>,
+    pub total: u32,
+    pub tax8: u32,
+    pub tax10: u32,
+    pub point_card: Option<String>,
+    pub required_age: Option<u8>,
+    pub age_verified: bool,
+    pub age_pending: bool,
+    pub method: Option<PaymentMethod>,
+    pub inserted: u32,
+    pub due: u32,
+    pub payment_blocker: Option<&'static str>,
+    pub calls: Vec<Call>,
+    pub actions: Vec<ActionState>,
+    pub drawer_total: u32,
+    pub mat_down: Vec<String>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct CustomerView {
+    pub phase: Phase,
+    pub lines: Vec<CustomerLine>,
+    pub total: u32,
+    pub inserted: u32,
+    pub due: u32,
+    pub point_card: bool,
+    /// 年確中なら求める年齢
+    pub age_check: Option<u8>,
+    pub staff_called: bool,
+    pub staff_present: bool,
+    pub method: Option<PaymentMethod>,
+    pub payment_blocker: Option<&'static str>,
+    pub actions: Vec<ActionState>,
 }
 
 #[derive(Clone, Debug, Serialize)]
 pub struct RegisterView {
     pub id: u8,
     pub mode: Mode,
-    pub phase: Phase,
-    pub staff_state: StaffState,
-    pub session: Option<Session>,
-    pub txn_id: u32,
-    pub lines: Vec<LineView>,
-    pub total: u32,
-    pub item_count: u32,
-    pub taxable8: u32,
-    pub taxable10: u32,
-    pub point_card: Option<String>,
-    pub age: &'static str,
-    pub method: Option<PaymentMethod>,
-    pub inserted: u32,
-    pub remaining: u32,
-    pub dispenser: Dispenser,
-    pub change_reminder: bool,
-    pub drawer_total: u32,
-    pub staff_actions: Vec<ActionView>,
-    pub customer_actions: Vec<ActionView>,
-    pub customer_notice: Option<String>,
-    pub staff_notice: Option<String>,
-    pub customer_activity: Vec<Activity>,
-    pub thanks: Option<Receipt>,
-    pub alerting: bool,
-    pub open_calls: usize,
+    pub mode_label: &'static str,
+    pub staff: StaffView,
+    pub customer: CustomerView,
+    pub last_receipt: Option<Receipt>,
 }
 
+/// MAT 自身の画面：鳴動と不通表示だけ
 #[derive(Clone, Debug, Serialize)]
 pub struct MatView {
     pub id: String,
-    pub staff_name: String,
-    pub view: Vec<Call>,
-    pub view_seq: u64,
-    pub acked_seq: u64,
-    pub link_ok: bool,
-    pub rx_ok: bool,
     pub buzzing: bool,
-    pub sent: u64,
-    pub delivered: u64,
-    pub retries: u64,
+    pub link_ok: bool,
+    pub rings: u64,
     pub offline: bool,
-    pub last_rx_ago_ms: u64,
+}
+
+/// レジ側から見た MAT の通信状態（シミュレーター表示用）
+#[derive(Clone, Debug, Serialize)]
+pub struct MatLink {
+    pub id: String,
+    pub link_ok: bool,
+    pub acked_seq: u64,
+    pub sent: u64,
+    pub retries: u64,
 }
 
 #[derive(Clone, Debug, Serialize)]
-pub struct MenuItem {
-    pub sku: &'static str,
+pub struct AgeRulesView {
+    pub rules: Vec<crate::age_rules::AgeRule>,
+    pub history: Vec<crate::age_rules::RuleChange>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct FfMenuItem {
+    pub code: &'static str,
     pub name: &'static str,
     pub price: u32,
-    pub age_restricted: bool,
-    pub stock: Option<u32>,
+    pub stock: u32,
 }
 
 #[derive(Clone, Debug, Serialize)]
 pub struct AccountView {
     pub id: &'static str,
+    pub barcode: String,
     pub name: &'static str,
     pub role: Role,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct CatalogItem {
+    pub code: &'static str,
+    pub name: &'static str,
+    pub price: u32,
+    pub category: Category,
+    pub category_label: &'static str,
+    pub age: Option<u8>,
 }
 
 #[derive(Clone, Debug, Serialize)]
 pub struct Snapshot {
     pub now: u64,
     pub registers: Vec<RegisterView>,
+    pub mats: Vec<MatView>,
+    pub mat_links: Vec<MatLink>,
+    pub bell: Bell,
     pub calls: Vec<Call>,
     pub call_history: Vec<ResolvedCall>,
-    pub call_seq: u64,
-    pub mats: Vec<MatView>,
-    pub ff_menu: Vec<MenuItem>,
-    pub items: Vec<MenuItem>,
-    pub receipts: Vec<Receipt>,
+    pub age_rules: AgeRulesView,
     pub audit: Vec<AuditEntry>,
-    pub events: Vec<Event>,
-    pub faults: Faults,
-    pub mat_offline: Vec<bool>,
+    pub ff_stock: Vec<FfMenuItem>,
+    pub mat_loss: u8,
     pub accounts: Vec<AccountView>,
+    pub catalog: Vec<CatalogItem>,
+    pub categories: Vec<(Category, &'static str)>,
 }

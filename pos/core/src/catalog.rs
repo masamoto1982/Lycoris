@@ -1,9 +1,12 @@
-//! 商品マスタ。
+//! 商品マスタとバーコードの振り分け。
 //!
-//! 年齢確認の要否 (`age_restricted`) と FF（カウンター商品）かどうか
-//! (`fast_food`) は商品マスタの静的な属性として一か所で持つ。
-//! 問題7（年確トリガーの不一致）は「判定に使う情報の取得経路が複数ある」
-//! ことが原因と推測されるため、ここでは取得経路を一つに固定する。
+//! 会計画面になるまでは、どのバーコードもいつでも受け付ける。読んだ
+//! バーコードの種類（商品・ポイントカード・スタッフ・レジ袋・サービス商品）
+//! を [`classify`] で一か所で判定し、ふさわしい処理へつなげる。
+//! 「先に支払方法を選べ」「先にポイントカードを出せ」といった順番の縛りは持たない。
+//!
+//! 年齢確認の要否は商品マスタには持たせない。商品は「分類」だけを持ち、
+//! 年確の対象かどうかは [`crate::age_rules`] の設定で決まる。
 
 use serde::{Deserialize, Serialize};
 
@@ -16,55 +19,85 @@ pub enum TaxRate {
     Standard10,
 }
 
-impl TaxRate {
-    pub fn percent(self) -> u32 {
-        match self {
-            TaxRate::Reduced8 => 8,
-            TaxRate::Standard10 => 10,
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+/// 商品の分類。年確ルールは分類単位でも指定できる。
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Category {
     Food,
     Drink,
+    Daily,
     Alcohol,
     Tobacco,
-    Daily,
+    SmokingGoods,
+    AdultBook,
+    AdultGoods,
+    Lottery,
     FastFood,
+    Bag,
+    Service,
 }
 
-#[derive(Clone, Copy, Debug, Serialize)]
+impl Category {
+    pub fn label(self) -> &'static str {
+        match self {
+            Category::Food => "食品",
+            Category::Drink => "飲料",
+            Category::Daily => "日用品",
+            Category::Alcohol => "酒類",
+            Category::Tobacco => "たばこ",
+            Category::SmokingGoods => "喫煙具・ライター",
+            Category::AdultBook => "18禁書籍",
+            Category::AdultGoods => "アダルトグッズ",
+            Category::Lottery => "宝くじ",
+            Category::FastFood => "FF",
+            Category::Bag => "レジ袋",
+            Category::Service => "サービス",
+        }
+    }
+
+    pub const ALL: &'static [Category] = &[
+        Category::Food,
+        Category::Drink,
+        Category::Daily,
+        Category::Alcohol,
+        Category::Tobacco,
+        Category::SmokingGoods,
+        Category::AdultBook,
+        Category::AdultGoods,
+        Category::Lottery,
+        Category::FastFood,
+        Category::Bag,
+        Category::Service,
+    ];
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 pub struct Product {
-    pub sku: &'static str,
+    /// バーコード（FF はバーコードを持たず、店員画面のメニューから登録する）
+    pub code: &'static str,
     pub name: &'static str,
-    /// 税込価格（円）
+    /// 税込価格（円）。サービス商品は受付時に金額が決まるため 0
     pub price: u32,
     pub tax: TaxRate,
     pub category: Category,
-    pub age_restricted: bool,
-    pub fast_food: bool,
+    /// 「要店員」：お客様側で読まれたら店員呼び出しをかけ、店員の受付操作を待つ
+    pub needs_staff: bool,
 }
 
-const fn item(
-    sku: &'static str,
+const fn p(
+    code: &'static str,
     name: &'static str,
     price: u32,
     tax: TaxRate,
     category: Category,
 ) -> Product {
-    let age_restricted = matches!(category, Category::Alcohol | Category::Tobacco);
-    let fast_food = matches!(category, Category::FastFood);
     Product {
-        sku,
+        code,
         name,
         price,
         tax,
         category,
-        age_restricted,
-        fast_food,
+        needs_staff: matches!(category, Category::Service),
     }
 }
 
@@ -72,27 +105,45 @@ use Category::*;
 use TaxRate::*;
 
 pub const CATALOG: &[Product] = &[
-    item("4900001", "おにぎり 鮭", 160, Reduced8, Food),
-    item("4900002", "ミックスサンド", 320, Reduced8, Food),
-    item("4900003", "緑茶 600ml", 150, Reduced8, Drink),
-    item("4900004", "ボトルコーヒー", 180, Reduced8, Drink),
-    item("4900005", "ボールペン 黒", 120, Standard10, Daily),
-    item("4900010", "缶ビール 350ml", 248, Standard10, Alcohol),
-    item("4900011", "レモンサワー 500ml", 228, Standard10, Alcohol),
-    item("4900012", "たばこ A", 600, Standard10, Tobacco),
-    item("FF01", "フライドチキン", 220, Reduced8, FastFood),
-    item("FF02", "からあげ 5個", 260, Reduced8, FastFood),
-    item("FF03", "アメリカンドッグ", 140, Reduced8, FastFood),
-    item("FF04", "コロッケ", 110, Reduced8, FastFood),
-    item("FF05", "肉まん", 180, Reduced8, FastFood),
+    p("4900000000011", "おにぎり 鮭", 160, Reduced8, Food),
+    p("4900000000028", "ミックスサンド", 320, Reduced8, Food),
+    p("4900000000035", "緑茶 600ml", 150, Reduced8, Drink),
+    p("4900000000042", "ボトルコーヒー", 180, Reduced8, Drink),
+    p("4900000000059", "ボールペン 黒", 120, Standard10, Daily),
+    p("4900000000103", "缶ビール 350ml", 248, Standard10, Alcohol),
+    p(
+        "4900000000110",
+        "レモンサワー 500ml",
+        228,
+        Standard10,
+        Alcohol,
+    ),
+    p("4900000000127", "たばこ A", 600, Standard10, Tobacco),
+    p(
+        "4900000000134",
+        "使い捨てライター",
+        110,
+        Standard10,
+        SmokingGoods,
+    ),
+    p("4900000000141", "成人向け雑誌", 980, Standard10, AdultBook),
+    p("4900000000158", "スクラッチくじ", 200, Standard10, Lottery),
+    p("2000000000015", "レジ袋 S", 3, Standard10, Bag),
+    p("2000000000022", "レジ袋 L", 5, Standard10, Bag),
+    p("2100000000014", "宅急便 発送受付", 0, Standard10, Service),
+    p("2100000000021", "公共料金 払込", 0, Standard10, Service),
+    p("FF01", "フライドチキン", 220, Reduced8, FastFood),
+    p("FF02", "からあげ 5個", 260, Reduced8, FastFood),
+    p("FF03", "アメリカンドッグ", 140, Reduced8, FastFood),
+    p("FF04", "コロッケ", 110, Reduced8, FastFood),
+    p("FF05", "肉まん", 180, Reduced8, FastFood),
 ];
 
-pub fn find(sku: &str) -> Option<&'static Product> {
-    CATALOG.iter().find(|p| p.sku == sku)
+pub fn find(code: &str) -> Option<&'static Product> {
+    CATALOG.iter().find(|p| p.code == code)
 }
 
-/// FF の初期在庫。コロッケは最初から品切れにしておき、
-/// 「品切れ商品はそもそも注文できない」ことを確認できるようにする。
+/// FF の初期在庫。コロッケは最初から品切れ（店員画面で登録できないことを確認できる）。
 pub const INITIAL_FF_STOCK: &[(&str, u32)] = &[
     ("FF01", 3),
     ("FF02", 2),
@@ -101,26 +152,49 @@ pub const INITIAL_FF_STOCK: &[(&str, u32)] = &[
     ("FF05", 5),
 ];
 
+/// 読み取ったバーコードの種類。
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Scanned {
+    Product(&'static Product),
+    PointCard(String),
+    Staff(String),
+    Unknown,
+}
+
+pub const POINT_CARD_PREFIX: &str = "PC";
+pub const STAFF_PREFIX: &str = "ST";
+
+pub fn classify(code: &str) -> Scanned {
+    let code = code.trim();
+    if let Some(no) = code.strip_prefix(POINT_CARD_PREFIX) {
+        return Scanned::PointCard(no.to_string());
+    }
+    if let Some(id) = code.strip_prefix(STAFF_PREFIX) {
+        return Scanned::Staff(id.to_string());
+    }
+    match find(code) {
+        // FF はバーコードでは登録しない（店員操作モードのメニューからのみ）
+        Some(p) if p.category == FastFood => Scanned::Unknown,
+        Some(p) => Scanned::Product(p),
+        None => Scanned::Unknown,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn age_restriction_is_derived_from_category_only() {
-        for p in CATALOG {
-            let expected = matches!(p.category, Category::Alcohol | Category::Tobacco);
-            assert_eq!(p.age_restricted, expected, "{}", p.name);
-        }
-    }
-
-    #[test]
-    fn every_ff_has_initial_stock_entry() {
-        for p in CATALOG.iter().filter(|p| p.fast_food) {
-            assert!(
-                INITIAL_FF_STOCK.iter().any(|(s, _)| *s == p.sku),
-                "{}",
-                p.sku
-            );
-        }
+    fn classifies_every_kind_of_barcode() {
+        assert!(matches!(classify("4900000000011"), Scanned::Product(p) if p.category == Food));
+        assert_eq!(
+            classify("PC12345678"),
+            Scanned::PointCard("12345678".into())
+        );
+        assert_eq!(classify("ST1001"), Scanned::Staff("1001".into()));
+        assert!(matches!(classify("2000000000015"), Scanned::Product(p) if p.category == Bag));
+        assert!(matches!(classify("2100000000014"), Scanned::Product(p) if p.needs_staff));
+        assert_eq!(classify("FF01"), Scanned::Unknown);
+        assert_eq!(classify("9999"), Scanned::Unknown);
     }
 }
