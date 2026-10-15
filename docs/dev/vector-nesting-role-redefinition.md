@@ -4,6 +4,16 @@
 > 正典は `SPECIFICATION.html` のみ(§4.3 "Role of nesting" が本判断の正典側の反映)。
 > 本書はネスト構造を存続させた理由と、存続の根拠となった依存関係の棚卸しを記録する
 > 手続き文書である。
+>
+> 注記（2026-10-15）: ネストを存続させる結論は今も有効だが、§0 の前提は後の設計で
+> 逆転した。コードは `{ }` の CodeBlock ではなく Vector そのものであり、Word が契約で
+> 求めたときに実行される（LANG.SOURCE.CODE。`{ }` は字句から外れた）。§0〜§2 が挙げる
+> 語と資産も現在は違う: `RANK` `TRANSPOSE` `SPLIT` と `JSON` モジュール、音楽 DSL は
+> 無く（`RANK` と `SPLIT` の退役は `spec/retired-words.json` に記録がある）、テンソル語は `SHAPE` `RESHAPE` `FILL` `FLATTEN`
+> `DEPTH`、JSON は `JSON-DECODE` `JSON-ENCODE`、区切りは `TOKENIZE` が担う。引用されて
+> いる `rust/src/tensor_operation_tests.rs`・`rust/src/json_io_tests.rs`・`examples/`
+> は現在のツリーに無い。ネストの役割の現行の記述は LANG.VALUES.VECTOR と
+> LANG.COLLECTIONS.LIFT にある。§ 番号は `SPECIFICATION.html` の旧番号である。
 
 ## 0. 判断
 

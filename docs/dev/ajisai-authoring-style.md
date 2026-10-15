@@ -17,24 +17,21 @@ The essence of Ajisai is not source code in any one language. It is the **writte
 Two consistency problems dominate, and the rest of this document addresses them:
 
 1. **Ajisai symbols look like punctuation.** Ajisai source is UTF-8 text, and every symbol token that Ajisai defines is a word.
-2. **Mathematics and Ajisai code share glyphs.** `/`, `+`, `(`, `)`, `>=` mean one thing in a formula and another as Ajisai sugar.
+2. **Mathematics and Ajisai code share glyphs.** `/`, `(`, `)` mean one thing in a formula and another in Ajisai source: `/` is part of a fraction literal there, and `(` `)` are ordinary name characters.
 
 ## 2. The symbol-as-word hazard
 
-The tokenizer maps symbol forms to canonical English names, and two registries hold the whole inventory: the `aliases` field of `spec/words.json` (symbol spellings of Words) and `SURFACE_FORMS` in `rust/src/surface_forms.rs` (the lexical and structural forms that are not Words). `docs/word-manifest.json` is generated from both, so the count of record is one file. Everything in either is a mark that must carry the gray background of Section 3:
+Every Word has one name, spelled in letters, and no symbol spelling resolves to it (LANG.SOURCE.NORMALIZE): `+`, `/` and `>=` are not Words — written in source they are names nothing defines, and the Unknown Word diagnosis says which Word to write instead. One registry holds every mark that does lexical work: `SURFACE_FORMS` in `rust/src/surface_forms.rs`, from which `docs/word-manifest.json` takes its `surface_forms` count. Everything in it is a mark that must carry the gray background of Section 3:
 
-| Symbol | Canonical word or concept | Kind |
-|--------|---------------------------|------|
-| `+` `-` `*` `/` `%` | `ADD` `SUB` `MUL` `DIV` `MOD` | Word alias |
-| `=` `<` `<=` `>` `>=` | `EQ` `LT` `LTE` `GT` `GTE` | Word alias |
+| Symbol | Concept | Kind |
+|--------|---------|------|
 | `[` `]` | `BEGIN-VECTOR` `END-VECTOR` | Structural delimiter, not a Word |
-| `{` `}` | `BEGIN-RECORD` `END-RECORD` | Structural delimiter, not a Word |
 | `'` | `STRING-QUOTE` | Literal delimiter, not a Word |
 | `#` | `COMMENT-LINE` | Source directive, not a Word |
 
-Ten alias spellings, six lexical forms, and nothing else: **a mark not in that table is ordinary punctuation, in prose and in source alike.** That is a narrower hazard than this section once described, and the narrowing is worth stating, because the rules below were written against the wider one. `.` `,` `..` `,,` were the target and consumption modifiers; the language now has one modifier axis, spelled `KEEP` as a word with no punctuation sugar (LANG.MODIFIERS.CONSUMPTION). `(` `)` and a bare `|` were a reserved pair and a retired separator; they are ordinary name characters (the per-character rejection rules were removed from `spec/grammar.json` in 2026-09; `check:grammar` holds the tokenizer to the grammar). So a comma in running prose is no longer an Ajisai word, and the question "is that `,` part of the program?" no longer has a bad answer.
+Four lexical forms and nothing else: **a mark not in that table is ordinary punctuation in prose, and an ordinary name character in source.** The table once held ten symbol aliases of Words (`+` for `ADD`, `/` for `DIV`, `>=` for a comparison Word) and a Record delimiter pair; all of them are gone, and so are the target and consumption modifiers spelled `.` `,` `..` `,,`. `(` `)` and a bare `|` are ordinary name characters too (the per-character rejection rules were removed from `spec/grammar.json` in 2026-09; `check:grammar` holds the tokenizer to the grammar).
 
-What remains is sharper for being smaller. `/` is `DIV` and shares its glyph with the division bar; `=` `<` `>` collide with mathematics; `[` `]` `{` `}` `'` `#` do structural work no word does. Those are the marks the channel rules protect.
+What remains is small and sharp. `[` `]` `'` `#` do structural work no Word does, and `/` still matters in one place: inside a number literal (`1/2`, `1/0`) it is part of the number, so a `/` set in the gray code channel reads as a fraction, never as a division bar. Those are the marks the channel rules protect.
 
 ## 3. Primary technique: the gray code background, reserved for Ajisai
 
@@ -42,15 +39,15 @@ The existing writing already does the right thing: whenever it names a symbol me
 
 > Every token meaningful to Ajisai — every word, symbol, modifier, literal, or snippet — is wrapped in `` `…` `` (inline) or a fenced block when it appears in prose. A bare `,` or `[ 1 2 3 ]` never sits in running text.
 
-Crucially, the gray background is **reserved for Ajisai**. Mathematics does not borrow it (Section 4). Keeping the channel exclusive is what makes a gray `/` unambiguously the `DIV` word rather than a division bar.
+Crucially, the gray background is **reserved for Ajisai**. Mathematics does not borrow it (Section 4). Keeping the channel exclusive is what makes a gray `1/2` unambiguously an Ajisai number literal rather than a division to carry out.
 
 ## 4. Mathematics is a separate channel
 
-Because a formula and an Ajisai snippet share glyphs (`/` is both a division bar and `DIV`; `(` `)` are grouping in a formula and ordinary name characters in a snippet; `>=` is both ≥ and `GTE`), the two must travel in **visibly different channels**, and the channel decides the reading:
+Because a formula and an Ajisai snippet share glyphs (`/` is a division bar in a formula and part of a fraction literal in a snippet; `(` `)` are grouping in a formula and ordinary name characters in a snippet), the two must travel in **visibly different channels**, and the channel decides the reading:
 
 | Channel | How it is set | A `/` in it means |
 |---------|---------------|-------------------|
-| Ajisai code | inline `` `…` `` (gray) or a fenced Ajisai block | the `DIV` word |
+| Ajisai code | inline `` `…` `` (gray) or a fenced Ajisai block | part of a number literal (`1/2`); the Word that divides is `DIV` |
 | Mathematics | LaTeX typeset by KaTeX on the HTML surfaces (Section 4.1); Unicode text math on Markdown surfaces (Section 4.2) | the division operator |
 
 Rules for the mathematics channel:
@@ -117,16 +114,16 @@ The hazard, then the fix.
 
 **Before** — an inline list long enough that its separators do the structural work:
 
-> The logic words are `AND` / `OR` / `NOT` / `SELECT`; the higher-order words are `EXEC` / `MAP` / `FILTER` / `FOLD` / `SCAN` / `ANY` / `ALL`.
+> The logic words are `AND` / `NOT` / `SELECT` / `RECONCILE`; the higher-order words are `EXEC` / `MAP` / `FILTER` / `FOLD` / `SCAN`.
 
-Every separator there is a `/`, the alias for `DIV`, sitting unmarked between marked tokens — the one reading a gray background cannot help with, because the slash carries no background of its own. A comma would not have this problem today (Section 2), and would still leave eleven tokens for the reader to group by eye.
+Every separator there is a `/`, the glyph of a fraction literal, sitting unmarked between marked tokens — the one reading a gray background cannot help with, because the slash carries no background of its own. A comma would not have this problem (Section 2), and would still leave nine tokens for the reader to group by eye.
 
 **After** — the same content as structure:
 
 | Category | Members |
 |----------|---------|
-| Logic | `AND` and `OR` and `NOT` and `SELECT` |
-| Higher-order | `EXEC` `MAP` `FILTER` `FOLD` `SCAN` `ANY` `ALL` |
+| Logic | `AND` and `NOT` and `SELECT` and `RECONCILE` |
+| Higher-order | `EXEC` `MAP` `FILTER` `FOLD` `SCAN` |
 
 The cell boundaries carry the separation, and nothing ambiguous is left adrift between two words.
 
@@ -134,11 +131,11 @@ The cell boundaries carry the separation, and nothing ambiguous is left adrift b
 
 When a single cell must hold more than one token, separate them with something that is **not** Ajisai surface syntax:
 
-- spelled-out **"and"** / **"or"** (`AND` and `OR`) — preferred, because it always renders; or
+- spelled-out **"and"** / **"or"** — preferred, because it always renders; or
 - a middle dot `·`, which is not an Ajisai token; or
 - a single space between adjacent code spans (`` `MAP` `FILTER` ``).
 
-Never separate in-cell tokens with `/`: it is the `DIV` alias, so it reads as part of the program. Never use `|` either — not because the language claims it (it does not; it is an ordinary name character) but because it is the Markdown table delimiter, and a cell separator that ends the cell is its own kind of wrong. `,` is no longer an Ajisai token, so it is no longer forbidden here; the preferences above still stand on their own, because a spelled-out "and" survives every renderer and a comma between two code spans still reads as a list of two things rather than one phrase.
+Never separate in-cell tokens with `/`: it is the glyph of a fraction literal, so it reads as part of the program. Never use `|` either — not because the language claims it (it does not; it is an ordinary name character) but because it is the Markdown table delimiter, and a cell separator that ends the cell is its own kind of wrong. `,` is no longer an Ajisai token, so it is no longer forbidden here; the preferences above still stand on their own, because a spelled-out "and" survives every renderer and a comma between two code spans still reads as a list of two things rather than one phrase.
 
 ## 9. Surfaces and required formats: the specification is HTML, the README is Markdown
 

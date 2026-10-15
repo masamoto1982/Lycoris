@@ -127,7 +127,7 @@ const enumRef = (rustName, value) => `${rustName}::${pascal(value)}`;
 // Stack arity: a decimal count, or a data-dependent marker the specification
 // names explicitly. Keeping the markers as variants (rather than collapsing
 // both into one "dynamic" case, as the hand-written MassContract did) is what
-// lets the static mass validator stay engaged for the 36 Words whose arity the
+// lets the static mass validator stay engaged for every Word whose arity the
 // specification pins exactly.
 const arity = (value) =>
   typeof value === 'number' ? `Arity::Fixed(${value})` : `Arity::${pascal(String(value))}`;
@@ -400,9 +400,9 @@ pub struct GeneratedWord {
     pub error_when: &'static [&'static str],
     /// One line of the Word written correctly, as the specification writes it.
     ///
-    /// Read by the stack-underflow diagnosis, where "how many operands and in
-    /// what shape" is exactly the question and \`Stack underflow\` alone
-    /// answers none of it.
+    /// Read by \`diagnostic_hint::usage_hint\` for a stack underflow or an
+    /// operand of the wrong domain, where "how many operands and in what shape"
+    /// is exactly the question and \`stack underflow\` alone answers none of it.
     pub syntax: Option<&'static str>,
     /// What the Word does, with its tested examples — the LOOKUP \`Summary\`
     /// section (\`documentation.summary\`).

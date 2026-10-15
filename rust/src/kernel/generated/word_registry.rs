@@ -483,9 +483,9 @@ pub struct GeneratedWord {
     pub error_when: &'static [&'static str],
     /// One line of the Word written correctly, as the specification writes it.
     ///
-    /// Read by the stack-underflow diagnosis, where "how many operands and in
-    /// what shape" is exactly the question and `Stack underflow` alone
-    /// answers none of it.
+    /// Read by `diagnostic_hint::usage_hint` for a stack underflow or an
+    /// operand of the wrong domain, where "how many operands and in what shape"
+    /// is exactly the question and `stack underflow` alone answers none of it.
     pub syntax: Option<&'static str>,
     /// What the Word does, with its tested examples — the LOOKUP `Summary`
     /// section (`documentation.summary`).

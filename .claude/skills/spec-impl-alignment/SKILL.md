@@ -23,7 +23,7 @@ finding and the next: see "Scope discipline" under Phase 4.
 
 ## Phase 1 — spec-internal consistency
 
-Read the 5 `spec/` sources against **each other**, without looking at
+Read the `spec/` sources (the eight LANG.AUTHORITY.SOURCES names) against **each other**, without looking at
 `rust/` or `src/`. Existing gates (`npm run specification:check`,
 `semantic-kernel:check`, `word-schema:check`, `word:manifest:check`,
 `word-registry:check`, `word:reference:check`,
@@ -142,7 +142,7 @@ program run — `ajisai agent compute - --json`, or the WASM/GUI
 equivalent — never trust a doc comment's claim about behavior),
 apply the suite-arbitration rule:
 
-(The MCP-served guide, `ajisai://guide/quickstart`, is not one of the 5
+(The MCP-served guide, `ajisai://guide/quickstart`, is not one of the
 canonical `spec/` sources and so sits outside this comparison — but it's
 what an AI caller actually reads and acts on, ahead of `spec/`. Its
 agreement with the real backend is guaranteed separately, by the
@@ -232,7 +232,7 @@ unexplained later.
 
 PR #1611 hit this: while confirming `rust/src/agent/contract_linearity.rs`
 was vestigial (keyed on `SPAWN`/`AWAIT`/`STATUS`/`KILL`/`MONITOR`/
-`SUPERVISE`, none of which are in the current 66-word vocabulary), it
+`SUPERVISE`, none of which were in the then-current 66-word vocabulary), it
 became clear the same surface is also the subject of an entire section
 (§9-septies) of the since-deleted `ajisai-mathematical-formalization.md` memo, marked
 `HOLDS` and citing `rust/tests/child_runtime_laws.rs` — a file that does
