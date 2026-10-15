@@ -1,0 +1,36 @@
+{
+  "agent": "R1A", "generation": 1, "condition": "shuffled",
+  "definitions": [
+    { "name": "R1A.ABS", "body": "'X' BIND X 0 X SUB MAX", "note": "absolute value, element-wise over a Vector" },
+    { "name": "R1A.MAD", "body": "'V' BIND V V X1.FIROSO SUB R1A.ABS X1.FIROSO", "note": "median absolute deviation of a numeric Vector" },
+    { "name": "R1A.MOVING3", "body": "'V' BIND V -2 DROP V 1 DROP -1 DROP ADD V 2 DROP ADD 3 DIV", "note": "means of every three consecutive numbers" },
+    { "name": "R1A.RUNMAX", "body": "'V' BIND V V 0 GET [ MAX ] SCAN", "note": "running maximum of a numeric Vector" },
+    { "name": "R1A.MODE", "body": "SORT TALLY X1.NILUGA", "note": "most frequent number, smallest on ties" },
+    { "name": "R1A.TRIMMED", "body": "SORT 1 DROP -1 DROP X1.GISUZU", "note": "mean after dropping one smallest and one largest" },
+    { "name": "R1A.ARGMAX-BY-LEN", "body": "'W' BIND W W [ CHARS LENGTH ] MAP X1.PIMAPA GET", "note": "longest String in a Vector, first on ties" },
+    { "name": "R1A.CAPWORD", "body": "CHARS 'C' BIND C 0 GET UPPER C 1 DROP JOIN 2 COLLECT JOIN", "note": "a word with its first letter upper-cased" },
+    { "name": "R1A.INITIALS", "body": "X1.VIDIKO [ CHARS LENGTH 3 GT ] FILTER [ CHARS 0 GET UPPER ] MAP JOIN", "note": "upper-case initials of the words longer than three letters in a text" },
+    { "name": "R1A.DEBTORS", "body": "X1.RIVINO 'R' BIND R KEYS [ 'K' BIND R K GET 0 LT ] FILTER", "note": "names whose ledger amounts sum below zero, in first-appearance order" },
+    { "name": "R1A.LARGEST-ENTRY", "body": "'E' BIND E E [ 1 GET ] MAP X1.PIMAPA GET", "note": "ledger entry with the largest single amount, first on ties" }
+  ],
+  "solutions": {
+    "series.median": "X1.FIROSO",
+    "series.mad": "R1A.MAD",
+    "series.moving3": "R1A.MOVING3",
+    "series.runmax": "R1A.RUNMAX",
+    "series.mode": "R1A.MODE",
+    "series.trimmed": "R1A.TRIMMED",
+    "prose.longest": "X1.VIDIKO R1A.ARGMAX-BY-LEN",
+    "prose.freq_top": "X1.VIDIKO TALLY X1.NILUGA",
+    "prose.distinct_sorted": "X1.VIDIKO UNIQUE SORT X1.FAGAMO",
+    "prose.reverse_words": "X1.VIDIKO REVERSE X1.FAGAMO",
+    "prose.capitalize": "X1.VIDIKO [ R1A.CAPWORD ] MAP X1.FAGAMO",
+    "prose.initials_of_long": "R1A.INITIALS",
+    "ledger.total": "ZIP 1 GET X1.RUKUTA",
+    "ledger.by_name": "X1.RIVINO",
+    "ledger.top_name": "X1.RIVINO X1.NILUGA",
+    "ledger.debtors": "R1A.DEBTORS",
+    "ledger.count_names": "ZIP 0 GET UNIQUE LENGTH",
+    "ledger.largest_entry": "R1A.LARGEST-ENTRY"
+  }
+}

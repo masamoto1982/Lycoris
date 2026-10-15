@@ -1,0 +1,2 @@
+'the quick brown fox jumps over the lazy dog the end'
+G0A.WORDS 'W' BIND W [ CHARS LENGTH ] MAP G0A.ARGMAX 'I' BIND W I GET

@@ -1,0 +1,2 @@
+[ 'W' BIND W CHARS 0 GET UPPER W CHARS 1 DROP JOIN 2 COLLECT JOIN ] 'R1B.CAP' DEF
+[ [ 'ann' 30 ] [ 'bob' -5 ] [ 'ann' 12 ] ] X1.RIVINO

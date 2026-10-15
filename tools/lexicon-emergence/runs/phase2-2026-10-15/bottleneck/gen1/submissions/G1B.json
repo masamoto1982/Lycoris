@@ -1,0 +1,77 @@
+{
+ "agent": "G1B",
+ "generation": 1,
+ "condition": "bottleneck",
+ "definitions": [
+  {
+   "name": "G1B.ABSV",
+   "body": "'D' BIND D D -1 MUL MAX",
+   "note": "elementwise absolute value of a numeric Vector"
+  },
+  {
+   "name": "G1B.MAD",
+   "body": "'V' BIND V G0A.MEDIAN 'M' BIND V M SUB G1B.ABSV G0A.MEDIAN",
+   "note": "median absolute deviation of a numeric Vector"
+  },
+  {
+   "name": "G1B.MOVING3",
+   "body": "'V' BIND V LENGTH 2 SUB 'K' BIND V K TAKE V 1 DROP K TAKE ADD V 2 DROP ADD 3 DIV",
+   "note": "means of every three consecutive numbers"
+  },
+  {
+   "name": "G1B.RUNMAX",
+   "body": "'V' BIND V V 0 GET [ MAX ] SCAN",
+   "note": "running maximum of a numeric Vector"
+  },
+  {
+   "name": "G1B.MODE",
+   "body": "SORT TALLY G0B.TOPKEY",
+   "note": "most frequent number, smallest on ties"
+  },
+  {
+   "name": "G1B.TRIMMED",
+   "body": "SORT 1 DROP -1 DROP G0A.MEAN",
+   "note": "mean after dropping one min and one max"
+  },
+  {
+   "name": "G1B.LONGEST",
+   "body": "G0A.WORDS 'W' BIND W W [ CHARS LENGTH ] MAP G0A.ARGMAX GET",
+   "note": "longest word of a String, first on ties"
+  },
+  {
+   "name": "G1B.CAP",
+   "body": "CHARS 'C' BIND C 0 GET UPPER 1 COLLECT C 1 DROP CONCAT JOIN",
+   "note": "capitalize the first letter of one word"
+  },
+  {
+   "name": "G1B.DEBTORS",
+   "body": "G0A.BYNAME 'R' BIND R KEYS R VALUES 2 COLLECT ZIP [ 1 GET 0 LT ] FILTER [ 0 GET ] MAP",
+   "note": "names whose summed amounts are negative"
+  },
+  {
+   "name": "G1B.LARGEST",
+   "body": "'V' BIND V V ZIP 1 GET G0A.ARGMAX GET",
+   "note": "entry with the largest amount, first on ties"
+  }
+ ],
+ "solutions": {
+  "series.median": "G0A.MEDIAN",
+  "series.mad": "G1B.MAD",
+  "series.moving3": "G1B.MOVING3",
+  "series.runmax": "G1B.RUNMAX",
+  "series.mode": "G1B.MODE",
+  "series.trimmed": "G1B.TRIMMED",
+  "prose.longest": "G1B.LONGEST",
+  "prose.freq_top": "G0A.WORDS TALLY G0B.TOPKEY",
+  "prose.distinct_sorted": "G0A.WORDS UNIQUE SORT G0A.UNWORDS",
+  "prose.reverse_words": "G0A.WORDS REVERSE G0A.UNWORDS",
+  "prose.capitalize": "G0A.WORDS [ G1B.CAP ] MAP G0A.UNWORDS",
+  "prose.initials_of_long": "G0A.WORDS [ CHARS LENGTH 3 GT ] FILTER [ CHARS 0 GET UPPER ] MAP JOIN",
+  "ledger.total": "ZIP 1 GET G0A.SUM",
+  "ledger.by_name": "G0A.BYNAME",
+  "ledger.top_name": "G0A.BYNAME G0B.TOPKEY",
+  "ledger.debtors": "G1B.DEBTORS",
+  "ledger.count_names": "ZIP 0 GET UNIQUE LENGTH",
+  "ledger.largest_entry": "G1B.LARGEST"
+ }
+}

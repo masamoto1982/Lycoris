@@ -1,0 +1,102 @@
+{
+  "generation": 2,
+  "capacity": 8,
+  "entries": [
+    {
+      "name": "G0A.SUM",
+      "body": "0 [ ADD ] FOLD",
+      "note": "sum of a numeric Vector (0 for empty)",
+      "classId": "G0A.SUM",
+      "uses": 22,
+      "agents": [
+        "G1A",
+        "G1B",
+        "G1C"
+      ]
+    },
+    {
+      "name": "G0A.WORDS",
+      "body": "' ' TOKENIZE",
+      "note": "split a String on single spaces into a Vector of words",
+      "classId": "G0A.WORDS",
+      "uses": 18,
+      "agents": [
+        "G1A",
+        "G1B",
+        "G1C"
+      ]
+    },
+    {
+      "name": "G0A.BYNAME",
+      "body": "ZIP [ 'N' 'A' ] BIND N A GROUP 'G' BIND G KEYS G VALUES [ G0A.SUM ] MAP RECORD",
+      "note": "Record from name to summed amount, names in first-appearance order",
+      "classId": "G0A.BYNAME",
+      "uses": 10,
+      "agents": [
+        "G1A",
+        "G1B",
+        "G1C"
+      ]
+    },
+    {
+      "name": "G0A.MEAN",
+      "body": "'V' BIND V G0A.SUM V LENGTH DIV",
+      "note": "arithmetic mean of a numeric Vector",
+      "classId": "G0A.MEAN",
+      "uses": 9,
+      "agents": [
+        "G1A",
+        "G1B",
+        "G1C"
+      ]
+    },
+    {
+      "name": "G0A.UNWORDS",
+      "body": "'V' BIND V 1 DROP V 0 GET [ 'E' BIND ' ' E 3 COLLECT JOIN ] FOLD",
+      "note": "join a non-empty Vector of Strings with single spaces",
+      "classId": "G0A.UNWORDS",
+      "uses": 9,
+      "agents": [
+        "G1A",
+        "G1B",
+        "G1C"
+      ]
+    },
+    {
+      "name": "G0A.ARGMAX",
+      "body": "'L' BIND 0 L SUB ORDER 0 GET",
+      "note": "index of the first largest number in a Vector",
+      "classId": "G0A.ARGMAX",
+      "uses": 8,
+      "agents": [
+        "G1A",
+        "G1B",
+        "G1C"
+      ]
+    },
+    {
+      "name": "G0B.TOPKEY",
+      "body": "'T' BIND T KEYS T VALUES -1 MUL ORDER 0 GET GET",
+      "note": "key of a Record with the largest value; first on ties",
+      "classId": "G0B.TOPKEY",
+      "uses": 7,
+      "agents": [
+        "G1A",
+        "G1B",
+        "G1C"
+      ]
+    },
+    {
+      "name": "G0A.MEDIAN",
+      "body": "SORT 'V' BIND V LENGTH 'N' BIND V N 1 SUB 2 DIV FLOOR N 2 DIV FLOOR 2 COLLECT GET G0A.MEAN",
+      "note": "median of a non-empty numeric Vector",
+      "classId": "G0A.MEDIAN",
+      "uses": 6,
+      "agents": [
+        "G1A",
+        "G1B",
+        "G1C"
+      ]
+    }
+  ]
+}
