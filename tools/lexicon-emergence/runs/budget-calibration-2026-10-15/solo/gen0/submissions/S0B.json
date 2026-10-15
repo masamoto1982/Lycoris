@@ -1,0 +1,119 @@
+{
+  "agent": "S0B",
+  "generation": 0,
+  "condition": "solo",
+  "definitions": [
+    {
+      "name": "S0B.MIDX",
+      "body": "'M' BIND 0 M LENGTH 1 SUB RANGE M 2 COLLECT ZIP [ 1 GET ] FILTER [ 0 GET ] MAP",
+      "note": "bool vector -> indices of TRUE"
+    },
+    {
+      "name": "S0B.CHANGE",
+      "body": "'V' BIND V 0 GET 1 SUB 1 COLLECT V -1 DROP CONCAT 'P' BIND V P SUB 'D' BIND D D MUL 0 GT",
+      "note": "vector -> mask TRUE where value differs from previous (first TRUE)"
+    },
+    {
+      "name": "S0B.LENS",
+      "body": "'N' BIND 'S' BIND S 1 DROP N 1 COLLECT CONCAT S SUB",
+      "note": "starts vector, total length -> segment lengths"
+    },
+    {
+      "name": "S0B.RLE",
+      "body": "'V' BIND V S0B.CHANGE S0B.MIDX 'S' BIND V S GET S V LENGTH S0B.LENS 2 COLLECT ZIP",
+      "note": "run-length encoding"
+    },
+    {
+      "name": "S0B.DEDUPE",
+      "body": "'V' BIND V V S0B.CHANGE S0B.MIDX GET",
+      "note": "collapse adjacent runs"
+    },
+    {
+      "name": "S0B.UPRUNS",
+      "body": "'V' BIND V 0 GET 1 ADD 1 COLLECT V -1 DROP CONCAT 'P' BIND V P SUB 0 GT NOT S0B.MIDX V LENGTH S0B.LENS 0 [ MAX ] FOLD",
+      "note": "longest strictly increasing stretch"
+    },
+    {
+      "name": "S0B.SECOND",
+      "body": "UNIQUE SORT -2 GET",
+      "note": "second-largest distinct or NIL"
+    },
+    {
+      "name": "S0B.MAJORITY",
+      "body": "'V' BIND V TALLY 'R' BIND R KEYS R VALUES 2 MUL V LENGTH GT 2 COLLECT ZIP [ 1 GET ] FILTER [ 0 GET ] MAP 0 GET",
+      "note": "strict majority value or NIL"
+    },
+    {
+      "name": "S0B.DIVISORS",
+      "body": "'N' BIND 1 N RANGE 'I' BIND N N I DIV FLOOR I MUL SUB 0 GT NOT S0B.MIDX 1 ADD",
+      "note": "ascending divisors"
+    },
+    {
+      "name": "S0B.PRIMES",
+      "body": "'N' BIND 1 N RANGE [ S0B.DIVISORS LENGTH 2 EQ ] FILTER",
+      "note": "primes <= n"
+    },
+    {
+      "name": "S0B.BINARY",
+      "body": "'N' BIND N [ 32 16 8 4 2 1 ] DIV FLOOR 'Q' BIND Q Q 2 DIV FLOOR 2 MUL SUB 'B' BIND B 0 [ ADD ] SCAN 0 GT S0B.MIDX 'K' BIND B K GET STR JOIN",
+      "note": "base-2 string"
+    },
+    {
+      "name": "S0B.COLLATZ",
+      "body": "'N' BIND N 1 COLLECT 1 120 RANGE N [ 0 MUL ADD 'X' BIND 1 X 3 MUL 1 ADD X 2 DIV X X 2 DIV FLOOR 2 MUL SUB 0 GT SELECT X 1 EQ SELECT ] SCAN CONCAT [ 1 EQ NOT ] FILTER LENGTH",
+      "note": "collatz step count (n<=60)"
+    },
+    {
+      "name": "S0B.DROOT",
+      "body": "1 SUB 'M' BIND M M 9 DIV FLOOR 9 MUL SUB 1 ADD",
+      "note": "digital root"
+    },
+    {
+      "name": "S0B.FIBIDX",
+      "body": "'N' BIND [ 1 1 2 3 5 8 13 21 34 55 89 ] [ N LT ] FILTER LENGTH 1 ADD",
+      "note": "smallest k with F(k)>=n (n<=89)"
+    },
+    {
+      "name": "S0B.UNM1",
+      "body": "'()' '' REPLACE '[]' '' REPLACE",
+      "note": "one round of deleting () and [] pairs"
+    },
+    {
+      "name": "S0B.UNM",
+      "body": "S0B.UNM1 S0B.UNM1 S0B.UNM1 S0B.UNM1 S0B.UNM1 S0B.UNM1 CHARS LENGTH",
+      "note": "count left after deleting matched pairs (<=12 chars)"
+    },
+    {
+      "name": "S0B.DEPTH",
+      "body": "CHARS [ 'C' BIND '()[]' C SEARCH ] MAP 'I' BIND 1 I I 2 DIV FLOOR 2 MUL SUB 2 MUL SUB 0 [ ADD 0 MAX ] SCAN 0 [ MAX ] FOLD",
+      "note": "max bracket nesting"
+    },
+    {
+      "name": "S0B.BAL",
+      "body": "S0B.UNM 0 EQ",
+      "note": "balanced bracket string"
+    },
+    {
+      "name": "S0B.BPREFIX",
+      "body": "CHARS 'C' BIND 0 C LENGTH RANGE [ 'K' BIND C K TAKE JOIN S0B.UNM 0 EQ ] MAP S0B.MIDX 0 [ MAX ] FOLD",
+      "note": "longest balanced prefix length"
+    }
+  ],
+  "solutions": {
+    "runs.rle": "S0B.RLE",
+    "runs.upruns": "S0B.UPRUNS",
+    "runs.dedupe": "S0B.DEDUPE",
+    "runs.second_largest": "S0B.SECOND",
+    "runs.majority": "S0B.MAJORITY",
+    "number.primes": "S0B.PRIMES",
+    "number.divisors": "S0B.DIVISORS",
+    "number.binary": "S0B.BINARY",
+    "number.collatz": "S0B.COLLATZ",
+    "number.digital_root": "S0B.DROOT",
+    "number.fib_index": "S0B.FIBIDX",
+    "brackets.depth": "S0B.DEPTH",
+    "brackets.balanced": "S0B.BAL",
+    "brackets.balanced_prefix": "S0B.BPREFIX",
+    "brackets.unmatched": "S0B.UNM"
+  }
+}
