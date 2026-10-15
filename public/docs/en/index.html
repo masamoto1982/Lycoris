@@ -538,13 +538,13 @@
                             <tbody>
                                 <tr><td><code>executionLimitExceeded</code></td><td class="notes">The total number of work steps the whole program may spend</td><td class="notes">Rewrite with bulk operations (<code>SORT</code>, <code>GET</code>); review the termination condition</td></tr>
                                 <tr><td><code>resourceLimitExceeded</code></td><td class="notes">The size of a single value (coefficient bit width, number of algebraic terms and so on)</td><td class="notes">Round to a <code>1/d</code> grid to prune the history; look for a closed form</td></tr>
-                                <tr><td><code>recursionLimitExceeded</code></td><td class="notes">The nesting depth of a call chain (not cyclic, but an extremely long chain of Words calling Words)</td><td class="notes">Make the call chain shallower, or rewrite with bulk operations</td></tr>
+                                <tr><td><code>resourceLimitExceeded</code> (<code>callDepth</code>)</td><td class="notes">How deep Word calls and block evaluations (<code>EXEC</code>, <code>MAP</code> and so on) are nested at once. A long chain of Words calling Words reaches it, and so does a block that runs a copy of itself</td><td class="notes">Make the call chain shallower, or rewrite with bulk operations</td></tr>
                             </tbody>
                         </table>
                     </div>
                     <p><code>executionLimitExceeded</code> can be set explicitly with the CLI's <code>ajisai run --step-limit &lt;N&gt;</code>. The default is an implementation choice made by the host's runtime, not a fixed number this Reference promises.</p>
                     <p class="ref-note">The three above are limits the interpreter counts, but the Playground has one more: a <strong>wall-clock</strong> cut-off. When a single run exceeds 5 seconds, it is stopped together with its worker and reported as <code>Execution timed out after 5000 ms</code>. This is neither language semantics nor an interpreter budget but a host-side guard that only this screen has. That is why it carries none of the names above; instead it comes with a diagnosis that says which guard stopped the run and suggests rewriting with bulk operations or pruning by rounding to a grid. Hover over the <code>resource limits:</code> badge next to the build indicator at the top of the screen to list the host's limits (this guard is listed there too). The MCP host declares a different, stricter materialization limit. That is why the same <code>0 100001 RANGE</code> succeeds in the Playground but is an error (<code>resourceLimitExceeded</code>, naming <code>materializedElements</code>) on the MCP host. A program that runs on both hosts answers the same on both.</p>
-                    <p class="ref-note">The work done by the whole program and the size of a single value are measured separately. Some Words, such as <code>0 99999 RANGE UNIQUE</code>, count as one step yet perform as many comparisons internally as there are elements, so the step budget alone does not show how heavy a value is. Recall the fraction whose denominator kept growing in the section on the cost of iteration: grow it without pruning to a grid, and exactly this <code>resourceLimitExceeded</code> is where it ends. <code>recursionLimitExceeded</code> is different again. <a href="#acyclic">A Word cannot call itself</a>, so this is not a recursion depth but the depth of a non-cyclic call chain that passes through many different Words, A→B→C→….</p>
+                    <p class="ref-note">The work done by the whole program and the size of a single value are measured separately. Some Words, such as <code>0 99999 RANGE UNIQUE</code>, count as one step yet perform as many comparisons internally as there are elements, so the step budget alone does not show how heavy a value is. Recall the fraction whose denominator kept growing in the section on the cost of iteration: grow it without pruning to a grid, and exactly this <code>resourceLimitExceeded</code> is where it ends. <code>resourceLimitExceeded</code> naming <code>callDepth</code> is different again: not the size of a value but how deep calls are nested at once. <a href="#acyclic">A Word cannot name itself in its body</a>, so a long chain through many different Words, A→B→C→…, reaches it. A block that builds a copy of itself from data and runs it stops here too.</p>
 
                     <h3>Materialization limits: an error, not a value</h3>
                     <p><code>RANGE</code> and <code>FILL</code> have a limit on the size of the Vector one call produces. Even when the request itself is well-formed, trying to materialize beyond that limit is an <strong>error</strong>, <code>resourceLimitExceeded</code>, naming <code>materializedElements</code>, and nothing is built. It is not a <code>NIL</code>: a limit is the host's, and a <code>NIL</code> would flow on and let a fallback such as <code>0 X X NIL? SELECT</code> choose a different branch on a host with a smaller limit. A dimension or shape that is itself wrong, such as a negative or non-integer number, is an error too, under its own name.</p>
@@ -1252,7 +1252,7 @@ FILTER</code></td>
                     <h3>Word identity</h3>
                     <p>Every Word has a <strong>content identity</strong>: a digest over its normalized definition and the identities of the Words it calls. Two definitions with the same identity are the same Word whatever their names, and changing a definition changes the identity of everything that depends on it. This is why <code>DEF</code> and <code>DEL</code> refuse to disturb a Word something else still refers to: the dependency is on the Word, not on its spelling.</p>
                     <h3 id="reflection">Reading the dictionary and contracts from inside the language: <code>DIGEST</code> and <code>CONTRACT</code></h3>
-                    <p>Two Words read, from inside the language, what the machine already knows about the dictionary. The operand that names a Word is a <strong>Symbol</strong> — a bare name written inside <code>[ ]</code> — not a string (<code>CONTRACT</code> also accepts a code block). <code>'ADD' CONTRACT</code> is a <code>notASymbol</code> error. A Word that could look a name up from text would break the fact that "no Word turns text into a Symbol", which the cycle check at <code>DEF</code> time relies on.</p>
+                    <p>Two Words read, from inside the language, what the machine already knows about the dictionary. <code>CONTRACT</code> names a Word by a string, as <code>DEF</code>, <code>BIND</code> and <code>DEL</code> do, or by a <strong>Symbol</strong> — a bare name written inside <code>[ ]</code> — and both read the same entry (it also accepts a code block). Reading a contract calls nothing, so a string there does not break the fact that "no Word turns text into a call", which the cycle check at <code>DEF</code> time relies on. <code>DIGEST</code> is different: a string is a value there. <code>'TWICE' DIGEST</code> is the digest of the text <code>TWICE</code>, and a Word's identity is written <code>[ TWICE ] 0 GET DIGEST</code>. Otherwise the digest of a piece of text would change the moment a Word of that spelling was defined.</p>
                     <p><code>DIGEST</code> answers, as text, the content identity of a Symbol that names a Word, and the digest of the meaning of any other value. The same digest means the same thing; different digests mean nothing. <code>CONTRACT</code> answers a Word's contract as a Record keyed <code>inputs</code>, <code>outputs</code> and <code>field</code>: the registered contract for a Core Word, or the contract inferred from the body for a Word you defined. Pass a code block as it is, and its contract is inferred <strong>without running it</strong> — the pre-execution check (<code>ajisai check</code>) called from inside the language; where it cannot decide, it answers the weaker claim, <code>'variable'</code> or <code>'leaving'</code>.</p>
                     <p class="ref-note">Whether a Symbol resolves as a <code>Core</code> or <code>User</code> Word shows in whether <code>CONTRACT</code> answers a contract. A name that is not a Word returns a reasoned <code>NIL</code>, so <code>sym CONTRACT NIL? NOT</code> is that question. <code>NIL?</code> consumes its operand, so only the Boolean remains.</p>
                     <div class="sample">
@@ -1268,9 +1268,14 @@ FILTER</code></td>
                                     <td class="notes">An undefined name has no contract, so <code>FALSE</code>.</td>
                                 </tr>
                                 <tr>
-                                    <td><code>'ADD' CONTRACT</code></td>
-                                    <td>error</td>
-                                    <td class="notes">A string is not a name (<code>notASymbol</code>).</td>
+                                    <td><code>'ADD' CONTRACT [ ADD ] 0 GET CONTRACT EQ</code></td>
+                                    <td><code>TRUE</code></td>
+                                    <td class="notes">A string names the Word as the Symbol does.</td>
+                                </tr>
+                                <tr>
+                                    <td><code>'TWICE' DIGEST [ 2 MUL ] 'TWICE' DEF 'TWICE' DIGEST EQ</code></td>
+                                    <td><code>TRUE</code></td>
+                                    <td class="notes">A string is text to <code>DIGEST</code>, whatever it spells.</td>
                                 </tr>
                                 <tr>
                                     <td><code>[ 2 MUL ] 'TWICE' DEF [ 2 MUL ] 'DOUBLE' DEF [ TWICE ] 0 GET DIGEST [ DOUBLE ] 0 GET DIGEST EQ</code></td>
@@ -1330,13 +1335,13 @@ FILTER</code></td>
 <h3 id="family-dictionary">Contracts: Dictionary and names</h3>
 <div class="word-entry" id="word-CONTRACT">
 <h4><code>CONTRACT</code> <span class="word-tier">Semantic Kernel</span></h4>
-<p>The contract of a Word or of a block, as a Record keyed <code>inputs</code> <code>outputs</code> <code>field</code>: <code>[ SQRT ] 0 GET CONTRACT 'inputs' GET</code> is <code>1</code>. <code>inputs</code> and <code>outputs</code> are counts, or <code>'variable'</code> where the arity is decided by the data; <code>field</code> names <code>'closed'</code> or <code>'leaving'</code> (LANG.CONTRACT.FIELD), so <code>[ 0 DIV ] CONTRACT 'field' GET</code> is <code>'leaving'</code>: whether code can answer a point over zero from operands holding none is read before it runs. For a Symbol naming a Core Word it is the registered contract of <code>spec/words.json</code> (LANG.CONTRACT.REGISTRY); for a Symbol naming a User Word, or for a block of code, it is the contract inferred without running anything — the same inference <code>ajisai check</code> runs from outside the language — in the same keys and the same vocabulary, so the two compare directly. A block is never evaluated, so <code>[ 42 PRINT ] CONTRACT</code> prints nothing. A Symbol that names no Word projects <code>notFound</code>; an operand that is neither a Symbol nor a block is an ERROR (<code>notASymbol</code>).</p>
+<p>The contract of a Word or of a block, as a Record keyed <code>inputs</code> <code>outputs</code> <code>field</code>: <code>'SQRT' CONTRACT 'inputs' GET</code> is <code>1</code>. <code>inputs</code> and <code>outputs</code> are counts, or <code>'variable'</code> where the arity is decided by the data; <code>field</code> names <code>'closed'</code> or <code>'leaving'</code> (LANG.CONTRACT.FIELD), so <code>[ 0 DIV ] CONTRACT 'field' GET</code> is <code>'leaving'</code>: whether code can answer a point over zero from operands holding none is read before it runs. A Word is named the way DEF, BIND and DEL name one, by a String, or by a Symbol (<code>[ SQRT ] 0 GET</code>); both read the same entry. For a name of a Core Word it is the registered contract of <code>spec/words.json</code> (LANG.CONTRACT.REGISTRY); for a name of a User Word, or for a block of code, it is the contract inferred without running anything — the same inference <code>ajisai check</code> runs from outside the language — in the same keys and the same vocabulary, so the two compare directly. Reading a contract calls nothing, so a String here names a Word without ever becoming a call (LANG.SOURCE.CODE). A block is never evaluated, so <code>[ 42 PRINT ] CONTRACT</code> prints nothing. A name of no Word projects <code>notFound</code>; an operand that is neither a name nor a block is an ERROR (<code>notASymbol</code>).</p>
 <dl class="word-contract">
-<dt>Syntax</dt><dd><code>[ ADD ] 0 GET CONTRACT</code></dd>
-<dt>Stack effect</dt><dd><span class="notation">[ symbol | code ] -&gt; [ record ]</span></dd>
+<dt>Syntax</dt><dd><code>'ADD' CONTRACT</code></dd>
+<dt>Stack effect</dt><dd><span class="notation">[ name | code ] -&gt; [ record ]</span></dd>
 <dt>Stack</dt><dd>1 input(s) → 1 output(s)</dd>
 <dt>Operands</dt><dd><code>control</code> (LANG.FAILURE.PASSTHROUGH)</dd>
-<dt>NIL policy</dt><dd><code>createsNil</code>; projection: <code>symbolNamesNoWord</code> → <code>notFound</code></dd>
+<dt>NIL policy</dt><dd><code>createsNil</code>; projection: <code>nameNamesNoWord</code> → <code>notFound</code></dd>
 <dt>Partiality</dt><dd><code>projecting</code></dd>
 <dt>Field</dt><dd><code>closed</code> (LANG.CONTRACT.FIELD)</dd>
 <dt>Purity / determinism</dt><dd><code>pure</code> / <code>stateRelative</code></dd>
@@ -1398,7 +1403,7 @@ FILTER</code></td>
 </div>
 <div class="word-entry" id="word-DIGEST">
 <h4><code>DIGEST</code> <span class="word-tier">Semantic Kernel</span></h4>
-<p>The content identity of a Word, or the digest of a value's denotation, as text: <code>8 SQRT DIGEST 2 SQRT 2 SQRT ADD DIGEST EQ</code> is <code>TRUE</code>. A Symbol naming a User Word answers that Word's content identity — the digest over its normalized definition and the identities of the Words it calls that the dictionary already keeps (LANG.DICTIONARY.MUTATION) — and a Symbol naming a Core Word answers the fixed identity of that sealed Word. Any other value, a Symbol naming nothing included, answers the digest of its denotation: two values that <code>EQ</code> calls one value digest alike, however each was built, so <code>8 SQRT DIGEST</code> equals <code>2 SQRT 2 SQRT ADD DIGEST</code>, and a NIL digests by its reason. Equal digests mean one thing; unequal digests mean nothing.</p>
+<p>The content identity of a Word, or the digest of a value's denotation, as text: <code>8 SQRT DIGEST 2 SQRT 2 SQRT ADD DIGEST EQ</code> is <code>TRUE</code>. A Symbol naming a User Word answers that Word's content identity — the digest over its normalized definition and the identities of the Words it calls that the dictionary already keeps (LANG.DICTIONARY.MUTATION) — and a Symbol naming a Core Word answers the fixed identity of that sealed Word. Any other value, a Symbol naming nothing included, answers the digest of its denotation — a String too, even one that spells a Word's name, because a String is text: <code>'TWICE' DIGEST</code> is the digest of the text <code>TWICE</code>, and <code>[ TWICE ] 0 GET DIGEST</code> is the Word's identity. A value's digest therefore never changes when the dictionary does. For a Word's identity, write the Symbol: two values that <code>EQ</code> calls one value digest alike, however each was built, so <code>8 SQRT DIGEST</code> equals <code>2 SQRT 2 SQRT ADD DIGEST</code>, and a NIL digests by its reason. Equal digests mean one thing; unequal digests mean nothing.</p>
 <dl class="word-contract">
 <dt>Syntax</dt><dd><code>[ ADD ] 0 GET DIGEST</code></dd>
 <dt>Stack effect</dt><dd><span class="notation">[ x ] -&gt; [ digest ]</span></dd>
@@ -3317,6 +3322,50 @@ FILTER</code></td>
                         </div>
                     </div>
                 
+                    <h3 id="json-sql">The JSON and SQL boundary: where a number becomes a string</h3>
+                    <p>Ajisai numbers are exact rationals, so they do not map one to one onto JSON or SQL number types. These are the only cases where the type changes at the boundary.</p>
+                    <div class="ref-table-wrap">
+                    <table class="ref-table">
+                        <thead><tr><th>Ajisai value</th><th><code>JSON-ENCODE</code></th><th>Back through <code>JSON-DECODE</code></th><th>In an SQL column</th></tr></thead>
+                        <tbody>
+                            <tr><td>A rational with a finite decimal (<code>1/4</code>)</td><td><code>0.25</code> (a number)</td><td>The same number</td><td class="notes">Fits NUMERIC as it is</td></tr>
+                            <tr><td>Any other rational (<code>1/3</code>)</td><td><code>"1/3"</code> (a string)</td><td>The string <code>'1/3'</code>; <code>NUM</code> recovers the number</td><td class="notes">A type error in a NUMERIC column</td></tr>
+                            <tr><td><code>1/0</code>, <code>0/0</code></td><td><code>"1/0"</code>, <code>"0/0"</code> (strings)</td><td>A string; <code>NUM</code> recovers the number</td><td class="notes">The same</td></tr>
+                            <tr><td>An irrational (<code>2 SQRT</code>)</td><td><code>NIL</code> with <code>domainMiss</code></td><td>—</td><td class="notes">Cannot be written</td></tr>
+                            <tr><td><code>NIL</code></td><td><code>null</code></td><td><code>NIL</code> (reason <code>literal</code>)</td><td class="notes">NULL; the reason is lost</td></tr>
+                        </tbody>
+                    </table>
+                    </div>
+                    <p>When the receiver must get a number as a number, choose the digits and pass the value through <code>FORMAT NUM</code> before encoding. The program says where to round, and the encoder never rounds. <code>FORMAT</code> projects <code>domainMiss</code> for the points over zero, so <code>1/0</code> and <code>0/0</code> become NULL.</p>
+                    <div class="sample">
+                        <div class="ref-table-wrap">
+                        <table class="ref-table">
+                            <thead>
+                                <tr><th>Sample code</th><th>Expected value</th><th>Notes</th></tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><code>[ 1/0 1/3 ] JSON-ENCODE JSON-DECODE</code></td>
+                                    <td><code>[ '1/0' '1/3' ]</code></td>
+                                    <td class="notes">The numbers come back as lexeme strings.</td>
+                                </tr>
+                                <tr>
+                                    <td><code>[ 1/0 1/3 ] JSON-ENCODE JSON-DECODE NUM [ 1/0 1/3 ] EQ</code></td>
+                                    <td><code>TRUE</code></td>
+                                    <td class="notes"><code>NUM</code> recovers the original numbers.</td>
+                                </tr>
+                                <tr>
+                                    <td><code>1 3 DIV 2 FORMAT NUM JSON-ENCODE</code></td>
+                                    <td><code>'0.33'</code></td>
+                                    <td class="notes">Choose the digits first, and the result is a JSON number.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        </div>
+                        <div class="sample-actions">
+                            <a class="btn js-open-playground" href="../../index.html">Open in Playground</a>
+                        </div>
+                    </div>
                 <!-- BEGIN generated word contracts: strings-ops -->
 <h3 id="family-text">Contracts: Text</h3>
 <div class="word-entry" id="word-CHARS">

@@ -38,6 +38,11 @@
    "type": "integer",
    "minimum": 1
   },
+  "specificationVersion": {
+   "type": "string",
+   "minLength": 1,
+   "description": "The specification version the engine implements, as the engine's own envelope states it. During the beta a program's answer can change when it does; spec/CHANGELOG.md in the Ajisai repository names each change. Carried once, here, beside `mcp.engineVersion`'s release number."
+  },
   "status": {
    "type": "string",
    "enum": [
@@ -176,10 +181,32 @@
    },
    "description": "Inferred contracts for the user-defined Words in the submitted source (`infer_contracts` only). `inputs`, `outputs` and `field` are spelled as in the Record `CONTRACT` answers inside the language, so an inferred and a registered contract compare directly."
   },
+  "prelude": {
+   "type": "array",
+   "description": "The phrasebook Words a `words` argument defined before `source` ran, in the order they ran, each with its content digest (`[ NAME ] 0 GET DIGEST`), which matches the `#:digest` line of ajisai://phrasebook. Absent when the call named no `words`.",
+   "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+     "name",
+     "digest"
+    ],
+    "properties": {
+     "name": {
+      "type": "string",
+      "minLength": 1
+     },
+     "digest": {
+      "type": "string",
+      "pattern": "^#[0-9a-f]{64}$"
+     }
+    }
+   }
+  },
   "resourceUsage": {
    "type": "object",
    "additionalProperties": false,
-   "description": "What this run spent of the budgets that could have refused it. Every key names a ceiling of the `ajisai://limits` profile (`mcp.limitProfile`) and carries the same number the ceiling compared against — read from the counter the check reads, not a parallel copy — so an agent can subtract one from the other and know what it has left. Only the accumulating ceilings appear: `bigintBits` and `algebraicTerms` are checked per result and never accumulated, so there is no peak to report and none is invented.",
+   "description": "What this run spent of the budgets that could have refused it. Every key names a ceiling of the `ajisai://limits` profile (`mcp.limitProfile`) and carries the same number the ceiling compared against — read from the counter the check reads, not a parallel copy — so an agent can subtract one from the other and know what it has left. The accumulating ceilings always appear. `algebraicTerms` is a per-result ceiling, so it reports the largest term count any result of the run reached — the number that ceiling compared — and only when some result was an irrational.",
    "required": [
     "executionSteps",
     "numericWork",
@@ -200,6 +227,11 @@
      "type": "integer",
      "minimum": 0,
      "description": "Element operations charged inside collection Words — copies, order comparisons and equality probes — against the `collectionWork` ceiling. Priced from the operand, so an element that is wide, nested or algebraic costs more than a machine word; a collection Word loops inside one execution step, so this is the only counter that can see it."
+    },
+    "algebraicTerms": {
+     "type": "integer",
+     "minimum": 1,
+     "description": "The largest number of algebraic terms one result of the run carried, against the `algebraicTerms` ceiling. Absent when no result was an irrational. A Word whose charge grows with it marks that axis `valueDependent` in its `word_contract` entry."
     }
    }
   },
@@ -381,7 +413,8 @@
       "algebraicTerms",
       "nestingDepth",
       "materializedElements",
-      "executionSteps"
+      "executionSteps",
+      "callDepth"
      ],
      "description": "For `resourceLimitExceeded`, the ceiling crossed — an entry of the `ajisai://limits` profile."
     },
@@ -735,6 +768,12 @@
     },
     "exact": {
      "type": "boolean"
+    },
+    "valueDependent": {
+     "enum": [
+      "algebraicTerms"
+     ],
+     "description": "Present when this axis's charge also grows with an algebraic operand's term count, which `class` cannot see. Set by measurement."
     }
    },
    "additionalProperties": false

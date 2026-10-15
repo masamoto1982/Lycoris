@@ -182,7 +182,6 @@
     "note": "LANG.MACHINE.LIMITS' ceilings bound cost. None of them is what makes a program end, and a program that needs one to stop is a bug in this argument, not a program the language accepts. The witnesses above are run under the default profile and must all finish without reaching any ceiling.",
     "notLoadBearing": [
       "executionLimitExceeded",
-      "recursionLimitExceeded",
       "resourceLimitExceeded"
     ]
   }

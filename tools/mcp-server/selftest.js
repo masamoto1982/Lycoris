@@ -157,12 +157,13 @@ check(
 
 const resources = await client.listResources();
 check(
-  "publishes guide, vocabulary, contracts, result schema and host profile as resources",
+  "publishes guide, vocabulary, contracts, result schema, host profile and phrasebook as resources",
   JSON.stringify(resources.resources.map(({ uri }) => uri).sort()) ===
     JSON.stringify([
       "ajisai://contracts",
       "ajisai://guide/quickstart",
       "ajisai://limits",
+      "ajisai://phrasebook",
       "ajisai://schema/result",
       "ajisai://vocabulary",
     ]),
@@ -173,6 +174,12 @@ check(
 const vocabularyResource = JSON.parse(
   (await client.readResource({ uri: "ajisai://vocabulary" })).contents[0]?.text ?? "{}",
 );
+// The versions a result must name are the repository's, read where they are
+// written rather than repeated here.
+const rootPackageVersion = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8")).version;
+const lockedSpecificationVersion = JSON.parse(
+  readFileSync(new URL("../../spec/version-lock.json", import.meta.url), "utf8"),
+).specificationVersion;
 const registryNames = JSON.parse(readFileSync(new URL("./assets/words.json", import.meta.url), "utf8"))
   .entries.map(({ name }) => name).sort();
 check(
@@ -546,6 +553,49 @@ for (const [source, expected] of [
   );
 }
 
+// `words` defines phrasebook Words before the source, names each with the
+// digest its `#:digest` line records, and keeps error lines the caller's own.
+{
+  const phrasebookText = readFileSync(new URL("./assets/phrasebook.ajisai", import.meta.url), "utf8");
+  const recordedDigest = (name) =>
+    phrasebookText.split("\n").find((line) => line.startsWith(`#:digest ${name} `))?.split(" ")[2];
+  const mean = await client.callTool({ name: "compute", arguments: { source: "[ 1 2 3 ] MEAN", words: ["mean"] } });
+  check(
+    "words defines a phrasebook Word, and the Words it calls, before the source",
+    mean.structuredContent?.status === "ok" &&
+      mean.structuredContent?.stackDisplay?.[0] === "2/1" &&
+      JSON.stringify(mean.structuredContent?.prelude?.map((p) => p.name)) === JSON.stringify(["SUM", "MEAN"]),
+  );
+  check(
+    "each prelude digest is the one ajisai://phrasebook records",
+    mean.structuredContent?.prelude?.every((p) => p.digest === recordedDigest(p.name)),
+  );
+  const resource = await client.readResource({ uri: "ajisai://phrasebook" });
+  check("ajisai://phrasebook serves the packaged phrasebook", resource.contents?.[0]?.text === phrasebookText);
+  const failing = await client.callTool({ name: "compute", arguments: { source: "1\n[ 1 2 ] MEAN 0 FOO", words: ["MEAN"] } });
+  check(
+    "an error under words counts its line from the first line of source",
+    failing.structuredContent?.error?.line === 2,
+  );
+  const inferred = await client.callTool({ name: "infer_contracts", arguments: { source: "[ MEAN 2 MUL ] 'DOUBLE-MEAN' DEF", words: ["MEAN"] } });
+  check(
+    "infer_contracts under words reports only the caller's Words",
+    JSON.stringify(inferred.structuredContent?.contracts?.map((c) => c.name)) === JSON.stringify(["DOUBLE-MEAN"]),
+  );
+  const checked = await client.callTool({ name: "check", arguments: { source: "[ 1 2 ] MEAN", words: ["MEAN"] } });
+  check(
+    "check under words reports no declaration the caller did not write",
+    checked.structuredContent?.status === "ok" && !("contractDecls" in (checked.structuredContent ?? {})),
+  );
+  const unknown = await client.callTool({ name: "compute", arguments: { source: "1", words: ["MEEN"] } });
+  check(
+    "words refuses a name the phrasebook does not hold, and suggests the nearest",
+    unknown.structuredContent?.status === "hostError" &&
+      unknown.structuredContent?.error?.code === "invalidRequest" &&
+      /MEEN \(did you mean MEAN/.test(unknown.structuredContent?.error?.message ?? ""),
+  );
+}
+
 const compute = await client.callTool({
   name: "compute",
   arguments: { source: "[ 2 ] SQRT" },
@@ -666,11 +716,12 @@ if (compute.structuredContent?.error?.code === "backendUnavailable") {
     compute.structuredContent?.stackDisplay?.[0] === "[ sqrt(2) ]",
   );
   // The ceilings travel once, in `ajisai://limits`; a result names the
-  // profile and carries none of the twelve numbers.
+  // profile and carries none of the thirteen numbers.
   check(
     "compute reports engine provenance and names the applied profile",
     compute.structuredContent?.mcp?.serverVersion === serverVersion() &&
-      compute.structuredContent?.mcp?.engineVersion === "1.0.0-beta.1" &&
+      compute.structuredContent?.mcp?.engineVersion === rootPackageVersion &&
+      compute.structuredContent?.specificationVersion === lockedSpecificationVersion &&
       compute.structuredContent?.mcp?.limitProfile === LIMIT_PROFILE &&
       compute.structuredContent?.mcp?.limitProfile === limitsResource.profile &&
       !("limits" in (compute.structuredContent?.mcp ?? {})),

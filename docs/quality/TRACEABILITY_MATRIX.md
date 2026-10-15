@@ -44,6 +44,21 @@ It is listed here rather than given an ID because assigning one is an owner's
 call: the conformance corpus in `tests/conformance/`, not a requirement row, is
 what `PORTABILITY.md` makes the definition of Ajisai's behavior.
 
+Three gates added on 2026-10-15 verify specification-level promises and are
+listed here for the same reason:
+
+| Promise | Verification |
+|---|---|
+| A breaking change raises the specification version (`LANG.AUTHORITY.SOURCES`, `spec/README.md`) | `scripts/check-spec-version.mjs` against the pull request's base, with the rule's own tests in `scripts/check-spec-version.test.mjs` |
+| A cost axis says when its charge grows with an algebraic value (`LANG.MACHINE.LIMITS`) | `scripts/check-value-dependent-cost.mjs`, which measures every Word that can take a number |
+| The corpus reaches every outcome a program can reach (`LANG.CONFORMANCE.CORPUS`) | `scripts/check-conformance-coverage.mjs`, which runs every case and exempts two error categories with their reasons |
+
+The termination argument (`LANG.DICTIONARY.ACYCLIC`, `spec/termination.json`)
+is verified by `rust/tests/termination_laws.rs` and
+`rust/src/runtime_limits_tests.rs`. The second also pins that a block which
+runs a copy of itself is stopped by the `callDepth` ceiling, the open question
+docs/dev/observation-remediation-work-order-2026-10-15.md holds for the owner.
+
 ## Unassigned requirement IDs
 
 Requirement IDs are not dense. `AQ-REQ-005` and `AQ-REQ-006` are unused: no

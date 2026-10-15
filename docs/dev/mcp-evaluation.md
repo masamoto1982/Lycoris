@@ -19,8 +19,11 @@ npm run eval:capture       # drive a real model (needs Anthropic credentials)
 npm run eval:capture-repairs
 ```
 
-`eval/cases.json` is the agent-evaluation corpus: 78 cases (58 positive, 20
-negative), each asked in English and Japanese, so 156 prompts. `npm run eval:traces` scores the
+`eval/cases.json` is the agent-evaluation corpus: 81 cases (61 positive, 20
+negative), each asked in English and Japanese, so 162 prompts. Three of the
+positive cases (`phrasebook-*`, added 2026-10-15) expect a `words` argument
+naming a phrasebook Word, so they measure whether a model reaches for the
+phrasebook rather than rewriting the phrase. `npm run eval:traces` scores the
 corpus answering itself — `score-traces.js --reference` — which executes every case's expected
 tool call against the real backend. It measures backend semantic correctness only; model tool
 selection and source generation require captured model traces and are not claimed by this score.
@@ -139,7 +142,11 @@ stdio budget. It also reports median and maximum response size — for the whole
 result and for its text block alone — and fails against
 `medianResponseBytesBudget`; response bytes are deterministic for a fixed
 corpus and engine, so unlike the latency figures that gate is exact and
-reproducible. The latency measurements describe this adapter and machine, not
+reproducible. The budget is a ceiling against accidental growth, and a field
+added on purpose raises it by what that field costs and no more: 1,100 became
+1,140 bytes on 2026-10-15 for `specificationVersion`, which a result carries
+once (an earlier draft carried it twice, in the envelope and in `mcp`, and the
+budget refused that). The latency measurements describe this adapter and machine, not
 remote service latency.
 `eval:number-baseline` compares canonical results for five selected rational,
 decimal and integer operations with JavaScript `Number`. It includes two

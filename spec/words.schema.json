@@ -52,6 +52,12 @@
     },
     "exact": {
      "type": "boolean"
+    },
+    "valueDependent": {
+     "enum": [
+      "algebraicTerms"
+     ],
+     "description": "Present when the charge on this axis also grows with the term count of an algebraic operand, which `class` — counted in elements — cannot see: `MUL` is `const` in elements, yet two 16-term operands charge 262,144 units of numericWork where two rationals charge 1. `scripts/check-value-dependent-cost.mjs` sets this by measurement, so it is present exactly when the charge grows across a rational, a 7-term and a 16-term operand. Budget such a Word from a small run's `resourceUsage.algebraicTerms`, not from its class alone."
     }
    },
    "additionalProperties": false

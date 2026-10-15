@@ -295,7 +295,7 @@ pub const DEFAULT_MAX_ALGEBRAIC_TERMS: usize = 10_000;
 /// diagnosable error.
 ///
 /// Not derived from the time budget: it bounds the shape of one value, not
-/// accumulated work. It matches `MAX_USER_WORD_DEPTH`, which is vetted
+/// accumulated work. It matches `MAX_CALL_DEPTH`, which is vetted
 /// against the same WASM stack envelope — one level of a value walk is
 /// lighter than a User Word call, which expands to several native frames — and
 /// is ~20x the deepest hand-written nesting in the corpus. The literal ceiling
@@ -309,8 +309,9 @@ pub const DEFAULT_MAX_NESTING_DEPTH: usize = 256;
 // new ceiling stops this file compiling until it is named and placed.
 /// The number of ceilings in a limit profile: `RuntimeLimits`' own fields plus
 /// the execution-step budget, which lives beside rather than inside it (see
-/// `RuntimeLimits`' doc for why).
-pub(crate) const LIMIT_PROFILE_CEILINGS: usize = 9;
+/// `RuntimeLimits`' doc for why), and the call-depth ceiling, which the engine
+/// fixes for every host (`interpreter_core::MAX_CALL_DEPTH`).
+pub(crate) const LIMIT_PROFILE_CEILINGS: usize = 10;
 
 /// Every ceiling of one run as `(published name, value)`, under the wire
 /// names every host publishes.
@@ -340,6 +341,7 @@ pub(crate) fn entries(
         ("bigintBits", max_bigint_bits),
         ("algebraicTerms", max_algebraic_terms as u64),
         ("nestingDepth", max_nesting_depth as u64),
+        ("callDepth", super::interpreter_core::MAX_CALL_DEPTH as u64),
     ]
 }
 

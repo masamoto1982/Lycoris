@@ -7,14 +7,38 @@ use crate::interpreter::Interpreter;
 use crate::test_support::{error_of, run, top};
 
 #[tokio::test]
-async fn a_string_is_not_a_name() {
-    assert_eq!(error_of("'ADD' CONTRACT").await, "notASymbol");
+async fn contract_names_a_word_by_a_string_or_a_symbol() {
+    // A String names a Word here as it does for DEF, BIND and DEL, and reads
+    // the same entry the Symbol does, Core and User alike.
+    assert_eq!(
+        top("'ADD' CONTRACT [ ADD ] 0 GET CONTRACT EQ").await,
+        "TRUE"
+    );
+    assert_eq!(
+        top("[ 2 MUL ] 'TWICE' DEF 'twice' CONTRACT [ TWICE ] 0 GET CONTRACT EQ").await,
+        "TRUE"
+    );
+    assert_eq!(top("'NOPE' CONTRACT NIL-REASON").await, "'notFound'");
+    // Anything that is neither a name nor a block is malformed use, and the
+    // operand is back on the stack after the ERROR.
     assert_eq!(error_of("NIL CONTRACT").await, "notASymbol");
     assert_eq!(error_of("5 CONTRACT").await, "notASymbol");
-    // The operand is back on the stack after the ERROR.
     let mut interp = Interpreter::new();
-    let _ = interp.execute("'ADD' CONTRACT").await;
+    let _ = interp.execute("5 CONTRACT").await;
     assert_eq!(interp.stack.len(), 1);
+}
+
+#[tokio::test]
+async fn digest_reads_a_string_as_text_whatever_it_spells() {
+    // `'INC' DIGEST` is the text's digest, before and after a Word INC
+    // exists: a value's digest does not depend on the dictionary.
+    let before = top("'INC' DIGEST").await;
+    let after = top("[ 1 ADD ] 'INC' DEF 'INC' DIGEST").await;
+    assert_eq!(before, after);
+    assert_eq!(
+        top("[ 1 ADD ] 'INC' DEF 'INC' DIGEST [ INC ] 0 GET DIGEST EQ").await,
+        "FALSE"
+    );
 }
 
 #[tokio::test]

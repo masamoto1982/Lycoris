@@ -55,4 +55,4 @@ Status: non-canonical. この索引を含め、`docs/dev/` 配下の全文書は
 
 | 文書 | 説明 | 状態 |
 | --- | --- | --- |
-| `observation-remediation-work-order-2026-10-15.md` | 2026-10-15 の観察（AI 自身の初見使用、停止性の反例、外部への約束とゲートの照合）で検出した問題点 P1〜P10 と可能性 1〜6 を 12 段の改修に写した指示書。段 1 は仕様版の機構（`spec/version-lock.json`・`spec/CHANGELOG.md`・`check:spec-version`）、段 2〜3 は自己適用 `[ 'F' BIND F F EXEC ] 'RUN' DEF [ RUN ] RUN` が 256 段の再帰上限で止まる穴と `recursionLimitExceeded` の資源上限への統合、段 4 は CONTRACT・DIGEST の名前の渡し方、段 5〜12 は JSON 境界・コスト軸・コーパス分類・MCP の `words` 引数・SKILL.md 二層化・節の日本語要約・語彙創発 Phase 2・定理の機械化。§3 に作者の判断が必要な事項と既定値 | `[作業指示書]` |
+| `observation-remediation-work-order-2026-10-15.md` | 2026-10-15 の観察（AI 自身の初見使用、停止性の反例、外部への約束とゲートの照合）から起こした 12 段の改修指示書。段 1・3〜10・12 は完了して生きている文書へ移した。残るのは段 2（ブロックがデータから自分の複製を作って実行でき、`callDepth` 上限でしか止まらない。全域性を認めるか取り戻すかの判断 D1）と、段 11 の実験の実施。§3 に既定値から外した判断（D3 の `DIGEST`、D4 の予算）とその理由 | `[作業指示書]` |

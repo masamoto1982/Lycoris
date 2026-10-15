@@ -139,6 +139,7 @@ impl ContractResponse {
         match &self.result {
             Ok(contracts) => serde_json::json!({
                 "schemaVersion": super::report::SCHEMA_VERSION,
+                "specificationVersion": crate::kernel::generated::SPECIFICATION_VERSION,
                 "status": "ok",
                 "contracts": contracts,
             }),

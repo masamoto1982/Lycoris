@@ -132,6 +132,22 @@ for (const file of scopedFiles) {
   }
 }
 
+// The same question asked of the specification: a load-bearing memo that
+// cites a clause by its stable ID (`LANG.VALUES.EXACT`) is claiming that
+// clause exists. Clauses are renamed and merged as the language changes; a
+// citation to one that is gone sends a reader to nothing.
+const clauseIds = new Set(readFileSync(resolve(repoRoot, 'spec/language-semantics.md'), 'utf8').match(/LANG\.[A-Z]+\.[A-Z]+/g));
+let checkedClauses = 0;
+for (const file of scopedFiles) {
+  const text = readFileSync(resolve(docsDevDir, file), 'utf8');
+  for (const clause of new Set(text.match(/LANG\.[A-Z]+\.[A-Z]+/g) ?? [])) {
+    checkedClauses += 1;
+    if (!clauseIds.has(clause)) {
+      fail(`docs/dev/${file} cites ${clause}, which spec/language-semantics.md does not define`);
+    }
+  }
+}
+
 report.done(
-  `${scopedFiles.length} load-bearing memo(s), ${checkedIdentifiers} referenced identifier(s), all reachable.`,
+  `${scopedFiles.length} load-bearing memo(s), ${checkedIdentifiers} referenced identifier(s) and ${checkedClauses} cited clause(s), all reachable.`,
 );

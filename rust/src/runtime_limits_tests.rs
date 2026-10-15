@@ -370,7 +370,10 @@ async fn nested_blocks_down_a_call_chain_hit_the_depth_guard() {
     assert!(
         matches!(
             err,
-            crate::error::AjisaiError::RecursionLimitExceeded { .. }
+            crate::error::AjisaiError::ResourceLimitExceeded {
+                resource: crate::error::ResourceLimit::CallDepth,
+                ..
+            }
         ),
         "{err}"
     );
@@ -398,10 +401,41 @@ async fn a_chain_of_bound_blocks_hits_the_depth_guard() {
     assert!(
         matches!(
             err,
-            crate::error::AjisaiError::RecursionLimitExceeded { .. }
+            crate::error::AjisaiError::ResourceLimitExceeded {
+                resource: crate::error::ResourceLimit::CallDepth,
+                ..
+            }
         ),
         "{err}"
     );
+}
+
+// A block that runs a copy of itself reaches the same ceiling with no User
+// Word and no binding: `1 COLLECT [ 0 0 ] GET` makes two copies from one.
+// LANG.DICTIONARY.ACYCLIC does not see it — nothing names itself — so the
+// ceiling is what stops it; docs/dev/observation-remediation-work-order-
+// 2026-10-15.md, stage 2, holds what the language should say about that.
+#[tokio::test]
+async fn a_block_running_a_copy_of_itself_hits_the_depth_guard() {
+    let mut interp = Interpreter::new();
+    let err = interp
+        .execute("[ 1 COLLECT [ 0 0 ] GET EXEC EXEC ] 1 COLLECT [ 0 0 ] GET EXEC EXEC")
+        .await
+        .expect_err("must be refused");
+    assert!(
+        matches!(
+            err,
+            crate::error::AjisaiError::ResourceLimitExceeded {
+                resource: crate::error::ResourceLimit::CallDepth,
+                limit: 256,
+                observed: Some(257),
+                ..
+            }
+        ),
+        "{err}"
+    );
+    assert_eq!(err.to_string(), "callDepth of 257 exceeds the limit of 256");
+    assert_eq!(interp.call_depth, 0, "the guard unwinds what it counted");
 }
 
 // ── collection work the step budget cannot see ─────────────────────────

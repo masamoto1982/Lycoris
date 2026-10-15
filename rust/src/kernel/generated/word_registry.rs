@@ -5,6 +5,10 @@
 // fields. Regenerate with `npm run word-registry:generate`; CI runs
 // `npm run word-registry:check` to guard against drift.
 
+/// The specification version this registry was generated from
+/// (`spec/version-lock.json`), which every agent envelope names.
+pub const SPECIFICATION_VERSION: &str = "1.0.0-beta.2";
+
 /// Canonical identity of a Core Word, named by its executor key (unique across
 /// the registry).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -3149,10 +3153,10 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         stack_inputs: Arity::Fixed(1),
         stack_outputs: Arity::Fixed(1),
         operand_roles: &[OperandRole::Control],
-        operand_domains: &[&[ValueDomain::Symbol, ValueDomain::Vector]],
+        operand_domains: &[&[ValueDomain::Symbol, ValueDomain::String, ValueDomain::Vector]],
         result_domains: &[&[ValueDomain::Record]],
         nil_policy: NilPolicy::CreatesNil,
-        projection: &["symbolNamesNoWord"],
+        projection: &["nameNamesNoWord"],
         projection_reasons: &["notFound"],
         partiality: Partiality::Projecting,
         field: FieldClosure::Closed,
@@ -3176,11 +3180,11 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         standard_kind: None,
         effects: &[],
         error_when: &["notASymbol"],
-        syntax: Some("[ ADD ] 0 GET CONTRACT"),
-        summary: "The contract of a Word or of a block, as a Record keyed `inputs` `outputs` `field`: `[ SQRT ] 0 GET CONTRACT 'inputs' GET` is `1`. `inputs` and `outputs` are counts, or `'variable'` where the arity is decided by the data; `field` names `'closed'` or `'leaving'` (LANG.CONTRACT.FIELD), so `[ 0 DIV ] CONTRACT 'field' GET` is `'leaving'`: whether code can answer a point over zero from operands holding none is read before it runs. For a Symbol naming a Core Word it is the registered contract of `spec/words.json` (LANG.CONTRACT.REGISTRY); for a Symbol naming a User Word, or for a block of code, it is the contract inferred without running anything — the same inference `ajisai check` runs from outside the language — in the same keys and the same vocabulary, so the two compare directly. A block is never evaluated, so `[ 42 PRINT ] CONTRACT` prints nothing. A Symbol that names no Word projects `notFound`; an operand that is neither a Symbol nor a block is an ERROR (`notASymbol`).",
-        stack_effect: "[ symbol | code ] -> [ record ]",
+        syntax: Some("'ADD' CONTRACT"),
+        summary: "The contract of a Word or of a block, as a Record keyed `inputs` `outputs` `field`: `'SQRT' CONTRACT 'inputs' GET` is `1`. `inputs` and `outputs` are counts, or `'variable'` where the arity is decided by the data; `field` names `'closed'` or `'leaving'` (LANG.CONTRACT.FIELD), so `[ 0 DIV ] CONTRACT 'field' GET` is `'leaving'`: whether code can answer a point over zero from operands holding none is read before it runs. A Word is named the way DEF, BIND and DEL name one, by a String, or by a Symbol (`[ SQRT ] 0 GET`); both read the same entry. For a name of a Core Word it is the registered contract of `spec/words.json` (LANG.CONTRACT.REGISTRY); for a name of a User Word, or for a block of code, it is the contract inferred without running anything — the same inference `ajisai check` runs from outside the language — in the same keys and the same vocabulary, so the two compare directly. Reading a contract calls nothing, so a String here names a Word without ever becoming a call (LANG.SOURCE.CODE). A block is never evaluated, so `[ 42 PRINT ] CONTRACT` prints nothing. A name of no Word projects `notFound`; an operand that is neither a name nor a block is an ERROR (`notASymbol`).",
+        stack_effect: "[ name | code ] -> [ record ]",
         hover_summary: "CONTRACT — the contract of a Word or a block, as a Record",
-        hover_syntax: "[ ADD ] 0 GET CONTRACT",
+        hover_syntax: "'ADD' CONTRACT",
     },
     GeneratedWord {
         id: WordId::Fail,
@@ -3537,7 +3541,7 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         effects: &[],
         error_when: &[],
         syntax: Some("[ ADD ] 0 GET DIGEST"),
-        summary: "The content identity of a Word, or the digest of a value's denotation, as text: `8 SQRT DIGEST 2 SQRT 2 SQRT ADD DIGEST EQ` is `TRUE`. A Symbol naming a User Word answers that Word's content identity — the digest over its normalized definition and the identities of the Words it calls that the dictionary already keeps (LANG.DICTIONARY.MUTATION) — and a Symbol naming a Core Word answers the fixed identity of that sealed Word. Any other value, a Symbol naming nothing included, answers the digest of its denotation: two values that `EQ` calls one value digest alike, however each was built, so `8 SQRT DIGEST` equals `2 SQRT 2 SQRT ADD DIGEST`, and a NIL digests by its reason. Equal digests mean one thing; unequal digests mean nothing.",
+        summary: "The content identity of a Word, or the digest of a value's denotation, as text: `8 SQRT DIGEST 2 SQRT 2 SQRT ADD DIGEST EQ` is `TRUE`. A Symbol naming a User Word answers that Word's content identity — the digest over its normalized definition and the identities of the Words it calls that the dictionary already keeps (LANG.DICTIONARY.MUTATION) — and a Symbol naming a Core Word answers the fixed identity of that sealed Word. Any other value, a Symbol naming nothing included, answers the digest of its denotation — a String too, even one that spells a Word's name, because a String is text: `'TWICE' DIGEST` is the digest of the text `TWICE`, and `[ TWICE ] 0 GET DIGEST` is the Word's identity. A value's digest therefore never changes when the dictionary does. For a Word's identity, write the Symbol: two values that `EQ` calls one value digest alike, however each was built, so `8 SQRT DIGEST` equals `2 SQRT 2 SQRT ADD DIGEST`, and a NIL digests by its reason. Equal digests mean one thing; unequal digests mean nothing.",
         stack_effect: "[ x ] -> [ digest ]",
         hover_summary: "DIGEST — the content identity of a Word or a value",
         hover_syntax: "[ ADD ] 0 GET DIGEST",

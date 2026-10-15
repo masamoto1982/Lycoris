@@ -26,10 +26,11 @@ results.
 | `lib/identity.mjs` | D0 (DIGEST), D0α (DIGEST after renaming bound variables), D1 (probe-battery fingerprint) |
 | `lib/evolve.mjs` | Equivalence classes and the next generation's top-K lexicon |
 | `lib/analyze.mjs` | H1, H2, H4, H5 over a run |
-| `lib/prompt.mjs` | The single message a subject agent receives (route A: read SKILL.md, write a file; route B: the harness supplies SKILL.md and a `submit` tool) |
+| `lib/prompt.mjs` | The single message a subject agent receives (route A: read SKILL.md, write a file, paste the inherited definitions; route B: the harness supplies SKILL.md and a `submit` tool, and the inherited Words come through `words`) |
+| `lib/lexicon-phrasebook.mjs` | Route B: a generation's lexicon written as a phrasebook file with each Word's `#:digest`, served to that generation's subjects through the MCP server's `words` argument (`AJISAI_PHRASEBOOK`), and the check that a result's `prelude` matches it by content |
 | `lib/harness.mjs` | Route B: one subject through the Claude API. Offers the MCP server's own `compute` / `check` / `word_contract` definitions plus `submit`, relays calls unchanged, caps turns and spending, records every request's served model, usage and cost |
 | `test/` | The harness against a scripted model (no API call) with the real server and grader: `npm test` |
-| `runs/<run>/<condition>/gen<g>/` | `lexicon.json`, `submissions/`, `graded/`, and for route B `transcripts/` |
+| `runs/<run>/<condition>/gen<g>/` | `lexicon.json`, `submissions/`, `graded/`, and for route B `transcripts/`, `phrasebook.ajisai` and `lexicon-digests.json` |
 
 ## Use
 
@@ -71,3 +72,20 @@ which is the variable §5.3 controls. A refusal is recorded as the run's end.
   errors on every probe gets no D1.
 - CONTRACT is not used as a level. For any body that uses `BIND`, it reads the
   bound names as unresolved Words and answers `inputs: variable`.
+
+## Phase 2: what changed, and what it still needs
+
+The pilot's H5 counterexample spread because subjects pasted inherited
+definitions into their source, and the Core-only expansion the grader audited
+was not the program that ran. Route B no longer asks for pasting: each
+generation's lexicon is written to `phrasebook.ajisai` beside it, the
+subjects' server serves it for `words`, and every result's `prelude` names
+the Words it defined with the digest `lexicon-digests.json` expects
+(`preludeMatches`). The `KEEP` Word behind the original counterexample has
+since been retired.
+
+Phase 2 itself has not run. It still needs what the pilot results (§5) set
+as its preconditions: subjects from more than one model family, which the
+route B harness cannot drive (it speaks only the Claude API), task families
+hard enough that accuracy is not 100%, and an API budget.
+

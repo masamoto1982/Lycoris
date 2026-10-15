@@ -6,7 +6,32 @@ beta, and promises compatibility from 1.0.0; this file records changes to
 the adapter's own surface — tool list, envelope fields, resources and
 descriptions.
 
+Each release names the specification version its packaged engine implements.
+During the beta a program's answer can change when that version does, and
+the Ajisai repository's `spec/CHANGELOG.md` names every such change with a
+program and its answer before and after.
+
+## Unreleased
+
+Specification: 1.0.0-beta.2.
+
+### Changed
+
+- **The call-depth ceiling is `callDepth`.** A run nested past 256 User Word calls and block evaluations fails as `resourceLimitExceeded` with `error.resource: "callDepth"`, like every other ceiling; it used to be the separate category `recursionLimitExceeded`, which no longer exists. `ajisai://limits` lists `callDepth`, and the golden limit cases pin its boundary.
+
+- **`CONTRACT` takes a String name.** `'INC' CONTRACT` answers the Word's contract, as `[ INC ] 0 GET CONTRACT` does; it used to be `error:notASymbol`. `DIGEST` keeps reading a String as text, and the quickstart's §3 says which spelling reaches a Word.
+
+- **The quickstart is less than half its size.** `ajisai://guide/quickstart` was 79 KB, most of it every Word's full summary; it is now about 37 KB, with a one-line index of the Words by family. The full summaries are where they already were, `word_contract` and `ajisai://contracts`.
+
+### Added
+
+- **`words` on `compute`, `check` and `infer_contracts`.** Name phrasebook User Words — a remainder, a mean, a disjunction and others — and their definitions, with those of the phrasebook Words they call and their verified `#:contract` lines, run before `source`. The result's `prelude` names each Word added with its content digest, error lines still count from the caller's first line, and the Words count against `sourceBytes`. A name the phrasebook does not hold is `invalidRequest` with the nearest names. Nothing persists between calls.
+- **`ajisai://phrasebook`.** The phrasebook itself, with each Word's contract, examples and a `#:digest` line the repository's tests hold to the engine. `AJISAI_PHRASEBOOK` serves another file in the same format instead.
+- **`specificationVersion`.** Every engine result names the specification version the engine implements, at the top level, as the engine's own envelope states it. `result.schema.json` declares it, and `--version` prints it. A stored result now says which rules produced it.
+
 ## 0.9.0
+
+Specification: the packaged engine implements what `spec/CHANGELOG.md` records as 1.0.0-beta.2, while reporting `engineVersion` 1.0.0-beta.1 — the version did not move with the breaking changes listed below, which is why the version lock exists. Releases before 0.9.0 predate the lock.
 
 The first release published since 0.7.2: 0.8.0, 0.8.1 and 0.8.2 below were recorded but never reached npm, so their changes ship here too.
 

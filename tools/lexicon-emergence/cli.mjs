@@ -18,12 +18,14 @@
 // and, for route B, transcripts/*.json.
 
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { connect } from './lib/ajisai.mjs';
 import { analyze, renderReport } from './lib/analyze.mjs';
 import { classify, collectWords, nextLexicon } from './lib/evolve.mjs';
 import { grade, loadFamilies } from './lib/grade.mjs';
 import { anthropicClient, Budget, MODELS, priceOf, runSubject, subjectSystem } from './lib/harness.mjs';
 import { subjectPrompt } from './lib/prompt.mjs';
+import { writeLexiconPhrasebook } from './lib/lexicon-phrasebook.mjs';
 
 const ROOT = new URL('./', import.meta.url);
 const TASKS = new URL('tasks/', ROOT);
@@ -85,6 +87,25 @@ async function evolveGeneration(ajisai, runName, conditionName, generation, capa
 async function runGeneration(ajisai, harness, runName, conditionName, generation, agents) {
   const dir = genDir(runName, conditionName, generation);
   const lexicon = lexiconOf(dir);
+  // Subjects reach the inherited Words through the server's `words` argument,
+  // from a phrasebook file written for this generation, and every result names
+  // what it defined with its digest (lexicon-digests.json records the
+  // expected ones). A generation with no lexicon runs on the plain server.
+  let subjectAjisai = ajisai;
+  if (lexicon.entries.length > 0) {
+    const phrasebook = fileURLToPath(new URL('phrasebook.ajisai', dir));
+    const { digests } = await writeLexiconPhrasebook(ajisai, lexicon, phrasebook);
+    writeJson(new URL('lexicon-digests.json', dir), Object.fromEntries(digests));
+    subjectAjisai = await connect({ phrasebook });
+  }
+  try {
+    return await runSubjects(subjectAjisai, harness, dir, runName, conditionName, generation, agents, lexicon);
+  } finally {
+    if (subjectAjisai !== ajisai) await subjectAjisai.close();
+  }
+}
+
+async function runSubjects(ajisai, harness, dir, runName, conditionName, generation, agents, lexicon) {
   const outcomes = await Promise.all(
     agents.map(async (agent) => {
       const meta = { run: runName, condition: conditionName, generation, agent };

@@ -224,6 +224,7 @@ fn render_report(outcomes: &[TestOutcome], opts: &Opts) {
             .collect();
         let doc = serde_json::json!({
             "schemaVersion": crate::agent::report::SCHEMA_VERSION,
+            "specificationVersion": crate::kernel::generated::SPECIFICATION_VERSION,
             "status": if failed == 0 { "ok" } else { "error" },
             "total": outcomes.len(),
             "passed": passed,

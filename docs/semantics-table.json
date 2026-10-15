@@ -115883,7 +115883,7 @@
       "inputs": [
         "textShort"
       ],
-      "outcome": "error:notASymbol"
+      "outcome": "nil:notFound"
     },
     {
       "word": "CONTRACT",

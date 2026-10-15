@@ -78,6 +78,19 @@
 
         p { margin: 0.5rem 0 0.75rem; }
 
+        /* A clause's Japanese summary (docs/i18n/clause-summaries.ja.json),
+           folded under its heading. Non-normative, so set apart in the
+           secondary text colour rather than in the clause's own voice. */
+        details.clause-ja {
+            margin: 0 0 0.75rem;
+            padding: 0.25rem 0.75rem;
+            border-left: 3px solid var(--color-medium);
+            color: var(--color-text-light);
+            font-size: 0.95rem;
+        }
+        details.clause-ja > summary { cursor: pointer; }
+        details.clause-ja > p { margin: 0.25rem 0; }
+
         code {
             font-family: var(--font-stack-mono);
             font-size: 0.9em;

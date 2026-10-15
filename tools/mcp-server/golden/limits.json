@@ -235,6 +235,31 @@
         }
       },
       "note": "Each FOLD step wraps the accumulator one level deeper, so 255 steps over `[ ]` reach 256 and succeed and the 256th reaches 257 and is refused by name. Every walk over a value descends one native frame per level, so before this ceiling a program that nested a value a few thousand deep aborted the process instead of failing. A literal written that deep is refused the same way, and so is a generative Word asked for a result that deep (FILL or RESHAPE with that many axes, JSON-DECODE of text nested that deep), by the same name and before building, as it refuses a count past `materializedElements`."
+    },
+    "callDepth": {
+      "coverage": "boundary",
+      "declared": 256,
+      "under": {
+        "kind": "generatedSource",
+        "generator": "wordChain",
+        "words": 256,
+        "expect": {
+          "/status": "ok",
+          "/stackDisplay/0": "1/1"
+        }
+      },
+      "over": {
+        "kind": "generatedSource",
+        "generator": "wordChain",
+        "words": 257,
+        "expect": {
+          "/status": "error",
+          "/error/category": "resourceLimitExceeded",
+          "/error/resource": "callDepth",
+          "/message": "callDepth of 257 exceeds the limit of 256"
+        }
+      },
+      "note": "A chain of 256 Words, each calling the one before, nests 256 frames and succeeds; the 257th is refused by name before its body runs. The engine fixes this ceiling for every host, because each level is native stack, and blocks count too: EXEC, MAP, FILTER, FOLD and SCAN each take a level. A block that runs a copy of itself (`[ 1 COLLECT [ 0 0 ] GET EXEC EXEC ] 1 COLLECT [ 0 0 ] GET EXEC EXEC`) also ends here, which is why this ceiling, not the dictionary's acyclicity, is what stops it. The chain charges about 12.4 million units of collectionWork, mostly DEF walking the dictionary, which the 20,000,000 budget covers."
     }
   }
 }

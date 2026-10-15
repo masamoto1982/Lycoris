@@ -97,20 +97,35 @@ function readVocabularyCounts() {
   return { canonicalWords, semanticKernelWords, standardWords };
 }
 
-function buildWordTable() {
+/** Every Core Word in manifest order, with its registry contract. */
+function coreWordsWithContracts() {
   const manifest = readJson('docs/word-manifest.json');
-  const { entries } = words();
-  const contracts = new Map(entries.map((entry) => [entry.name, entry]));
-  const rows = [];
-  for (const entry of manifest.entries) {
-    if (entry.kind === 'coreword') {
+  const contracts = new Map(words().entries.map((entry) => [entry.name, entry]));
+  return manifest.entries
+    .filter((entry) => entry.kind === 'coreword')
+    .map((entry) => {
       const contract = contracts.get(entry.canonical);
       if (!contract) fail(`no contract found for coreword ${entry.surface}`);
-      const syntax = contract.documentation.syntax ? ` — e.g. \`${contract.documentation.syntax}\`` : '';
-      rows.push(`| \`${entry.surface}\` | ${entry.family} | ${contract.documentation.summary}${syntax} |`);
-    }
+      return { surface: entry.surface, family: entry.family, contract };
+    });
+}
+
+/** skill/words.md's rows: every Word's full summary and example. */
+function buildWordTable() {
+  return coreWordsWithContracts().map(({ surface, family, contract }) => {
+    const syntax = contract.documentation.syntax ? ` — e.g. \`${contract.documentation.syntax}\`` : '';
+    return `| \`${surface}\` | ${family} | ${contract.documentation.summary}${syntax} |`;
+  });
+}
+
+/** SKILL.md's §9: one row per family, naming its Words in manifest order. */
+function buildWordIndex() {
+  const byFamily = new Map();
+  for (const { surface, family } of coreWordsWithContracts()) {
+    if (!byFamily.has(family)) byFamily.set(family, []);
+    byFamily.get(family).push(`\`${surface}\``);
   }
-  return rows;
+  return [...byFamily].map(([family, names]) => `| ${family} | ${names.join(' ')} |`);
 }
 
 // ---------------------------------------------------------------------------
@@ -421,7 +436,7 @@ function verifiedExactnessSection() {
 function buildSkillMd() {
   const nil = verifiedNilSection();
   const exactness = verifiedExactnessSection();
-  const wordRows = buildWordTable();
+  const wordRows = buildWordIndex();
   const vocabulary = readVocabularyCounts();
 
   return `<!-- GENERATED FILE — do not edit by hand.
@@ -433,8 +448,9 @@ function buildSkillMd() {
 
 How to *write working Ajisai on the first try*. Every code line below was
 executed by the generator against the real interpreter; results shown are
-actual outputs. **If a word is not in the §9 table, it does not exist — when
-unsure, grep §9 before writing.**
+actual outputs. **If a word is not in the §9 index, it does not exist — when
+unsure, grep §9 before writing.** Each Word's full summary is in
+\`skill/words.md\` (over MCP: \`word_contract\` or \`ajisai://contracts\`).
 
 ## 1. Run loop
 
@@ -490,7 +506,10 @@ ${renderContractDeclarations()}
 - Branch: the two candidates, then the truth that chooses between them, then \`SELECT\`: \`${canonicalExampleCode('select-basic')}\` (§6). Both candidates are values the program already built, so neither is skipped and nothing is evaluated by SELECT itself. The choice is made lane by lane, so a Vector of truths branches a whole Vector at once: \`${canonicalExampleCode('select-lanes')}\`. An absent truth chooses neither and answers that same absence.
 - Iterate data, not counters: \`MAP\` / \`FILTER\` / \`FOLD\` with block operands (examples in §6). \`FOLD\` requires an explicit initial value: \`${canonicalExampleCode('fold')}\`. The block leaves **exactly one** value — the mapped element, the truth, the next accumulator; leaving none or a surplus is a \`blockContractViolation\` (§7).
 - Budget: a block iteration costs one step per element for every Word the block runs (literals are free), so under the MCP profile's 100,000-step budget a one-Word block (\`[ ADD ] FOLD\`) walks 100,000 elements, a two-Word block (\`[ 3 MUL 1 ADD ] MAP\`) 50,000, a three-Word block 33,000 — tens of thousands of elements divided by the Words in the block, not more. Beyond that, write the operation on whole vectors — \`V 3 MUL 1 ADD\` over 100,000 lanes is two steps — and leave no large intermediate on the stack.
+- Irrationals cost more than their class says: an axis marked \`valueDependent: "algebraicTerms"\` in \`word_contract\` (MUL, ADD, EQ, SORT and others) also grows with the number of terms in an algebraic value, and a product of distinct square roots doubles its terms with each factor. Run a small case first and read \`resourceUsage.algebraicTerms\`, the largest term count a result reached.
 - No recursion: \`DEF\` refuses a word whose body names itself, directly or through other user words (a diagnosed error at definition time, not at the call). Repetition is expressed only through MAP / FILTER / FOLD / SCAN over an already-finite vector.
+- JSON boundary: \`JSON-ENCODE\` writes a rational with no finite decimal, and \`1/0\` and \`0/0\`, as its lexeme in a string (\`"1/3"\`), so \`JSON-DECODE\` gives back a String and \`NUM\` recovers the number. For a receiver that needs a JSON or SQL number, choose the digits first: \`1 3 DIV 2 FORMAT NUM JSON-ENCODE\` is \`'0.33'\`.
+- Naming a Word: \`DEF\`, \`BIND\`, \`DEL\` and \`CONTRACT\` take its name as a String (\`'INC' CONTRACT\`); \`CONTRACT\` also takes a Symbol, written \`[ INC ] 0 GET\`. A bare \`INC\` *calls* the Word, so \`INC CONTRACT\` runs INC first. \`DIGEST\` is the one exception: a String is text there, so \`'INC' DIGEST\` digests the text and \`[ INC ] 0 GET DIGEST\` is the Word's content identity.
 
 ## 4. NIL — absence is a value, not an exception
 
@@ -556,7 +575,7 @@ ${renderSilentMistakes()}
 
 ${renderForbiddenPatterns()}
 
-## 9. Word quick reference
+## 9. Word index
 
 Generated from \`docs/word-manifest.json\` — the complete inventory:
 ${vocabulary.canonicalWords} canonical Words in one flat Core dictionary, of which
@@ -567,19 +586,54 @@ no module system and nothing to import. For a phrase you would otherwise
 write out again and again — a remainder, a disjunction, a sum or mean, text
 joined with a separator — \`docs/phrasebook/phrasebook.ajisai\` holds User Word
 definitions whose contracts and examples CI verifies; copy the definitions
-you need to the top of your program.
+you need to the top of your program (over MCP, name them in \`words\`).
 
-| word | family | summary |
-|---|---|---|
+Every Word, by family. \`skill/words.md\` has each one's full summary — operand
+order, NIL and error behaviour, and an example — and §6 and §7 above show the
+common ones at work.
+
+| family | Words |
+|---|---|
 ${wordRows.join('\n')}
 `;
 }
+
+/** skill/words.md: the full per-Word reference SKILL.md's §9 indexes. */
+function buildSkillWords() {
+  return `<!-- GENERATED FILE — do not edit by hand.
+     Regenerate: npm run generate:skill
+     Source of truth: spec/words.json. Generator: scripts/generate-skill-md.mjs -->
+
+# Ajisai — every Word (companion to SKILL.md)
+
+The full summary of every Core Word, from \`spec/words.json\`. \`SKILL.md\` §9
+indexes these in one line each; read the row here when a Word's operand order,
+NIL behaviour or errors matter. A word absent here does not exist.
+
+| word | family | summary |
+|---|---|---|
+${buildWordTable().join('\n')}
+`;
+}
+
+/**
+ * SKILL.md is read whole by an agent before it writes a line, so its size is
+ * a cost paid on every task. It was 63.5 KB, three quarters of it the full
+ * Word summaries now in skill/words.md, and is about 20 KB without them. The
+ * budget leaves room for a few more rules and keeps the file from growing
+ * back; a section that needs more moves detail to skill/words.md.
+ */
+const SKILL_MD_BYTE_BUDGET = 22_528;
 
 // ---------------------------------------------------------------------------
 // Entry point
 // ---------------------------------------------------------------------------
 
 const content = buildSkillMd();
+const skillBytes = Buffer.byteLength(content, 'utf8');
+if (skillBytes > SKILL_MD_BYTE_BUDGET) {
+  fail(`SKILL.md would be ${skillBytes} bytes, over its ${SKILL_MD_BYTE_BUDGET}-byte budget; move detail to skill/words.md`);
+}
 
 if (process.argv.includes('--stdout') && !process.argv.includes('--check')) {
   process.stdout.write(content);
@@ -591,6 +645,11 @@ if (process.argv.includes('--stdout') && !process.argv.includes('--check')) {
       content,
       missing: 'SKILL.md is missing; run `npm run generate:skill`',
       stale: 'SKILL.md is stale relative to the sources/CLI; run `npm run generate:skill` and commit the result',
+    }, {
+      path: 'skill/words.md',
+      content: buildSkillWords(),
+      missing: 'skill/words.md is missing; run `npm run generate:skill`',
+      stale: 'skill/words.md is stale relative to spec/words.json; run `npm run generate:skill` and commit the result',
     }],
     { current: 'SKILL.md is up to date.', wrote: `wrote ${resolve(repoRoot, 'SKILL.md')}` },
   );
