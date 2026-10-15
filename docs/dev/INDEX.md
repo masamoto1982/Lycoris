@@ -30,8 +30,8 @@ Status: non-canonical. この索引を含め、`docs/dev/` 配下の全文書は
 | 文書 | 説明 | 状態 |
 | --- | --- | --- |
 | `spec-impl-alignment-methodology.md` | 仕様・実装整合化の4フェーズ手順とスイート裁定規則。`spec-impl-drift-tactic.md` の後継 | `[設計根拠]` |
-| `ajisai-minimal-core-identity.md` | 何が変われば Ajisai でなくなるか——同一性の幹の切り分け。**付録 B に alpha 期の語彙の採用規則**（追加は「言語内で書けない語」か「導出可能な語一つとの入れ替え」のどちらか。語数そのものは alpha の制約にしない。最初の適用として τ を入れないと決めた記録）**と退役候補の列**（入れ替えに出す導出可能 10 語を失うものが少ない順に固定。`scripts/check-minimal-core.mjs` が列の不変条件を検査する。語数を 90 に抑えて枠を空ける案を採らなかった記録も含む）。旧 `vocabulary-100-work-order-2026-09.md` §7.3・§7.4 から移した | `[方針記録]` |
-| `vector-nesting-role-redefinition.md` | Vector ネストの役割（Lisp 的動機の廃止） | `[方針記録]` |
+| `ajisai-minimal-core-identity.md` | 何が変われば Ajisai でなくなるか——同一性の幹の切り分け（§1〜§8 の語数・語名は 2026-09 時点のもの）。**付録 B に語彙の採用規則**（追加は「言語内で書けない語」か「導出可能な語一つとの入れ替え」のどちらか。最初の適用として τ を入れないと決めた記録）**と退役候補の列の考え方**（列の正本は `scripts/check-minimal-core.mjs` の `RETIREMENT_QUEUE`、Kernel による書き方は `rust/tests/standard_derivation_laws.rs`、語数上限 100 の検査は `scripts/check-semantic-kernel.mjs`。語数を 90 に抑えて枠を空ける案を採らなかった記録も含む）。旧 `vocabulary-100-work-order-2026-09.md` §7.3・§7.4 から移した | `[方針記録]` |
+| `vector-nesting-role-redefinition.md` | Vector ネストの役割（Lisp 的動機の廃止）。ネストを残す結論は有効だが、「Vector は実行可能にならない」という前提はコードを Vector とした後の設計で逆転した（冒頭の注記） | `[方針記録]` |
 
 ## エージェント/CLI・GUI
 

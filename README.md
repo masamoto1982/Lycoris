@@ -63,6 +63,7 @@ Ajisai is built from ten concepts and nothing else.
 | Specification | Builders and porters | [SPECIFICATION.html](https://masamoto1982.github.io/Ajisai/SPECIFICATION.html) |
 | Reference (English) | Ajisai users | [docs/en/index.html](https://masamoto1982.github.io/Ajisai/docs/en/index.html) — from a program down to its elements and every built-in Word with its contract (generated from `spec/words.json`), with runnable samples |
 | Reference (Japanese) | Ajisai users | [docs/ja/index.html](https://masamoto1982.github.io/Ajisai/docs/ja/index.html) — the same content in Japanese |
+| Phrasebook | Ajisai users | [docs/phrasebook/phrasebook.ajisai](docs/phrasebook/phrasebook.ajisai) — User Words for phrases programs write again and again (a remainder, a disjunction, a sum or mean, text joined with a separator), each with a verified contract and examples. Run it once, or copy the definitions you need |
 | Playground | Run it now | [masamoto1982.github.io/Ajisai](https://masamoto1982.github.io/Ajisai/) — its Reference button opens the Reference in the UI language, English or Japanese |
 
 ## Build and run

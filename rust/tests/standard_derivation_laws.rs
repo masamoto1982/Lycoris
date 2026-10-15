@@ -10,57 +10,23 @@
 
 use ajisai_core::interpreter::Interpreter;
 
-/// The Semantic Kernel: the 48 Words every Standard must be derivable from.
-const KERNEL_WORDS: &[&str] = &[
-    "TRUE",
-    "FALSE",
-    "AND",
-    "NOT",
-    "EQ",
-    "LT",
-    "GT",
-    "ADD",
-    "MUL",
-    "DIV",
-    "FLOOR",
-    "SQRT",
-    "POW",
-    "GET",
-    "LENGTH",
-    "CONCAT",
-    "COLLECT",
-    "RANGE",
-    "FOLD",
-    "MAP",
-    "SHAPE",
-    "RESHAPE",
-    "FLATTEN",
-    "DEPTH",
-    "RECORD",
-    "KEYS",
-    "VALUES",
-    "PUT",
-    "WITHOUT",
-    "HAS?",
-    "MERGE",
-    "CHARS",
-    "JOIN",
-    "NUM",
-    "STR",
-    "SELECT",
-    "EXEC",
-    "CONTRACT",
-    "FAIL",
-    "NIL",
-    "NIL?",
-    "NIL-REASON",
-    "ABSENT",
-    "BIND",
-    "DEF",
-    "DEL",
-    "DIGEST",
-    "PRINT",
-];
+/// The Semantic Kernel every Standard must be derivable from, read from the
+/// registry (`vocabularyTier: "kernel"` in spec/words.json) rather than copied:
+/// a hand copy here once said 48 Words and left RECONCILE out after the
+/// registry's Kernel had grown to 49.
+fn kernel_words() -> Vec<String> {
+    let registry: serde_json::Value =
+        serde_json::from_str(include_str!("../../spec/words.json")).expect("spec/words.json");
+    let kernel: Vec<String> = registry["entries"]
+        .as_array()
+        .expect("entries")
+        .iter()
+        .filter(|entry| entry["vocabularyTier"] == "kernel")
+        .map(|entry| entry["name"].as_str().expect("name").to_string())
+        .collect();
+    assert!(!kernel.is_empty(), "the registry names no Kernel Word");
+    kernel
+}
 
 async fn observe(source: &str) -> Vec<String> {
     let mut interpreter = Interpreter::new();
@@ -91,11 +57,12 @@ fn without_string_literals(source: &str) -> String {
 }
 
 fn assert_kernel_only(source: &str) {
+    let kernel = kernel_words();
     for token in without_string_literals(source).split_whitespace() {
         if token.chars().any(char::is_alphabetic) {
             let upper = token.to_ascii_uppercase();
             assert!(
-                KERNEL_WORDS.contains(&upper.as_str()),
+                kernel.contains(&upper),
                 "non-Kernel Word {upper} in witness: {source}"
             );
         }

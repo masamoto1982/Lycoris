@@ -181,7 +181,7 @@
         "/status": "error",
         "/outcome": "error:stackUnderflow",
         "/error/word": "TOKENIZE",
-        "/message": "TOKENIZE: stack underflow"
+        "/message": "TOKENIZE: stack underflow — for example `'a,b,c' ',' TOKENIZE`"
       }
     },
     {
@@ -191,7 +191,7 @@
         "/status": "error",
         "/outcome": "error:nonTruthValue",
         "/error/word": "SELECT",
-        "/message": "SELECT: expected a truth value, got Scalar"
+        "/message": "SELECT: expected a truth value, got Scalar — for example `[ 'yes' ] [ 'no' ] TRUE SELECT`"
       }
     },
     {

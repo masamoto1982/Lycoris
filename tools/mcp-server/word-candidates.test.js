@@ -10,26 +10,11 @@ const registry = JSON.parse(
   readFileSync(new URL("./assets/words.json", import.meta.url), "utf8"),
 );
 
-// A one-letter transposition/omission on a short, medium, and longer name
-// (each falls in a different distance-ceiling bucket); names with several
-// equally-close matches, to exercise the distance-then-alphabetical
-// tie-break; an unmatched name, which must come back empty; and full-width
-// input, which a Japanese input method produces and which must fold to the
-// ASCII name rather than resemble nothing.
-const CASES = [
-  ["LENGHT", ["LENGTH"]],
-  ["MAPP", ["MAP", "MAX"]],
-  ["FILTR", ["FILTER", "FILL"]],
-  ["PRIN", ["PRINT", "JOIN", "MIN"]],
-  ["ADDD", ["ADD", "AND"]],
-  ["SQR", ["SQRT", "STR"]],
-  ["EXECC", ["EXEC"]],
-  ["ZZZZZZZZZZ", []],
-  ["ＡＤＤ", ["ADD", "AND"]],
-  ["ＬＥＮＧＨＴ", ["LENGTH"]],
-  // An exact name is a match, not a near-miss of itself.
-  ["ADD", ["AND"]],
-];
+// The cases live in word-candidates.cases.json, which the Rust suggester's
+// test (rust/src/diagnostic_hint_tests.rs) reads too.
+const { cases: CASES } = JSON.parse(
+  readFileSync(new URL("./word-candidates.cases.json", import.meta.url), "utf8"),
+);
 
 for (const [word, expected] of CASES) {
   assert.deepEqual(suggestWords(word, registry.entries), expected, `suggestWords(${JSON.stringify(word)})`);

@@ -261,7 +261,7 @@ PR を切ること自体が、小さく検証可能な単一目的の diff を�
   `rust/src/agent/report.rs::semantics_json`。WASM 境界の
   `value_semantics_to_js` では既に削除済みで、コメント自身が
   "the retired HostProtocolV1" と書いていた）、`docs/dev/` に残っていた
-  失効した §番号引用、および現行66語のどこにも存在しない
+  失効した §番号引用、および当時の66語のどこにも存在しない
   `SPAWN`/`AWAIT` 系を前提にした `rust/src/agent/contract_linearity.rs` を
   削除。この回から二つの教訓が出た:
   - コミット済み `.wasm` バンドルが**本 PR 以前から**自身のソースに対して

@@ -83,7 +83,15 @@ Both operations emit schema version 5:
 JSON envelope. `check` tokenizes, checks delimiter structure, performs
 best-effort static Word resolution, and never executes the program.
 `contractDecls` contains the conservative result of comparing `#:contract`
-declarations with inferred contracts.
+declarations with inferred contracts. `check` also reads the block written
+immediately before MAP, FILTER, FOLD or SCAN, at top level or in a top-level
+definition's body: when its inferred arity cannot leave exactly one value
+from the one (MAP, FILTER) or two (FOLD, SCAN) values its Word gives it, the
+answer is the error running it raises — `blockContractViolation`, or
+`stackUnderflow` for a block that reads below its frame — with `word` the
+higher-order Word and `line`/`column` where it is written. A block of
+`variable` arity is not judged. `compute` does not refuse such a program:
+over an empty or absent collection the block never runs.
 
 An error carries `message` and one `error` object, the whole of what
 LANG.OBSERVATION.DIAGNOSIS asks an ERROR to carry:
@@ -99,7 +107,12 @@ raised it, or the User Word whose body did, since from the caller's side that
 Word is what failed; `line` and `column` are the top-level token that reached
 it. A key with nothing to say is absent. Schema version 3 carried `diagnosis`,
 `aiDiagnostic` and `errorFlowTrace` here; they were removed in 2026-10, with
-their next-check suggestions and spelling candidates.
+their next-check suggestions and spelling candidates. What survives of them
+is text: a `message` may end in ` — ` and a one-line repair
+(`rust/src/diagnostic_hint.rs`) — for an unknown word, a runnable phrase or
+the Core names within a typo of it; for a stack underflow or an operand of
+the wrong domain, the Word's own `documentation.syntax` example. It is part
+of the message, which may evolve, and nothing branches on it.
 
 `compute` runs the same declaration check **before executing anything**
 (LANG.CONTRACT.CHECK is a pre-execution check, and `compute` is where

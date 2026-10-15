@@ -46,7 +46,7 @@ IEEE 754 流に ±0 を足すと 1 と 2 が取れ、3 が 14〜48 件破れる�
 
 `RATIO`・`ADD`・`GET`・`DIV` で書けるので、語彙採用規則（「言語内で書けない語」
 か「導出可能な語との入れ替え」）のどちらにも当たらない。正典には算術の構造上の
-事実として書き、語は増やさない（78 語のまま）。
+事実として書き、語は増やさない（当時 78 語のまま。のちに `BOTH` の退役で 77 語）。
 
 ## field 契約を零形で推論する（採用）
 
@@ -79,8 +79,8 @@ IEEE 754 流に ±0 を足すと 1 と 2 が取れ、3 が 14〜48 件破れる�
 - `knowledgeOrder`（知識順序）: 算術の語（`ADD` `SUB` `MUL` `DIV` `FLOOR` `ROUND`
   `SQRT` `POW` `GCD` `RATIO`）と `RECONCILE`。値について何が分かっているかに働く語で、
   全員が LANG.VALUES.SHAPE を共有法則として引用する。積は ⊗、`RECONCILE` は ⊕。
-- `truthOrder`（真理順序）: 真偽値と結合子（`TRUE` `FALSE` `BOTH` `AND` `NOT`
-  `SELECT`）と、順序を問う語（`EQ` `LT` `GT` `MIN` `MAX`）。全員が LANG.VALUES.TRUTH
+- `truthOrder`（真理順序）: 真偽値と結合子（`TRUE` `FALSE` `AND` `NOT` `SELECT`。
+  当初は `BOTH` も含んだが、三値への移行で退役した）と、順序を問う語（`EQ` `LT` `GT` `MIN` `MAX`）。全員が LANG.VALUES.TRUTH
   を引用する。`MIN` `MAX` は数の順序の下限・上限で、`0/0` に順序を問えば UNKNOWN に
   なるという同じ橋を渡るので、算術ではなくこちらに置いた。
 - 二つが出会うのは逆数と `NOT`、そして UNKNOWN として読まれる `0/0` である。

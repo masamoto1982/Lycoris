@@ -246,7 +246,9 @@ fn tokens_of_well_formed(
 }
 
 /// Validate source without executing it and return the standard report shape:
-/// every name resolves, and every `#:contract` declaration holds.
+/// every name resolves, every `#:contract` declaration holds, and every block
+/// written before MAP, FILTER, FOLD or SCAN can leave the one value its Word
+/// requires (`block_arity`).
 pub fn check(source: &str) -> AgentResponse {
     let interp = Interpreter::new();
     let tokens = match tokens_of_well_formed(&interp, source) {
@@ -257,6 +259,19 @@ pub fn check(source: &str) -> AgentResponse {
     let unknown = &resolved.unknown;
     if let Some(first) = unknown.first() {
         let mut message = format!("Unknown words: {}", unknown.join(", "));
+        // The same repair the runtime's Unknown Word diagnosis appends, one
+        // per name that has one.
+        let hints: Vec<String> = unknown
+            .iter()
+            .filter(|name| !resolved.bound_elsewhere.contains(name))
+            .filter_map(|name| {
+                crate::diagnostic_hint::unknown_word_hint(name)
+                    .map(|hint| format!("{name} — {hint}"))
+            })
+            .collect();
+        if !hints.is_empty() {
+            message.push_str(&format!(". {}", hints.join("; ")));
+        }
         if !resolved.bound_elsewhere.is_empty() {
             message.push_str(&format!(
                 ". {} is bound in another frame: a binding is reachable in the frame that made it \
@@ -282,6 +297,17 @@ pub fn check(source: &str) -> AgentResponse {
         // every other failure is, not only in `contractDecls.findings`.
         return AgentResponse {
             report: contract::violation_report(&interp, &contract_decls),
+        };
+    }
+    if let Some(violation) = super::block_arity::first_block_arity_violation(source) {
+        let category = match violation.category {
+            "stackUnderflow" => ErrorCategory::StackUnderflow,
+            declared => ErrorCategory::Declared(declared),
+        };
+        let mut error = ErrorInfo::of(category, Some(violation.word.to_string()));
+        error.position = violation.position;
+        return AgentResponse {
+            report: error_report(&interp, error, violation.message, Vec::new()),
         };
     }
     AgentResponse {

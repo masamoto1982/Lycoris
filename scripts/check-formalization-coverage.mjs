@@ -204,6 +204,10 @@ validateWordManifest(coverage);
 // semantic primitive, so the derivation graph is checked rather than free-form.
 // Absent => the reference check is skipped (backward compatible).
 let primitiveIds = null;
+const knownSurfaces = new Set([
+  ...readJson('spec/words.json').entries.map((word) => word.name),
+  ...coverage.entries.map((entry) => entry.surface),
+]);
 if ('algebra_primitives' in coverage) {
   if (!Array.isArray(coverage.algebra_primitives)) fail('algebra_primitives must be an array');
   primitiveIds = new Set();
@@ -229,6 +233,26 @@ if ('algebra_primitives' in coverage) {
     if (!hasNonEmptyStringArray(prim.can_derive)) fail(`${pw}: primitive needs non-empty can_derive`);
     if (!hasNonEmptyString(prim.status) || !allowedPrimitiveStatuses.has(prim.status)) {
       fail(`${pw}: primitive needs status accepted|provisional|deprecated`);
+    }
+    // The names a primitive is introduced by and can derive are Words the
+    // language has or surfaces this file covers. Unchecked, the two lists kept
+    // 156 names of retired Words and module Words long after they were gone.
+    for (const key of ['introduced_by', 'can_derive']) {
+      for (const name of prim[key]) {
+        if (!knownSurfaces.has(name)) fail(`${pw}: ${key} names ${name}, which is neither a Word nor a covered surface`);
+      }
+    }
+  }
+}
+
+// `core_tier_summary.entry_counts` restates how many entries sit in each tier;
+// it is checked against the entries rather than trusted.
+if (coverage.core_tier_summary?.entry_counts) {
+  const counted = {};
+  for (const entry of coverage.entries) counted[entry.core_tier] = (counted[entry.core_tier] ?? 0) + 1;
+  for (const [tier, stated] of Object.entries(coverage.core_tier_summary.entry_counts)) {
+    if ((counted[tier] ?? 0) !== stated) {
+      fail(`core_tier_summary.entry_counts.${tier} is ${stated}, but ${counted[tier] ?? 0} entries sit in that tier`);
     }
   }
 }

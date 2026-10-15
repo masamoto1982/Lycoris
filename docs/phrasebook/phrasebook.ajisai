@@ -1,0 +1,126 @@
+# Ajisai phrasebook — User Words for phrases programs write again and again.
+#
+# None of these is a Core Word: each is a phrase over the Core vocabulary,
+# which is exactly why the Core does not hold it (LANG.AUTHORITY.IDENTITY).
+# Writing the phrase out is always an option; this file is for when a name
+# reads better than the phrase.
+#
+# To use it, run the whole file once — in the Playground, paste it into the
+# Input surface and Run (User Words persist); with the CLI, put it in front of
+# your program. Take only the Words you need: each one names only Core Words
+# and the Words defined above it.
+#
+# Every `#:contract` line is verified by `ajisai check` before anything runs,
+# and every `#=` line is a program and the stack it leaves, run by
+# rust/tests/phrasebook_laws.rs against this file. A `#=` line is a comment to
+# the interpreter like any other.
+
+# ── Arithmetic ───────────────────────────────────────────────────────────
+
+# a b MOD — the remainder with the divisor's sign: a - b·floor(a/b).
+#:contract MOD inputs=2 outputs=1 field=leaving
+[ 'Y' BIND 'X' BIND X X Y DIV FLOOR Y MUL SUB ] 'MOD' DEF
+#= 10 3 MOD → 1/1
+#= -7 3 MOD → 2/1
+#= [ 10 11 12 ] 3 MOD → [ 1/1 2/1 0/1 ]
+
+# x NEG — the negation.
+#:contract NEG inputs=1 outputs=1 field=closed
+[ -1 MUL ] 'NEG' DEF
+#= 5 NEG → -5/1
+
+# x ABS — the magnitude; exact for every number SQRT builds.
+#:contract ABS inputs=1 outputs=1 field=closed
+[ 'X' BIND X X MUL SQRT ] 'ABS' DEF
+#= -5 ABS → 5/1
+#= 2 SQRT -1 MUL ABS → sqrt(2)
+
+# x SIGN — -1, 0 or 1.
+#:contract SIGN inputs=1 outputs=1 field=closed
+[ 'X' BIND 0 -1 1 X 0 LT SELECT X 0 EQ SELECT ] 'SIGN' DEF
+#= -5 SIGN → -1/1
+#= 0 SIGN → 0/1
+#= [ 3 -2 ] SIGN → [ 1/1 -1/1 ]
+
+# x CEIL — the least integer not below x.
+#:contract CEIL inputs=1 outputs=1 field=closed
+[ -1 MUL FLOOR -1 MUL ] 'CEIL' DEF
+#= 5/2 CEIL → 3/1
+#= -5/2 CEIL → -2/1
+
+# ── Comparison and logic (three-valued, as AND and NOT are) ──────────────
+
+# a b LTE — a ≤ b.
+#:contract LTE inputs=2 outputs=1 field=closed
+[ GT NOT ] 'LTE' DEF
+#= 2 2 LTE → TRUE
+
+# a b GTE — a ≥ b.
+#:contract GTE inputs=2 outputs=1 field=closed
+[ LT NOT ] 'GTE' DEF
+#= 1 2 GTE → FALSE
+
+# a b OR — the disjunction, by De Morgan: an UNKNOWN operand stays UNKNOWN
+# unless the other one is TRUE.
+#:contract OR inputs=2 outputs=1 field=closed
+[ NOT 'B' BIND NOT B AND NOT ] 'OR' DEF
+#= TRUE FALSE OR → TRUE
+#= NIL TRUE OR → TRUE
+#= NIL FALSE OR NIL? → TRUE
+
+# ── Collections ──────────────────────────────────────────────────────────
+
+# v SUM — the total; 0 for an empty Vector.
+#:contract SUM inputs=1 outputs=1 field=closed
+[ 0 [ ADD ] FOLD ] 'SUM' DEF
+#= [ 1 2 3 ] SUM → 6/1
+#= [ ] SUM → 0/1
+
+# v PRODUCT — the product; 1 for an empty Vector.
+#:contract PRODUCT inputs=1 outputs=1 field=closed
+[ 1 [ MUL ] FOLD ] 'PRODUCT' DEF
+#= [ 1 2 3 4 ] PRODUCT → 24/1
+
+# v MEAN — the arithmetic mean; 0/0 for an empty Vector.
+#:contract MEAN inputs=1 outputs=1 field=leaving
+[ 'V' BIND V SUM V LENGTH DIV ] 'MEAN' DEF
+#= [ 1 2 3 4 ] MEAN → 5/2
+#= [ ] MEAN → 0/0
+
+# truths ANY — TRUE when some element is TRUE.
+#:contract ANY inputs=1 outputs=1 field=closed
+[ FALSE [ OR ] FOLD ] 'ANY' DEF
+#= [ 1 5 3 ] [ 4 GT ] MAP ANY → TRUE
+
+# truths ALL — TRUE when every element is TRUE; TRUE for an empty Vector.
+#:contract ALL inputs=1 outputs=1 field=closed
+[ TRUE [ AND ] FOLD ] 'ALL' DEF
+#= [ 1 5 3 ] [ 0 GT ] MAP ALL → TRUE
+#= [ ] ALL → TRUE
+
+# v x MEMBER? — whether some element of v equals x.
+#:contract MEMBER? inputs=2 outputs=1 field=closed
+[ 'X' BIND [ X EQ ] FILTER LENGTH 0 GT ] 'MEMBER?' DEF
+#= [ 1 2 3 ] 2 MEMBER? → TRUE
+#= [ 1 2 3 ] 9 MEMBER? → FALSE
+
+# ── Text ─────────────────────────────────────────────────────────────────
+
+# texts sep JOIN-WITH — the Strings joined with sep between them.
+#:contract JOIN-WITH inputs=2 outputs=1 field=closed
+[ 'S' BIND [ 'E' BIND S E 2 COLLECT ] MAP FLATTEN 'P' BIND '' P 1 DROP JOIN P LENGTH 0 EQ SELECT ] 'JOIN-WITH' DEF
+#= [ 'a' 'b' 'c' ] ', ' JOIN-WITH → 'a, b, c'
+#= [ ] ', ' JOIN-WITH → ''
+
+# text needle CONTAINS? — whether needle occurs in text.
+#:contract CONTAINS? inputs=2 outputs=1 field=closed
+[ SEARCH NIL? NOT ] 'CONTAINS?' DEF
+#= 'hello' 'ell' CONTAINS? → TRUE
+#= 'hello' 'xyz' CONTAINS? → FALSE
+
+# text prefix STARTS-WITH? — whether text begins with prefix.
+#:contract STARTS-WITH? inputs=2 outputs=1 field=closed
+[ SEARCH 'I' BIND FALSE I 0 EQ I NIL? SELECT ] 'STARTS-WITH?' DEF
+#= 'hello' 'he' STARTS-WITH? → TRUE
+#= 'hello' 'el' STARTS-WITH? → FALSE
+#= 'hello' 'xy' STARTS-WITH? → FALSE

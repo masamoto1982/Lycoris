@@ -3,6 +3,8 @@
 Note: this model describes the word-help surface hierarchy (Reference / LOOKUP / hover) and is orthogonal to the document-role axis (Specification / Reference / README).
 
 Status: proposal (revision of the草案 dated 2026-05).
+
+> Note (2026-10-15): the hover half of this proposal shipped — every Core Word's `hover_summary` and `hover_syntax` are projected from `documentation.hover` and `documentation.syntax` in `spec/words.json` (`rust/src/kernel/generated/word_registry.rs`), and `rust/src/builtins/builtin_word_details_tests.rs` runs every `hover_syntax` and requires it to call its Word. The vocabulary this proposal was written against has since changed: no Word has a symbol spelling any more (LANG.SOURCE.NORMALIZE), so there is no sugar to prefer, and Words such as `MOD`, `LTE`, `KEEP`, `LOOKUP`, `OR-NIL` and `IMPORT` are not Words (`spec/retired-words.json`; Lookup is a host operation, `spec/gui-semantics.md`). Section references to `SPECIFICATION.html` (§2.4–§2.5, §6.5, §7.14) are to its former numbering. Where this document and the registry disagree, the registry is current.
 Authority: non-canonical. `SPECIFICATION.html` remains the canonical source for language semantics; its Specification Authority section (§2.4–§2.5) defines Reference, LOOKUP, and hover as derived documentation under the specification's authority. This document defines the **structure and policy of user-facing guidance**, not language behavior.
 
 Related existing documents:
@@ -70,11 +72,11 @@ Implementation Notes (optional)
 
 `Concept` answers *why this word exists in the language*, e.g.
 
-> `LOOKUP` is an introspection word. It allows Ajisai to expose its own vocabulary from inside the language, which is what makes the editor-as-REPL usable as a self-documenting environment.
+> `CONTRACT` is an introspection word. It lets a program read the contract of a Word or a block from inside the language, without running it, which is what lets a program check what it is about to call.
 
 Such language-design context belongs in Reference and may be repeated in concept-guide pages. It does **not** appear in LOOKUP.
 
-Reference must include a concept page for the Bubble Rule. The page explains: well-formed operations that cannot produce a value return Bubble/NIL with a reason, while malformed usage raises an error. Per-word Reference entries for `GET`, `DIV`/`/`, `NUM`, and `CHR` must describe their Bubble/NIL cases separately from contract-violation errors.
+Reference must include a concept page for the Bubble Rule. The page explains: well-formed operations that cannot produce a value return Bubble/NIL with a reason, while malformed usage raises an error. Per-word Reference entries for `GET`, `SQRT`, `NUM`, and `POW` must describe their Bubble/NIL cases separately from contract-violation errors.
 
 (2026-09-14: the water metaphor was removed from `README.md` and `public/docs/ja/index.html` as reader-facing noise. The concept page still exists under `#nil` and still explains this rule — it now just says `NIL` throughout instead of the borrowed word "泡"/"Bubble". `Bubble/NIL` unchanged in LOOKUP text below, which is Rust source, out of scope for that cleanup.
 
@@ -219,34 +221,7 @@ These two stay separate. `title` shows on mouse-hover only and is not visible to
 
 ### 4.3 Sugar preference for `hover_syntax`
 
-Unlike LOOKUP and Reference (which always show both forms when sugar exists), hover prefers the shortest form. Selection rule:
-
-1. If sugar exists and is shorter or as short as canonical → use sugar.
-2. Otherwise → use canonical.
-3. Always use a real example (operands shown), not a bare word.
-
-| Word | hover_syntax |
-|------|--------------|
-| `ADD` | `1 2 +` |
-| `SUB` | `5 3 -` |
-| `MUL` | `2 4 *` |
-| `DIV` | `10 2 /` |
-| `MOD` | `7 3 %` |
-| `EQ` | `1 1 =` |
-| `LT` | `1 2 <` |
-| `LTE` | `1 1 <=` |
-| `AND` | `TRUE TRUE &` |
-| `TOP` | `. +` |
-| `STAK` | `.. +` |
-| `EAT` | `, +` |
-| `KEEP` | `,, +` |
-| `SAFE` | `~ GET` |
-| `FORC` | `! 'WORD' DEL` |
-| `LOOKUP` | `'ADD' ?` |
-| `FLOW` | `xs ~ { ... } MAP` |
-| `OR-NIL` | `NIL OR-NIL [ 0 ]` |
-| `DEF` | `{ 2 * } 'DOUBLE' DEF` |
-| `IMPORT` | `'IO' IMPORT` |
+No Word has a symbol spelling, so there is no shorter form to prefer: `hover_syntax` is the Word's `documentation.syntax` in `spec/words.json`, one real invocation with its operands shown — `1 2 ADD`, `[ 1 2 3 ] [ 2 MUL ] MAP`, `'42' NUM`. The registry is the table; this document does not copy it.
 
 `hover_syntax` is **not optional**: every built-in must carry one example string.
 

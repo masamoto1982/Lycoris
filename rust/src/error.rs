@@ -1,3 +1,4 @@
+use crate::diagnostic_hint::{reported_domain, unknown_word_hint, usage_hint};
 use std::fmt;
 
 pub type Result<T> = std::result::Result<T, AjisaiError>;
@@ -368,10 +369,19 @@ impl fmt::Display for AjisaiError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             AjisaiError::StackUnderflow { word: Some(word) } => {
-                write!(f, "{}: stack underflow", word)
+                write!(f, "{}: stack underflow", word)?;
+                write_hint(f, usage_hint(word, "stackUnderflow", None))
             }
             AjisaiError::StackUnderflow { word: None } => write!(f, "stack underflow"),
-            AjisaiError::UnknownWord(name) => write!(f, "Unknown word: {}", name),
+            AjisaiError::UnknownWord(name) => {
+                write!(f, "Unknown word: {}", name)?;
+                // A refined diagnosis (a binding out of scope) arrives as a
+                // sentence rather than a name, and is its own repair.
+                if name.contains(char::is_whitespace) {
+                    return Ok(());
+                }
+                write_hint(f, unknown_word_hint(name))
+            }
             AjisaiError::MalformedSource(msg) => write!(f, "{}", msg),
             AjisaiError::ExecutionLimitExceeded { limit } => {
                 write!(f, "Execution step limit ({}) exceeded", limit)
@@ -416,12 +426,23 @@ impl fmt::Display for AjisaiError {
                 write!(f, "recursion limit exceeded ({}) in '{}'", limit, word)
             }
             AjisaiError::DeclaredCondition {
+                condition,
                 message,
                 word: Some(word),
-                ..
-            } => write!(f, "{}: {}", word, message),
+            } => {
+                write!(f, "{}: {}", word, message)?;
+                write_hint(f, usage_hint(word, condition, reported_domain(message)))
+            }
             AjisaiError::DeclaredCondition { message, .. } => write!(f, "{}", message),
         }
+    }
+}
+
+/// A diagnosis's one-line repair (`diagnostic_hint`), after a dash.
+fn write_hint(f: &mut fmt::Formatter<'_>, hint: Option<String>) -> fmt::Result {
+    match hint {
+        Some(hint) => write!(f, " — {}", hint),
+        None => Ok(()),
     }
 }
 

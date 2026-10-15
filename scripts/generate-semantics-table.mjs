@@ -3,9 +3,9 @@
 // tuple) -> outcome-category table. Domains were first chosen by type, then
 // re-chosen by the outcome each one reaches (below).
 //
-// 86 Words in one flat dictionary with no imports means the language's whole
-// input/outcome surface is finite. Excluding the variable/control-arity Words
-// (COLLECT, EXEC, OR-NIL) leaves the rest with a
+// Every Word sits in one flat dictionary with no imports, so the language's
+// whole input/outcome surface is finite. Excluding the Words of data-dependent
+// arity (today COLLECT and EXEC) leaves the rest with a
 // fixed integer arity; every (Word, domain tuple) pair is run through the
 // real `ajisai` CLI and its outcome recorded as a stable id — never the
 // human-readable `message`, which can be reworded without changing meaning.
@@ -100,8 +100,8 @@ function* domainTuples(arity) {
 
 // ---------------------------------------------------------------------------
 // Word selection (Step 2.2, pitfalls A/B). `stack.inputs` is a plain integer
-// for every Word except COLLECT/EXEC/OR-NIL (a JSON string: "variable" or
-// "control" in the current spec/words.json).
+// for every Word except those of data-dependent arity (a JSON string such as
+// "variable" in spec/words.json — today COLLECT and EXEC).
 // This is not a hardcoded list (Phase 3 pitfall E): whichever Words currently
 // have non-numeric `stack.inputs` are excluded, whatever their names are.
 // ---------------------------------------------------------------------------

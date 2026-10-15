@@ -12,6 +12,7 @@ static GLOBAL_ALLOCATOR: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
 mod builtins;
 pub mod coreword_registry;
+pub(crate) mod diagnostic_hint;
 mod error;
 mod fast_hash;
 /// Word-name canonicalization, at the path every caller names it by; it lives

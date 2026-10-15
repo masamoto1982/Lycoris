@@ -30,6 +30,17 @@ const fail = (message) => fatal('skill-md', message);
 
 const ajisaiBin = resolveAjisaiBin('skill-md');
 
+// A Markdown code span around `text`. A message can itself quote code in
+// backticks (a contract finding, a diagnosis's example), so the delimiter is
+// one backtick longer than the longest run inside it, padded with a space
+// when the text starts or ends with one.
+function inlineCode(text) {
+  const longest = Math.max(0, ...(text.match(/`+/g) ?? []).map((run) => run.length));
+  const fence = '`'.repeat(longest + 1);
+  const pad = longest > 0 ? ' ' : '';
+  return `${fence}${pad}${text}${pad}${fence}`;
+}
+
 function runSnippet(code, command = 'compute') {
   // `check` reads no limit profile (a flag a command does not read is a usage
   // error), so it is spawned without the `--limits trusted` every compute gets.
@@ -163,7 +174,12 @@ const commonErrors = [
   {
     title: 'Typo / unknown word',
     code: '[ 1 ] ADDD',
-    fix: 'Grep §9 for the word you meant (here: `ADD`). Word names are upper-cased automatically.',
+    fix: 'The message names the Core Words within a typo of what you wrote (here: `ADD`); otherwise grep §9. Word names are upper-cased automatically.',
+  },
+  {
+    title: 'A Word from another language that Ajisai writes as a phrase',
+    code: '10 3 MOD',
+    fix: 'The message carries one runnable line that does the same thing with Core Words — MOD, OR, ABS, DUP, SWAP, IF, SUM and the like each have one. Adapt it to your operands; DEF it as a User Word if you need it more than once.',
   },
   {
     title: 'Stack underflow: operands must be pushed first',
@@ -178,7 +194,7 @@ const commonErrors = [
   {
     title: 'A block that leaves more than its one result',
     code: '[ 1 2 3 ] [ 2 MUL 7 ] MAP',
-    fix: 'A MAP / FILTER / FOLD / SCAN block leaves exactly one value — its result. A surplus is not discarded, it is this error. Consume what you computed before the block ends, or name it with `BIND`, which leaves nothing: `[ 2 MUL ]`, or `[ \'X\' BIND X X MUL ]`.',
+    fix: 'A MAP / FILTER / FOLD / SCAN block leaves exactly one value — its result. A surplus is not discarded, it is this error. Consume what you computed before the block ends, or name it with `BIND`, which leaves nothing: `[ 2 MUL ]`, or `[ \'X\' BIND X X MUL ]`. `check` reports this before anything runs when the block is written right before the Word.',
   },
   {
     title: 'A `#:contract` declaration the body contradicts',
@@ -327,7 +343,7 @@ function renderCommonErrors() {
       const json = expectError(entry.code);
       return [
         `- **${entry.title}** — \`${entry.code}\``,
-        `  → exit 1, \`message: ${JSON.stringify(json.message)}\`, \`error: ${JSON.stringify(json.error)}\`.`,
+        `  → exit 1, ${inlineCode(`message: ${JSON.stringify(json.message)}`)}, ${inlineCode(`error: ${JSON.stringify(json.error)}`)}.`,
         `  Fix: ${entry.fix}`,
       ].join('\n');
     })
@@ -424,7 +440,7 @@ unsure, grep §9 before writing.**
 
 \`\`\`sh
 ajisai agent compute program.ajisai   # exit 0 = ok, 1 = language error, 2 = usage
-ajisai agent check program.ajisai     # parse + resolve only, no execution
+ajisai agent check program.ajisai     # resolve names, verify contracts and blocks; no execution
 \`\`\`
 
 Read the JSON in this order (contract: docs/dev/agent-cli-output-contract.md):
@@ -547,7 +563,11 @@ ${vocabulary.canonicalWords} canonical Words in one flat Core dictionary, of whi
 ${vocabulary.semanticKernelWords} form the Semantic Kernel and ${vocabulary.standardWords} are Standard Words. Both are
 ordinary Core Words called by their plain names; the split is a design
 classification, not a namespace. A word absent here does not exist. There is
-no module system and nothing to import.
+no module system and nothing to import. For a phrase you would otherwise
+write out again and again — a remainder, a disjunction, a sum or mean, text
+joined with a separator — \`docs/phrasebook/phrasebook.ajisai\` holds User Word
+definitions whose contracts and examples CI verifies; copy the definitions
+you need to the top of your program.
 
 | word | family | summary |
 |---|---|---|
