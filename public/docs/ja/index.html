@@ -102,7 +102,7 @@
                         <li><strong>誤差のない計算</strong>: 整数も小数も厳密な有理数になり、<code>SQRT</code>の結果も代数的無理数のまま保持されます。floatかdoubleかdecimalかを選ぶ必要はありません。</li>
                         <li><strong>止まらない除算</strong>: ゼロで割った結果は0の上の点(<code>1/0</code>か<code>0/0</code>)という数になります。ベクトルの計算なら、影響を受けるのはゼロで割ったその要素だけです(<a href="#division-by-zero">ゼロで割る</a>)。</li>
                         <li><strong>ループのいらないベクトル計算</strong>: 算術ワードはベクトルに自動で持ち上がり、<code>SELECT</code>は要素ごとに分岐します。集まりは<code>MAP</code>・<code>FILTER</code>・<code>FOLD</code>で処理します。</li>
-                        <li><strong>理由付きの失敗</strong>: 値を作れなかった操作は理由を持った<code>NIL</code>を返し、それが下流へそのまま伝わります。評価を止めるのは、操作や入力の形そのものが誤っているときだけです(<a href="#failure">1.2.1 評価の結末</a>)。</li>
+                        <li><strong>理由付きの失敗</strong>: 値を作れなかった操作は理由を持った<code>NIL</code>を返し、それが下流へそのまま伝わります。評価を止めるのは、操作や入力の形そのものが誤っているとき(<a href="#failure">1.2.1 評価の結末</a>)と、正しいプログラムでもホストが支えられる上限を超えたとき(<a href="#costs">1.2.2 評価のコスト</a>)です。</li>
                         <li><strong>実行前の検査</strong>: すべてのワードが、何をいくつ受け取るか、純粋か、値を作れないとき何を返すかを契約として持ちます。ユーザー定義のワードも、実行前にこの契約と照合されます。</li>
                         <li><strong>AIからの利用</strong>: <a href="https://github.com/masamoto1982/Ajisai/blob/main/tools/mcp-server/README.md#install-and-connect" target="_blank" rel="noopener noreferrer">MCPサーバー</a>を通じて、AIがAjisaiのコードを実行し、契約を検査できます。</li>
                     </ul>
@@ -211,7 +211,7 @@
                     <h3>改行</h3>
                     <p>改行はスペースと同じ空白で、トークンを区切る以外の意味を持ちません。プログラムは好きなだけ多くの行にわたって書いてかまわず、1行で書いても複数行に分けて書いても同じプログラムです。ワード定義の本体も同じで、改行の位置が違うだけの2つの定義は同じワードになり、<code>DIGEST</code>も一致します。改行が終わらせるのはコメントだけです。単語の先頭に書いた<code>#</code>から行末までがコメントになります。</p>
                     <h3>コメント</h3>
-                    <p><code>#</code>は行末まで続くコメントを開始します。<code>#</code>からその行の末尾までの文字は、トークン化される前に破棄されます。なお、文字列リテラルの中にある<code>#</code>は通常のテキストとして扱われるため、<code>'a # b'</code>は全体で1つの文字列です。</p>
+                    <p><code>#</code>は行末まで続くコメントを開始します。コメントは走査器の規則で、語の始まる位置でだけ始まります。<code>#</code>からその行の末尾までの文字は読み飛ばされ、トークンを生みません。なお、文字列リテラルの中にある<code>#</code>は通常のテキストとして扱われるため、<code>'a # b'</code>は全体で1つの文字列です。</p>
                     <h3>具体例</h3>
                     <div class="ref-table-wrap word-table">
                         <table class="ref-table">
@@ -520,7 +520,7 @@
                     </div>
                     <h3>閉じた形はループに勝る</h3>
                     <p>反復法に手を伸ばす前に、その問題に閉じた形があるかどうかを確かめてください。厳密算術においては、閉じた形は単に速いだけでなく、種類の異なる答えになるからです。最小二乗法、有理数のペナルティを使うリッジ回帰、k近傍法、有理確率上のナイーブベイズ、ジニ分割による決定木、パーセプトロン、単体法は、いずれも反復を伴わない厳密な解を持ちます。Ajisaiは係数をまさにその有理数として返します。<code>R²</code>が<code>529/532</code>として返ってくるなら、それが厳密な答えです。</p>
-                    <p class="ref-note">指数関数、対数関数、三角関数、任意のべき乗といった超越関数には、有理数の答えは存在しないので、Ajisaiはそれらを扱いません。<code>SQRT</code>は、この言語が<strong>代数的数</strong>として厳密に構成する唯一の無理数であり、整数指数と<code>p/2</code>の指数の<code>POW</code>はその体の中に留まります。数の領域はこの体がすべてなので、どの比較も有限時間で<code>TRUE</code>か<code>FALSE</code>に決まります。ただし<code>0/0</code>に順序を問うと、順序を持たないので<code>NIL</code>(<code>domainMiss</code>)を答えます。</p>
+                    <p class="ref-note">指数関数、対数関数、三角関数、任意のべき乗といった超越関数には、有理数の答えは存在しないので、Ajisaiはそれらを扱いません。<code>SQRT</code>は、この言語が<strong>代数的数</strong>として厳密に構成する唯一の無理数であり、整数指数と<code>p/2</code>の指数の<code>POW</code>はその体の中に留まります。数の領域はこの体がすべてなので、どの比較も有限時間で<code>TRUE</code>か<code>FALSE</code>に決まります。ただし0の上の点、<code>1/0</code>か<code>0/0</code>に順序を問うと、順序を持たないので<code>NIL</code>(<code>domainMiss</code>)を答えます。</p>
 
                     <h3>もう一つのコスト: ホストの安全制御</h3>
                     <p>ここまでのコストは、正しく書けたプログラムでも厳密算術そのものから自然に積み上がっていくものでした。これとは別に、ホストが計算資源を守るために設けている複数の上限があります。どれも言語の意味論ではなくホスト側の安全制御であり、具体的な数値は実装が定めます。同じソースでも、より大きな上限を宣言したホストでは通ることがあります。ただし、超過したときの結果は決まっていて、どの上限を超えても、その上限の名前を添えた<strong>エラー</strong>になり評価が停止します。上限はプログラムではなくホストのものなので、プログラムが分岐に使える値になることはありません。</p>
@@ -1211,7 +1211,7 @@ FILTER</code></td>
                     <p>これは検査漏れではなく設計上の選択です。名前は呼び出し時に解決されます。これにより、あるワードが自分より後に定義される別のワードを呼び出すことができ、定義を依存関係に合わせて並べ替える必要は決してありません。</p>
                     <p class="ref-note">その代償として、本体の中の誤字は、何かがそれを呼び出すまで静かに潜んでいます。これを事前に検出できるのがヘッドレスCLIです。<code>ajisai check</code>は何も実行せずにファイル中のすべての名前を解決し、未知のものを報告します。<code>ajisai check</code>はさらに宣言されたワード契約も検証します。Playgroundにはこれに相当するものがなく、アプリの中では、ワードを呼び出すこと自体が検査になります。</p>
                     <h3 id="declare-contract">ワードの契約を宣言する: <code>#:contract</code></h3>
-                    <p>定義は自分の契約をコメント行に書いて宣言でき、その宣言は<strong>何かが実行される前に</strong>本体と照合されます。行は<code>#:contract</code>、ワード名、そして契約Record（<a href="#reflection"><code>CONTRACT</code></a>を参照）が持つキーのうち任意のものを、そのキーが許す値と共に並べます。<code>inputs=N</code>と<code>outputs=N</code>は本体の実際の個数と一致しなければならず、<code>field=closed|leaving</code>は本体が超えてはならない上界です。書かなかったキーは検査されず、それ以外のキーを書いた行は不正な宣言です。インタプリタにとってこの行は普通のコメントですが、<code>ajisai check</code>、<code>ajisai agent compute</code>、そしてMCPサーバーの<code>check</code>・<code>compute</code>ツールにとっては宣言であり、本体が宣言に反するプログラムは実行されずにエラー（<code>contractViolation</code>）として拒否されます。推論が読めない本体——データから取り出して<code>EXEC</code>に渡すブロックなど——は<em>検証不能</em>として報告され、偽の違反にはなりません。</p>
+                    <p>定義は自分の契約をコメント行に書いて宣言でき、その宣言は<strong>何かが実行される前に</strong>本体と照合されます。行は<code>#:contract</code>、ワード名、そして契約Record（<a href="#reflection"><code>CONTRACT</code></a>を参照）が持つキーのうち任意のものを、そのキーが許す値と共に並べます。<code>inputs=N</code>と<code>outputs=N</code>は本体の実際の個数と一致しなければならず、<code>field=closed|leaving</code>は本体が超えてはならない上界です。書かなかったキーは検査されず、それ以外のキーを書いた行は不正な宣言です。トークナイザにとってこの行は普通のコメントですが、<code>ajisai check</code>と、プログラムを実行しようとするすべてのホスト操作——<code>ajisai agent compute</code>、MCPサーバーの<code>check</code>・<code>compute</code>ツール、PlaygroundのRun——にとっては宣言であり、本体が宣言に反するプログラムは実行されずにエラー（<code>contractViolation</code>）として拒否されます。推論が読めない本体——データから取り出して<code>EXEC</code>に渡すブロックなど——は<em>検証不能</em>として報告され、偽の違反にはなりません。</p>
                     <div class="sample">
                         <div class="ref-table-wrap">
                         <table class="ref-table">
@@ -2434,7 +2434,7 @@ FILTER</code></td>
                             <a class="btn js-open-playground" href="../../index.html">Playgroundで開く</a>
                         </div>
                     </div>
-                    <p class="ref-note"><code>UNIQUE</code>と<code>TALLY</code>は数だけでなくあらゆる値に対して働きます。ラベルは通常テキストなので、これは実用上の違いになります。一方<code>ORDER</code>と<code>SORT</code>はフラットな数のベクトルを必要とします。厳密な順序関係が定義されているのはそこだからです。<code>GROUP</code>は値とキーを位置によって対応付けるので、2つのオペランドは同じ長さでなければなりません。</p>
+                    <p class="ref-note"><code>UNIQUE</code>と<code>TALLY</code>は数だけでなくあらゆる値に対して働きます。ラベルは通常テキストなので、これは実用上の違いになります。一方<code>ORDER</code>と<code>SORT</code>は、存在する要素がすべて数かすべてStringであるフラットなベクトルを必要とします。順序が定義されているのはそこだからです。中の<code>NIL</code>はすべて末尾に置かれます。<code>GROUP</code>は値とキーを位置によって対応付けるので、2つのオペランドは同じ長さでなければなりません。</p>
                 
                 <!-- BEGIN generated word contracts: vector-ops -->
 <h3 id="family-collection">契約: ベクトル</h3>
@@ -2842,7 +2842,7 @@ FILTER</code></td>
                         </div>
                     </div>
                     <h3 id="record-lifting">要素ごとに働くワードが値の側へ持ち上がる</h3>
-                    <p>要素ごとに働くワード——<a href="#arithmetic">算術</a>、<a href="#comparison">比較</a>、論理、そして<code>NOT</code>・<code>UPPER</code>・<code>CHARS</code>のようなテキストのワード——は、Recordの値に対して働きます。数やベクトルをRecordと組み合わせると、キーはそのままで、値のそれぞれに演算が及びます。2つのRecord同士は<strong>キー列が等しいときだけ</strong>値ごとに組み合わさり、違えば<code>shapeMismatch</code>のエラーです。ベクトルを全体として読むワード——<code>LENGTH</code>、<code>MAP</code>、<code>FOLD</code>など——は、Recordを受け取るとそのワード自身のオペランドエラーを起こします。Recordをベクトルとして扱いたいなら<code>VALUES</code>で明示的に渡ってください。</p>
+                    <p>要素ごとに働くワード——<a href="#arithmetic">算術</a>、<a href="#comparison">比較</a>(<code>LT</code>と<code>GT</code>。<code>EQ</code>はオペランド全体を比べ、持ち上がりません)、論理、そして<code>NOT</code>・<code>UPPER</code>・<code>CHARS</code>のようなテキストのワード——は、Recordの値に対して働きます。数やベクトルをRecordと組み合わせると、キーはそのままで、値のそれぞれに演算が及びます。2つのRecord同士は<strong>キー列が等しいときだけ</strong>値ごとに組み合わさり、違えば<code>shapeMismatch</code>のエラーです。ベクトルを全体として読むワード——<code>LENGTH</code>、<code>MAP</code>、<code>FOLD</code>など——は、Recordを受け取るとそのワード自身のオペランドエラーを起こします。Recordをベクトルとして扱いたいなら<code>VALUES</code>で明示的に渡ってください。</p>
                     <div class="sample">
                         <div class="ref-table-wrap">
                         <table class="ref-table">
@@ -3569,7 +3569,7 @@ SELECT</code></td>
                         </div>
                     </div>
                     <h3>要素ごとに選ぶ</h3>
-                    <p>真偽値がベクトルなら、選択も<a href="#lift">要素ごと</a>に起こります。比較ワードも要素ごとに持ち上がるので、<code>[ 1 2 3 ] [ 2 ] GT</code>は<code>[ FALSE FALSE TRUE ]</code>という真偽値のベクトルを答えます。これをそのまま<code>SELECT</code>に渡せば、ベクトル全体の分岐が1つの式で書けます。長さ1の候補は、もう一方の長さに合わせて繰り返し使われます。</p>
+                    <p>真偽値がベクトルなら、選択も<a href="#lift">要素ごと</a>に起こります。<code>LT</code>と<code>GT</code>も要素ごとに持ち上がる(<code>EQ</code>は全体を比べ、持ち上がらない)ので、<code>[ 1 2 3 ] [ 2 ] GT</code>は<code>[ FALSE FALSE TRUE ]</code>という真偽値のベクトルを答えます。これをそのまま<code>SELECT</code>に渡せば、ベクトル全体の分岐が1つの式で書けます。長さ1の候補は、もう一方の長さに合わせて繰り返し使われます。</p>
                     <div class="sample">
                         <div class="ref-table-wrap">
                         <table class="ref-table">
@@ -4319,7 +4319,7 @@ SELECT</code></td>
                         </tbody>
                     </table>
                     </div>
-                    <p>比較ワードは最上位の層でのみ働きます。あらゆるAjisaiの値にわたって厳密であり、数学的な問いに答えます。答えられない問いは<code>0/0</code>に順序を問うことだけで、これは<code>domainMiss</code>を投影します。それより下の層は値のモデルには関与しないので、表現や表示が比較の結果に影響することは決してありません。</p>
+                    <p>比較ワードは最上位の層でのみ働きます。あらゆるAjisaiの値にわたって厳密であり、数学的な問いに答えます。答えられない問いは0の上の点、<code>1/0</code>か<code>0/0</code>に順序を問うことだけで、これは<code>domainMiss</code>を投影します。それより下の層は値のモデルには関与しないので、表現や表示が比較の結果に影響することは決してありません。</p>
                 
                 
                 </section>
