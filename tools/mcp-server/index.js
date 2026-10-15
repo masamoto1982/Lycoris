@@ -272,8 +272,10 @@ export const TOOLS = [
       "A class is how the charge *grows*, never how large it is: two programs of the same class can differ by orders of " +
       "magnitude. Measured, `[ 1 2 3 4 5 ] [ 0 ] [ ADD ] FOLD` spends 5 `numericWork` while `2 SQRT 3 SQRT ADD` — also `const` — " +
       "spends 2048, because an algebraic value carries a multiquadratic normal form and every operation on one rebuilds it. " +
-      "Budget an algebraic chain at 10^2–10^3 times a rational one of the same class, and read `resourceUsage` from a small " +
-      "run when the size matters rather than inferring it from the class. " +
+      "An axis whose charge also grows with an irrational's term count says so with `valueDependent: \"algebraicTerms\"` " +
+      "(measured, never guessed: `MUL` on two 16-term values charges 262,144 where two rationals charge 1); for those, run " +
+      "a small case and read `resourceUsage.algebraicTerms`, the largest term count a result reached, rather than inferring " +
+      "the size from the class. " +
       "An unmatched name answers with the closest known Words in `suggestions`. " +
       "To read every Word's full contract at once instead of probing one name at a time, read the ajisai://contracts " +
       "resource; ajisai://vocabulary lists the inventory — every name, its family and its tier.",

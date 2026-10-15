@@ -184,7 +184,7 @@
   "resourceUsage": {
    "type": "object",
    "additionalProperties": false,
-   "description": "What this run spent of the budgets that could have refused it. Every key names a ceiling of the `ajisai://limits` profile (`mcp.limitProfile`) and carries the same number the ceiling compared against — read from the counter the check reads, not a parallel copy — so an agent can subtract one from the other and know what it has left. Only the accumulating ceilings appear: `bigintBits` and `algebraicTerms` are checked per result and never accumulated, so there is no peak to report and none is invented.",
+   "description": "What this run spent of the budgets that could have refused it. Every key names a ceiling of the `ajisai://limits` profile (`mcp.limitProfile`) and carries the same number the ceiling compared against — read from the counter the check reads, not a parallel copy — so an agent can subtract one from the other and know what it has left. The accumulating ceilings always appear. `algebraicTerms` is a per-result ceiling, so it reports the largest term count any result of the run reached — the number that ceiling compared — and only when some result was an irrational.",
    "required": [
     "executionSteps",
     "numericWork",
@@ -205,6 +205,11 @@
      "type": "integer",
      "minimum": 0,
      "description": "Element operations charged inside collection Words — copies, order comparisons and equality probes — against the `collectionWork` ceiling. Priced from the operand, so an element that is wide, nested or algebraic costs more than a machine word; a collection Word loops inside one execution step, so this is the only counter that can see it."
+    },
+    "algebraicTerms": {
+     "type": "integer",
+     "minimum": 1,
+     "description": "The largest number of algebraic terms one result of the run carried, against the `algebraicTerms` ceiling. Absent when no result was an irrational. A Word whose charge grows with it marks that axis `valueDependent` in its `word_contract` entry."
     }
    }
   },
@@ -741,6 +746,12 @@
     },
     "exact": {
      "type": "boolean"
+    },
+    "valueDependent": {
+     "enum": [
+      "algebraicTerms"
+     ],
+     "description": "Present when this axis's charge also grows with an algebraic operand's term count, which `class` cannot see. Set by measurement."
     }
    },
    "additionalProperties": false

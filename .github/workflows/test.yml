@@ -297,6 +297,13 @@ jobs:
       - name: The specification version rule's own tests
         run: npm run test:scripts
 
+      - name: Cost axes say when they grow with an algebraic value
+        # `cost.<axis>.valueDependent` is set by measurement: every Word that
+        # can be handed a number runs on a rational, a 7-term and a 16-term
+        # algebraic operand, and the flag must be present exactly where the
+        # charge grows. See scripts/check-value-dependent-cost.mjs.
+        run: npm run check:value-dependent-cost
+
       - name: Runtime Core Word metadata is the generated registry, not authored
         # The runtime view reads the generated registry entry directly, never
         # a copy of it and never a second place to write language facts down.

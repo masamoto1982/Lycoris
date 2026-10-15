@@ -159,6 +159,7 @@ fn measure_result(value: &Value) -> (u64, usize) {
 /// operation leaves behind.
 pub(crate) fn check_result_size(interp: &Interpreter, value: &Value) -> Result<()> {
     let (bits, terms) = measure_result(value);
+    interp.note_algebraic_terms(terms);
     interp.runtime_limits.check_algebraic_size(terms, bits)
 }
 

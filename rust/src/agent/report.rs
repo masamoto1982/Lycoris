@@ -205,11 +205,18 @@ fn absence_json(absence: &AbsenceMetadata) -> Json {
 /// so an agent can subtract one from the other and know what it has left; no
 /// key here is an internal routing counter, and no counter there is a budget.
 pub(crate) fn resource_usage_json(usage: &ResourceUsage) -> Json {
-    json!({
+    let mut usage_json = json!({
         "executionSteps": usage.execution_steps,
         "numericWork": usage.numeric_work,
         "collectionWork": usage.collection_work,
-    })
+    });
+    // A per-result ceiling has no running total, so what it reports is the
+    // largest result it measured — and only when there was one: a run that
+    // made no irrational has nothing to say about algebraic terms.
+    if usage.algebraic_terms > 0 {
+        usage_json["algebraicTerms"] = json!(usage.algebraic_terms);
+    }
+    usage_json
 }
 
 /// JSON rendering of a `ProtocolNode`: `{ type, value, semantics? }`.

@@ -192,10 +192,14 @@ know what it has left.
 { "executionSteps": 22, "numericWork": 20 }
 ```
 
-Only the accumulating ceilings appear. `bigintBits` and `algebraicTerms` are
-checked per result and never accumulated, so there is no peak to report, and
-none is invented: a field carrying a number nothing measured is exactly the
-defect this object exists to fix.
+The accumulating ceilings always appear. A per-result ceiling has no running
+total, so what it can report is the largest result it measured: `algebraicTerms`
+is the largest term count any result of the run reached — the number that
+ceiling compared — and is present only when some result was an irrational.
+`bigintBits` is not reported. Nothing here is a number nothing measured, which
+is the defect this object exists to fix. A Word whose cost grows with that
+term count marks the axis `valueDependent: "algebraicTerms"` in its registry
+entry, set by `scripts/check-value-dependent-cost.mjs` from measurement.
 
 How the runtime went about the work — which cache answered, which fast path
 fired — is not reported. Those optimizer counters (`runtimeMetrics`) were

@@ -56,6 +56,10 @@ pub struct ResourceUsage {
     /// Element operations charged inside collection Words, against
     /// `collectionWork`.
     pub collection_work: u64,
+    /// The most algebraic terms any one result carried, against
+    /// `algebraicTerms`: the largest number that per-result ceiling compared.
+    /// 0 when no result was an irrational, and then not reported.
+    pub algebraic_terms: u64,
 }
 
 pub struct Interpreter {
@@ -118,6 +122,11 @@ pub struct Interpreter {
     /// touches, so this is the only counter that can see it. Reset per
     /// top-level `execute`, like the numeric meter beside it.
     pub(crate) collection_work_used: u64,
+    /// The largest algebraic term count a result reached this `execute`, as
+    /// `check_result_size` and `POW`'s size check measured it. A `Cell`
+    /// because those checks read the interpreter immutably. Reset per
+    /// top-level `execute`.
+    pub(crate) algebraic_terms_peak: std::cell::Cell<u64>,
 
     pub(crate) next_registration_order: u64,
 
@@ -221,6 +230,7 @@ impl Interpreter {
             runtime_limits: super::runtime_limits::RuntimeLimits::default(),
             numeric_work_used: 0,
             collection_work_used: 0,
+            algebraic_terms_peak: std::cell::Cell::new(0),
             next_registration_order: 1,
             dictionary_epoch: 0,
             failed_word: None,
@@ -428,6 +438,7 @@ impl Interpreter {
             execution_steps: self.execution_step_count as u64,
             numeric_work: self.numeric_work_used,
             collection_work: self.collection_work_used,
+            algebraic_terms: self.algebraic_terms_peak.get(),
         }
     }
 
@@ -435,6 +446,14 @@ impl Interpreter {
     /// small limits that fire a guard without allocating anything huge, and by
     /// hosts that need a tighter or looser envelope. Child runtimes spawned
     /// afterwards inherit the new limits.
+    /// Record a result's algebraic term count toward the run's peak.
+    pub(crate) fn note_algebraic_terms(&self, terms: usize) {
+        let terms = terms as u64;
+        if terms > self.algebraic_terms_peak.get() {
+            self.algebraic_terms_peak.set(terms);
+        }
+    }
+
     pub fn set_runtime_limits(&mut self, limits: super::runtime_limits::RuntimeLimits) {
         self.runtime_limits = limits;
     }

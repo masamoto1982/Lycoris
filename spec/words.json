@@ -380,7 +380,8 @@
         },
         "numeric": {
           "class": "const",
-          "exact": false
+          "exact": false,
+          "valueDependent": "algebraicTerms"
         },
         "collection": {
           "class": "const",
@@ -449,7 +450,8 @@
         },
         "numeric": {
           "class": "const",
-          "exact": false
+          "exact": false,
+          "valueDependent": "algebraicTerms"
         },
         "collection": {
           "class": "const",
@@ -519,7 +521,8 @@
         },
         "numeric": {
           "class": "const",
-          "exact": false
+          "exact": false,
+          "valueDependent": "algebraicTerms"
         },
         "collection": {
           "class": "const",
@@ -583,7 +586,8 @@
         },
         "numeric": {
           "class": "linear",
-          "exact": true
+          "exact": true,
+          "valueDependent": "algebraicTerms"
         },
         "collection": {
           "class": "const",
@@ -646,7 +650,8 @@
         },
         "numeric": {
           "class": "linear",
-          "exact": true
+          "exact": true,
+          "valueDependent": "algebraicTerms"
         },
         "collection": {
           "class": "const",
@@ -710,7 +715,8 @@
         },
         "numeric": {
           "class": "linear",
-          "exact": true
+          "exact": true,
+          "valueDependent": "algebraicTerms"
         },
         "collection": {
           "class": "const",
@@ -773,7 +779,8 @@
         },
         "numeric": {
           "class": "linear",
-          "exact": true
+          "exact": true,
+          "valueDependent": "algebraicTerms"
         },
         "collection": {
           "class": "const",
@@ -967,7 +974,8 @@
         },
         "numeric": {
           "class": "const",
-          "exact": false
+          "exact": false,
+          "valueDependent": "algebraicTerms"
         },
         "collection": {
           "class": "const",
@@ -1042,7 +1050,8 @@
         },
         "numeric": {
           "class": "const",
-          "exact": false
+          "exact": false,
+          "valueDependent": "algebraicTerms"
         },
         "collection": {
           "class": "const",
@@ -1172,7 +1181,8 @@
         },
         "numeric": {
           "class": "linear",
-          "exact": false
+          "exact": false,
+          "valueDependent": "algebraicTerms"
         },
         "collection": {
           "class": "const",
@@ -1383,7 +1393,8 @@
         },
         "collection": {
           "class": "const",
-          "exact": true
+          "exact": true,
+          "valueDependent": "algebraicTerms"
         }
       },
       "clauses": [
@@ -1505,7 +1516,8 @@
         },
         "collection": {
           "class": "linear",
-          "exact": true
+          "exact": true,
+          "valueDependent": "algebraicTerms"
         }
       },
       "clauses": [
@@ -1569,7 +1581,8 @@
         },
         "collection": {
           "class": "linear",
-          "exact": true
+          "exact": true,
+          "valueDependent": "algebraicTerms"
         }
       },
       "clauses": [
@@ -1632,7 +1645,8 @@
         },
         "collection": {
           "class": "linear",
-          "exact": true
+          "exact": true,
+          "valueDependent": "algebraicTerms"
         }
       },
       "clauses": [
@@ -1690,7 +1704,8 @@
         },
         "collection": {
           "class": "linear",
-          "exact": true
+          "exact": true,
+          "valueDependent": "algebraicTerms"
         }
       },
       "clauses": [
@@ -2165,7 +2180,8 @@
         },
         "collection": {
           "class": "linear",
-          "exact": true
+          "exact": true,
+          "valueDependent": "algebraicTerms"
         }
       },
       "clauses": [
@@ -2228,7 +2244,8 @@
         },
         "collection": {
           "class": "linear",
-          "exact": true
+          "exact": true,
+          "valueDependent": "algebraicTerms"
         }
       },
       "clauses": [
@@ -2290,7 +2307,8 @@
         },
         "collection": {
           "class": "linear",
-          "exact": true
+          "exact": true,
+          "valueDependent": "algebraicTerms"
         }
       },
       "clauses": [
@@ -2350,7 +2368,8 @@
         },
         "collection": {
           "class": "linear",
-          "exact": true
+          "exact": true,
+          "valueDependent": "algebraicTerms"
         }
       },
       "clauses": [
@@ -2412,7 +2431,8 @@
         },
         "collection": {
           "class": "linear",
-          "exact": true
+          "exact": true,
+          "valueDependent": "algebraicTerms"
         }
       },
       "clauses": [
@@ -2487,7 +2507,8 @@
         },
         "collection": {
           "class": "linear",
-          "exact": true
+          "exact": true,
+          "valueDependent": "algebraicTerms"
         }
       },
       "clauses": [
@@ -2551,7 +2572,8 @@
         },
         "collection": {
           "class": "linear",
-          "exact": true
+          "exact": true,
+          "valueDependent": "algebraicTerms"
         }
       },
       "clauses": [
@@ -2625,7 +2647,8 @@
         },
         "collection": {
           "class": "linear",
-          "exact": false
+          "exact": false,
+          "valueDependent": "algebraicTerms"
         }
       },
       "clauses": [
@@ -3929,7 +3952,8 @@
         },
         "numeric": {
           "class": "linear",
-          "exact": false
+          "exact": false,
+          "valueDependent": "algebraicTerms"
         },
         "collection": {
           "class": "const",
@@ -4056,7 +4080,8 @@
         },
         "collection": {
           "class": "linear",
-          "exact": true
+          "exact": true,
+          "valueDependent": "algebraicTerms"
         }
       },
       "clauses": [
@@ -4705,7 +4730,8 @@
         },
         "collection": {
           "class": "linear",
-          "exact": true
+          "exact": true,
+          "valueDependent": "algebraicTerms"
         }
       },
       "clauses": [
@@ -4761,7 +4787,8 @@
         },
         "collection": {
           "class": "linear",
-          "exact": false
+          "exact": false,
+          "valueDependent": "algebraicTerms"
         }
       },
       "clauses": [
