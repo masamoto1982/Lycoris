@@ -1,0 +1,2 @@
+'read a book about hello'
+' ' TOKENIZE [ CHARS LENGTH 3 GT ] FILTER [ CHARS 0 GET UPPER ] MAP JOIN

@@ -1,0 +1,2 @@
+[ [ 'a' -4 ] [ 'b' -9 ] ]
+'LE' BIND LE LE [ 1 GET ] MAP -1 MUL ORDER 0 GET GET

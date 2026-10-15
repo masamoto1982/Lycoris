@@ -1,0 +1,32 @@
+{
+  "agent": "S0C",
+  "generation": 0,
+  "condition": "solo",
+  "definitions": [
+    { "name": "S0C.ABS", "body": "2 POW SQRT", "note": "Absolute value of an exact number, via its square root." },
+    { "name": "S0C.MEDIAN", "body": "'V' BIND V SORT 'S' BIND V LENGTH 'N' BIND S N 1 SUB 2 DIV FLOOR GET S N 2 DIV FLOOR GET ADD 2 DIV", "note": "Median of a Vector of exact numbers (mean of the two middle values when the count is even)." },
+    { "name": "S0C.ARGFIRST", "body": "'SC' BIND 'IT' BIND SC 0 GET 'F' BIND SC F [ MAX ] FOLD 'M' BIND IT SC 2 COLLECT ZIP [ 1 GET M EQ ] FILTER 0 GET 0 GET", "note": "Given items IT and scores SC (equal-length Vectors), answers the item with the largest score, the first such on ties." },
+    { "name": "S0C.SPJOIN", "body": "[ ' ' 2 COLLECT ] MAP FLATTEN JOIN TRIM", "note": "Joins a Vector of Strings into one String separated by single spaces." },
+    { "name": "S0C.CAPW", "body": "'W' BIND W CHARS 'C' BIND C 0 GET UPPER C 1 DROP JOIN 2 COLLECT JOIN", "note": "Upper-cases the first character of one String and keeps the rest." }
+  ],
+  "solutions": {
+    "series.median": "S0C.MEDIAN",
+    "series.mad": "'V' BIND V S0C.MEDIAN 'M' BIND V [ M SUB S0C.ABS ] MAP S0C.MEDIAN",
+    "series.moving3": "'V' BIND V -2 DROP V 1 DROP -1 DROP ADD V 2 DROP ADD 3 DIV",
+    "series.runmax": "'V' BIND V 0 GET 'F' BIND V F [ MAX ] SCAN",
+    "series.mode": "'V' BIND V SORT TALLY 'R' BIND R KEYS R VALUES S0C.ARGFIRST",
+    "series.trimmed": "'V' BIND V SORT 1 DROP -1 DROP 'T' BIND T 0 [ ADD ] FOLD T LENGTH DIV",
+    "prose.longest": "' ' TOKENIZE 'W' BIND W W [ CHARS LENGTH ] MAP S0C.ARGFIRST",
+    "prose.freq_top": "' ' TOKENIZE TALLY 'R' BIND R KEYS R VALUES S0C.ARGFIRST",
+    "prose.distinct_sorted": "' ' TOKENIZE UNIQUE SORT S0C.SPJOIN",
+    "prose.reverse_words": "' ' TOKENIZE REVERSE S0C.SPJOIN",
+    "prose.capitalize": "' ' TOKENIZE [ S0C.CAPW ] MAP S0C.SPJOIN",
+    "prose.initials_of_long": "' ' TOKENIZE [ CHARS LENGTH 3 GT ] FILTER [ CHARS 0 GET UPPER ] MAP JOIN",
+    "ledger.total": "[ 1 GET ] MAP 0 [ ADD ] FOLD",
+    "ledger.by_name": "'E' BIND E [ 0 GET ] MAP E [ 1 GET ] MAP GROUP 'R' BIND R KEYS R VALUES [ 0 [ ADD ] FOLD ] MAP RECORD",
+    "ledger.top_name": "'E' BIND E [ 0 GET ] MAP E [ 1 GET ] MAP GROUP 'R' BIND R KEYS R VALUES [ 0 [ ADD ] FOLD ] MAP S0C.ARGFIRST",
+    "ledger.debtors": "'E' BIND E [ 0 GET ] MAP E [ 1 GET ] MAP GROUP 'R' BIND R KEYS R VALUES [ 0 [ ADD ] FOLD ] MAP 2 COLLECT ZIP [ 1 GET 0 LT ] FILTER [ 0 GET ] MAP",
+    "ledger.count_names": "[ 0 GET ] MAP UNIQUE LENGTH",
+    "ledger.largest_entry": "'E' BIND E E [ 1 GET ] MAP S0C.ARGFIRST"
+  }
+}

@@ -1,0 +1,2 @@
+[ [ 'ann' 30 ] [ 'bob' -5 ] [ 'ann' 12 ] [ 'cy' -20 ] [ 'bob' 2 ] ]
+[ 1 GET ] MAP 0 [ ADD ] FOLD

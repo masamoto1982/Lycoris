@@ -1,0 +1,67 @@
+{
+  "agent": "G0B",
+  "generation": 0,
+  "condition": "bottleneck",
+  "definitions": [
+    {
+      "name": "G0B.SUM",
+      "body": "0 [ ADD ] FOLD",
+      "note": "sum of a Vector"
+    },
+    {
+      "name": "G0B.MEAN",
+      "body": "'V' BIND V G0B.SUM V LENGTH DIV",
+      "note": "mean of a Vector"
+    },
+    {
+      "name": "G0B.MEDIAN",
+      "body": "SORT 'S' BIND S LENGTH 'N' BIND S N 1 SUB 2 DIV FLOOR N 2 DIV FLOOR 2 COLLECT GET G0B.MEAN",
+      "note": "median of a Vector"
+    },
+    {
+      "name": "G0B.ABS",
+      "body": "'D' BIND D D -1 MUL MAX",
+      "note": "absolute value, lifts over vectors"
+    },
+    {
+      "name": "G0B.TOPKEY",
+      "body": "'T' BIND T KEYS T VALUES -1 MUL ORDER 0 GET GET",
+      "note": "key of a Record with the largest value; first on ties"
+    },
+    {
+      "name": "G0B.JOINSP",
+      "body": "[ 'X' BIND ' ' X 2 COLLECT JOIN ] MAP JOIN TRIM",
+      "note": "join a Vector of words with single spaces"
+    },
+    {
+      "name": "G0B.CAP",
+      "body": "CHARS 'C' BIND C 0 GET UPPER 1 COLLECT C 1 DROP CONCAT JOIN",
+      "note": "capitalize one word"
+    },
+    {
+      "name": "G0B.BYNAME",
+      "body": "ZIP 'Z' BIND Z 0 GET Z 1 GET GROUP 'G' BIND G KEYS G VALUES [ G0B.SUM ] MAP RECORD",
+      "note": "ledger entries to Record name->sum"
+    }
+  ],
+  "solutions": {
+    "series.median": "G0B.MEDIAN",
+    "series.mad": "'V' BIND V V G0B.MEDIAN SUB G0B.ABS G0B.MEDIAN",
+    "series.moving3": "'V' BIND V -2 DROP V 1 DROP -1 DROP ADD V 2 DROP ADD 3 DIV",
+    "series.runmax": "'V' BIND V V 0 GET [ MAX ] SCAN",
+    "series.mode": "SORT TALLY G0B.TOPKEY",
+    "series.trimmed": "SORT 1 DROP -1 DROP G0B.MEAN",
+    "prose.longest": "' ' TOKENIZE 'W' BIND W W [ CHARS LENGTH ] MAP -1 MUL ORDER 0 GET GET",
+    "prose.freq_top": "' ' TOKENIZE TALLY G0B.TOPKEY",
+    "prose.distinct_sorted": "' ' TOKENIZE UNIQUE SORT G0B.JOINSP",
+    "prose.reverse_words": "' ' TOKENIZE REVERSE G0B.JOINSP",
+    "prose.capitalize": "' ' TOKENIZE [ G0B.CAP ] MAP G0B.JOINSP",
+    "prose.initials_of_long": "' ' TOKENIZE [ CHARS LENGTH 3 GT ] FILTER [ CHARS 0 GET UPPER ] MAP JOIN",
+    "ledger.total": "ZIP 1 GET G0B.SUM",
+    "ledger.by_name": "G0B.BYNAME",
+    "ledger.top_name": "G0B.BYNAME G0B.TOPKEY",
+    "ledger.debtors": "G0B.BYNAME 'B' BIND B KEYS B VALUES 2 COLLECT ZIP [ 1 GET 0 LT ] FILTER [ 0 GET ] MAP",
+    "ledger.count_names": "ZIP 0 GET UNIQUE LENGTH",
+    "ledger.largest_entry": "'E' BIND E E ZIP 1 GET -1 MUL ORDER 0 GET GET"
+  }
+}

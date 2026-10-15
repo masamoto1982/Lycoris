@@ -1,0 +1,2 @@
+'the quick brown fox jumps over the lazy dog the end'
+' ' TOKENIZE 'CW' BIND CW [ CHARS 0 GET UPPER ] MAP CW [ CHARS 1 DROP JOIN ] MAP 2 COLLECT ZIP [ JOIN ] MAP [ ' ' 2 COLLECT JOIN ] MAP JOIN TRIM

@@ -1,0 +1,2 @@
+'the quick brown fox jumps over the lazy dog the end'
+' ' TOKENIZE 'PS' BIND PS PS [ CHARS LENGTH ] MAP -1 MUL ORDER 0 GET GET
