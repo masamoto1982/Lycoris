@@ -138,7 +138,7 @@ fn parse_term(term: &str, decl: &mut ContractDecl) -> Result<(), String> {
 
 /// The `[ ... ] 'NAME' DEF` definitions written at the top level of `tokens`:
 /// name, body, and the index of the `DEF`.
-fn collect_top_level_defs(tokens: &[Token]) -> Vec<(String, Vec<Token>, usize)> {
+pub(super) fn collect_top_level_defs(tokens: &[Token]) -> Vec<(String, Vec<Token>, usize)> {
     let mut defs = Vec::new();
     let mut depth = 0i32;
     let mut open_at = None;
@@ -176,7 +176,7 @@ pub(super) fn is_def_symbol(token: Option<&Token>) -> bool {
 /// a Word defined twice, or by a `DEF` it does not read (`every` when that
 /// `DEF`'s name is itself computed).
 #[derive(Debug, Default)]
-struct UnsettledNames {
+pub(super) struct UnsettledNames {
     names: HashSet<String>,
     every: bool,
 }
@@ -213,7 +213,9 @@ impl UnsettledNames {
 
 /// A fresh interpreter holding the source's top-level definitions, made by
 /// `DEF` itself and nothing else run, with the names it defined.
-fn build_definitions_interpreter(source: &str) -> (Interpreter, Vec<String>, UnsettledNames) {
+pub(super) fn build_definitions_interpreter(
+    source: &str,
+) -> (Interpreter, Vec<String>, UnsettledNames) {
     let mut interp = Interpreter::new();
     let mut names = Vec::new();
     let mut unsettled = UnsettledNames::default();

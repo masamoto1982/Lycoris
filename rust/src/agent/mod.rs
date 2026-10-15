@@ -9,6 +9,7 @@
 pub mod api;
 #[cfg(test)]
 mod api_tests;
+mod block_arity;
 #[cfg(test)]
 mod check_locals_tests;
 pub(crate) mod contract;

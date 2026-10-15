@@ -244,7 +244,7 @@ export const TOOLS = [
   },
   {
     name: "check",
-    description: "Parse and resolve Ajisai source without executing it; also verifies declared contracts conservatively.",
+    description: "Parse and resolve Ajisai source without executing it; also verifies declared contracts conservatively, and refuses a block written right before MAP, FILTER, FOLD or SCAN that cannot leave exactly one value, as running it would.",
     inputSchema: sourceSchema,
     outputSchema: envelopeSchema,
     annotations: READ_ONLY_ANNOTATIONS,

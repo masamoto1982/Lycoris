@@ -77,7 +77,7 @@ fn runs_code(name: &str) -> bool {
 /// For every token, whether it sits inside a `[ ... ]` some Word runs as
 /// code: a group whose close a code-running Word follows, inside no group
 /// that is data. Every other group is data and none of its Words run.
-fn code_positions(tokens: &[Token]) -> Vec<bool> {
+pub(crate) fn code_positions(tokens: &[Token]) -> Vec<bool> {
     let mut close_of = vec![None; tokens.len()];
     let mut opens = Vec::new();
     for (i, token) in tokens.iter().enumerate() {

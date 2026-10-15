@@ -194,7 +194,7 @@ const commonErrors = [
   {
     title: 'A block that leaves more than its one result',
     code: '[ 1 2 3 ] [ 2 MUL 7 ] MAP',
-    fix: 'A MAP / FILTER / FOLD / SCAN block leaves exactly one value — its result. A surplus is not discarded, it is this error. Consume what you computed before the block ends, or name it with `BIND`, which leaves nothing: `[ 2 MUL ]`, or `[ \'X\' BIND X X MUL ]`.',
+    fix: 'A MAP / FILTER / FOLD / SCAN block leaves exactly one value — its result. A surplus is not discarded, it is this error. Consume what you computed before the block ends, or name it with `BIND`, which leaves nothing: `[ 2 MUL ]`, or `[ \'X\' BIND X X MUL ]`. `check` reports this before anything runs when the block is written right before the Word.',
   },
   {
     title: 'A `#:contract` declaration the body contradicts',
@@ -440,7 +440,7 @@ unsure, grep §9 before writing.**
 
 \`\`\`sh
 ajisai agent compute program.ajisai   # exit 0 = ok, 1 = language error, 2 = usage
-ajisai agent check program.ajisai     # parse + resolve only, no execution
+ajisai agent check program.ajisai     # resolve names, verify contracts and blocks; no execution
 \`\`\`
 
 Read the JSON in this order (contract: docs/dev/agent-cli-output-contract.md):

@@ -14,7 +14,7 @@ unsure, grep §9 before writing.**
 
 ```sh
 ajisai agent compute program.ajisai   # exit 0 = ok, 1 = language error, 2 = usage
-ajisai agent check program.ajisai     # parse + resolve only, no execution
+ajisai agent check program.ajisai     # resolve names, verify contracts and blocks; no execution
 ```
 
 Read the JSON in this order (contract: docs/dev/agent-cli-output-contract.md):
@@ -183,7 +183,7 @@ cannot produce a value produces NIL (§4); a malformed one raises an error.
   Fix: FOLD is `vector init [ op ] FOLD`: `[ 1 2 3 ] 0 [ ADD ] FOLD`.
 - **A block that leaves more than its one result** — `[ 1 2 3 ] [ 2 MUL 7 ] MAP`
   → exit 1, `message: "MAP: expected the block to leave one value, and it left 2"`, `error: {"category":"blockContractViolation","column":23,"line":1,"word":"MAP"}`.
-  Fix: A MAP / FILTER / FOLD / SCAN block leaves exactly one value — its result. A surplus is not discarded, it is this error. Consume what you computed before the block ends, or name it with `BIND`, which leaves nothing: `[ 2 MUL ]`, or `[ 'X' BIND X X MUL ]`.
+  Fix: A MAP / FILTER / FOLD / SCAN block leaves exactly one value — its result. A surplus is not discarded, it is this error. Consume what you computed before the block ends, or name it with `BIND`, which leaves nothing: `[ 2 MUL ]`, or `[ 'X' BIND X X MUL ]`. `check` reports this before anything runs when the block is written right before the Word.
 - **A `#:contract` declaration the body contradicts** — `#:contract DOUBLE inputs=2 outputs=1
 [ 2 MUL ] 'DOUBLE' DEF 5 DOUBLE`
   → exit 1, `` message: "Contract declaration violated: `#:contract DOUBLE`: declared `inputs=2` but inferred `inputs=1`." ``, `error: {"category":"contractViolation","word":"DOUBLE"}`.

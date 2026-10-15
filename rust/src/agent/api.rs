@@ -246,7 +246,9 @@ fn tokens_of_well_formed(
 }
 
 /// Validate source without executing it and return the standard report shape:
-/// every name resolves, and every `#:contract` declaration holds.
+/// every name resolves, every `#:contract` declaration holds, and every block
+/// written before MAP, FILTER, FOLD or SCAN can leave the one value its Word
+/// requires (`block_arity`).
 pub fn check(source: &str) -> AgentResponse {
     let interp = Interpreter::new();
     let tokens = match tokens_of_well_formed(&interp, source) {
@@ -295,6 +297,17 @@ pub fn check(source: &str) -> AgentResponse {
         // every other failure is, not only in `contractDecls.findings`.
         return AgentResponse {
             report: contract::violation_report(&interp, &contract_decls),
+        };
+    }
+    if let Some(violation) = super::block_arity::first_block_arity_violation(source) {
+        let category = match violation.category {
+            "stackUnderflow" => ErrorCategory::StackUnderflow,
+            declared => ErrorCategory::Declared(declared),
+        };
+        let mut error = ErrorInfo::of(category, Some(violation.word.to_string()));
+        error.position = violation.position;
+        return AgentResponse {
+            report: error_report(&interp, error, violation.message, Vec::new()),
         };
     }
     AgentResponse {
