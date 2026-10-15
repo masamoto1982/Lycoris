@@ -182,9 +182,12 @@ jobs:
         # regenerating) is what catches a missing word like SUPERVISE.
         run: npm run word:manifest:check
 
-      - name: Conformance suite covers the vocabulary
+      - name: Conformance suite covers the vocabulary and the outcomes
         # Every Core and Module word in docs/word-manifest.json must appear in
-        # at least one conformance case, so a word can't go untested silently.
+        # at least one conformance case, so a word can't go untested silently;
+        # running every case must reach every NIL reason and every error
+        # category of spec/outcomes.json but the two exempted with a reason;
+        # and every case's data-category must be a Word family or `language`.
         # See scripts/check-conformance-coverage.mjs.
         run: npm run check:conformance-coverage
 

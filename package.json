@@ -47,7 +47,7 @@
     "check:termination": "node scripts/check-termination.mjs",
     "check:identity": "node scripts/check-identity.mjs",
     "word-schema:check": "node scripts/check-word-schema-migration.mjs",
-    "check:conformance-coverage": "node scripts/check-conformance-coverage.mjs",
+    "check:conformance-coverage": "cargo build --manifest-path rust/Cargo.toml --bin ajisai && node scripts/check-conformance-coverage.mjs",
     "word:manifest": "node scripts/generate-word-manifest.mjs",
     "word:manifest:check": "node scripts/generate-word-manifest.mjs --check",
     "word-registry:generate": "node scripts/generate-word-registry.mjs",
