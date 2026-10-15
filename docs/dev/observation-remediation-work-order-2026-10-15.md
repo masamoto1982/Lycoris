@@ -146,6 +146,30 @@ Status: non-canonical・`[作業指示書]`。本書は Ajisai の意味論も�
 
 ### 段 2 — 停止保証の穴（P1、可能性 1）
 
+**状態（2026-10-15 追記）: 作者の判断待ち（§3 D1）。** 着手時の追加調査で、下の既定案
+（BIND の静的検査）では穴が塞がらないと分かった。束縛も User Word も使わずに、ブロックが
+データから自分の複製を作って自分を実行できる。
+
+```
+[ 1 COLLECT [ 0 0 ] GET EXEC EXEC ] 1 COLLECT [ 0 0 ] GET EXEC EXEC
+→ error:recursionLimitExceeded "recursion limit exceeded (256) in 'EXEC'"
+```
+
+`1 COLLECT [ 0 0 ] GET` は、添字が持ち上がるので、ブロックを一つ包んで二つ取り出す。
+`FILL` は葉にしか持ち上がらないのでブロックを複製しないが、`GET` で足りる（ほかの語で複製できるかは未調査）。さらに `SELECT` で基底を
+選べるので、終わる再帰も書ける（3 2 1 0 を出力して `'done'` で止まる）:
+
+```
+[ 'N' BIND N PRINT 1 COLLECT [ 0 0 ] GET EXEC N 1 SUB 3 COLLECT [ 0 2 1 ] GET
+  [ EXEC EXEC ] [ 'done' ] N 0 GT SELECT EXEC ] 3 <同じブロック> EXEC
+```
+
+したがって `spec/termination.json` の `sites[EXEC].why`（「被演算子は EXEC の前から
+あった有限の Vector で、入れ子が減る」）は偽で、現状の Ajisai は上限（256 段と
+`executionSteps`）の下でチューリング完全に近い。README の「Ajisai has no recursion and
+no unbounded loop」、LANG.DICTIONARY.ACYCLIC の「Ajisai is therefore total and not
+Turing-complete」も同じく偽。正典はまだ直していない（どちらに直すかが D1）。
+
 **再現。** いずれも現状 `error:recursionLimitExceeded`（256 段）。
 
 ```
@@ -483,7 +507,7 @@ MUL の `cost.numeric.class` は `const`、実測 `numericWork` は 2,123,992、
 
 | ID | 判断 | 既定値 | 代案と費用 |
 | --- | --- | --- | --- |
-| D1 | 停止保証の塞ぎ方 | (a) 辞書と束縛を一つの参照グラフにした静的検査。`[ [ 1 ] APPLY ] APPLY` の形（EXEC する Word 自身を名指すブロックを渡す）を失う | (c) `callDepth` を正典の上限（256）にして「構造的に、または上限で止まる」と約束を弱める。完全性は保つが、「構成による全域性」を売れなくなる |
+| D1 | 停止保証をどう扱うか（段 2 の着手時に前提が変わった。上の「状態」を参照） | なし（作者が選ぶ）。推奨は (B) | (A) 認める: 入れ子の上限 `callDepth` を正典の上限にし（段 3 がその実装）、主張を「入れ子は `callDepth`、仕事は `executionSteps` で縛られるので必ず止まる」に改める。README・LANG.DICTIONARY.ACYCLIC・`termination.json` の「全域・非チューリング完全」を撤回。基底つきの再帰が書ける言語として説明し直す。実装の追加はほぼない。(B) 全域性を取り戻す: 「動的な実行」を、コードを走らせる語（EXEC・MAP・FILTER・FOLD・SCAN）のうち、直前に書かれたリテラルのブロックでも直前に読んだ束縛名でもない被演算子を走らせるものと定義し、動的に走らせるブロックは、それ自身と、そこから User Word の本体を辿って届くコードに、動的な実行を一つも含んではならない（含めば実行時に新しい ERROR で拒む。判定はブロックの内容だけで決まるのでダイジェストで記憶できる）。動的な実行は入れ子にならず、その内側はリテラルの入れ子と非循環の辞書で減るので、全域性が証明できる。上の二例はどちらも拒まれる。適合コーパスの既存事例は束縛名経由なので通る見込み。費用は、ブロックを受け取りさらにスタック上のブロックを走らせる高階の組み立て（コンビネータ）を書けなくなることと、実装と仕様の追加 |
 | D2 | beta.2 で実装の版も上げるか | 上げる（`check-version-sync.mjs` の四つと `version-lock.json` を同じ値にし、一つの番号で語る） | 仕様版と実装版を別々に動かす（`spec/README.md` の現行の建前。利用者が二つの番号を追う） |
 | D3 | DIGEST の String 被演算子 | Word の名前。名指す Word がなければ `notFound` | 現状維持（表示のダイジェスト）＋ `check` の note。黙って別の物を測る罠は残る |
 | D4 | `SKILL.md` のバイト予算 | 16,384 | 8,192（語の一覧表も外へ出す） |
