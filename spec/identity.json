@@ -30,8 +30,8 @@
   "levels": [
     {
       "id": "scalarAlgebraicField",
-      "subject": "Two scalars: in the multiquadratic field, or among the three points over zero",
-      "procedure": "Compare multiquadratic normal forms; a pair over zero is its reduced pair, one of three, and compares as that pair.",
+      "subject": "Two scalars: in the multiquadratic field, or at the two points over zero",
+      "procedure": "Compare multiquadratic normal forms; a pair over zero is its reduced pair, one of two, and compares as that pair.",
       "decides": [
         "same",
         "different"
