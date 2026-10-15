@@ -28,7 +28,12 @@ const skillPath = join(assetsPath, "quickstart.md");
 const metadataPath = join(assetsPath, "metadata.json");
 const serverPackagePath = join(here, "package.json");
 const resultSchemaPath = join(here, "result.schema.json");
-const phrasebookPath = join(assetsPath, "phrasebook.ajisai");
+// `AJISAI_PHRASEBOOK` names another file in the phrasebook's format to serve
+// for `words` and `ajisai://phrasebook` — an experiment's evolving lexicon, a
+// team's own phrases. Every Word in it still needs its `#:digest` line.
+const phrasebookPath = process.env.AJISAI_PHRASEBOOK
+  ? resolve(process.env.AJISAI_PHRASEBOOK)
+  : join(assetsPath, "phrasebook.ajisai");
 // The one envelope every Ajisai MCP tool result is wrapped in
 // (`result.schema.json`) carries one version: the backend's report
 // (`rust/src/agent/report.rs::SCHEMA_VERSION`), which the adapter's own

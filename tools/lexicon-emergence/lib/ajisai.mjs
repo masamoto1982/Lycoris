@@ -8,8 +8,14 @@ import { fileURLToPath } from 'node:url';
 
 const SERVER = fileURLToPath(new URL('../../mcp-server/index.js', import.meta.url));
 
-export async function connect() {
-  const transport = new StdioClientTransport({ command: 'node', args: [SERVER] });
+/**
+ * `phrasebook`, when given, is a file the server serves for the `words`
+ * argument in place of the repository's phrasebook (`AJISAI_PHRASEBOOK`):
+ * route B hands a generation its inherited lexicon this way.
+ */
+export async function connect({ phrasebook } = {}) {
+  const env = phrasebook ? { ...process.env, AJISAI_PHRASEBOOK: phrasebook } : undefined;
+  const transport = new StdioClientTransport({ command: 'node', args: [SERVER], ...(env ? { env } : {}) });
   const client = new Client({ name: 'lexicon-emergence', version: '0.1.0' });
   await client.connect(transport);
 
@@ -21,8 +27,8 @@ export async function connect() {
   const call = async (name, args) => JSON.parse(await callText(name, args));
 
   return {
-    compute: (source) => call('compute', { source }),
-    check: (source) => call('check', { source }),
+    compute: (source, words) => call('compute', words ? { source, words } : { source }),
+    check: (source, words) => call('check', words ? { source, words } : { source }),
     callText,
     /** The server's own definitions of the named tools, in the order given. */
     async tools(names) {

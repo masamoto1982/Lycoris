@@ -354,7 +354,11 @@ User Words for phrases programs write again and again, each with a verified
 those names and define them, with the phrasebook Words they call, before the
 source runs; the result's `prelude` lists each Word added with its digest, so
 what ran is checkable by content rather than by name. Each call is still one
-fresh source: nothing persists between calls.
+fresh source: nothing persists between calls. Set `AJISAI_PHRASEBOOK` to the
+path of another file in the same format — one `DEF` line per Word, each
+followed by its `#:digest` line — to serve that file for `words` and
+`ajisai://phrasebook` instead; the lexicon-emergence experiment hands each
+generation its inherited Words this way.
 Reading `ajisai://words/{name}` with a name that is not a valid percent-encoded
 string is refused as an invalid request, and a tool call carrying an argument
 its schema does not declare is refused as `invalidRequest` naming the

@@ -44,11 +44,21 @@ export function subjectPrompt({ run, condition, generation, agent }, lexicon, fa
     lines.push('| --- | --- | --- |');
     for (const e of lexicon.entries) lines.push(`| \`${e.name}\` | \`${e.body}\` | ${e.note || '—'} |`);
     lines.push('');
-    lines.push('To test with them, put this text before your own code in a `compute` call:');
-    lines.push('');
-    lines.push('```');
-    lines.push(prelude(lexicon.entries));
-    lines.push('```');
+    if (harness) {
+      // Route B: the server defines them. Pasting the definitions is how the
+      // pilot's H5 counterexample spread — the expansion audited was not the
+      // program that ran — so the harness route never asks for it.
+      const names = lexicon.entries.map((e) => `"${e.name}"`).join(', ');
+      lines.push('To use them, pass their names in the `words` argument of `compute` or `check`, for example');
+      lines.push(`\`words: [${names}]\`. The server defines them before your source, and the result's \`prelude\``);
+      lines.push('names each one it defined with its content digest.');
+    } else {
+      lines.push('To test with them, put this text before your own code in a `compute` call:');
+      lines.push('');
+      lines.push('```');
+      lines.push(prelude(lexicon.entries));
+      lines.push('```');
+    }
     lines.push('');
   }
 
@@ -80,6 +90,8 @@ export function subjectPrompt({ run, condition, generation, agent }, lexicon, fa
   lines.push('`body` is the code that goes between `[` and `]` in `[ body ] \'NAME\' DEF`. List definitions so that each');
   lines.push('comes after any of your own Words it calls. Solutions may call your Words and the inherited Words.');
   lines.push(`Before ${harness ? 'submitting' : 'writing the file'}, run each solution through \`compute\` exactly as it will be graded: the`);
-  lines.push('inherited-Word text above (if any), your definitions as DEF lines, the example input, the solution.');
+  lines.push(harness
+    ? 'inherited Words (through `words`, if any), your definitions as DEF lines, the example input, the solution.'
+    : 'inherited-Word text above (if any), your definitions as DEF lines, the example input, the solution.');
   return `${lines.join('\n')}\n`;
 }
