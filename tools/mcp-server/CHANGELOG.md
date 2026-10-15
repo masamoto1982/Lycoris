@@ -21,6 +21,8 @@ Specification: 1.0.0-beta.2.
 
 - **`CONTRACT` takes a String name.** `'INC' CONTRACT` answers the Word's contract, as `[ INC ] 0 GET CONTRACT` does; it used to be `error:notASymbol`. `DIGEST` keeps reading a String as text, and the quickstart's §3 says which spelling reaches a Word.
 
+- **The quickstart is less than half its size.** `ajisai://guide/quickstart` was 79 KB, most of it every Word's full summary; it is now about 37 KB, with a one-line index of the Words by family. The full summaries are where they already were, `word_contract` and `ajisai://contracts`.
+
 ### Added
 
 - **`words` on `compute`, `check` and `infer_contracts`.** Name phrasebook User Words — a remainder, a mean, a disjunction and others — and their definitions, with those of the phrasebook Words they call and their verified `#:contract` lines, run before `source`. The result's `prelude` names each Word added with its content digest, error lines still count from the caller's first line, and the Words count against `sourceBytes`. A name the phrasebook does not hold is `invalidRequest` with the nearest names. Nothing persists between calls.
