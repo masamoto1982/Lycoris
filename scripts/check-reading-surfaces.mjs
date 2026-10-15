@@ -52,6 +52,9 @@ const EXAMPLE_NAMES = new Set([
   // the subject the recovery phrase names once and reads twice:
   // `subject 'S' BIND fallback S S NIL? SELECT`
   'S',
+  // the block-running example of "A block cannot run itself": a Word that
+  // runs the block bound to F, which is its operand
+  'APPLY', 'F',
   // identity and doubling words of the worked examples
   'ID', 'DOUBLE',
   // the doubling word of the MAP and FOLD examples. It only became visible to

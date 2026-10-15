@@ -538,13 +538,13 @@
                             <tbody>
                                 <tr><td><code>executionLimitExceeded</code></td><td class="notes">The total number of work steps the whole program may spend</td><td class="notes">Rewrite with bulk operations (<code>SORT</code>, <code>GET</code>); review the termination condition</td></tr>
                                 <tr><td><code>resourceLimitExceeded</code></td><td class="notes">The size of a single value (coefficient bit width, number of algebraic terms and so on)</td><td class="notes">Round to a <code>1/d</code> grid to prune the history; look for a closed form</td></tr>
-                                <tr><td><code>resourceLimitExceeded</code> (<code>callDepth</code>)</td><td class="notes">How deep Word calls and block evaluations (<code>EXEC</code>, <code>MAP</code> and so on) are nested at once. A long chain of Words calling Words reaches it, and so does a block that runs a copy of itself</td><td class="notes">Make the call chain shallower, or rewrite with bulk operations</td></tr>
+                                <tr><td><code>resourceLimitExceeded</code> (<code>callDepth</code>)</td><td class="notes">How deep Word calls and block evaluations (<code>EXEC</code>, <code>MAP</code> and so on) are nested at once. A long chain of Words calling Words reaches it, with blocks nested inside it</td><td class="notes">Make the call chain shallower, or rewrite with bulk operations</td></tr>
                             </tbody>
                         </table>
                     </div>
                     <p><code>executionLimitExceeded</code> can be set explicitly with the CLI's <code>ajisai run --step-limit &lt;N&gt;</code>. The default is an implementation choice made by the host's runtime, not a fixed number this Reference promises.</p>
                     <p class="ref-note">The three above are limits the interpreter counts, but the Playground has one more: a <strong>wall-clock</strong> cut-off. When a single run exceeds 5 seconds, it is stopped together with its worker and reported as <code>Execution timed out after 5000 ms</code>. This is neither language semantics nor an interpreter budget but a host-side guard that only this screen has. That is why it carries none of the names above; instead it comes with a diagnosis that says which guard stopped the run and suggests rewriting with bulk operations or pruning by rounding to a grid. Hover over the <code>resource limits:</code> badge next to the build indicator at the top of the screen to list the host's limits (this guard is listed there too). The MCP host declares a different, stricter materialization limit. That is why the same <code>0 100001 RANGE</code> succeeds in the Playground but is an error (<code>resourceLimitExceeded</code>, naming <code>materializedElements</code>) on the MCP host. A program that runs on both hosts answers the same on both.</p>
-                    <p class="ref-note">The work done by the whole program and the size of a single value are measured separately. Some Words, such as <code>0 99999 RANGE UNIQUE</code>, count as one step yet perform as many comparisons internally as there are elements, so the step budget alone does not show how heavy a value is. Recall the fraction whose denominator kept growing in the section on the cost of iteration: grow it without pruning to a grid, and exactly this <code>resourceLimitExceeded</code> is where it ends. <code>resourceLimitExceeded</code> naming <code>callDepth</code> is different again: not the size of a value but how deep calls are nested at once. <a href="#acyclic">A Word cannot name itself in its body</a>, so a long chain through many different Words, A→B→C→…, reaches it. A block that builds a copy of itself from data and runs it stops here too.</p>
+                    <p class="ref-note">The work done by the whole program and the size of a single value are measured separately. Some Words, such as <code>0 99999 RANGE UNIQUE</code>, count as one step yet perform as many comparisons internally as there are elements, so the step budget alone does not show how heavy a value is. Recall the fraction whose denominator kept growing in the section on the cost of iteration: grow it without pruning to a grid, and exactly this <code>resourceLimitExceeded</code> is where it ends. <code>resourceLimitExceeded</code> naming <code>callDepth</code> is different again: not the size of a value but how deep calls are nested at once. <a href="#acyclic">A Word cannot name itself in its body</a>, so a long chain through many different Words, A→B→C→…, reaches it. A block that builds a copy of itself from data and runs it is refused long before, as <code>nestedDataBlock</code> (<a href="#data-blocks">A block cannot run itself</a>).</p>
 
                     <h3>Materialization limits: an error, not a value</h3>
                     <p><code>RANGE</code> and <code>FILL</code> have a limit on the size of the Vector one call produces. Even when the request itself is well-formed, trying to materialize beyond that limit is an <strong>error</strong>, <code>resourceLimitExceeded</code>, naming <code>materializedElements</code>, and nothing is built. It is not a <code>NIL</code>: a limit is the host's, and a <code>NIL</code> would flow on and let a fallback such as <code>0 X X NIL? SELECT</code> choose a different branch on a host with a smaller limit. A dimension or shape that is itself wrong, such as a negative or non-integer number, is an error too, under its own name.</p>
@@ -1240,7 +1240,44 @@ FILTER</code></td>
                     <h3 id="acyclic">A Word cannot call itself</h3>
                     <p>The reference graph of the User dictionary has no cycles. If a body contains the name of the very Word being defined, as in <code>[ REC ] 'REC' DEF</code>, <code>DEF</code> rejects it with an error. It does not matter where the name is written: directly in the body, or only inside a <code>[ ]</code> block passed to <code>MAP</code> or <code>EXEC</code>, it is the same.</p>
                     <p>This extends to indirect cycles. Define <code>A</code> to call <code>B</code>, then try to define <code>B</code> to call <code>A</code>, and the second <code>DEF</code> is rejected: <code>A</code>'s body already contains the name <code>B</code> (even though it does not exist yet), and adding a reference from <code>B</code> to <code>A</code> would close a cycle back to <code>A</code>. A new definition is free to call Words that already exist. The only thing forbidden is for the chain to come back to the Word being defined right now.</p>
-                    <p class="ref-note">Iteration cannot be expressed by a Word calling itself. <code>MAP</code> <code>FILTER</code> <code>FOLD</code> <code>SCAN</code> over an already finite <code>Vector</code> are the only means of iteration. With no cycles in the User dictionary no Word can call itself, so every evaluation is structurally finite. This is a stronger property than the run-time step budget (covered under <a href="#limits">Run-time errors</a>): the budget still limits the cost of a single evaluation, but there is no such thing as a program that would not stop however large the budget.</p>
+                    <p class="ref-note">Iteration cannot be expressed by a Word calling itself. <code>MAP</code> <code>FILTER</code> <code>FOLD</code> <code>SCAN</code> over an already finite <code>Vector</code> are the only means of iteration. With no cycles in the User dictionary no Word can call itself, and by the rule below no block can run a copy of itself, so every evaluation is structurally finite. This is a stronger property than the run-time step budget (covered under <a href="#limits">Run-time errors</a>): the budget still limits the cost of a single evaluation, but there is no such thing as a program that would not stop however large the budget.</p>
+                    <h3 id="data-blocks">A block cannot run itself</h3>
+                    <p>A block can be taken apart and rebuilt from data, and a copy names nothing a reference graph could see: <code>1 COLLECT [ 0 0 ] GET</code> makes two copies of one block. So a second rule stands beside the first. A block that <code>EXEC</code>, <code>MAP</code>, <code>FILTER</code>, <code>FOLD</code> or <code>SCAN</code> runs is <strong>written</strong> when it equals a <code>[ ]</code> literal of the code running it (the program, a Word's body, or the block whose code is running), or a <code>[ ]</code> nested inside one, or when it names no Word at all. Anything else is <strong>built from data</strong>. A written block is part of the code that runs it, so it is smaller. A block built from data may run, but not while another block built from data is running: that is refused as <code>nestedDataBlock</code>, before the operands are taken.</p>
+                    <div class="sample">
+                        <div class="ref-table-wrap">
+                        <table class="ref-table">
+                            <thead>
+                                <tr><th>Sample code</th><th>Expected value</th><th>Notes</th></tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><code>[ 1 COLLECT [ 0 0 ] GET EXEC EXEC ] 1 COLLECT [ 0 0 ] GET EXEC EXEC</code></td>
+                                    <td>error</td>
+                                    <td class="notes">The first <code>EXEC</code> runs a written block. Inside it, the copy is built from data and runs; the copy's copy is a second one, refused as <code>nestedDataBlock</code>.</td>
+                                </tr>
+                                <tr>
+                                    <td><code>[ 'F' BIND 1 F EXEC ] 'APPLY' DEF [ 2 ADD ] APPLY</code></td>
+                                    <td><code>3/1</code></td>
+                                    <td class="notes">A Word that runs the block it is handed: one block built from data.</td>
+                                </tr>
+                                <tr>
+                                    <td><code>[ 'F' BIND 1 F EXEC ] 'APPLY' DEF [ [ 2 ADD ] APPLY ] APPLY</code></td>
+                                    <td>error</td>
+                                    <td class="notes">The price: the block handed in hands another to <code>APPLY</code>, which runs it while the first still runs.</td>
+                                </tr>
+                                <tr>
+                                    <td><code>[ 2 MUL ] 'F' BIND [ 1 2 3 ] F MAP</code></td>
+                                    <td><code>[ 2/1 4/1 6/1 ]</code></td>
+                                    <td class="notes">Bound and run in the frame that wrote it, so it is written there.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        </div>
+                        <div class="sample-actions">
+                            <a class="btn js-open-playground" href="../../index.html">Open in Playground</a>
+                        </div>
+                    </div>
+                    <p class="ref-note">The price is combinators: code that runs a block it is given cannot be given a block that does the same, and a block bound in one frame and run inside another block counts as built from data there. A Word call runs no block, so the remedy is to write such code as Words with <code>DEF</code>, which nest to any depth. Whether a block is written is decided by its value and the code running it, never by how it was built, and <code>SELECT</code> choosing between two written blocks leaves the chosen one written.</p>
                     <h3>Managing Words</h3>
                     <p><code>DEL</code> deletes a user-defined Word by its quoted name. Dependencies are tracked, and a Word that other Words depend on cannot be deleted at all, so dangling references cannot happen. Delete the dependent side first.</p>
                     <p class="ref-note">Word names are case-insensitive, so <code>add10</code> and <code>ADD10</code> are the same Word. By convention they follow a verb-object form such as <code>APPLY-GAIN</code>. How a name is matched to a definition is covered in <a href="#dictionaries">Dictionaries and Word identity</a>.</p>
@@ -3914,7 +3951,7 @@ SELECT</code></td>
 <dt>Field</dt><dd><code>closed</code> (LANG.CONTRACT.FIELD)</dd>
 <dt>Purity / determinism</dt><dd><code>conditional</code> / <code>stateRelative</code></dd>
 <dt>Effects</dt><dd>none</dd>
-<dt>ERROR conditions</dt><dd><code>nonVector</code>, <code>notExecutable</code>, <code>blockContractViolation</code></dd>
+<dt>ERROR conditions</dt><dd><code>nonVector</code>, <code>notExecutable</code>, <code>nestedDataBlock</code>, <code>blockContractViolation</code></dd>
 <dt>Clauses</dt><dd><code>LANG.COLLECTIONS.HIGHER</code></dd>
 </dl>
 </div>
@@ -3931,7 +3968,7 @@ SELECT</code></td>
 <dt>Field</dt><dd><code>closed</code> (LANG.CONTRACT.FIELD)</dd>
 <dt>Purity / determinism</dt><dd><code>conditional</code> / <code>stateRelative</code></dd>
 <dt>Effects</dt><dd>none</dd>
-<dt>ERROR conditions</dt><dd><code>nonVector</code>, <code>notExecutable</code>, <code>blockContractViolation</code>, <code>nonTruthValue</code></dd>
+<dt>ERROR conditions</dt><dd><code>nonVector</code>, <code>notExecutable</code>, <code>nestedDataBlock</code>, <code>blockContractViolation</code>, <code>nonTruthValue</code></dd>
 <dt>Clauses</dt><dd><code>LANG.COLLECTIONS.HIGHER</code></dd>
 </dl>
 </div>
@@ -3948,7 +3985,7 @@ SELECT</code></td>
 <dt>Field</dt><dd><code>closed</code> (LANG.CONTRACT.FIELD)</dd>
 <dt>Purity / determinism</dt><dd><code>conditional</code> / <code>stateRelative</code></dd>
 <dt>Effects</dt><dd>none</dd>
-<dt>ERROR conditions</dt><dd><code>nonVector</code>, <code>notExecutable</code>, <code>blockContractViolation</code></dd>
+<dt>ERROR conditions</dt><dd><code>nonVector</code>, <code>notExecutable</code>, <code>nestedDataBlock</code>, <code>blockContractViolation</code></dd>
 <dt>Clauses</dt><dd><code>LANG.COLLECTIONS.HIGHER</code></dd>
 </dl>
 </div>
@@ -3965,14 +4002,14 @@ SELECT</code></td>
 <dt>Field</dt><dd><code>closed</code> (LANG.CONTRACT.FIELD)</dd>
 <dt>Purity / determinism</dt><dd><code>conditional</code> / <code>stateRelative</code></dd>
 <dt>Effects</dt><dd>none</dd>
-<dt>ERROR conditions</dt><dd><code>nonVector</code>, <code>notExecutable</code>, <code>blockContractViolation</code></dd>
+<dt>ERROR conditions</dt><dd><code>nonVector</code>, <code>notExecutable</code>, <code>nestedDataBlock</code>, <code>blockContractViolation</code></dd>
 <dt>Clauses</dt><dd><code>LANG.COLLECTIONS.HIGHER</code></dd>
 </dl>
 </div>
 <h3 id="family-control">Contracts: Control</h3>
 <div class="word-entry" id="word-EXEC">
 <h4><code>EXEC</code> <span class="word-tier">Semantic Kernel</span></h4>
-<p>A block run where it stands, its results left on the stack: <code>[ 1 2 ADD ] EXEC</code> is <code>3</code>. It reads and writes the stack like any other code, so <code>2 [ 3 MUL ] EXEC</code> is <code>6</code>. A non-block is <code>notExecutable</code>.</p>
+<p>A block run where it stands, its results left on the stack: <code>[ 1 2 ADD ] EXEC</code> is <code>3</code>. It reads and writes the stack like any other code, so <code>2 [ 3 MUL ] EXEC</code> is <code>6</code>. A non-block is <code>notExecutable</code>, and a block built from data while another built from data runs is <code>nestedDataBlock</code> (LANG.SOURCE.CODE): a block may run the blocks written inside it, but not a copy of itself.</p>
 <dl class="word-contract">
 <dt>Syntax</dt><dd><code>[ 1 2 ADD ] EXEC</code></dd>
 <dt>Stack effect</dt><dd><span class="notation">[ code ] -&gt; [ result... ]</span></dd>
@@ -3983,7 +4020,7 @@ SELECT</code></td>
 <dt>Field</dt><dd><code>closed</code> (LANG.CONTRACT.FIELD)</dd>
 <dt>Purity / determinism</dt><dd><code>conditional</code> / <code>stateRelative</code></dd>
 <dt>Effects</dt><dd>none</dd>
-<dt>ERROR conditions</dt><dd><code>notExecutable</code></dd>
+<dt>ERROR conditions</dt><dd><code>notExecutable</code>, <code>nestedDataBlock</code></dd>
 <dt>Clauses</dt><dd><code>LANG.MACHINE.TRANSFORMERS</code>, <code>LANG.SOURCE.CODE</code></dd>
 </dl>
 </div>

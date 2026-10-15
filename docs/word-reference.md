@@ -729,7 +729,7 @@ A block applied to each element of a Vector, in order, answering a Vector of the
 - **Effects:** none
 - **Clauses:** `LANG.COLLECTIONS.HIGHER`
 - **Syntax:** `[ 1 2 3 ] [ 2 MUL ] MAP`
-- **ERROR conditions:** `nonVector`, `notExecutable`, `blockContractViolation`
+- **ERROR conditions:** `nonVector`, `notExecutable`, `nestedDataBlock`, `blockContractViolation`
 
 ## `FILTER`
 
@@ -744,7 +744,7 @@ The elements of a Vector for which a predicate block answers TRUE, in order: `[ 
 - **Effects:** none
 - **Clauses:** `LANG.COLLECTIONS.HIGHER`
 - **Syntax:** `[ 1 2 3 ] [ 2 EQ ] FILTER`
-- **ERROR conditions:** `nonVector`, `notExecutable`, `blockContractViolation`, `nonTruthValue`
+- **ERROR conditions:** `nonVector`, `notExecutable`, `nestedDataBlock`, `blockContractViolation`, `nonTruthValue`
 
 ## `FOLD`
 
@@ -759,7 +759,7 @@ A Vector reduced to one value by a block that combines the accumulator with each
 - **Effects:** none
 - **Clauses:** `LANG.COLLECTIONS.HIGHER`
 - **Syntax:** `[ 1 2 3 ] 0 [ ADD ] FOLD`
-- **ERROR conditions:** `nonVector`, `notExecutable`, `blockContractViolation`
+- **ERROR conditions:** `nonVector`, `notExecutable`, `nestedDataBlock`, `blockContractViolation`
 
 ## `SCAN`
 
@@ -774,7 +774,7 @@ Reduce a vector step by step, answering the accumulator after each element rathe
 - **Effects:** none
 - **Clauses:** `LANG.COLLECTIONS.HIGHER`
 - **Syntax:** `[ 1 2 3 4 ] 0 [ ADD ] SCAN`
-- **ERROR conditions:** `nonVector`, `notExecutable`, `blockContractViolation`
+- **ERROR conditions:** `nonVector`, `notExecutable`, `nestedDataBlock`, `blockContractViolation`
 
 ## `CHARS`
 
@@ -971,7 +971,7 @@ Write a value as JSON text, the inverse of `JSON-DECODE`: a Record with String k
 
 ## `EXEC`
 
-A block run where it stands, its results left on the stack: `[ 1 2 ADD ] EXEC` is `3`. It reads and writes the stack like any other code, so `2 [ 3 MUL ] EXEC` is `6`. A non-block is `notExecutable`.
+A block run where it stands, its results left on the stack: `[ 1 2 ADD ] EXEC` is `3`. It reads and writes the stack like any other code, so `2 [ 3 MUL ] EXEC` is `6`. A non-block is `notExecutable`, and a block built from data while another built from data runs is `nestedDataBlock` (LANG.SOURCE.CODE): a block may run the blocks written inside it, but not a copy of itself.
 
 - **Vocabulary tier:** Semantic Kernel
 - **Family:** `control`
@@ -982,7 +982,7 @@ A block run where it stands, its results left on the stack: `[ 1 2 ADD ] EXEC` i
 - **Effects:** none
 - **Clauses:** `LANG.MACHINE.TRANSFORMERS`, `LANG.SOURCE.CODE`
 - **Syntax:** `[ 1 2 ADD ] EXEC`
-- **ERROR conditions:** `notExecutable`
+- **ERROR conditions:** `notExecutable`, `nestedDataBlock`
 
 ## `CONTRACT`
 

@@ -24,12 +24,11 @@ pub const DEFAULT_MAX_EXECUTION_STEPS: usize = super::runtime_limits::DEFAULT_MA
 /// is still the primary backstop for runaway computation generally; this
 /// guard turns deep nesting into `resourceLimitExceeded` naming `callDepth`
 /// regardless of that step budget's value — a stack overflow is a depth
-/// problem, not a count problem. Two things reach it: a long acyclic call
-/// chain, and a block that runs a copy of itself (`[ 1 COLLECT [ 0 0 ] GET
-/// EXEC EXEC ] 1 COLLECT [ 0 0 ] GET EXEC EXEC`). LANG.DICTIONARY.ACYCLIC's
-/// DEF-time check refuses a body that names itself, not a block rebuilt from
-/// data; docs/dev/observation-remediation-work-order-2026-10-15.md, stage 2,
-/// holds what the language should say about the second. A Word that
+/// problem, not a count problem. What reaches it is a long acyclic call
+/// chain, with blocks nested inside it; a block that runs a copy of itself
+/// is refused long before, as `nestedDataBlock` (`in_block_frame`,
+/// LANG.SOURCE.CODE), so the guard bounds depth and never decides whether a
+/// run ends. A Word that
 /// evaluates a block nests the same frames, so it counts one level too
 /// (`in_block_frame`): the depth is that of calls and blocks together. Fixed
 /// by the engine rather than by a host profile, and published in every
@@ -105,6 +104,16 @@ pub struct Interpreter {
     /// `MAX_CALL_DEPTH` to prevent deep nesting from blowing the
     /// Rust call stack and trapping the WASM module.
     pub(crate) call_depth: usize,
+    /// The block literals each running code frame has pushed so far, flat,
+    /// with where each frame's own begin (`code_literal_bases`). A block a
+    /// Word runs is written in the code running it when it equals one of the
+    /// current frame's, or a block inside one (`engine.rs`,
+    /// LANG.DICTIONARY.ACYCLIC).
+    pub(crate) code_literals: Vec<Value>,
+    pub(crate) code_literal_bases: Vec<usize>,
+    /// Whether a block built from data — not written in the code that runs
+    /// it — is running now. At most one may be (LANG.DICTIONARY.ACYCLIC).
+    pub(crate) data_block_running: bool,
     pub(crate) execution_step_count: usize,
     pub(crate) max_execution_steps: usize,
     /// Unified internal-computation-cost ceilings (CS5). The step budget above
@@ -225,6 +234,9 @@ impl Interpreter {
             dictionary_changes_this_run: Vec::new(),
             disable_no_change_check: true,
             call_depth: 0,
+            code_literals: Vec::new(),
+            code_literal_bases: Vec::new(),
+            data_block_running: false,
             execution_step_count: 0,
             max_execution_steps: DEFAULT_MAX_EXECUTION_STEPS,
             runtime_limits: super::runtime_limits::RuntimeLimits::default(),

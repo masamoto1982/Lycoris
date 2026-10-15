@@ -104,6 +104,9 @@ impl Interpreter {
         self.pending_def_body_tokens = None;
         self.pending_word_descriptions.clear();
         self.call_depth = 0;
+        self.code_literals.clear();
+        self.code_literal_bases.clear();
+        self.data_block_running = false;
         self.source_spans.clear();
         self.current_source_span = None;
         self.word_identities.clear();

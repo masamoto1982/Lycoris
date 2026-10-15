@@ -67,7 +67,7 @@ Both operations emit schema version 5:
 ```json
 {
   "schemaVersion": 5,
-  "specificationVersion": "1.0.0-beta.2",
+  "specificationVersion": "1.0.0-beta.3",
   "status": "ok",
   "stack": [],
   "stackDisplay": [],
@@ -372,7 +372,7 @@ Ajisai Words.
 `version --json` emits:
 
 ```json
-{ "schemaVersion": 5, "status": "ok", "version": "1.0.0-beta.2", "specificationVersion": "1.0.0-beta.2" }
+{ "schemaVersion": 5, "status": "ok", "version": "1.0.0-beta.3", "specificationVersion": "1.0.0-beta.3" }
 ```
 
 

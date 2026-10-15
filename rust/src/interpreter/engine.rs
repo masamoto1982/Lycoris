@@ -30,6 +30,9 @@ pub(crate) enum Op {
     Bracket {
         value: Value,
         def_body: Option<Arc<[Token]>>,
+        /// Whether the literal names a Word anywhere inside it, so that a
+        /// block run from it could run something (`block_is_written`).
+        names_words: bool,
     },
     /// A Core Word, resolved at compile time: Core is sealed.
     Word(&'static GeneratedWord),
@@ -133,6 +136,7 @@ fn next_op(
         }
         Token::String(s) => Op::Push(Value::from_text(s)),
         Token::Value(value) => Op::Bracket {
+            names_words: names_a_word(value),
             value: (**value).clone(),
             def_body: None,
         },
@@ -140,8 +144,10 @@ fn next_op(
             match Interpreter::collect_bracketed_with_depth(tokens, start, 1, limits) {
                 Ok((values, len)) => {
                     *i = start + len;
+                    let value = Value::from_vector_promoted(values);
                     Op::Bracket {
-                        value: Value::from_vector_promoted(values),
+                        names_words: names_a_word(&value),
+                        value,
                         def_body: def_body(tokens, start, len),
                     }
                 }
@@ -266,7 +272,45 @@ impl Interpreter {
 
     /// Run `code` in the current frame.
     pub(crate) fn run_code(&mut self, code: &Code) -> Result<()> {
-        code.ops.iter().try_for_each(|op| self.run_op(op))
+        let base = self.open_code_frame();
+        let result = code.ops.iter().try_for_each(|op| self.run_op(op));
+        self.close_code_frame(base);
+        result
+    }
+
+    /// Begin recording the block literals of a code that starts running:
+    /// they are what a block it runs may be written as (`block_is_written`).
+    fn open_code_frame(&mut self) -> usize {
+        let base = self.code_literals.len();
+        self.code_literal_bases.push(base);
+        base
+    }
+
+    fn close_code_frame(&mut self, base: usize) {
+        self.code_literals.truncate(base);
+        self.code_literal_bases.pop();
+    }
+
+    /// Whether the block on top of the stack is one the running code wrote:
+    /// equal to a block literal it has pushed, or to a block inside one. Such
+    /// a block is part of the code that runs it, so running it runs less code
+    /// (LANG.DICTIONARY.ACYCLIC). A block that names nothing runs nothing
+    /// and counts as written. Anything else — a block taken apart and put
+    /// back together, or one handed in from another frame — was built from
+    /// data. A top that is not a block is the Word's own refusal to make.
+    pub(crate) fn block_is_written(&self) -> bool {
+        let Some(top) = self.stack.last() else {
+            return true;
+        };
+        if !names_a_word(top) {
+            return true;
+        }
+        let Some(&base) = self.code_literal_bases.last() else {
+            return false;
+        };
+        self.code_literals[base..]
+            .iter()
+            .any(|literal| holds_block(literal, top))
     }
 
     /// Run a program's own tokens, compiling each op as it is reached and
@@ -284,6 +328,13 @@ impl Interpreter {
         firsts: &[u32],
         lexemes: usize,
     ) -> Result<()> {
+        let base = self.open_code_frame();
+        let result = self.run_program_ops(tokens, firsts, lexemes);
+        self.close_code_frame(base);
+        result
+    }
+
+    fn run_program_ops(&mut self, tokens: &[Token], firsts: &[u32], lexemes: usize) -> Result<()> {
         let mut slots = Vec::new();
         self.set_frame_slots(Arc::default());
         let mut memo: Vec<Option<Op>> = Vec::new();
@@ -376,8 +427,15 @@ impl Interpreter {
                 None => self.dispatch_word_beyond_core(key),
             },
             Op::Name(name) => self.dispatch_word_beyond_core(name),
-            Op::Bracket { value, def_body } => {
+            Op::Bracket {
+                value,
+                def_body,
+                names_words,
+            } => {
                 self.pending_def_body_tokens = def_body.as_deref().map(<[Token]>::to_vec);
+                if *names_words {
+                    self.code_literals.push(value.clone());
+                }
                 self.stack.push(value.clone());
                 Ok(())
             }
@@ -398,5 +456,32 @@ impl Interpreter {
         let result = self.run_code(code);
         self.close_binding_scope();
         result
+    }
+}
+
+/// Whether `value` names a Word anywhere inside it: a block that names none
+/// pushes its elements and runs nothing.
+fn names_a_word(value: &Value) -> bool {
+    match &value.data {
+        ValueData::Symbol(_) => true,
+        ValueData::Vector(children) => children.iter().any(names_a_word),
+        _ => false,
+    }
+}
+
+/// Whether `block` is `literal` or a block somewhere inside it.
+fn holds_block(literal: &Value, block: &Value) -> bool {
+    match (&literal.data, &block.data) {
+        (ValueData::Vector(a), ValueData::Vector(b)) if Arc::ptr_eq(a, b) => return true,
+        _ => {}
+    }
+    if literal == block {
+        return true;
+    }
+    match &literal.data {
+        ValueData::Vector(children) => children
+            .iter()
+            .any(|child| child.is_vector() && holds_block(child, block)),
+        _ => false,
     }
 }

@@ -7,7 +7,7 @@
 
 /// The specification version this registry was generated from
 /// (`spec/version-lock.json`), which every agent envelope names.
-pub const SPECIFICATION_VERSION: &str = "1.0.0-beta.2";
+pub const SPECIFICATION_VERSION: &str = "1.0.0-beta.3";
 
 /// Canonical identity of a Core Word, named by its executor key (unique across
 /// the registry).
@@ -2459,7 +2459,7 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         vocabulary_tier: VocabularyTier::Kernel,
         standard_kind: None,
         effects: &[],
-        error_when: &["nonVector", "notExecutable", "blockContractViolation"],
+        error_when: &["nonVector", "notExecutable", "nestedDataBlock", "blockContractViolation"],
         syntax: Some("[ 1 2 3 ] [ 2 MUL ] MAP"),
         summary: "A block applied to each element of a Vector, in order, answering a Vector of the results: `[ 1 2 3 ] [ 2 MUL ] MAP` is `[ 2 4 6 ]`. The block's result is the one value it leaves, a Vector included (LANG.COLLECTIONS.HIGHER): `[ 1 2 ] [ 1 COLLECT ] MAP` is `[ [ 1 ] [ 2 ] ]`. An absent Vector answers that absence. A non-Vector is `nonVector`, a non-block `notExecutable`, and a block that leaves other than exactly one value — nothing, or a surplus such as `[ 2 MUL 7 ]` — `blockContractViolation`.",
         stack_effect: "[ vec ] [ body ] -> [ mapped ]",
@@ -2499,7 +2499,7 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         vocabulary_tier: VocabularyTier::Standard,
         standard_kind: Some("operational"),
         effects: &[],
-        error_when: &["nonVector", "notExecutable", "blockContractViolation", "nonTruthValue"],
+        error_when: &["nonVector", "notExecutable", "nestedDataBlock", "blockContractViolation", "nonTruthValue"],
         syntax: Some("[ 1 2 3 ] [ 2 EQ ] FILTER"),
         summary: "The elements of a Vector for which a predicate block answers TRUE, in order: `[ 1 2 3 4 ] [ 2 GT ] FILTER` is `[ 3 4 ]`. The block's answer is read as a truth value, and an UNKNOWN drops the element as FALSE does, as an SQL WHERE clause drops a row whose condition is unknown: `[ 1 0/0 2 ] [ 0 GT ] FILTER` is `[ 1 2 ]`. A non-Vector is `nonVector`, a non-block `notExecutable`, a block that leaves other than exactly one value `blockContractViolation`, and an answer that is not a truth value `nonTruthValue`.",
         stack_effect: "[ vec ] [ pred ] -> [ kept ]",
@@ -2539,7 +2539,7 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         vocabulary_tier: VocabularyTier::Kernel,
         standard_kind: None,
         effects: &[],
-        error_when: &["nonVector", "notExecutable", "blockContractViolation"],
+        error_when: &["nonVector", "notExecutable", "nestedDataBlock", "blockContractViolation"],
         syntax: Some("[ 1 2 3 ] 0 [ ADD ] FOLD"),
         summary: "A Vector reduced to one value by a block that combines the accumulator with each element in turn, starting from a seed: `[ 1 2 3 ] 0 [ ADD ] FOLD` is `6`, and `[ 1 2 3 ] 10 [ SUB ] FOLD` is `4`. An empty Vector answers the seed: `[ ] 0 [ ADD ] FOLD` is `0`. SCAN answers every accumulator instead of the last. A non-Vector is `nonVector`, a non-block `notExecutable`, and a block that leaves other than exactly one value `blockContractViolation`.",
         stack_effect: "[ vec ] [ init ] [ combine ] -> [ result ]",
@@ -2579,7 +2579,7 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         vocabulary_tier: VocabularyTier::Standard,
         standard_kind: Some("operational"),
         effects: &[],
-        error_when: &["nonVector", "notExecutable", "blockContractViolation"],
+        error_when: &["nonVector", "notExecutable", "nestedDataBlock", "blockContractViolation"],
         syntax: Some("[ 1 2 3 4 ] 0 [ ADD ] SCAN"),
         summary: "Reduce a vector step by step, answering the accumulator after each element rather than only the last one: `[ 1 2 3 4 ] 0 [ ADD ] SCAN` is `[ 1/1 3/1 6/1 10/1 ]`. The answer has one lane per input lane — the initial accumulator is the seed, not a lane, so it is not among them — which is what lets a scan pair with the Vector it came from. The block sees the accumulator and the current element, exactly as FOLD's does, and the one value it leaves is both the next accumulator and that lane's answer; a block that leaves other than exactly one value is `blockContractViolation`. An empty Vector answers an empty Vector, and an absent Vector answers that same absence.",
         stack_effect: "[ vec ] [ init ] [ combine ] -> [ steps ]",
@@ -3139,9 +3139,9 @@ pub const GENERATED_WORDS: &[GeneratedWord] = &[
         vocabulary_tier: VocabularyTier::Kernel,
         standard_kind: None,
         effects: &[],
-        error_when: &["notExecutable"],
+        error_when: &["notExecutable", "nestedDataBlock"],
         syntax: Some("[ 1 2 ADD ] EXEC"),
-        summary: "A block run where it stands, its results left on the stack: `[ 1 2 ADD ] EXEC` is `3`. It reads and writes the stack like any other code, so `2 [ 3 MUL ] EXEC` is `6`. A non-block is `notExecutable`.",
+        summary: "A block run where it stands, its results left on the stack: `[ 1 2 ADD ] EXEC` is `3`. It reads and writes the stack like any other code, so `2 [ 3 MUL ] EXEC` is `6`. A non-block is `notExecutable`, and a block built from data while another built from data runs is `nestedDataBlock` (LANG.SOURCE.CODE): a block may run the blocks written inside it, but not a copy of itself.",
         stack_effect: "[ code ] -> [ result... ]",
         hover_summary: "EXEC — evaluate a code block",
         hover_syntax: "[ 1 2 ADD ] EXEC",

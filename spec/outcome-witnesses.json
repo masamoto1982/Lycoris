@@ -50,6 +50,12 @@
       "rationale": "The exact case Phase 4 pitfall A names: a DEF body that names the very word being defined. The table never writes a word body that references anything but core words and domain literals, so it cannot construct this on its own."
     },
     {
+      "id": "nestedDataBlock",
+      "source": "[ 1 COLLECT [ 0 0 ] GET EXEC EXEC ] 1 COLLECT [ 0 0 ] GET EXEC EXEC",
+      "expect": "error:nestedDataBlock",
+      "rationale": "Needs a block that builds a copy of itself and runs it, which takes several Words in sequence; the table runs one Word on one tuple of domain representatives and never writes such a program. The block runs once as written, then runs its copy, which is built from data, and that copy runs another — the second run built from data is the refusal."
+    },
+    {
       "id": "blockContractViolation",
       "source": "[ 1 2 ] [ 'X' BIND ] MAP",
       "expect": "error:blockContractViolation",

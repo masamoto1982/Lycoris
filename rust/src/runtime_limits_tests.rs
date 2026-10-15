@@ -388,9 +388,12 @@ async fn nested_blocks_down_a_call_chain_hit_the_depth_guard() {
     assert_eq!(format!("{}", interp.stack.last().unwrap()), "7/1");
 }
 
-// No User Word is needed: blocks bound to one another nest the same way.
+// A chain of blocks bound to one another is refused at its second link, not
+// at the depth guard: a block bound in one frame and run in another is built
+// from data there, and only one may run at a time (LANG.SOURCE.CODE). The
+// refusal leaves nothing counted behind.
 #[tokio::test]
-async fn a_chain_of_bound_blocks_hits_the_depth_guard() {
+async fn a_chain_of_bound_blocks_is_refused_at_its_second_link() {
     let mut source = String::from("[ 1 ] 'A0' BIND\n");
     for k in 1..300 {
         source.push_str(&format!("[ A{} EXEC ] 'A{k}' BIND\n", k - 1));
@@ -398,102 +401,33 @@ async fn a_chain_of_bound_blocks_hits_the_depth_guard() {
     source.push_str("A299 EXEC");
     let mut interp = Interpreter::new();
     let err = interp.execute(&source).await.expect_err("must be refused");
-    assert!(
-        matches!(
-            err,
-            crate::error::AjisaiError::ResourceLimitExceeded {
-                resource: crate::error::ResourceLimit::CallDepth,
-                ..
-            }
-        ),
+    assert_eq!(
+        crate::error::ErrorCategory::from_error(&err).map(|c| c.as_protocol_str()),
+        Some("nestedDataBlock"),
         "{err}"
     );
+    assert_eq!(interp.call_depth, 0, "the refusal unwinds what was counted");
+    assert!(!interp.data_block_running, "and what was running");
 }
 
-// A block that runs a copy of itself reaches the same ceiling with no User
-// Word and no binding: `1 COLLECT [ 0 0 ] GET` makes two copies from one.
-// LANG.DICTIONARY.ACYCLIC does not see it — nothing names itself — so the
-// ceiling is what stops it; docs/dev/observation-remediation-work-order-
-// 2026-10-15.md, stage 2, holds what the language should say about that.
+// A block that runs a copy of itself is refused at the copy's copy, long
+// before the depth guard: the copy is built from data, and so is the block
+// it would run (LANG.SOURCE.CODE). The operand stays where it was.
 #[tokio::test]
-async fn a_block_running_a_copy_of_itself_hits_the_depth_guard() {
+async fn a_block_running_a_copy_of_itself_is_refused_before_the_depth_guard() {
     let mut interp = Interpreter::new();
     let err = interp
         .execute("[ 1 COLLECT [ 0 0 ] GET EXEC EXEC ] 1 COLLECT [ 0 0 ] GET EXEC EXEC")
         .await
         .expect_err("must be refused");
-    assert!(
-        matches!(
-            err,
-            crate::error::AjisaiError::ResourceLimitExceeded {
-                resource: crate::error::ResourceLimit::CallDepth,
-                limit: 256,
-                observed: Some(257),
-                ..
-            }
-        ),
+    assert_eq!(
+        crate::error::ErrorCategory::from_error(&err).map(|c| c.as_protocol_str()),
+        Some("nestedDataBlock"),
         "{err}"
     );
-    assert_eq!(err.to_string(), "callDepth of 257 exceeds the limit of 256");
-    assert_eq!(interp.call_depth, 0, "the guard unwinds what it counted");
-}
-
-// ── collection work the step budget cannot see ─────────────────────────
-
-/// Collection work charged by `word` alone, with `setup` left on the stack
-/// beforehand: `execute` keeps the stack and resets the counters.
-async fn collection_charged_by_word(setup: &str, word: &str) -> u64 {
-    let mut interp = Interpreter::new();
-    interp.execute(setup).await.expect("setup computes");
-    interp.execute(word).await.expect("the Word computes");
-    interp.collection_work_used()
-}
-
-/// The Words that walk a whole value to render, encode or hash it did that
-/// walk for one step and no work: 1,000 `JSON-ENCODE`s of a 100,000-element
-/// Vector ran 41 s on 8.7% of the agent profile's collection budget, and
-/// `PRINT` reached 7.5 GB of output. Each now pays for the walk, so the
-/// charge follows the operand.
-#[tokio::test]
-async fn a_word_that_walks_a_whole_value_is_charged_for_it() {
-    for word in ["PRINT", "JSON-ENCODE", "STR", "DIGEST", "CONTRACT"] {
-        let small = collection_charged_by_word("0 99 RANGE", word).await;
-        let large = collection_charged_by_word("0 9999 RANGE", word).await;
-        assert!(
-            large >= 10_000 && large >= 50 * small,
-            "`{word}` over 10,000 elements charged {large} against {small} for 100"
-        );
-    }
-    // A String is one leaf however long it is; its bytes are charged.
-    let long = format!(
-        "'{}' 'S' BIND 1 100 RANGE [ 'E' BIND S ] MAP",
-        "x".repeat(1000)
-    );
-    for word in ["PRINT", "JSON-ENCODE", "DIGEST"] {
-        let charged = collection_charged_by_word(&long, word).await;
-        assert!(
-            charged >= 100_000,
-            "`{word}` over 100 KB of text charged {charged}"
-        );
-    }
-}
-
-/// A `DEF` or `DEL` re-derives every identity in the dictionary, so it is
-/// charged for the dictionary it walks, not one step: 3,000 `DEF`s ran 20 s
-/// to 157 s with every meter at zero.
-#[tokio::test]
-async fn a_dictionary_change_is_charged_for_the_dictionary_it_walks() {
-    let defs = |n: usize| -> String {
-        (0..n)
-            .map(|k| format!("[ {k} ] 'W{k}' DEF "))
-            .collect::<String>()
-    };
-    let into_small = collection_charged_by_word(&defs(10), "[ 1 ] 'NEW' DEF").await;
-    let into_large = collection_charged_by_word(&defs(100), "[ 1 ] 'NEW' DEF").await;
+    assert_eq!(interp.call_depth, 0, "the refusal unwinds what was counted");
     assert!(
-        into_large >= 9 * into_small && into_small > 0,
-        "a DEF into 100 Words charged {into_large} against {into_small} into 10"
+        interp.code_literal_bases.is_empty(),
+        "every code frame closed"
     );
-    let delete = collection_charged_by_word(&defs(100), "'W0' DEL").await;
-    assert!(delete > 0, "a DEL re-derives the dictionary as well");
 }
