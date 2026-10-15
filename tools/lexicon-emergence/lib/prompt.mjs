@@ -15,7 +15,7 @@ import { prelude } from './source.mjs';
  * logs every call, so a subagent need not paste inherited definitions. The
  * tasks and the lexicon read the same every way.
  */
-export function subjectPrompt({ run, condition, generation, agent }, lexicon, families, route = 'subagent') {
+export function subjectPrompt({ run, condition, generation, agent }, lexicon, families, route = 'subagent', { callBudget } = {}) {
   const harness = route === 'harness';
   const cli = route === 'cli';
   const genPath = `tools/lexicon-emergence/runs/${run}/${condition}/gen${generation}`;
@@ -39,6 +39,13 @@ export function subjectPrompt({ run, condition, generation, agent }, lexicon, fa
     lines.push(`  \`${compute} ${work}try.ajisai\``);
     lines.push('');
     lines.push('  Do not use any other way of running Ajisai (no MCP tool, no `ajisai` binary).');
+    if (callBudget === 0) {
+      lines.push('- In this round you may not run code at all: the command above refuses every run. Write your');
+      lines.push('  solutions from what SKILL.md and skill/words.md tell you, and check them by reasoning.');
+    } else if (callBudget != null) {
+      lines.push(`- You may run that command at most ${callBudget} times in all; every run counts, whatever it`);
+      lines.push('  contains, and a run past the budget is refused. One run may hold many test expressions.');
+    }
   } else {
     lines.push('- Learn Ajisai from `SKILL.md` at the repository root. Read no other file in the repository —');
     lines.push('  in particular nothing under `tools/lexicon-emergence/`, `docs/`, `spec/` or `rust/`.');
@@ -113,6 +120,7 @@ export function subjectPrompt({ run, condition, generation, agent }, lexicon, fa
   lines.push('');
   lines.push('`body` is the code that goes between `[` and `]` in `[ body ] \'NAME\' DEF`. List definitions so that each');
   lines.push('comes after any of your own Words it calls. Solutions may call your Words and the inherited Words.');
+  if (callBudget === 0) return `${lines.join('\n')}\n`;
   lines.push(`Before ${harness ? 'submitting' : 'writing the file'}, run each solution through \`compute\` exactly as it will be graded: the`);
   lines.push(harness || cli
     ? `inherited Words (through \`${harness ? 'words' : '--words'}\`, if any), your definitions as DEF lines, the example input, the solution.`
