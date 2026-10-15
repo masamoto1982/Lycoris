@@ -1,0 +1,3 @@
+[ 'X' BIND X 0 X SUB MAX ] 'G2C.ABS' DEF
+[ [ 'z' -4 ] ]
+G0A.BYNAME G0B.TOPKEY

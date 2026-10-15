@@ -1,0 +1,3 @@
+[ 'X' BIND X 0 X SUB MAX ] 'G2C.ABS' DEF
+[ [ 'ann' 30 ] [ 'bob' -5 ] [ 'ann' 12 ] [ 'cy' -20 ] [ 'bob' 2 ] ]
+G0A.BYNAME G0B.TOPKEY

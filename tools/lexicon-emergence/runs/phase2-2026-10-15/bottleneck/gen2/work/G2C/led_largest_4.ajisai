@@ -1,0 +1,3 @@
+[ 'X' BIND X 0 X SUB MAX ] 'G2C.ABS' DEF
+[ [ 'a' 1 ] ]
+'V' BIND V V ZIP 1 GET G0A.ARGMAX GET

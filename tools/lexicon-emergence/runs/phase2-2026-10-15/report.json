@@ -1,0 +1,1775 @@
+{
+  "perGeneration": [
+    {
+      "condition": "bottleneck",
+      "generation": 0,
+      "agents": 3,
+      "lexiconSize": 0,
+      "accuracy": "54/54",
+      "meanTokens": 9.4,
+      "compression": 0.336,
+      "coreEquivalent": "54/54"
+    },
+    {
+      "condition": "bottleneck",
+      "generation": 1,
+      "agents": 3,
+      "lexiconSize": 8,
+      "accuracy": "54/54",
+      "meanTokens": 4.8,
+      "compression": 0.151,
+      "coreEquivalent": "54/54"
+    },
+    {
+      "condition": "bottleneck",
+      "generation": 2,
+      "agents": 3,
+      "lexiconSize": 8,
+      "accuracy": "54/54",
+      "meanTokens": 6.7,
+      "compression": 0.222,
+      "coreEquivalent": "54/54"
+    },
+    {
+      "condition": "shuffled",
+      "generation": 1,
+      "agents": 3,
+      "lexiconSize": 8,
+      "accuracy": "54/54",
+      "meanTokens": 6,
+      "compression": 0.2,
+      "coreEquivalent": "54/54"
+    },
+    {
+      "condition": "shuffled",
+      "generation": 2,
+      "agents": 3,
+      "lexiconSize": 8,
+      "accuracy": "54/54",
+      "meanTokens": 7,
+      "compression": 0.233,
+      "coreEquivalent": "54/54"
+    },
+    {
+      "condition": "solo",
+      "generation": 0,
+      "agents": 3,
+      "lexiconSize": 0,
+      "accuracy": "54/54",
+      "meanTokens": 10.4,
+      "compression": 0.35,
+      "coreEquivalent": "54/54"
+    }
+  ],
+  "perModel": [
+    {
+      "model": "opus",
+      "agents": 6,
+      "accuracy": "108/108"
+    },
+    {
+      "model": "sonnet",
+      "agents": 6,
+      "accuracy": "108/108"
+    },
+    {
+      "model": "haiku",
+      "agents": 6,
+      "accuracy": "108/108"
+    }
+  ],
+  "baseline": {
+    "sameModel": 0.37,
+    "crossModel": 0.243,
+    "pairs": [
+      {
+        "a": "G0A",
+        "b": "G0B",
+        "models": [
+          "opus",
+          "sonnet"
+        ],
+        "same": false,
+        "jaccard": 0.278
+      },
+      {
+        "a": "G0A",
+        "b": "G0C",
+        "models": [
+          "opus",
+          "haiku"
+        ],
+        "same": false,
+        "jaccard": 0.063
+      },
+      {
+        "a": "G0A",
+        "b": "S0A",
+        "models": [
+          "opus",
+          "opus"
+        ],
+        "same": true,
+        "jaccard": 0.5
+      },
+      {
+        "a": "G0A",
+        "b": "S0B",
+        "models": [
+          "opus",
+          "sonnet"
+        ],
+        "same": false,
+        "jaccard": 0.176
+      },
+      {
+        "a": "G0A",
+        "b": "S0C",
+        "models": [
+          "opus",
+          "haiku"
+        ],
+        "same": false,
+        "jaccard": 0.176
+      },
+      {
+        "a": "G0B",
+        "b": "G0C",
+        "models": [
+          "sonnet",
+          "haiku"
+        ],
+        "same": false,
+        "jaccard": 0.111
+      },
+      {
+        "a": "G0B",
+        "b": "S0A",
+        "models": [
+          "sonnet",
+          "opus"
+        ],
+        "same": false,
+        "jaccard": 0.368
+      },
+      {
+        "a": "G0B",
+        "b": "S0B",
+        "models": [
+          "sonnet",
+          "sonnet"
+        ],
+        "same": true,
+        "jaccard": 0.444
+      },
+      {
+        "a": "G0B",
+        "b": "S0C",
+        "models": [
+          "sonnet",
+          "haiku"
+        ],
+        "same": false,
+        "jaccard": 0.444
+      },
+      {
+        "a": "G0C",
+        "b": "S0A",
+        "models": [
+          "haiku",
+          "opus"
+        ],
+        "same": false,
+        "jaccard": 0.053
+      },
+      {
+        "a": "G0C",
+        "b": "S0B",
+        "models": [
+          "haiku",
+          "sonnet"
+        ],
+        "same": false,
+        "jaccard": 0.4
+      },
+      {
+        "a": "G0C",
+        "b": "S0C",
+        "models": [
+          "haiku",
+          "haiku"
+        ],
+        "same": true,
+        "jaccard": 0.167
+      },
+      {
+        "a": "S0A",
+        "b": "S0B",
+        "models": [
+          "opus",
+          "sonnet"
+        ],
+        "same": false,
+        "jaccard": 0.211
+      },
+      {
+        "a": "S0A",
+        "b": "S0C",
+        "models": [
+          "opus",
+          "haiku"
+        ],
+        "same": false,
+        "jaccard": 0.211
+      },
+      {
+        "a": "S0B",
+        "b": "S0C",
+        "models": [
+          "sonnet",
+          "haiku"
+        ],
+        "same": false,
+        "jaccard": 0.429
+      }
+    ]
+  },
+  "reuse": [
+    {
+      "condition": "bottleneck",
+      "generation": 1,
+      "solutionsReaching": "46/54",
+      "perAgent": [
+        {
+          "agent": "G1A",
+          "inheritedUsed": 8
+        },
+        {
+          "agent": "G1B",
+          "inheritedUsed": 8
+        },
+        {
+          "agent": "G1C",
+          "inheritedUsed": 8
+        }
+      ]
+    },
+    {
+      "condition": "bottleneck",
+      "generation": 2,
+      "solutionsReaching": "45/54",
+      "perAgent": [
+        {
+          "agent": "G2A",
+          "inheritedUsed": 8
+        },
+        {
+          "agent": "G2B",
+          "inheritedUsed": 8
+        },
+        {
+          "agent": "G2C",
+          "inheritedUsed": 8
+        }
+      ]
+    },
+    {
+      "condition": "shuffled",
+      "generation": 1,
+      "solutionsReaching": "44/54",
+      "perAgent": [
+        {
+          "agent": "R1A",
+          "inheritedUsed": 8
+        },
+        {
+          "agent": "R1B",
+          "inheritedUsed": 7
+        },
+        {
+          "agent": "R1C",
+          "inheritedUsed": 8
+        }
+      ]
+    },
+    {
+      "condition": "shuffled",
+      "generation": 2,
+      "solutionsReaching": "45/54",
+      "perAgent": [
+        {
+          "agent": "R2A",
+          "inheritedUsed": 8
+        },
+        {
+          "agent": "R2B",
+          "inheritedUsed": 8
+        },
+        {
+          "agent": "R2C",
+          "inheritedUsed": 8
+        }
+      ]
+    }
+  ],
+  "calls": [
+    {
+      "agent": "G0A",
+      "total": 74,
+      "withWords": 0,
+      "preludeMismatches": 0
+    },
+    {
+      "agent": "G0B",
+      "total": 52,
+      "withWords": 0,
+      "preludeMismatches": 0
+    },
+    {
+      "agent": "G0C",
+      "total": 73,
+      "withWords": 0,
+      "preludeMismatches": 0
+    },
+    {
+      "agent": "G1A",
+      "total": 38,
+      "withWords": 38,
+      "preludeMismatches": 0
+    },
+    {
+      "agent": "G1B",
+      "total": 54,
+      "withWords": 54,
+      "preludeMismatches": 0
+    },
+    {
+      "agent": "G1C",
+      "total": 35,
+      "withWords": 35,
+      "preludeMismatches": 0
+    },
+    {
+      "agent": "G2A",
+      "total": 60,
+      "withWords": 60,
+      "preludeMismatches": 0
+    },
+    {
+      "agent": "G2B",
+      "total": 55,
+      "withWords": 55,
+      "preludeMismatches": 0
+    },
+    {
+      "agent": "G2C",
+      "total": 61,
+      "withWords": 61,
+      "preludeMismatches": 0
+    },
+    {
+      "agent": "R1A",
+      "total": 37,
+      "withWords": 37,
+      "preludeMismatches": 0
+    },
+    {
+      "agent": "R1B",
+      "total": 37,
+      "withWords": 37,
+      "preludeMismatches": 0
+    },
+    {
+      "agent": "R1C",
+      "total": 49,
+      "withWords": 49,
+      "preludeMismatches": 0
+    },
+    {
+      "agent": "R2A",
+      "total": 110,
+      "withWords": 110,
+      "preludeMismatches": 0
+    },
+    {
+      "agent": "R2B",
+      "total": 22,
+      "withWords": 22,
+      "preludeMismatches": 0
+    },
+    {
+      "agent": "R2C",
+      "total": 44,
+      "withWords": 44,
+      "preludeMismatches": 0
+    },
+    {
+      "agent": "S0A",
+      "total": 136,
+      "withWords": 0,
+      "preludeMismatches": 0
+    },
+    {
+      "agent": "S0B",
+      "total": 41,
+      "withWords": 0,
+      "preludeMismatches": 0
+    },
+    {
+      "agent": "S0C",
+      "total": 34,
+      "withWords": 0,
+      "preludeMismatches": 0
+    }
+  ],
+  "convergent": [
+    {
+      "classId": "G0A.CAP",
+      "definers": [
+        "G0A",
+        "G0B",
+        "G1A",
+        "G1B",
+        "G2A",
+        "G2B",
+        "R1A",
+        "R1B",
+        "R1C",
+        "R2A",
+        "R2C",
+        "S0A",
+        "S0B",
+        "S0C"
+      ],
+      "links": [
+        "d1",
+        "d0",
+        "d0a"
+      ],
+      "members": [
+        {
+          "name": "G0A.CAP",
+          "body": "CHARS 'C' BIND C 0 GET UPPER C 1 DROP JOIN 2 COLLECT JOIN",
+          "note": "upper-case the first letter of a non-empty String",
+          "definedBy": "G0A"
+        },
+        {
+          "name": "G0B.CAP",
+          "body": "CHARS 'C' BIND C 0 GET UPPER 1 COLLECT C 1 DROP CONCAT JOIN",
+          "note": "capitalize one word",
+          "definedBy": "G0B"
+        },
+        {
+          "name": "G1A.CAPWORD",
+          "body": "CHARS 'C' BIND C 0 GET UPPER C 1 DROP JOIN 2 COLLECT JOIN",
+          "note": "a non-empty String with its first character upper-cased",
+          "definedBy": "G1A"
+        },
+        {
+          "name": "G1B.CAP",
+          "body": "CHARS 'C' BIND C 0 GET UPPER 1 COLLECT C 1 DROP CONCAT JOIN",
+          "note": "capitalize the first letter of one word",
+          "definedBy": "G1B"
+        },
+        {
+          "name": "G2A.CAP",
+          "body": "CHARS 'C' BIND C 0 GET UPPER C 1 DROP JOIN 2 COLLECT JOIN",
+          "note": "upper-case the first letter of a non-empty String",
+          "definedBy": "G2A"
+        },
+        {
+          "name": "G2B.CAP",
+          "body": "'W' BIND W CHARS 'C' BIND C 0 C 0 GET UPPER PUT JOIN",
+          "note": "upper-case the first letter of a non-empty word String",
+          "definedBy": "G2B"
+        },
+        {
+          "name": "R1A.CAPWORD",
+          "body": "CHARS 'C' BIND C 0 GET UPPER C 1 DROP JOIN 2 COLLECT JOIN",
+          "note": "a word with its first letter upper-cased",
+          "definedBy": "R1A"
+        },
+        {
+          "name": "R1B.CAP",
+          "body": "'W' BIND W CHARS 0 GET UPPER W CHARS 1 DROP JOIN 2 COLLECT JOIN",
+          "note": "Capitalize the first letter of a word (String).",
+          "definedBy": "R1B"
+        },
+        {
+          "name": "R1C.CAPWORD",
+          "body": "CHARS 'C' BIND C 0 GET UPPER 1 COLLECT C 1 DROP CONCAT JOIN",
+          "note": "Upper-cases the first character of a String and keeps the rest unchanged.",
+          "definedBy": "R1C"
+        },
+        {
+          "name": "R2A.CAP",
+          "body": "CHARS 'C' BIND C 0 GET UPPER C 1 DROP JOIN 2 COLLECT JOIN",
+          "note": "String with its first letter upper-cased",
+          "definedBy": "R2A"
+        },
+        {
+          "name": "R2C.CAP",
+          "body": "'W' BIND W CHARS 'C' BIND C 0 GET UPPER 1 COLLECT C 1 DROP CONCAT JOIN",
+          "note": "Upper-cases the first letter of one word and keeps the rest.",
+          "definedBy": "R2C"
+        },
+        {
+          "name": "S0A.CAP",
+          "body": "CHARS 'C' BIND C 0 GET UPPER C 1 DROP JOIN 2 COLLECT JOIN",
+          "note": "upper-case the first letter of a non-empty String",
+          "definedBy": "S0A"
+        },
+        {
+          "name": "S0B.CAP1",
+          "body": "CHARS 'CS' BIND CS 0 GET UPPER CS 1 DROP JOIN 2 COLLECT JOIN",
+          "note": "Upper-case the first letter of a word.",
+          "definedBy": "S0B"
+        },
+        {
+          "name": "S0C.CAPW",
+          "body": "'W' BIND W CHARS 'C' BIND C 0 GET UPPER C 1 DROP JOIN 2 COLLECT JOIN",
+          "note": "Upper-cases the first character of one String and keeps the rest.",
+          "definedBy": "S0C"
+        }
+      ],
+      "models": [
+        "opus",
+        "sonnet",
+        "haiku"
+      ]
+    },
+    {
+      "classId": "G0A.ABS",
+      "definers": [
+        "G0A",
+        "G0B",
+        "G1A",
+        "G1B",
+        "G1C",
+        "G2A",
+        "G2C",
+        "R1A",
+        "R1C",
+        "R2A",
+        "R2C",
+        "S0A",
+        "S0C"
+      ],
+      "links": [
+        "d1",
+        "d0",
+        "d0a"
+      ],
+      "members": [
+        {
+          "name": "G0A.ABS",
+          "body": "'X' BIND X 0 X SUB MAX",
+          "note": "absolute value, lifts over Vectors",
+          "definedBy": "G0A"
+        },
+        {
+          "name": "G0B.ABS",
+          "body": "'D' BIND D D -1 MUL MAX",
+          "note": "absolute value, lifts over vectors",
+          "definedBy": "G0B"
+        },
+        {
+          "name": "G1A.ABS",
+          "body": "'X' BIND X 0 X SUB MAX",
+          "note": "absolute value, element-wise over a Vector",
+          "definedBy": "G1A"
+        },
+        {
+          "name": "G1B.ABSV",
+          "body": "'D' BIND D D -1 MUL MAX",
+          "note": "elementwise absolute value of a numeric Vector",
+          "definedBy": "G1B"
+        },
+        {
+          "name": "G1C.ABS",
+          "body": "'D' BIND D D -1 MUL MAX",
+          "note": "absolute value of each element of a numeric Vector, element-wise",
+          "definedBy": "G1C"
+        },
+        {
+          "name": "G2A.ABS",
+          "body": "'X' BIND X 0 X SUB MAX",
+          "note": "absolute value, element-wise",
+          "definedBy": "G2A"
+        },
+        {
+          "name": "G2C.ABS",
+          "body": "'X' BIND X 0 X SUB MAX",
+          "note": "absolute value of a number, or element-wise over a numeric Vector",
+          "definedBy": "G2C"
+        },
+        {
+          "name": "R1A.ABS",
+          "body": "'X' BIND X 0 X SUB MAX",
+          "note": "absolute value, element-wise over a Vector",
+          "definedBy": "R1A"
+        },
+        {
+          "name": "R1C.ABS",
+          "body": "'D' BIND D D -1 MUL MAX",
+          "note": "Element-wise absolute value of a Vector, as the larger of x and -x.",
+          "definedBy": "R1C"
+        },
+        {
+          "name": "R2A.ABS",
+          "body": "'X' BIND X 0 X SUB MAX",
+          "note": "absolute value of a number (lifts over a Vector)",
+          "definedBy": "R2A"
+        },
+        {
+          "name": "R2C.ABS",
+          "body": "'X' BIND X 0 X SUB MAX",
+          "note": "Element-wise absolute value: the larger of X and its negation.",
+          "definedBy": "R2C"
+        },
+        {
+          "name": "S0A.ABS",
+          "body": "'X' BIND X X -1 MUL MAX",
+          "note": "absolute value, lane by lane over a number or Vector",
+          "definedBy": "S0A"
+        },
+        {
+          "name": "S0C.ABS",
+          "body": "2 POW SQRT",
+          "note": "Absolute value of an exact number, via its square root.",
+          "definedBy": "S0C"
+        }
+      ],
+      "models": [
+        "opus",
+        "sonnet",
+        "haiku"
+      ]
+    },
+    {
+      "classId": "G0A.MAD",
+      "definers": [
+        "G0A",
+        "G1A",
+        "G1B",
+        "G2A",
+        "R1A",
+        "R2A",
+        "S0A"
+      ],
+      "links": [
+        "d0a",
+        "d1",
+        "d0"
+      ],
+      "members": [
+        {
+          "name": "G0A.MAD",
+          "body": "'X' BIND X X G0A.MEDIAN SUB G0A.ABS G0A.MEDIAN",
+          "note": "median absolute deviation from the median",
+          "definedBy": "G0A"
+        },
+        {
+          "name": "G1A.MAD",
+          "body": "'V' BIND V V G0A.MEDIAN SUB G1A.ABS G0A.MEDIAN",
+          "note": "median absolute deviation of a non-empty numeric Vector",
+          "definedBy": "G1A"
+        },
+        {
+          "name": "G1B.MAD",
+          "body": "'V' BIND V G0A.MEDIAN 'M' BIND V M SUB G1B.ABSV G0A.MEDIAN",
+          "note": "median absolute deviation of a numeric Vector",
+          "definedBy": "G1B"
+        },
+        {
+          "name": "G2A.MAD",
+          "body": "'V' BIND V V G0A.MEDIAN SUB G2A.ABS G0A.MEDIAN",
+          "note": "median absolute deviation of a non-empty numeric Vector",
+          "definedBy": "G2A"
+        },
+        {
+          "name": "R1A.MAD",
+          "body": "'V' BIND V V X1.FIROSO SUB R1A.ABS X1.FIROSO",
+          "note": "median absolute deviation of a numeric Vector",
+          "definedBy": "R1A"
+        },
+        {
+          "name": "R2A.MAD",
+          "body": "'V' BIND V V X2.ZILOLE SUB R2A.ABS X2.ZILOLE",
+          "note": "median absolute deviation of a numeric Vector",
+          "definedBy": "R2A"
+        },
+        {
+          "name": "S0A.MAD",
+          "body": "'V' BIND V V S0A.MEDIAN SUB S0A.ABS S0A.MEDIAN",
+          "note": "median absolute deviation from the median",
+          "definedBy": "S0A"
+        }
+      ],
+      "models": [
+        "opus",
+        "sonnet"
+      ]
+    },
+    {
+      "classId": "G0A.MOVING3",
+      "definers": [
+        "G0A",
+        "G1A",
+        "G1B",
+        "G2A",
+        "R1A",
+        "R2A",
+        "S0A"
+      ],
+      "links": [
+        "d0",
+        "d1",
+        "d0a"
+      ],
+      "members": [
+        {
+          "name": "G0A.MOVING3",
+          "body": "'V' BIND V -2 DROP V 1 DROP -1 DROP ADD V 2 DROP ADD 3 DIV",
+          "note": "means of every three consecutive numbers",
+          "definedBy": "G0A"
+        },
+        {
+          "name": "G1A.MOVING3",
+          "body": "'V' BIND V -2 DROP V 1 DROP -1 DROP ADD V 2 DROP ADD 3 DIV",
+          "note": "means of every three consecutive numbers of a Vector (length >= 3)",
+          "definedBy": "G1A"
+        },
+        {
+          "name": "G1B.MOVING3",
+          "body": "'V' BIND V LENGTH 2 SUB 'K' BIND V K TAKE V 1 DROP K TAKE ADD V 2 DROP ADD 3 DIV",
+          "note": "means of every three consecutive numbers",
+          "definedBy": "G1B"
+        },
+        {
+          "name": "G2A.MOVING3",
+          "body": "'V' BIND V LENGTH 2 SUB 'N' BIND V N TAKE V 1 DROP N TAKE ADD V 2 DROP ADD 3 DIV",
+          "note": "means of every three consecutive numbers (length >= 3)",
+          "definedBy": "G2A"
+        },
+        {
+          "name": "R1A.MOVING3",
+          "body": "'V' BIND V -2 DROP V 1 DROP -1 DROP ADD V 2 DROP ADD 3 DIV",
+          "note": "means of every three consecutive numbers",
+          "definedBy": "R1A"
+        },
+        {
+          "name": "R2A.MOVING3",
+          "body": "'V' BIND V -2 DROP V 1 DROP -1 DROP ADD V 2 DROP ADD 3 DIV",
+          "note": "means of every three consecutive numbers",
+          "definedBy": "R2A"
+        },
+        {
+          "name": "S0A.MOVING3",
+          "body": "'V' BIND V LENGTH 2 SUB 'N' BIND V N TAKE V 1 DROP N TAKE ADD V 2 DROP ADD 3 DIV",
+          "note": "means of every three consecutive numbers",
+          "definedBy": "S0A"
+        }
+      ],
+      "models": [
+        "opus",
+        "sonnet"
+      ]
+    },
+    {
+      "classId": "G0A.RUNMAX",
+      "definers": [
+        "G0A",
+        "G1A",
+        "G1B",
+        "G2A",
+        "R1A",
+        "R2A",
+        "S0A"
+      ],
+      "links": [
+        "d0"
+      ],
+      "members": [
+        {
+          "name": "G0A.RUNMAX",
+          "body": "'V' BIND V V 0 GET [ MAX ] SCAN",
+          "note": "running maximum of a non-empty numeric Vector",
+          "definedBy": "G0A"
+        },
+        {
+          "name": "G1A.RUNMAX",
+          "body": "'V' BIND V V 0 GET [ MAX ] SCAN",
+          "note": "running maximum of a non-empty numeric Vector",
+          "definedBy": "G1A"
+        },
+        {
+          "name": "G1B.RUNMAX",
+          "body": "'V' BIND V V 0 GET [ MAX ] SCAN",
+          "note": "running maximum of a numeric Vector",
+          "definedBy": "G1B"
+        },
+        {
+          "name": "G2A.RUNMAX",
+          "body": "'V' BIND V V 0 GET [ MAX ] SCAN",
+          "note": "running maximum of a non-empty numeric Vector",
+          "definedBy": "G2A"
+        },
+        {
+          "name": "R1A.RUNMAX",
+          "body": "'V' BIND V V 0 GET [ MAX ] SCAN",
+          "note": "running maximum of a numeric Vector",
+          "definedBy": "R1A"
+        },
+        {
+          "name": "R2A.RUNMAX",
+          "body": "'V' BIND V V 0 GET [ MAX ] SCAN",
+          "note": "running maximum of a numeric Vector",
+          "definedBy": "R2A"
+        },
+        {
+          "name": "S0A.RUNMAX",
+          "body": "'V' BIND V V 0 GET [ MAX ] SCAN",
+          "note": "running maximum, one lane per input lane",
+          "definedBy": "S0A"
+        }
+      ],
+      "models": [
+        "opus",
+        "sonnet"
+      ]
+    },
+    {
+      "classId": "G0A.MODE",
+      "definers": [
+        "G0A",
+        "G1A",
+        "G1B",
+        "G2A",
+        "R1A",
+        "R2A",
+        "S0A"
+      ],
+      "links": [
+        "d1",
+        "d0"
+      ],
+      "members": [
+        {
+          "name": "G0A.MODE",
+          "body": "SORT TALLY 'T' BIND T KEYS T VALUES G0A.ARGMAX GET",
+          "note": "most frequent number, smallest on ties",
+          "definedBy": "G0A"
+        },
+        {
+          "name": "G1A.MODE",
+          "body": "SORT TALLY G0B.TOPKEY",
+          "note": "most frequent element of a Vector; smallest on ties",
+          "definedBy": "G1A"
+        },
+        {
+          "name": "G1B.MODE",
+          "body": "SORT TALLY G0B.TOPKEY",
+          "note": "most frequent number, smallest on ties",
+          "definedBy": "G1B"
+        },
+        {
+          "name": "G2A.MODE",
+          "body": "SORT TALLY G0B.TOPKEY",
+          "note": "most frequent element; smallest on ties",
+          "definedBy": "G2A"
+        },
+        {
+          "name": "R1A.MODE",
+          "body": "SORT TALLY X1.NILUGA",
+          "note": "most frequent number, smallest on ties",
+          "definedBy": "R1A"
+        },
+        {
+          "name": "R2A.MODE",
+          "body": "SORT TALLY X2.PIDOZE",
+          "note": "most frequent element, smallest on ties",
+          "definedBy": "R2A"
+        },
+        {
+          "name": "S0A.MODE",
+          "body": "SORT S0A.MOST-FREQ",
+          "note": "most frequent number; ties go to the smallest",
+          "definedBy": "S0A"
+        }
+      ],
+      "models": [
+        "opus",
+        "sonnet"
+      ]
+    },
+    {
+      "classId": "G0B.JOINSP",
+      "definers": [
+        "G0B",
+        "G1A",
+        "G2A",
+        "R1A",
+        "S0A",
+        "S0B",
+        "S0C"
+      ],
+      "links": [
+        "d1",
+        "d0"
+      ],
+      "members": [
+        {
+          "name": "G0B.JOINSP",
+          "body": "[ 'X' BIND ' ' X 2 COLLECT JOIN ] MAP JOIN TRIM",
+          "note": "join a Vector of words with single spaces",
+          "definedBy": "G0B"
+        },
+        {
+          "name": "G1A.LONGEST",
+          "body": "'W' BIND W W [ CHARS LENGTH ] MAP G0A.ARGMAX GET",
+          "note": "longest String in a Vector of Strings; first on ties",
+          "definedBy": "G1A"
+        },
+        {
+          "name": "G2A.LONGEST",
+          "body": "'W' BIND W W [ CHARS LENGTH ] MAP G0A.ARGMAX GET",
+          "note": "longest String in a Vector; first on ties",
+          "definedBy": "G2A"
+        },
+        {
+          "name": "R1A.ARGMAX-BY-LEN",
+          "body": "'W' BIND W W [ CHARS LENGTH ] MAP X1.PIMAPA GET",
+          "note": "longest String in a Vector, first on ties",
+          "definedBy": "R1A"
+        },
+        {
+          "name": "S0A.JOIN-SP",
+          "body": "[ ' ' 2 COLLECT ] MAP FLATTEN -1 DROP JOIN",
+          "note": "join a non-empty Vector of Strings with single spaces",
+          "definedBy": "S0A"
+        },
+        {
+          "name": "S0B.SPJOIN",
+          "body": "[ ' ' 2 COLLECT ] MAP FLATTEN JOIN TRIM",
+          "note": "Join a Vector of Strings with single spaces.",
+          "definedBy": "S0B"
+        },
+        {
+          "name": "S0C.SPJOIN",
+          "body": "[ ' ' 2 COLLECT ] MAP FLATTEN JOIN TRIM",
+          "note": "Joins a Vector of Strings into one String separated by single spaces.",
+          "definedBy": "S0C"
+        }
+      ],
+      "models": [
+        "sonnet",
+        "opus",
+        "haiku"
+      ]
+    },
+    {
+      "classId": "G0A.MEDIAN",
+      "definers": [
+        "G0A",
+        "G0B",
+        "G0C",
+        "S0A",
+        "S0B",
+        "S0C"
+      ],
+      "links": [
+        "d0",
+        "d0a",
+        "d1"
+      ],
+      "members": [
+        {
+          "name": "G0A.MEDIAN",
+          "body": "SORT 'V' BIND V LENGTH 'N' BIND V N 1 SUB 2 DIV FLOOR N 2 DIV FLOOR 2 COLLECT GET G0A.MEAN",
+          "note": "median of a non-empty numeric Vector",
+          "definedBy": "G0A"
+        },
+        {
+          "name": "X1.FIROSO",
+          "body": "SORT 'V' BIND V LENGTH 'N' BIND V N 1 SUB 2 DIV FLOOR N 2 DIV FLOOR 2 COLLECT GET X1.GISUZU",
+          "note": "",
+          "definedBy": null
+        },
+        {
+          "name": "X2.ZILOLE",
+          "body": "SORT 'V' BIND V LENGTH 'N' BIND V N 1 SUB 2 DIV FLOOR N 2 DIV FLOOR 2 COLLECT GET X2.NEGEKE",
+          "note": "",
+          "definedBy": null
+        },
+        {
+          "name": "G0B.MEDIAN",
+          "body": "SORT 'S' BIND S LENGTH 'N' BIND S N 1 SUB 2 DIV FLOOR N 2 DIV FLOOR 2 COLLECT GET G0B.MEAN",
+          "note": "median of a Vector",
+          "definedBy": "G0B"
+        },
+        {
+          "name": "G0C.MEDIAN",
+          "body": "'MDV' BIND MDV SORT 'MDS' BIND MDV LENGTH 'MDN' BIND MDS MDN 1 SUB 2 DIV FLOOR GET MDS MDN 2 DIV FLOOR GET ADD 2 DIV",
+          "note": "Median of a numeric Vector: mean of the two middle sorted values (one value twice when the count is odd).",
+          "definedBy": "G0C"
+        },
+        {
+          "name": "S0A.MEDIAN",
+          "body": "SORT 'S' BIND S LENGTH 'N' BIND S N 1 SUB 2 DIV FLOOR N 2 DIV FLOOR 2 COLLECT GET S0A.MEAN",
+          "note": "median of a non-empty Vector of numbers",
+          "definedBy": "S0A"
+        },
+        {
+          "name": "S0B.MEDIAN",
+          "body": "SORT 'XS' BIND XS LENGTH 'LN' BIND XS LN 1 SUB 2 DIV FLOOR GET XS LN 2 DIV FLOOR GET ADD 2 DIV",
+          "note": "Median of a Vector of numbers.",
+          "definedBy": "S0B"
+        },
+        {
+          "name": "S0C.MEDIAN",
+          "body": "'V' BIND V SORT 'S' BIND V LENGTH 'N' BIND S N 1 SUB 2 DIV FLOOR GET S N 2 DIV FLOOR GET ADD 2 DIV",
+          "note": "Median of a Vector of exact numbers (mean of the two middle values when the count is even).",
+          "definedBy": "S0C"
+        }
+      ],
+      "models": [
+        "opus",
+        "sonnet",
+        "haiku"
+      ]
+    },
+    {
+      "classId": "G0A.TRIMMED",
+      "definers": [
+        "G0A",
+        "G1A",
+        "G1B",
+        "G2A",
+        "R1A",
+        "S0A"
+      ],
+      "links": [
+        "d0"
+      ],
+      "members": [
+        {
+          "name": "G0A.TRIMMED",
+          "body": "SORT 1 DROP -1 DROP G0A.MEAN",
+          "note": "mean after dropping one smallest and one largest",
+          "definedBy": "G0A"
+        },
+        {
+          "name": "G1A.TRIMMED",
+          "body": "SORT 1 DROP -1 DROP G0A.MEAN",
+          "note": "mean after removing one smallest and one largest number",
+          "definedBy": "G1A"
+        },
+        {
+          "name": "G1B.TRIMMED",
+          "body": "SORT 1 DROP -1 DROP G0A.MEAN",
+          "note": "mean after dropping one min and one max",
+          "definedBy": "G1B"
+        },
+        {
+          "name": "G2A.TRIMMED",
+          "body": "SORT 1 DROP -1 DROP G0A.MEAN",
+          "note": "mean after dropping one smallest and one largest",
+          "definedBy": "G2A"
+        },
+        {
+          "name": "R1A.TRIMMED",
+          "body": "SORT 1 DROP -1 DROP X1.GISUZU",
+          "note": "mean after dropping one smallest and one largest",
+          "definedBy": "R1A"
+        },
+        {
+          "name": "S0A.TRIMMED",
+          "body": "SORT 1 DROP -1 DROP S0A.MEAN",
+          "note": "mean after dropping one smallest and one largest",
+          "definedBy": "S0A"
+        }
+      ],
+      "models": [
+        "opus",
+        "sonnet"
+      ]
+    },
+    {
+      "classId": "G0A.SUM",
+      "definers": [
+        "G0A",
+        "G0B",
+        "S0A",
+        "S0B"
+      ],
+      "links": [
+        "d0"
+      ],
+      "members": [
+        {
+          "name": "G0A.SUM",
+          "body": "0 [ ADD ] FOLD",
+          "note": "sum of a numeric Vector (0 for empty)",
+          "definedBy": "G0A"
+        },
+        {
+          "name": "X1.RUKUTA",
+          "body": "0 [ ADD ] FOLD",
+          "note": "",
+          "definedBy": null
+        },
+        {
+          "name": "X2.TUZIGA",
+          "body": "0 [ ADD ] FOLD",
+          "note": "",
+          "definedBy": null
+        },
+        {
+          "name": "G0B.SUM",
+          "body": "0 [ ADD ] FOLD",
+          "note": "sum of a Vector",
+          "definedBy": "G0B"
+        },
+        {
+          "name": "S0A.SUM",
+          "body": "0 [ ADD ] FOLD",
+          "note": "sum of a Vector of numbers (0 for empty)",
+          "definedBy": "S0A"
+        },
+        {
+          "name": "S0B.SUM",
+          "body": "0 [ ADD ] FOLD",
+          "note": "Sum of a Vector.",
+          "definedBy": "S0B"
+        }
+      ],
+      "models": [
+        "opus",
+        "sonnet"
+      ]
+    },
+    {
+      "classId": "G0A.MEAN",
+      "definers": [
+        "G0A",
+        "G0B",
+        "S0A"
+      ],
+      "links": [
+        "d0"
+      ],
+      "members": [
+        {
+          "name": "G0A.MEAN",
+          "body": "'V' BIND V G0A.SUM V LENGTH DIV",
+          "note": "arithmetic mean of a numeric Vector",
+          "definedBy": "G0A"
+        },
+        {
+          "name": "X1.GISUZU",
+          "body": "'V' BIND V X1.RUKUTA V LENGTH DIV",
+          "note": "",
+          "definedBy": null
+        },
+        {
+          "name": "X2.NEGEKE",
+          "body": "'V' BIND V X2.TUZIGA V LENGTH DIV",
+          "note": "",
+          "definedBy": null
+        },
+        {
+          "name": "G0B.MEAN",
+          "body": "'V' BIND V G0B.SUM V LENGTH DIV",
+          "note": "mean of a Vector",
+          "definedBy": "G0B"
+        },
+        {
+          "name": "S0A.MEAN",
+          "body": "'V' BIND V S0A.SUM V LENGTH DIV",
+          "note": "arithmetic mean of a non-empty Vector of numbers",
+          "definedBy": "S0A"
+        }
+      ],
+      "models": [
+        "opus",
+        "sonnet"
+      ]
+    },
+    {
+      "classId": "G1B.DEBTORS",
+      "definers": [
+        "G1B",
+        "G2A",
+        "R1A"
+      ],
+      "links": [
+        "d1"
+      ],
+      "members": [
+        {
+          "name": "G1B.DEBTORS",
+          "body": "G0A.BYNAME 'R' BIND R KEYS R VALUES 2 COLLECT ZIP [ 1 GET 0 LT ] FILTER [ 0 GET ] MAP",
+          "note": "names whose summed amounts are negative",
+          "definedBy": "G1B"
+        },
+        {
+          "name": "G2A.DEBTORS",
+          "body": "G0A.BYNAME G2A.PAIRS [ 1 GET 0 LT ] FILTER [ 0 GET ] MAP",
+          "note": "names whose ledger amounts sum below zero, first-appearance order",
+          "definedBy": "G2A"
+        },
+        {
+          "name": "R1A.DEBTORS",
+          "body": "X1.RIVINO 'R' BIND R KEYS [ 'K' BIND R K GET 0 LT ] FILTER",
+          "note": "names whose ledger amounts sum below zero, in first-appearance order",
+          "definedBy": "R1A"
+        }
+      ],
+      "models": [
+        "sonnet",
+        "opus"
+      ]
+    },
+    {
+      "classId": "G0A.WORDS",
+      "definers": [
+        "G0A",
+        "S0A"
+      ],
+      "links": [
+        "d0"
+      ],
+      "members": [
+        {
+          "name": "G0A.WORDS",
+          "body": "' ' TOKENIZE",
+          "note": "split a String on single spaces into a Vector of words",
+          "definedBy": "G0A"
+        },
+        {
+          "name": "X1.VIDIKO",
+          "body": "' ' TOKENIZE",
+          "note": "",
+          "definedBy": null
+        },
+        {
+          "name": "X2.VIVIKA",
+          "body": "' ' TOKENIZE",
+          "note": "",
+          "definedBy": null
+        },
+        {
+          "name": "S0A.WORDS",
+          "body": "' ' TOKENIZE",
+          "note": "split a String at single spaces into words",
+          "definedBy": "S0A"
+        }
+      ],
+      "models": [
+        "opus"
+      ]
+    },
+    {
+      "classId": "G0B.BYNAME",
+      "definers": [
+        "G0B",
+        "S0A"
+      ],
+      "links": [
+        "d1"
+      ],
+      "members": [
+        {
+          "name": "G0B.BYNAME",
+          "body": "ZIP 'Z' BIND Z 0 GET Z 1 GET GROUP 'G' BIND G KEYS G VALUES [ G0B.SUM ] MAP RECORD",
+          "note": "ledger entries to Record name->sum",
+          "definedBy": "G0B"
+        },
+        {
+          "name": "S0A.BY-NAME",
+          "body": "S0A.LEDGER-SPLIT GROUP 'G' BIND G KEYS G VALUES [ S0A.SUM ] MAP RECORD",
+          "note": "ledger -> Record name -> summed amount, first-appearance order",
+          "definedBy": "S0A"
+        }
+      ],
+      "models": [
+        "sonnet",
+        "opus"
+      ]
+    },
+    {
+      "classId": "G0C.SUMS",
+      "definers": [
+        "G0C",
+        "S0B"
+      ],
+      "links": [
+        "d1"
+      ],
+      "members": [
+        {
+          "name": "G0C.SUMS",
+          "body": "'LE' BIND LE [ 0 GET ] MAP 'LN' BIND LE [ 1 GET ] MAP 'LA' BIND LN LA GROUP 'LG' BIND LG KEYS LG VALUES [ 0 [ ADD ] FOLD ] MAP RECORD",
+          "note": "Ledger entries [name amount] to a Record from name to its summed amount, names in first-appearance order.",
+          "definedBy": "G0C"
+        },
+        {
+          "name": "S0B.SUMS",
+          "body": "'E' BIND E [ 0 GET ] MAP E [ 1 GET ] MAP GROUP 'R' BIND R KEYS R VALUES [ S0B.SUM ] MAP RECORD",
+          "note": "Record name -> sum of amounts from a Vector of [name amount] entries.",
+          "definedBy": "S0B"
+        }
+      ],
+      "models": [
+        "haiku",
+        "sonnet"
+      ]
+    },
+    {
+      "classId": "G1A.INITIALS",
+      "definers": [
+        "G1A",
+        "R1A"
+      ],
+      "links": [
+        "d0"
+      ],
+      "members": [
+        {
+          "name": "G1A.INITIALS",
+          "body": "G0A.WORDS [ CHARS LENGTH 3 GT ] FILTER [ CHARS 0 GET UPPER ] MAP JOIN",
+          "note": "upper-case initials of words longer than three letters ('' if none)",
+          "definedBy": "G1A"
+        },
+        {
+          "name": "R1A.INITIALS",
+          "body": "X1.VIDIKO [ CHARS LENGTH 3 GT ] FILTER [ CHARS 0 GET UPPER ] MAP JOIN",
+          "note": "upper-case initials of the words longer than three letters in a text",
+          "definedBy": "R1A"
+        }
+      ],
+      "models": [
+        "opus"
+      ]
+    },
+    {
+      "classId": "G1A.KEYSWHERE",
+      "definers": [
+        "G1A",
+        "R2A"
+      ],
+      "links": [
+        "d0"
+      ],
+      "members": [
+        {
+          "name": "G1A.KEYSWHERE",
+          "body": "'R' BIND R KEYS R VALUES 2 COLLECT ZIP [ 1 GET 0 LT ] FILTER [ 0 GET ] MAP",
+          "note": "keys of a Record whose numeric value is below zero, in key order",
+          "definedBy": "G1A"
+        },
+        {
+          "name": "R2A.NEGKEYS",
+          "body": "'R' BIND R KEYS R VALUES 2 COLLECT ZIP [ 1 GET 0 LT ] FILTER [ 0 GET ] MAP",
+          "note": "keys of a Record whose values are below zero, in key order",
+          "definedBy": "R2A"
+        }
+      ],
+      "models": [
+        "opus"
+      ]
+    },
+    {
+      "classId": "G1A.LARGEST",
+      "definers": [
+        "G1A",
+        "G1B"
+      ],
+      "links": [
+        "d1"
+      ],
+      "members": [
+        {
+          "name": "G1A.LARGEST",
+          "body": "'E' BIND E E G1A.AMOUNTS G0A.ARGMAX GET",
+          "note": "[ name amount ] entry with the largest amount; first on ties",
+          "definedBy": "G1A"
+        },
+        {
+          "name": "G1B.LARGEST",
+          "body": "'V' BIND V V ZIP 1 GET G0A.ARGMAX GET",
+          "note": "entry with the largest amount, first on ties",
+          "definedBy": "G1B"
+        }
+      ],
+      "models": [
+        "opus",
+        "sonnet"
+      ]
+    },
+    {
+      "classId": "G1B.LONGEST",
+      "definers": [
+        "G1B",
+        "S0A"
+      ],
+      "links": [
+        "d1"
+      ],
+      "members": [
+        {
+          "name": "G1B.LONGEST",
+          "body": "G0A.WORDS 'W' BIND W W [ CHARS LENGTH ] MAP G0A.ARGMAX GET",
+          "note": "longest word of a String, first on ties",
+          "definedBy": "G1B"
+        },
+        {
+          "name": "S0A.LONGEST",
+          "body": "S0A.WORDS 'W' BIND W W [ CHARS LENGTH ] MAP S0A.ARGMAX",
+          "note": "longest word of a text, first of ties",
+          "definedBy": "S0A"
+        }
+      ],
+      "models": [
+        "sonnet",
+        "opus"
+      ]
+    }
+  ],
+  "classCount": 34,
+  "wordCount": 129,
+  "compositional": [
+    {
+      "condition": "bottleneck",
+      "generation": 1,
+      "compositional": "3/8"
+    },
+    {
+      "condition": "bottleneck",
+      "generation": 2,
+      "compositional": "3/8"
+    },
+    {
+      "condition": "shuffled",
+      "generation": 1,
+      "compositional": "3/8"
+    },
+    {
+      "condition": "shuffled",
+      "generation": 2,
+      "compositional": "3/8"
+    }
+  ],
+  "coreUse": [
+    [
+      "GET",
+      264
+    ],
+    [
+      "BIND",
+      263
+    ],
+    [
+      "FOLD",
+      164
+    ],
+    [
+      "ADD",
+      145
+    ],
+    [
+      "MAP",
+      141
+    ],
+    [
+      "LENGTH",
+      113
+    ],
+    [
+      "TOKENIZE",
+      108
+    ],
+    [
+      "COLLECT",
+      103
+    ],
+    [
+      "KEYS",
+      91
+    ],
+    [
+      "SORT",
+      90
+    ],
+    [
+      "VALUES",
+      90
+    ],
+    [
+      "ZIP",
+      87
+    ],
+    [
+      "ORDER",
+      85
+    ],
+    [
+      "DROP",
+      82
+    ],
+    [
+      "DIV",
+      72
+    ],
+    [
+      "JOIN",
+      72
+    ],
+    [
+      "SUB",
+      71
+    ],
+    [
+      "MUL",
+      63
+    ],
+    [
+      "GROUP",
+      55
+    ],
+    [
+      "RECORD",
+      54
+    ],
+    [
+      "CHARS",
+      54
+    ],
+    [
+      "FILTER",
+      41
+    ],
+    [
+      "MAX",
+      40
+    ],
+    [
+      "FLOOR",
+      36
+    ],
+    [
+      "TALLY",
+      36
+    ],
+    [
+      "UPPER",
+      36
+    ],
+    [
+      "UNIQUE",
+      35
+    ],
+    [
+      "LT",
+      18
+    ],
+    [
+      "GT",
+      18
+    ],
+    [
+      "REVERSE",
+      18
+    ],
+    [
+      "SCAN",
+      18
+    ],
+    [
+      "TRIM",
+      12
+    ],
+    [
+      "FLATTEN",
+      9
+    ],
+    [
+      "EQ",
+      5
+    ],
+    [
+      "TAKE",
+      5
+    ],
+    [
+      "CONCAT",
+      4
+    ],
+    [
+      "SQRT",
+      1
+    ],
+    [
+      "POW",
+      1
+    ],
+    [
+      "PUT",
+      1
+    ],
+    [
+      "TRUE",
+      0
+    ],
+    [
+      "FALSE",
+      0
+    ],
+    [
+      "AND",
+      0
+    ],
+    [
+      "NOT",
+      0
+    ],
+    [
+      "SELECT",
+      0
+    ],
+    [
+      "RECONCILE",
+      0
+    ],
+    [
+      "ROUND",
+      0
+    ],
+    [
+      "MIN",
+      0
+    ],
+    [
+      "GCD",
+      0
+    ],
+    [
+      "RATIO",
+      0
+    ],
+    [
+      "RANGE",
+      0
+    ],
+    [
+      "FILL",
+      0
+    ],
+    [
+      "SHAPE",
+      0
+    ],
+    [
+      "RESHAPE",
+      0
+    ],
+    [
+      "DEPTH",
+      0
+    ],
+    [
+      "BSEARCH",
+      0
+    ],
+    [
+      "WITHOUT",
+      0
+    ],
+    [
+      "HAS?",
+      0
+    ],
+    [
+      "MERGE",
+      0
+    ],
+    [
+      "LOWER",
+      0
+    ],
+    [
+      "SEARCH",
+      0
+    ],
+    [
+      "REPLACE",
+      0
+    ],
+    [
+      "NUM",
+      0
+    ],
+    [
+      "STR",
+      0
+    ],
+    [
+      "FORMAT",
+      0
+    ],
+    [
+      "JSON-DECODE",
+      0
+    ],
+    [
+      "JSON-ENCODE",
+      0
+    ],
+    [
+      "EXEC",
+      0
+    ],
+    [
+      "CONTRACT",
+      0
+    ],
+    [
+      "FAIL",
+      0
+    ],
+    [
+      "NIL",
+      0
+    ],
+    [
+      "NIL?",
+      0
+    ],
+    [
+      "NIL-REASON",
+      0
+    ],
+    [
+      "ABSENT",
+      0
+    ],
+    [
+      "DEF",
+      0
+    ],
+    [
+      "DEL",
+      0
+    ],
+    [
+      "DIGEST",
+      0
+    ],
+    [
+      "PRINT",
+      0
+    ]
+  ],
+  "coreFailures": []
+}

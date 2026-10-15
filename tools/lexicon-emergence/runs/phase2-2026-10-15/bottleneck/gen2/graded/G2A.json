@@ -1,0 +1,1138 @@
+{
+  "agent": "G2A",
+  "generation": 2,
+  "condition": "bottleneck",
+  "definitions": [
+    {
+      "name": "G2A.ABS",
+      "body": "'X' BIND X 0 X SUB MAX",
+      "note": "absolute value, element-wise"
+    },
+    {
+      "name": "G2A.MAD",
+      "body": "'V' BIND V V G0A.MEDIAN SUB G2A.ABS G0A.MEDIAN",
+      "note": "median absolute deviation of a non-empty numeric Vector"
+    },
+    {
+      "name": "G2A.MOVING3",
+      "body": "'V' BIND V LENGTH 2 SUB 'N' BIND V N TAKE V 1 DROP N TAKE ADD V 2 DROP ADD 3 DIV",
+      "note": "means of every three consecutive numbers (length >= 3)"
+    },
+    {
+      "name": "G2A.RUNMAX",
+      "body": "'V' BIND V V 0 GET [ MAX ] SCAN",
+      "note": "running maximum of a non-empty numeric Vector"
+    },
+    {
+      "name": "G2A.MODE",
+      "body": "SORT TALLY G0B.TOPKEY",
+      "note": "most frequent element; smallest on ties"
+    },
+    {
+      "name": "G2A.TRIMMED",
+      "body": "SORT 1 DROP -1 DROP G0A.MEAN",
+      "note": "mean after dropping one smallest and one largest"
+    },
+    {
+      "name": "G2A.LONGEST",
+      "body": "'W' BIND W W [ CHARS LENGTH ] MAP G0A.ARGMAX GET",
+      "note": "longest String in a Vector; first on ties"
+    },
+    {
+      "name": "G2A.CAP",
+      "body": "CHARS 'C' BIND C 0 GET UPPER C 1 DROP JOIN 2 COLLECT JOIN",
+      "note": "upper-case the first letter of a non-empty String"
+    },
+    {
+      "name": "G2A.PAIRS",
+      "body": "'R' BIND R KEYS R VALUES 2 COLLECT ZIP",
+      "note": "Record to Vector of [ key value ] pairs"
+    },
+    {
+      "name": "G2A.DEBTORS",
+      "body": "G0A.BYNAME G2A.PAIRS [ 1 GET 0 LT ] FILTER [ 0 GET ] MAP",
+      "note": "names whose ledger amounts sum below zero, first-appearance order"
+    }
+  ],
+  "lexiconNames": [
+    "G0A.SUM",
+    "G0A.WORDS",
+    "G0A.BYNAME",
+    "G0A.MEAN",
+    "G0A.UNWORDS",
+    "G0A.ARGMAX",
+    "G0B.TOPKEY",
+    "G0A.MEDIAN"
+  ],
+  "results": [
+    {
+      "task": "series.median",
+      "submitted": true,
+      "solution": "G0A.MEDIAN",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 1,
+      "expandedTokens": 41,
+      "uses": [
+        "G0A.SUM",
+        "G0A.MEAN",
+        "G0A.MEDIAN"
+      ],
+      "perInput": [
+        {
+          "input": "[ 3 1 4 1 5 9 2 6 ]",
+          "ok": true,
+          "got": [
+            "7/2"
+          ],
+          "expected": [
+            "7/2"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 5 -3 5 0 2 ]",
+          "ok": true,
+          "got": [
+            "2/1"
+          ],
+          "expected": [
+            "2/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 1/2 3/4 1/4 ]",
+          "ok": true,
+          "got": [
+            "1/2"
+          ],
+          "expected": [
+            "1/2"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 4 4 1 1 9 ]",
+          "ok": true,
+          "got": [
+            "4/1"
+          ],
+          "expected": [
+            "4/1"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "series.mad",
+      "submitted": true,
+      "solution": "G2A.MAD",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 1,
+      "expandedTokens": 100,
+      "uses": [
+        "G0A.SUM",
+        "G0A.MEAN",
+        "G0A.MEDIAN",
+        "G2A.ABS",
+        "G2A.MAD"
+      ],
+      "perInput": [
+        {
+          "input": "[ 3 1 4 1 5 9 2 6 ]",
+          "ok": true,
+          "got": [
+            "2/1"
+          ],
+          "expected": [
+            "2/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 5 -3 5 0 2 ]",
+          "ok": true,
+          "got": [
+            "3/1"
+          ],
+          "expected": [
+            "3/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 1/2 3/4 1/4 ]",
+          "ok": true,
+          "got": [
+            "1/4"
+          ],
+          "expected": [
+            "1/4"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 4 4 1 1 9 ]",
+          "ok": true,
+          "got": [
+            "3/1"
+          ],
+          "expected": [
+            "3/1"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "series.moving3",
+      "submitted": true,
+      "solution": "G2A.MOVING3",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 1,
+      "expandedTokens": 26,
+      "uses": [
+        "G2A.MOVING3"
+      ],
+      "perInput": [
+        {
+          "input": "[ 3 1 4 1 5 9 2 6 ]",
+          "ok": true,
+          "got": [
+            "[ 8/3 2/1 10/3 5/1 16/3 17/3 ]"
+          ],
+          "expected": [
+            "[ 8/3 2/1 10/3 5/1 16/3 17/3 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 5 -3 5 0 2 ]",
+          "ok": true,
+          "got": [
+            "[ 7/3 2/3 7/3 ]"
+          ],
+          "expected": [
+            "[ 7/3 2/3 7/3 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 1/2 3/4 1/4 ]",
+          "ok": true,
+          "got": [
+            "[ 1/2 ]"
+          ],
+          "expected": [
+            "[ 1/2 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 4 4 1 1 9 ]",
+          "ok": true,
+          "got": [
+            "[ 3/1 2/1 11/3 ]"
+          ],
+          "expected": [
+            "[ 3/1 2/1 11/3 ]"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "series.runmax",
+      "submitted": true,
+      "solution": "G2A.RUNMAX",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 1,
+      "expandedTokens": 13,
+      "uses": [
+        "G2A.RUNMAX"
+      ],
+      "perInput": [
+        {
+          "input": "[ 3 1 4 1 5 9 2 6 ]",
+          "ok": true,
+          "got": [
+            "[ 3/1 3/1 4/1 4/1 5/1 9/1 9/1 9/1 ]"
+          ],
+          "expected": [
+            "[ 3/1 3/1 4/1 4/1 5/1 9/1 9/1 9/1 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 5 -3 5 0 2 ]",
+          "ok": true,
+          "got": [
+            "[ 5/1 5/1 5/1 5/1 5/1 ]"
+          ],
+          "expected": [
+            "[ 5/1 5/1 5/1 5/1 5/1 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 1/2 3/4 1/4 ]",
+          "ok": true,
+          "got": [
+            "[ 1/2 3/4 3/4 ]"
+          ],
+          "expected": [
+            "[ 1/2 3/4 3/4 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 4 4 1 1 9 ]",
+          "ok": true,
+          "got": [
+            "[ 4/1 4/1 4/1 4/1 9/1 ]"
+          ],
+          "expected": [
+            "[ 4/1 4/1 4/1 4/1 9/1 ]"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "series.mode",
+      "submitted": true,
+      "solution": "G2A.MODE",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 1,
+      "expandedTokens": 20,
+      "uses": [
+        "G0B.TOPKEY",
+        "G2A.MODE"
+      ],
+      "perInput": [
+        {
+          "input": "[ 3 1 4 1 5 9 2 6 ]",
+          "ok": true,
+          "got": [
+            "1/1"
+          ],
+          "expected": [
+            "1/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 5 -3 5 0 2 ]",
+          "ok": true,
+          "got": [
+            "5/1"
+          ],
+          "expected": [
+            "5/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 1/2 3/4 1/4 ]",
+          "ok": true,
+          "got": [
+            "1/4"
+          ],
+          "expected": [
+            "1/4"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 4 4 1 1 9 ]",
+          "ok": true,
+          "got": [
+            "1/1"
+          ],
+          "expected": [
+            "1/1"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "series.trimmed",
+      "submitted": true,
+      "solution": "G2A.TRIMMED",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 1,
+      "expandedTokens": 25,
+      "uses": [
+        "G0A.SUM",
+        "G0A.MEAN",
+        "G2A.TRIMMED"
+      ],
+      "perInput": [
+        {
+          "input": "[ 3 1 4 1 5 9 2 6 ]",
+          "ok": true,
+          "got": [
+            "7/2"
+          ],
+          "expected": [
+            "7/2"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 5 -3 5 0 2 ]",
+          "ok": true,
+          "got": [
+            "7/3"
+          ],
+          "expected": [
+            "7/3"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 1/2 3/4 1/4 ]",
+          "ok": true,
+          "got": [
+            "1/2"
+          ],
+          "expected": [
+            "1/2"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 4 4 1 1 9 ]",
+          "ok": true,
+          "got": [
+            "3/1"
+          ],
+          "expected": [
+            "3/1"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "prose.longest",
+      "submitted": true,
+      "solution": "G0A.WORDS G2A.LONGEST",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 2,
+      "expandedTokens": 29,
+      "uses": [
+        "G0A.WORDS",
+        "G0A.ARGMAX",
+        "G2A.LONGEST"
+      ],
+      "perInput": [
+        {
+          "input": "'the quick brown fox jumps over the lazy dog the end'",
+          "ok": true,
+          "got": [
+            "'quick'"
+          ],
+          "expected": [
+            "'quick'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'a bb a ccc bb a'",
+          "ok": true,
+          "got": [
+            "'ccc'"
+          ],
+          "expected": [
+            "'ccc'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'zebra apple mango apple'",
+          "ok": true,
+          "got": [
+            "'zebra'"
+          ],
+          "expected": [
+            "'zebra'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'solo'",
+          "ok": true,
+          "got": [
+            "'solo'"
+          ],
+          "expected": [
+            "'solo'"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "prose.freq_top",
+      "submitted": true,
+      "solution": "G0A.WORDS TALLY G0B.TOPKEY",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 3,
+      "expandedTokens": 21,
+      "uses": [
+        "G0A.WORDS",
+        "G0B.TOPKEY"
+      ],
+      "perInput": [
+        {
+          "input": "'the quick brown fox jumps over the lazy dog the end'",
+          "ok": true,
+          "got": [
+            "'the'"
+          ],
+          "expected": [
+            "'the'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'a bb a ccc bb a'",
+          "ok": true,
+          "got": [
+            "'a'"
+          ],
+          "expected": [
+            "'a'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'zebra apple mango apple'",
+          "ok": true,
+          "got": [
+            "'apple'"
+          ],
+          "expected": [
+            "'apple'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'solo'",
+          "ok": true,
+          "got": [
+            "'solo'"
+          ],
+          "expected": [
+            "'solo'"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "prose.distinct_sorted",
+      "submitted": true,
+      "solution": "G0A.WORDS UNIQUE SORT G0A.UNWORDS",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 4,
+      "expandedTokens": 28,
+      "uses": [
+        "G0A.WORDS",
+        "G0A.UNWORDS"
+      ],
+      "perInput": [
+        {
+          "input": "'the quick brown fox jumps over the lazy dog the end'",
+          "ok": true,
+          "got": [
+            "'brown dog end fox jumps lazy over quick the'"
+          ],
+          "expected": [
+            "'brown dog end fox jumps lazy over quick the'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'a bb a ccc bb a'",
+          "ok": true,
+          "got": [
+            "'a bb ccc'"
+          ],
+          "expected": [
+            "'a bb ccc'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'zebra apple mango apple'",
+          "ok": true,
+          "got": [
+            "'apple mango zebra'"
+          ],
+          "expected": [
+            "'apple mango zebra'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'solo'",
+          "ok": true,
+          "got": [
+            "'solo'"
+          ],
+          "expected": [
+            "'solo'"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "prose.reverse_words",
+      "submitted": true,
+      "solution": "G0A.WORDS REVERSE G0A.UNWORDS",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 3,
+      "expandedTokens": 27,
+      "uses": [
+        "G0A.WORDS",
+        "G0A.UNWORDS"
+      ],
+      "perInput": [
+        {
+          "input": "'the quick brown fox jumps over the lazy dog the end'",
+          "ok": true,
+          "got": [
+            "'end the dog lazy the over jumps fox brown quick the'"
+          ],
+          "expected": [
+            "'end the dog lazy the over jumps fox brown quick the'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'a bb a ccc bb a'",
+          "ok": true,
+          "got": [
+            "'a bb ccc a bb a'"
+          ],
+          "expected": [
+            "'a bb ccc a bb a'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'zebra apple mango apple'",
+          "ok": true,
+          "got": [
+            "'apple mango apple zebra'"
+          ],
+          "expected": [
+            "'apple mango apple zebra'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'solo'",
+          "ok": true,
+          "got": [
+            "'solo'"
+          ],
+          "expected": [
+            "'solo'"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "prose.capitalize",
+      "submitted": true,
+      "solution": "G0A.WORDS [ G2A.CAP ] MAP G0A.UNWORDS",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 6,
+      "expandedTokens": 46,
+      "uses": [
+        "G0A.WORDS",
+        "G2A.CAP",
+        "G0A.UNWORDS"
+      ],
+      "perInput": [
+        {
+          "input": "'the quick brown fox jumps over the lazy dog the end'",
+          "ok": true,
+          "got": [
+            "'The Quick Brown Fox Jumps Over The Lazy Dog The End'"
+          ],
+          "expected": [
+            "'The Quick Brown Fox Jumps Over The Lazy Dog The End'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'a bb a ccc bb a'",
+          "ok": true,
+          "got": [
+            "'A Bb A Ccc Bb A'"
+          ],
+          "expected": [
+            "'A Bb A Ccc Bb A'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'zebra apple mango apple'",
+          "ok": true,
+          "got": [
+            "'Zebra Apple Mango Apple'"
+          ],
+          "expected": [
+            "'Zebra Apple Mango Apple'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'solo'",
+          "ok": true,
+          "got": [
+            "'Solo'"
+          ],
+          "expected": [
+            "'Solo'"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "prose.initials_of_long",
+      "submitted": true,
+      "solution": "G0A.WORDS [ CHARS LENGTH 3 GT ] FILTER [ CHARS 0 GET UPPER ] MAP JOIN",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 16,
+      "expandedTokens": 20,
+      "uses": [
+        "G0A.WORDS"
+      ],
+      "perInput": [
+        {
+          "input": "'the quick brown fox jumps over the lazy dog the end'",
+          "ok": true,
+          "got": [
+            "'QBJOL'"
+          ],
+          "expected": [
+            "'QBJOL'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'a bb a ccc bb a'",
+          "ok": true,
+          "got": [
+            "''"
+          ],
+          "expected": [
+            "''"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'zebra apple mango apple'",
+          "ok": true,
+          "got": [
+            "'ZAMA'"
+          ],
+          "expected": [
+            "'ZAMA'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'solo'",
+          "ok": true,
+          "got": [
+            "'S'"
+          ],
+          "expected": [
+            "'S'"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "ledger.total",
+      "submitted": true,
+      "solution": "[ 1 GET ] MAP G0A.SUM",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 6,
+      "expandedTokens": 13,
+      "uses": [
+        "G0A.SUM"
+      ],
+      "perInput": [
+        {
+          "input": "[ [ 'ann' 30 ] [ 'bob' -5 ] [ 'ann' 12 ] [ 'cy' -20 ] [ 'bob' 2 ] ]",
+          "ok": true,
+          "got": [
+            "19/1"
+          ],
+          "expected": [
+            "19/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ [ 'zed' 10 ] ]",
+          "ok": true,
+          "got": [
+            "10/1"
+          ],
+          "expected": [
+            "10/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ [ 'x' -1 ] [ 'y' -1 ] [ 'x' 1/2 ] ]",
+          "ok": true,
+          "got": [
+            "-3/2"
+          ],
+          "expected": [
+            "-3/2"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ [ 'p' 5 ] [ 'q' 7 ] [ 'p' 2 ] [ 'q' 0 ] ]",
+          "ok": true,
+          "got": [
+            "14/1"
+          ],
+          "expected": [
+            "14/1"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "ledger.by_name",
+      "submitted": true,
+      "solution": "G0A.BYNAME",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 1,
+      "expandedTokens": 30,
+      "uses": [
+        "G0A.SUM",
+        "G0A.BYNAME"
+      ],
+      "perInput": [
+        {
+          "input": "[ [ 'ann' 30 ] [ 'bob' -5 ] [ 'ann' 12 ] [ 'cy' -20 ] [ 'bob' 2 ] ]",
+          "ok": true,
+          "got": [
+            "[ 'ann' 'bob' 'cy' ] [ 42/1 -3/1 -20/1 ] RECORD"
+          ],
+          "expected": [
+            "[ 'ann' 'bob' 'cy' ] [ 42/1 -3/1 -20/1 ] RECORD"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ [ 'zed' 10 ] ]",
+          "ok": true,
+          "got": [
+            "[ 'zed' ] [ 10/1 ] RECORD"
+          ],
+          "expected": [
+            "[ 'zed' ] [ 10/1 ] RECORD"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ [ 'x' -1 ] [ 'y' -1 ] [ 'x' 1/2 ] ]",
+          "ok": true,
+          "got": [
+            "[ 'x' 'y' ] [ -1/2 -1/1 ] RECORD"
+          ],
+          "expected": [
+            "[ 'x' 'y' ] [ -1/2 -1/1 ] RECORD"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ [ 'p' 5 ] [ 'q' 7 ] [ 'p' 2 ] [ 'q' 0 ] ]",
+          "ok": true,
+          "got": [
+            "[ 'p' 'q' ] [ 7/1 7/1 ] RECORD"
+          ],
+          "expected": [
+            "[ 'p' 'q' ] [ 7/1 7/1 ] RECORD"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "ledger.top_name",
+      "submitted": true,
+      "solution": "G0A.BYNAME G0B.TOPKEY",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 2,
+      "expandedTokens": 45,
+      "uses": [
+        "G0A.SUM",
+        "G0A.BYNAME",
+        "G0B.TOPKEY"
+      ],
+      "perInput": [
+        {
+          "input": "[ [ 'ann' 30 ] [ 'bob' -5 ] [ 'ann' 12 ] [ 'cy' -20 ] [ 'bob' 2 ] ]",
+          "ok": true,
+          "got": [
+            "'ann'"
+          ],
+          "expected": [
+            "'ann'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ [ 'zed' 10 ] ]",
+          "ok": true,
+          "got": [
+            "'zed'"
+          ],
+          "expected": [
+            "'zed'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ [ 'x' -1 ] [ 'y' -1 ] [ 'x' 1/2 ] ]",
+          "ok": true,
+          "got": [
+            "'x'"
+          ],
+          "expected": [
+            "'x'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ [ 'p' 5 ] [ 'q' 7 ] [ 'p' 2 ] [ 'q' 0 ] ]",
+          "ok": true,
+          "got": [
+            "'p'"
+          ],
+          "expected": [
+            "'p'"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "ledger.debtors",
+      "submitted": true,
+      "solution": "G2A.DEBTORS",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 1,
+      "expandedTokens": 57,
+      "uses": [
+        "G0A.SUM",
+        "G0A.BYNAME",
+        "G2A.PAIRS",
+        "G2A.DEBTORS"
+      ],
+      "perInput": [
+        {
+          "input": "[ [ 'ann' 30 ] [ 'bob' -5 ] [ 'ann' 12 ] [ 'cy' -20 ] [ 'bob' 2 ] ]",
+          "ok": true,
+          "got": [
+            "[ 'bob' 'cy' ]"
+          ],
+          "expected": [
+            "[ 'bob' 'cy' ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ [ 'zed' 10 ] ]",
+          "ok": true,
+          "got": [
+            "[ ]"
+          ],
+          "expected": [
+            "[ ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ [ 'x' -1 ] [ 'y' -1 ] [ 'x' 1/2 ] ]",
+          "ok": true,
+          "got": [
+            "[ 'x' 'y' ]"
+          ],
+          "expected": [
+            "[ 'x' 'y' ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ [ 'p' 5 ] [ 'q' 7 ] [ 'p' 2 ] [ 'q' 0 ] ]",
+          "ok": true,
+          "got": [
+            "[ ]"
+          ],
+          "expected": [
+            "[ ]"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "ledger.count_names",
+      "submitted": true,
+      "solution": "[ 0 GET ] MAP UNIQUE LENGTH",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 7,
+      "expandedTokens": 7,
+      "uses": [],
+      "perInput": [
+        {
+          "input": "[ [ 'ann' 30 ] [ 'bob' -5 ] [ 'ann' 12 ] [ 'cy' -20 ] [ 'bob' 2 ] ]",
+          "ok": true,
+          "got": [
+            "3/1"
+          ],
+          "expected": [
+            "3/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ [ 'zed' 10 ] ]",
+          "ok": true,
+          "got": [
+            "1/1"
+          ],
+          "expected": [
+            "1/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ [ 'x' -1 ] [ 'y' -1 ] [ 'x' 1/2 ] ]",
+          "ok": true,
+          "got": [
+            "2/1"
+          ],
+          "expected": [
+            "2/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ [ 'p' 5 ] [ 'q' 7 ] [ 'p' 2 ] [ 'q' 0 ] ]",
+          "ok": true,
+          "got": [
+            "2/1"
+          ],
+          "expected": [
+            "2/1"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "ledger.largest_entry",
+      "submitted": true,
+      "solution": "'L' BIND L L [ 1 GET ] MAP G0A.ARGMAX GET",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 11,
+      "expandedTokens": 21,
+      "uses": [
+        "G0A.ARGMAX"
+      ],
+      "perInput": [
+        {
+          "input": "[ [ 'ann' 30 ] [ 'bob' -5 ] [ 'ann' 12 ] [ 'cy' -20 ] [ 'bob' 2 ] ]",
+          "ok": true,
+          "got": [
+            "[ 'ann' 30/1 ]"
+          ],
+          "expected": [
+            "[ 'ann' 30/1 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ [ 'zed' 10 ] ]",
+          "ok": true,
+          "got": [
+            "[ 'zed' 10/1 ]"
+          ],
+          "expected": [
+            "[ 'zed' 10/1 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ [ 'x' -1 ] [ 'y' -1 ] [ 'x' 1/2 ] ]",
+          "ok": true,
+          "got": [
+            "[ 'x' 1/2 ]"
+          ],
+          "expected": [
+            "[ 'x' 1/2 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ [ 'p' 5 ] [ 'q' 7 ] [ 'p' 2 ] [ 'q' 0 ] ]",
+          "ok": true,
+          "got": [
+            "[ 'q' 7/1 ]"
+          ],
+          "expected": [
+            "[ 'q' 7/1 ]"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    }
+  ],
+  "calls": {
+    "total": 60,
+    "withWords": 60,
+    "preludeMismatches": 0
+  }
+}

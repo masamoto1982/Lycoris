@@ -1,0 +1,32 @@
+{
+  "agent": "G2B",
+  "generation": 2,
+  "condition": "bottleneck",
+  "definitions": [
+    {
+      "name": "G2B.CAP",
+      "body": "'W' BIND W CHARS 'C' BIND C 0 C 0 GET UPPER PUT JOIN",
+      "note": "upper-case the first letter of a non-empty word String"
+    }
+  ],
+  "solutions": {
+    "series.median": "G0A.MEDIAN",
+    "series.mad": "'V' BIND V G0A.MEDIAN 'M' BIND V M SUB 'D' BIND D D -1 MUL MAX G0A.MEDIAN",
+    "series.moving3": "'V' BIND V -2 DROP V 1 DROP -1 DROP ADD V 2 DROP ADD 3 DIV",
+    "series.runmax": "'V' BIND V V 0 GET [ MAX ] SCAN",
+    "series.mode": "SORT TALLY G0B.TOPKEY",
+    "series.trimmed": "SORT 1 DROP -1 DROP G0A.MEAN",
+    "prose.longest": "G0A.WORDS 'W' BIND W W [ CHARS LENGTH ] MAP G0A.ARGMAX GET",
+    "prose.freq_top": "G0A.WORDS TALLY G0B.TOPKEY",
+    "prose.distinct_sorted": "G0A.WORDS UNIQUE SORT G0A.UNWORDS",
+    "prose.reverse_words": "G0A.WORDS REVERSE G0A.UNWORDS",
+    "prose.capitalize": "G0A.WORDS [ G2B.CAP ] MAP G0A.UNWORDS",
+    "prose.initials_of_long": "G0A.WORDS [ CHARS LENGTH 3 GT ] FILTER [ CHARS 0 GET UPPER ] MAP JOIN",
+    "ledger.total": "ZIP 1 GET G0A.SUM",
+    "ledger.by_name": "G0A.BYNAME",
+    "ledger.top_name": "G0A.BYNAME G0B.TOPKEY",
+    "ledger.debtors": "G0A.BYNAME 'R' BIND R KEYS R VALUES 2 COLLECT ZIP [ 1 GET 0 LT ] FILTER [ 0 GET ] MAP",
+    "ledger.count_names": "ZIP 0 GET UNIQUE LENGTH",
+    "ledger.largest_entry": "'V' BIND V V ZIP 1 GET G0A.ARGMAX GET"
+  }
+}

@@ -1,0 +1,3 @@
+[ 'X' BIND X 0 X SUB MAX ] 'G2C.ABS' DEF
+'the quick brown fox jumps over the lazy dog the end'
+G0A.WORDS REVERSE G0A.UNWORDS

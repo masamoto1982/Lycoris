@@ -1,0 +1,3 @@
+[ 'X' BIND X 0 X SUB MAX ] 'G2C.ABS' DEF
+'a bb ccc dddd'
+G0A.WORDS TALLY G0B.TOPKEY

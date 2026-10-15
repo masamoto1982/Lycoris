@@ -1,0 +1,24 @@
+{
+  "agent": "R2B", "generation": 2, "condition": "shuffled",
+  "definitions": [],
+  "solutions": {
+    "series.median": "X2.ZILOLE",
+    "series.mad": "'V' BIND V X2.ZILOLE 'M' BIND V M SUB 'D' BIND D 0 D SUB MAX X2.ZILOLE",
+    "series.moving3": "'V' BIND V -2 DROP V 1 DROP -1 DROP ADD V 2 DROP ADD 3 DIV",
+    "series.runmax": "'V' BIND V V 0 GET [ MAX ] SCAN",
+    "series.mode": "SORT TALLY X2.PIDOZE",
+    "series.trimmed": "SORT 1 DROP -1 DROP X2.NEGEKE",
+    "prose.longest": "X2.VIVIKA 'W' BIND W W [ CHARS LENGTH ] MAP X2.FOMOZO GET",
+    "prose.freq_top": "X2.VIVIKA TALLY X2.PIDOZE",
+    "prose.distinct_sorted": "X2.VIVIKA UNIQUE SORT X2.GUPOSO",
+    "prose.reverse_words": "X2.VIVIKA REVERSE X2.GUPOSO",
+    "prose.capitalize": "X2.VIVIKA [ CHARS 'C' BIND C 0 GET UPPER C 1 DROP JOIN 2 COLLECT JOIN ] MAP X2.GUPOSO",
+    "prose.initials_of_long": "X2.VIVIKA [ CHARS LENGTH 3 GT ] FILTER [ CHARS 0 GET UPPER ] MAP JOIN",
+    "ledger.total": "[ 1 GET ] MAP X2.TUZIGA",
+    "ledger.by_name": "X2.NAZEDA",
+    "ledger.top_name": "X2.NAZEDA X2.PIDOZE",
+    "ledger.debtors": "X2.NAZEDA 'R' BIND R KEYS R VALUES 2 COLLECT ZIP [ 1 GET 0 LT ] FILTER [ 0 GET ] MAP",
+    "ledger.count_names": "[ 0 GET ] MAP UNIQUE LENGTH",
+    "ledger.largest_entry": "'E' BIND E E [ 1 GET ] MAP X2.FOMOZO GET"
+  }
+}

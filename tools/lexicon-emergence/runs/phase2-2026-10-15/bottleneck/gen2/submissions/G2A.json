@@ -1,0 +1,77 @@
+{
+  "agent": "G2A",
+  "generation": 2,
+  "condition": "bottleneck",
+  "definitions": [
+    {
+      "name": "G2A.ABS",
+      "body": "'X' BIND X 0 X SUB MAX",
+      "note": "absolute value, element-wise"
+    },
+    {
+      "name": "G2A.MAD",
+      "body": "'V' BIND V V G0A.MEDIAN SUB G2A.ABS G0A.MEDIAN",
+      "note": "median absolute deviation of a non-empty numeric Vector"
+    },
+    {
+      "name": "G2A.MOVING3",
+      "body": "'V' BIND V LENGTH 2 SUB 'N' BIND V N TAKE V 1 DROP N TAKE ADD V 2 DROP ADD 3 DIV",
+      "note": "means of every three consecutive numbers (length >= 3)"
+    },
+    {
+      "name": "G2A.RUNMAX",
+      "body": "'V' BIND V V 0 GET [ MAX ] SCAN",
+      "note": "running maximum of a non-empty numeric Vector"
+    },
+    {
+      "name": "G2A.MODE",
+      "body": "SORT TALLY G0B.TOPKEY",
+      "note": "most frequent element; smallest on ties"
+    },
+    {
+      "name": "G2A.TRIMMED",
+      "body": "SORT 1 DROP -1 DROP G0A.MEAN",
+      "note": "mean after dropping one smallest and one largest"
+    },
+    {
+      "name": "G2A.LONGEST",
+      "body": "'W' BIND W W [ CHARS LENGTH ] MAP G0A.ARGMAX GET",
+      "note": "longest String in a Vector; first on ties"
+    },
+    {
+      "name": "G2A.CAP",
+      "body": "CHARS 'C' BIND C 0 GET UPPER C 1 DROP JOIN 2 COLLECT JOIN",
+      "note": "upper-case the first letter of a non-empty String"
+    },
+    {
+      "name": "G2A.PAIRS",
+      "body": "'R' BIND R KEYS R VALUES 2 COLLECT ZIP",
+      "note": "Record to Vector of [ key value ] pairs"
+    },
+    {
+      "name": "G2A.DEBTORS",
+      "body": "G0A.BYNAME G2A.PAIRS [ 1 GET 0 LT ] FILTER [ 0 GET ] MAP",
+      "note": "names whose ledger amounts sum below zero, first-appearance order"
+    }
+  ],
+  "solutions": {
+    "series.median": "G0A.MEDIAN",
+    "series.mad": "G2A.MAD",
+    "series.moving3": "G2A.MOVING3",
+    "series.runmax": "G2A.RUNMAX",
+    "series.mode": "G2A.MODE",
+    "series.trimmed": "G2A.TRIMMED",
+    "prose.longest": "G0A.WORDS G2A.LONGEST",
+    "prose.freq_top": "G0A.WORDS TALLY G0B.TOPKEY",
+    "prose.distinct_sorted": "G0A.WORDS UNIQUE SORT G0A.UNWORDS",
+    "prose.reverse_words": "G0A.WORDS REVERSE G0A.UNWORDS",
+    "prose.capitalize": "G0A.WORDS [ G2A.CAP ] MAP G0A.UNWORDS",
+    "prose.initials_of_long": "G0A.WORDS [ CHARS LENGTH 3 GT ] FILTER [ CHARS 0 GET UPPER ] MAP JOIN",
+    "ledger.total": "[ 1 GET ] MAP G0A.SUM",
+    "ledger.by_name": "G0A.BYNAME",
+    "ledger.top_name": "G0A.BYNAME G0B.TOPKEY",
+    "ledger.debtors": "G2A.DEBTORS",
+    "ledger.count_names": "[ 0 GET ] MAP UNIQUE LENGTH",
+    "ledger.largest_entry": "'L' BIND L L [ 1 GET ] MAP G0A.ARGMAX GET"
+  }
+}
