@@ -272,3 +272,98 @@ proptest! {
         })?;
     }
 }
+
+/// How a generated body reaches a Word it calls: written directly, inside a
+/// literal block run by `EXEC`, or inside a `MAP` block over a one-element
+/// Vector. All three are descents the termination argument names
+/// (`userWordCall`, `EXEC`, `MAP`).
+#[derive(Clone, Copy, Debug)]
+enum Reach {
+    Direct,
+    Exec,
+    Map,
+}
+
+fn reach() -> impl Strategy<Value = Reach> {
+    prop_oneof![Just(Reach::Direct), Just(Reach::Exec), Just(Reach::Map)]
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(64))]
+
+    /// Every program over an acyclic User dictionary ends, without any
+    /// ceiling, at the value the dictionary denotes.
+    ///
+    /// Wi's body names only Words Wj with j < i — the shape LANG.DICTIONARY.ACYCLIC
+    /// guarantees — reached directly, through `EXEC` or through `MAP`. Each
+    /// Word leaves one number: 1 when it calls nothing, else the sum of what
+    /// its callees leave, plus 1 for each callee reached through `MAP` (its
+    /// block adds the element). Calling the last Word must answer exactly that
+    /// sum and stop on its own, never at `callDepth` or `executionSteps`.
+    ///
+    /// The inverse half of this law — that a program which is *not* over an
+    /// acyclic dictionary cannot be written — does not hold today: a block can
+    /// run a copy of itself (see `self_application_is_stopped_by_a_ceiling_today`
+    /// below). docs/dev/observation-remediation-work-order-2026-10-15.md,
+    /// stage 2 and D1, holds that decision.
+    #[test]
+    fn programs_over_an_acyclic_dictionary_end_at_their_value(
+        calls in prop::collection::vec(
+            prop::collection::vec((any::<prop::sample::Index>(), reach()), 0..3),
+            6..=6,
+        ),
+    ) {
+        let mut program = Vec::new();
+        let mut value: Vec<u64> = Vec::new();
+        for (i, callees) in calls.iter().enumerate() {
+            let chosen: Vec<(usize, Reach)> = if i == 0 {
+                Vec::new()
+            } else {
+                callees.iter().map(|(index, how)| (index.index(i), *how)).collect()
+            };
+            if chosen.is_empty() {
+                program.push(format!("[ 1 ] 'W{i}' DEF"));
+                value.push(1);
+                continue;
+            }
+            let mut parts = Vec::new();
+            let mut sum = 0u64;
+            for (n, (j, how)) in chosen.iter().enumerate() {
+                parts.push(match how {
+                    Reach::Direct => format!("W{j}"),
+                    Reach::Exec => format!("[ W{j} ] EXEC"),
+                    Reach::Map => format!("[ 1 ] [ W{j} ADD ] MAP 0 GET"),
+                });
+                if n > 0 {
+                    parts.push("ADD".to_string());
+                }
+                sum += value[*j] + u64::from(matches!(how, Reach::Map));
+            }
+            program.push(format!("[ {} ] 'W{i}' DEF", parts.join(" ")));
+            value.push(sum);
+        }
+        let source = format!("{}\nW5", program.join("\n"));
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .build()
+            .expect("tokio current-thread runtime");
+        let shown = rt.block_on(async {
+            let mut interp = Interpreter::new();
+            interp.execute(&source).await.map_err(|e| e.to_string())?;
+            Ok::<_, String>(format!("{}", interp.get_stack().last().expect("W5 leaves a value")))
+        });
+        prop_assert_eq!(shown, Ok(format!("{}/1", value[5])), "{}", source);
+    }
+}
+
+/// Today's counter-example to "every evaluation is structurally finite": a
+/// block copies itself with `1 COLLECT [ 0 0 ] GET` and runs the copy, with no
+/// User Word and no binding, and only the `callDepth` ceiling stops it.
+/// This pins the present behaviour so a change to it is deliberate: when the
+/// owner decides D1, either this becomes a refusal before anything runs, or
+/// the specification's claim is restated around the ceiling.
+#[test]
+fn self_application_is_stopped_by_a_ceiling_today() {
+    let message = run("[ 1 COLLECT [ 0 0 ] GET EXEC EXEC ] 1 COLLECT [ 0 0 ] GET EXEC EXEC")
+        .expect_err("a block that runs a copy of itself does not end on its own");
+    assert_eq!(message, "callDepth of 257 exceeds the limit of 256");
+}
