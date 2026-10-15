@@ -592,16 +592,20 @@ a {
 }
 
 
-/* The language name in the Reference's opening sentence carries its origin
-   as a tooltip, shown on hover and on keyboard focus. */
-.name-origin {
+/* Trivia: small asides hidden in the Reference, shown as a tooltip on hover
+   and on keyboard focus. Mark the word with .trivia and put the aside in a
+   .trivia-tip child with role="tooltip"; .trivia--above opens it upward and
+   centered, for words near the bottom of the page such as the footer. */
+.trivia {
     position: relative;
     text-decoration: underline dotted;
     text-underline-offset: 3px;
     cursor: help;
+
+    & a { text-decoration: underline dotted; }
 }
 
-.name-origin-tip {
+.trivia-tip {
     position: absolute;
     left: 0;
     top: calc(100% + 6px);
@@ -615,13 +619,22 @@ a {
     font-size: 0.875rem;
     font-weight: normal;
     line-height: 1.6;
+    text-align: left;
     visibility: hidden;
     opacity: 0;
     transition: opacity 0.15s;
 }
 
-.name-origin:hover .name-origin-tip,
-.name-origin:focus .name-origin-tip {
+.trivia--above .trivia-tip {
+    top: auto;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.trivia:hover .trivia-tip,
+.trivia:focus .trivia-tip,
+.trivia:focus-within .trivia-tip {
     visibility: visible;
     opacity: 1;
 }
