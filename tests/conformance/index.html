@@ -2166,6 +2166,13 @@ W</pre>
   <div class="ajisai-expect-effects"></div>
 </section>
 
+<section class="ajisai-case" id="core-contract-core-word-mixed-arity" data-category="core">
+  <h3>CONTRACT keeps the fixed half of a registered arity: COLLECT answers one Vector and EXEC reads one block, whatever the data decides on the other side (LANG.CONTRACT.REGISTRY)</h3>
+  <pre class="ajisai-source">[ COLLECT ] 0 GET CONTRACT 'outputs' GET [ EXEC ] 0 GET CONTRACT 'inputs' GET [ EXEC ] 0 GET CONTRACT 'outputs' GET</pre>
+  <pre class="ajisai-expect-result">1/1 1/1 'variable'</pre>
+  <div class="ajisai-expect-effects"></div>
+</section>
+
 <section class="ajisai-case" id="core-contract-user-word-is-its-body" data-category="core">
   <h3>CONTRACT of a User Word is CONTRACT of its body, and runs nothing</h3>
   <pre class="ajisai-source">[ 42 PRINT 2 DIV ] 'SHOUT' DEF [ SHOUT ] 0 GET CONTRACT [ 42 PRINT 2 DIV ] CONTRACT EQ</pre>
