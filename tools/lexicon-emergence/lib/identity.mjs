@@ -45,7 +45,10 @@ export async function identify(ajisai, name, byName) {
   const answers = [];
   for (const tuple of probeTuples()) {
     const run = await ajisai.compute(`${setup}\n${tuple.join(' ')} ${name}`);
-    answers.push(run.status === 'ok' ? run.stackDisplay : `error:${run.diagnosis?.why ?? run.status}`);
+    // An error answers with its category: since the server stopped sending a
+    // diagnosis (ajisai-mcp-server 0.9.0) every error read as one answer, so
+    // two Words failing differently on a probe agreed there.
+    answers.push(run.status === 'ok' ? run.stackDisplay : `error:${run.error?.category ?? run.status}`);
   }
   const d1 = createHash('sha256').update(JSON.stringify(answers)).digest('hex').slice(0, 16);
   // A Word that errors on every probe says nothing about what it computes.

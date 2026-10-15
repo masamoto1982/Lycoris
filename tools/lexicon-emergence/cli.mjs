@@ -6,6 +6,16 @@
 //   node cli.mjs evolve  <run> <condition> <gen> <K>       choose generation gen+1's lexicon
 //   node cli.mjs analyze <run>                             H1–H5 over every condition and generation
 //
+// The cli route (Phase 2: Claude Code subagents that run code through this file):
+//   node cli.mjs prepare <run> <condition> <gen>                        write the generation's phrasebook
+//   node cli.mjs compute <run> <condition> <gen> <agent> <file> [--words A,B] [--tool check]
+//                                                                       run one file as a subject, logged
+//   node cli.mjs shuffle <run> <from-condition> <from-gen> <condition> <gen>
+//                                                                       C-shuffled: rename a lexicon's Words
+//   node cli.mjs prompt  <run> <condition> <gen> <agent> --route cli    the cli route's subject prompt
+// runs/<run>/design.json, when present, names the task families ("families") and which model
+// each subject letter ran on ("models": { "A": "opus", … }), for grading and for the report.
+//
 // Route B (the API harness, lib/harness.mjs) — needs ANTHROPIC_API_KEY and spends money:
 //   node cli.mjs run   <run> <condition> <gen> <A,B,…> [options]   one generation's subjects
 //   node cli.mjs pilot <run> [options]                             Phase 1's settings end to end
@@ -15,9 +25,10 @@
 //          and for pilot --gens <n> (3) --agents <n> (3) --k <n> (8).
 //
 // A run lives under runs/<run>/<condition>/gen<g>/ as lexicon.json, submissions/*.json, graded/*.json,
-// and, for route B, transcripts/*.json.
+// for route B transcripts/*.json, and for the cli route calls/*.jsonl (every compute a subject ran)
+// and work/<agent>/ (the files it ran).
 
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { connect } from './lib/ajisai.mjs';
 import { analyze, renderReport } from './lib/analyze.mjs';
@@ -25,7 +36,9 @@ import { classify, collectWords, nextLexicon } from './lib/evolve.mjs';
 import { grade, loadFamilies } from './lib/grade.mjs';
 import { anthropicClient, Budget, MODELS, priceOf, runSubject, subjectSystem } from './lib/harness.mjs';
 import { subjectPrompt } from './lib/prompt.mjs';
-import { writeLexiconPhrasebook } from './lib/lexicon-phrasebook.mjs';
+import { preludeMatches, writeLexiconPhrasebook } from './lib/lexicon-phrasebook.mjs';
+import { shuffleLexicon } from './lib/shuffle.mjs';
+import { norm } from './lib/source.mjs';
 
 const ROOT = new URL('./', import.meta.url);
 const TASKS = new URL('tasks/', ROOT);
@@ -60,16 +73,53 @@ for (let i = 0; i < argv.length; i += 1) {
   else positional.push(argv[i]);
 }
 const [command, run, condition, gen, arg] = positional;
-const families = loadFamilies(TASKS);
+const designOf = (name) => {
+  const url = name ? new URL(`runs/${name}/design.json`, ROOT) : null;
+  return url && existsSync(url) ? readJson(url) : {};
+};
+const design = designOf(run);
+const families = loadFamilies(TASKS, design.families);
 
 async function gradeGeneration(ajisai, dir) {
   const lexicon = lexiconOf(dir);
   for (const submission of readAll(new URL('submissions/', dir))) {
     const graded = await grade(ajisai, submission, lexicon, families);
+    graded.calls = auditCalls(dir, submission.agent);
     writeJson(new URL(`graded/${submission.agent}.json`, dir), graded);
     const correct = graded.results.filter((r) => r.correct).length;
     console.log(`${submission.agent}: ${correct}/${graded.results.length} correct`);
   }
+}
+
+/**
+ * The cli route's log of what a subject ran: how many calls, how many named
+ * inherited Words, and whether each such call's `prelude` was the lexicon by
+ * content (lexicon-digests.json). Null for a subject with no log.
+ */
+function auditCalls(dir, agent) {
+  const log = new URL(`calls/${agent}.jsonl`, dir);
+  if (!existsSync(log)) return null;
+  const calls = readFileSync(log, 'utf8').split('\n').filter(Boolean).map((line) => JSON.parse(line));
+  const digestsUrl = new URL('lexicon-digests.json', dir);
+  const digests = new Map(existsSync(digestsUrl) ? Object.entries(readJson(digestsUrl)) : []);
+  const withWords = calls.filter((c) => c.words?.length);
+  return {
+    total: calls.length,
+    withWords: withWords.length,
+    preludeMismatches: withWords.filter((c) => c.prelude && !preludeMatches(c.prelude, digests)).length,
+  };
+}
+
+/** Write a generation's phrasebook and expected digests, once; the path, or null with no lexicon. */
+async function prepareGeneration(ajisai, dir) {
+  const lexicon = lexiconOf(dir);
+  if (lexicon.entries.length === 0) return null;
+  const phrasebook = fileURLToPath(new URL('phrasebook.ajisai', dir));
+  if (!existsSync(phrasebook)) {
+    const { digests } = await writeLexiconPhrasebook(ajisai, lexicon, phrasebook);
+    writeJson(new URL('lexicon-digests.json', dir), Object.fromEntries(digests));
+  }
+  return phrasebook;
 }
 
 async function evolveGeneration(ajisai, runName, conditionName, generation, capacity) {
@@ -145,7 +195,69 @@ async function harnessSettings() {
 const letters = (n) => [...'ABCDEFGHIJ'].slice(0, n);
 
 if (command === 'prompt') {
-  process.stdout.write(subjectPrompt({ run, condition, generation: Number(gen), agent: arg }, lexiconOf(genDir(run, condition, gen)), families));
+  process.stdout.write(
+    subjectPrompt({ run, condition, generation: Number(gen), agent: arg }, lexiconOf(genDir(run, condition, gen)), families, options.route),
+  );
+} else if (command === 'prepare') {
+  const ajisai = await connect();
+  try {
+    const phrasebook = await prepareGeneration(ajisai, genDir(run, condition, gen));
+    console.log(phrasebook ? `wrote ${phrasebook}` : 'no lexicon: subjects run on the plain server');
+  } finally {
+    await ajisai.close();
+  }
+} else if (command === 'compute') {
+  // One run of a subject's file, through the server that serves this
+  // generation's lexicon for `words`. The reply is the tool's text, exactly as
+  // the MCP tool would give it; the call is logged for auditCalls.
+  const dir = genDir(run, condition, gen);
+  const file = positional[5];
+  if (!arg || !file) {
+    console.error('usage: node cli.mjs compute <run> <condition> <gen> <agent> <file> [--words A,B] [--tool check]');
+    process.exit(2);
+  }
+  // The phrasebook is written by the first call of a generation (or by
+  // `prepare`); later calls only read it.
+  let phrasebook = null;
+  if (lexiconOf(dir).entries.length > 0) {
+    phrasebook = fileURLToPath(new URL('phrasebook.ajisai', dir));
+    if (!existsSync(phrasebook)) {
+      const plain = await connect();
+      try {
+        await prepareGeneration(plain, dir);
+      } finally {
+        await plain.close();
+      }
+    }
+  }
+  const ajisai = await connect(phrasebook ? { phrasebook } : {});
+  try {
+    const source = readFileSync(file, 'utf8');
+    const words = options.words ? options.words.split(',').map((w) => w.trim()).filter(Boolean) : undefined;
+    const tool = options.tool === 'check' ? 'check' : 'compute';
+    const text = await ajisai.callText(tool, words ? { source, words } : { source });
+    let parsed = null;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      // A host error is text, not a result; it is logged as such.
+    }
+    mkdirSync(new URL('calls/', dir), { recursive: true });
+    appendFileSync(
+      new URL(`calls/${arg}.jsonl`, dir),
+      `${JSON.stringify({ at: new Date().toISOString(), tool, words: words ?? [], source, status: parsed?.status ?? 'hostError', prelude: parsed?.prelude ?? null })}\n`,
+    );
+    process.stdout.write(`${text}\n`);
+  } finally {
+    await ajisai.close();
+  }
+} else if (command === 'shuffle') {
+  // shuffle <run> <from-condition> <from-gen> <condition> <gen>
+  const [, , fromCondition, fromGen, toCondition, toGen] = positional;
+  const shuffled = shuffleLexicon(lexiconOf(genDir(run, fromCondition, fromGen)), `X${toGen}`);
+  shuffled.generation = Number(toGen);
+  writeJson(new URL('lexicon.json', genDir(run, toCondition, toGen)), shuffled);
+  console.log(`${toCondition} gen${toGen} lexicon: ${shuffled.entries.map((e) => e.name).join(' ')}`);
 } else if (command === 'grade') {
   const ajisai = await connect();
   await gradeGeneration(ajisai, genDir(run, condition, gen));
@@ -198,7 +310,7 @@ if (command === 'prompt') {
     graded: readAll(new URL('graded/', dir)),
   }));
   const ajisai = await connect();
-  const report = await analyze(ajisai, gens, families);
+  const report = await analyze(ajisai, gens, families, design.models ?? {});
   await ajisai.close();
   writeJson(new URL(`runs/${run}/report.json`, ROOT), report);
   writeFileSync(new URL(`runs/${run}/report.md`, ROOT), renderReport(report));

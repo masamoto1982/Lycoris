@@ -6,8 +6,9 @@ import { readFileSync } from 'node:fs';
 import { stackOf } from './ajisai.mjs';
 import { closure, expand, norm, prelude, referencedWords, tokenize } from './source.mjs';
 
-export function loadFamilies(dir) {
-  return ['stats', 'text'].map((family) => JSON.parse(readFileSync(new URL(`${family}.json`, dir), 'utf8')));
+/** The task families a run uses, by name (the pilot's two when a run names none). */
+export function loadFamilies(dir, names = ['stats', 'text']) {
+  return names.map((family) => JSON.parse(readFileSync(new URL(`${family}.json`, dir), 'utf8')));
 }
 
 /** Every definition a submission can call: the lexicon it was given, then its own. */

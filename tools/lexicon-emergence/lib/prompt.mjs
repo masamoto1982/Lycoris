@@ -9,12 +9,19 @@ import { prelude } from './source.mjs';
  * `route` is how the subject runs (work order §1.2): `subagent` for a Claude
  * Code subagent that reads SKILL.md and writes a file (the pilot), `harness`
  * for the API harness, whose system prompt already carries SKILL.md and whose
- * subject hands in through a `submit` tool. The tasks and the lexicon read the
- * same either way.
+ * subject hands in through a `submit` tool, and `cli` for a Claude Code
+ * subagent that runs code through `cli.mjs compute` (Phase 2): that command
+ * serves the generation's lexicon through `words`, as the harness does, and
+ * logs every call, so a subagent need not paste inherited definitions. The
+ * tasks and the lexicon read the same every way.
  */
 export function subjectPrompt({ run, condition, generation, agent }, lexicon, families, route = 'subagent') {
   const harness = route === 'harness';
-  const path = `tools/lexicon-emergence/runs/${run}/${condition}/gen${generation}/submissions/${agent}.json`;
+  const cli = route === 'cli';
+  const genPath = `tools/lexicon-emergence/runs/${run}/${condition}/gen${generation}`;
+  const path = `${genPath}/submissions/${agent}.json`;
+  const work = `${genPath}/work/${agent}/`;
+  const compute = `node tools/lexicon-emergence/cli.mjs compute ${run} ${condition} ${generation} ${agent}`;
   const lines = [];
   lines.push(`You are subject agent ${agent} in a language-use study. Solve the tasks below in Ajisai.`);
   lines.push('');
@@ -22,6 +29,16 @@ export function subjectPrompt({ run, condition, generation, agent }, lexicon, fa
   if (harness) {
     lines.push('- Learn Ajisai from the reference in your instructions.');
     lines.push('- Run code only with the `compute` tool. You may also use `check` and `word_contract`.');
+  } else if (cli) {
+    lines.push('- Learn Ajisai from `SKILL.md` at the repository root and the Word list it points to,');
+    lines.push('  `skill/words.md`. Read no other file in the repository, and no file under');
+    lines.push(`  \`tools/lexicon-emergence/\` outside your own working directory \`${work}\`.`);
+    lines.push('- Run code only with this command, from the repository root, on a file you write in your working');
+    lines.push('  directory. It prints the engine\'s JSON result (`stackDisplay` is the final stack, bottom to top):');
+    lines.push('');
+    lines.push(`  \`${compute} ${work}try.ajisai\``);
+    lines.push('');
+    lines.push('  Do not use any other way of running Ajisai (no MCP tool, no `ajisai` binary).');
   } else {
     lines.push('- Learn Ajisai from `SKILL.md` at the repository root. Read no other file in the repository —');
     lines.push('  in particular nothing under `tools/lexicon-emergence/`, `docs/`, `spec/` or `rust/`.');
@@ -44,14 +61,21 @@ export function subjectPrompt({ run, condition, generation, agent }, lexicon, fa
     lines.push('| --- | --- | --- |');
     for (const e of lexicon.entries) lines.push(`| \`${e.name}\` | \`${e.body}\` | ${e.note || '—'} |`);
     lines.push('');
-    if (harness) {
-      // Route B: the server defines them. Pasting the definitions is how the
+    if (harness || cli) {
+      // Route B and the cli route: the server defines them. Pasting the definitions is how the
       // pilot's H5 counterexample spread — the expansion audited was not the
       // program that ran — so the harness route never asks for it.
-      const names = lexicon.entries.map((e) => `"${e.name}"`).join(', ');
-      lines.push('To use them, pass their names in the `words` argument of `compute` or `check`, for example');
-      lines.push(`\`words: [${names}]\`. The server defines them before your source, and the result's \`prelude\``);
-      lines.push('names each one it defined with its content digest.');
+      if (harness) {
+        const names = lexicon.entries.map((e) => `"${e.name}"`).join(', ');
+        lines.push('To use them, pass their names in the `words` argument of `compute` or `check`, for example');
+        lines.push(`\`words: [${names}]\`. The server defines them before your source, and the result's \`prelude\``);
+        lines.push('names each one it defined with its content digest.');
+      } else {
+        const names = lexicon.entries.map((e) => e.name).join(',');
+        lines.push('To use them, name them with `--words` after the file, for example');
+        lines.push(`\`${compute} ${work}try.ajisai --words ${names}\`.`);
+        lines.push('The server defines them before your source; do not paste their definitions into your code.');
+      }
     } else {
       lines.push('To test with them, put this text before your own code in a `compute` call:');
       lines.push('');
@@ -90,8 +114,8 @@ export function subjectPrompt({ run, condition, generation, agent }, lexicon, fa
   lines.push('`body` is the code that goes between `[` and `]` in `[ body ] \'NAME\' DEF`. List definitions so that each');
   lines.push('comes after any of your own Words it calls. Solutions may call your Words and the inherited Words.');
   lines.push(`Before ${harness ? 'submitting' : 'writing the file'}, run each solution through \`compute\` exactly as it will be graded: the`);
-  lines.push(harness
-    ? 'inherited Words (through `words`, if any), your definitions as DEF lines, the example input, the solution.'
+  lines.push(harness || cli
+    ? `inherited Words (through \`${harness ? 'words' : '--words'}\`, if any), your definitions as DEF lines, the example input, the solution.`
     : 'inherited-Word text above (if any), your definitions as DEF lines, the example input, the solution.');
   return `${lines.join('\n')}\n`;
 }

@@ -13,7 +13,10 @@ const coreWordOf = (token) => {
   return CORE_NAMES.has(t) ? t : null;
 };
 
-export async function analyze(ajisai, gens, families) {
+/** The model a subject ran on: its letter (the last character of its name) looked up in `models`. */
+const modelOf = (models, agent) => models[agent.at(-1)] ?? null;
+
+export async function analyze(ajisai, gens, families, models = {}) {
   const graded = gens.flatMap((g) => g.graded.map((x) => ({ ...x, condition: g.condition })));
   const words = collectWords(graded, gens.map((g) => g.lexicon));
   const classes = await classify(ajisai, words);
@@ -86,12 +89,80 @@ export async function analyze(ajisai, gens, families) {
     }
   }
 
+  // Accuracy per model, over every subject that ran on it.
+  const taskCount = families.reduce((n, f) => n + f.tasks.length, 0);
+  const perModel = [...new Set(graded.map((g) => modelOf(models, g.agent)))]
+    .filter(Boolean)
+    .map((model) => {
+      const mine = graded.filter((g) => modelOf(models, g.agent) === model);
+      const correct = mine.reduce((n, g) => n + g.results.filter((r) => r.correct).length, 0);
+      return { model, agents: mine.length, accuracy: `${correct}/${mine.length * taskCount}` };
+    });
+
+  // H1's baseline, split by model: for every two subjects that inherited
+  // nothing, the share of the classes either defined that both defined
+  // (Jaccard). Same-model pairs against cross-model pairs is the comparison
+  // a single-model pilot could not make.
+  const definedBy = new Map();
+  for (const [name, c] of classes) {
+    const w = words.get(name);
+    if (!w.definedBy) continue;
+    definedBy.set(w.definedBy, (definedBy.get(w.definedBy) ?? new Set()).add(c.classId));
+  }
+  const independent = graded.filter((g) => g.lexiconNames.length === 0).map((g) => g.agent);
+  const pairs = [];
+  for (let i = 0; i < independent.length; i += 1) {
+    for (let j = i + 1; j < independent.length; j += 1) {
+      const [a, b] = [independent[i], independent[j]];
+      const sa = definedBy.get(a) ?? new Set();
+      const sb = definedBy.get(b) ?? new Set();
+      const both = [...sa].filter((x) => sb.has(x)).length;
+      const either = new Set([...sa, ...sb]).size;
+      const [ma, mb] = [modelOf(models, a), modelOf(models, b)];
+      pairs.push({ a, b, models: [ma, mb], same: ma !== null && ma === mb, jaccard: either ? +(both / either).toFixed(3) : 0 });
+    }
+  }
+  const meanOf = (xs) => (xs.length ? +(xs.reduce((n, x) => n + x, 0) / xs.length).toFixed(3) : null);
+  const baseline = {
+    sameModel: meanOf(pairs.filter((p) => p.same).map((p) => p.jaccard)),
+    crossModel: meanOf(pairs.filter((p) => !p.same && p.models.every(Boolean)).map((p) => p.jaccard)),
+    pairs,
+  };
+
+  // Reuse of inherited Words, per generation that inherited any: the share of
+  // correct solutions reaching at least one, and how many inherited Words each
+  // subject's correct solutions reached. C-shuffled against C-bottleneck says
+  // whether reuse needs the names and notes.
+  const reuse = gens
+    .filter((g) => g.lexicon.entries.length > 0)
+    .map((g) => {
+      const inheritedNames = new Set(g.lexicon.entries.map((e) => norm(e.name)));
+      const correct = g.graded.flatMap((x) => x.results.filter((r) => r.correct));
+      const reaching = correct.filter((r) => r.uses.some((n) => inheritedNames.has(n))).length;
+      const perAgent = g.graded.map((x) => ({
+        agent: x.agent,
+        inheritedUsed: new Set(x.results.filter((r) => r.correct).flatMap((r) => r.uses.filter((n) => inheritedNames.has(n)))).size,
+      }));
+      return { condition: g.condition, generation: g.generation, solutionsReaching: `${reaching}/${correct.length}`, perAgent };
+    });
+
+  // The cli route's call log, per subject.
+  const calls = graded.filter((g) => g.calls).map((g) => ({ agent: g.agent, ...g.calls }));
+
   const coreFailures = graded.flatMap((g) =>
     g.results.filter((r) => r.correct && !r.coreEquivalent).map((r) => ({ agent: g.agent, task: r.task })),
   );
 
+  for (const c of convergent) {
+    c.models = [...new Set(c.definers.map((a) => modelOf(models, a)).filter(Boolean))];
+  }
+
   return {
     perGeneration,
+    perModel,
+    baseline,
+    reuse,
+    calls,
     convergent,
     classCount: byClass.size,
     wordCount: words.size,
@@ -110,10 +181,31 @@ export function renderReport(report) {
   for (const g of report.perGeneration) {
     out.push(`| ${g.condition} | ${g.generation} | ${g.agents} | ${g.lexiconSize} | ${g.accuracy} | ${g.meanTokens} | ${g.compression} | ${g.coreEquivalent} |`);
   }
-  out.push('', `## H1 — classes defined independently by two or more agents (${report.convergent.length} of ${report.classCount} classes, ${report.wordCount} Words)`, '');
+  if (report.perModel?.length) {
+    out.push('', '## Accuracy per model', '');
+    out.push('| model | agents | correct |', '| --- | --- | --- |');
+    for (const m of report.perModel) out.push(`| ${m.model} | ${m.agents} | ${m.accuracy} |`);
+  }
+  const crossCount = report.convergent.filter((c) => (c.models?.length ?? 0) >= 2).length;
+  out.push('', `## H1 — classes defined independently by two or more agents (${report.convergent.length} of ${report.classCount} classes, ${report.wordCount} Words; ${crossCount} reached from two or more models)`, '');
+  if (report.baseline?.pairs.length) {
+    out.push(`Baseline over subjects that inherited nothing — mean Jaccard of defined classes: same-model pairs ${report.baseline.sameModel}, cross-model pairs ${report.baseline.crossModel}.`, '');
+  }
   for (const c of report.convergent) {
-    out.push(`- **${c.definers.length} agents** (${c.definers.join(', ')}), joined at ${c.links.join('/') || 'D0'}:`);
+    out.push(`- **${c.definers.length} agents** (${c.definers.join(', ')}${c.models?.length ? `; models ${c.models.join(', ')}` : ''}), joined at ${c.links.join('/') || 'D0'}:`);
     for (const m of c.members) out.push(`  - \`${m.name}\` = \`${m.body}\`${m.note ? ` — ${m.note}` : ''}`);
+  }
+  if (report.reuse?.length) {
+    out.push('', '## Reuse of inherited Words', '');
+    out.push('| condition | gen | correct solutions reaching one | inherited Words reached, per subject |', '| --- | --- | --- | --- |');
+    for (const r of report.reuse) {
+      out.push(`| ${r.condition} | ${r.generation} | ${r.solutionsReaching} | ${r.perAgent.map((a) => `${a.agent} ${a.inheritedUsed}`).join(', ')} |`);
+    }
+  }
+  if (report.calls?.length) {
+    out.push('', '## What subjects ran (cli route)', '');
+    out.push('| subject | compute calls | naming inherited Words | prelude not the lexicon |', '| --- | --- | --- | --- |');
+    for (const c of report.calls) out.push(`| ${c.agent} | ${c.total} | ${c.withWords} | ${c.preludeMismatches} |`);
   }
   out.push('', '## H2 — lexicon entries built from other entries', '');
   for (const c of report.compositional) out.push(`- ${c.condition} gen${c.generation}: ${c.compositional}`);
