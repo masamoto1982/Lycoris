@@ -113,6 +113,13 @@ jobs:
         # blocklist, so deleting a Word is enough to keep prose honest about it.
         run: npm run check:reading-surfaces
 
+      - name: Reading surfaces restate the vocabulary counts of record (LANG.AUTHORITY.IDENTITY)
+        # Every count of Words a hand-written surface states (the Specification's
+        # count table, the Reference in both languages, the README) equals
+        # docs/word-manifest.json's. The Specification said 78 and 50 for a
+        # release after BOTH retired, because no gate read the prose.
+        run: npm run check:vocabulary-counts
+
       - name: Playground colours meet WCAG contrast
         # Every token the stylesheets use as text reaches 4.5:1 on the surfaces
         # it is drawn on, and focus rings and the top-of-stack edge reach 3:1.
