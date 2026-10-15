@@ -5,11 +5,20 @@
 //! Each reads what the machine already knows about its dictionary from inside
 //! the language — the resolution execution itself performs, the content
 //! identity the dictionary already keeps, the contract record the registry
-//! already holds — and none of them runs anything. Their operand is a Symbol,
-//! a bare name written inside `[ ]`, never a String: a Word that looked a
-//! name up from text would turn text into a call, and the acyclicity check
-//! (LANG.DICTIONARY.ACYCLIC) is complete only because no Word does. So a
-//! String is malformed use, `notASymbol`, rather than a lookup that failed.
+//! already holds — and none of them runs anything.
+//!
+//! `CONTRACT` names a Word the way `DEF`, `BIND` and `DEL` do, by a String,
+//! or by a Symbol (a bare name written inside `[ ]`). Looking a contract up
+//! from text is safe for the acyclicity check (LANG.DICTIONARY.ACYCLIC),
+//! which is complete only because no Word turns text into a *call*: reading a
+//! contract calls nothing, and the answer is a Record, never a Symbol.
+//!
+//! `DIGEST` takes a Symbol only as a Word's name. A String is a value there,
+//! digested by its denotation like any other: if `'ADD' DIGEST` answered the
+//! Word's identity, the digest of a piece of text would change whenever a
+//! Word of that spelling was defined, and a value's digest would no longer be
+//! a function of the value (LANG.VALUES.DENOTATION).
+//!
 //! `CONTRACT` also takes a block, whose contract it infers the way
 //! `ajisai check` does — the pre-execution check reached from
 //! inside the language (LANG.CONTRACT.CHECK) — never evaluating it, so the
@@ -31,15 +40,10 @@ use crate::word_name::canonical_word_name;
 /// tag of its own, distinct from every User identity and every value digest.
 const CORE_WORD_IDENTITY_TAG: &[u8] = b"AJISAI-CORE-WORD-1";
 
-fn not_a_symbol(word: &str, got: &str) -> AjisaiError {
-    let accepted = if word == "CONTRACT" {
-        "a Symbol naming a Word or a block"
-    } else {
-        "a Symbol naming a Word"
-    };
+fn not_a_name(got: &str) -> AjisaiError {
     AjisaiError::declared(
         "notASymbol",
-        format!("expected {accepted}, got {got}; a String is text, not a name"),
+        format!("expected a name of a Word (a String or a Symbol) or a block, got {got}"),
     )
 }
 
@@ -71,6 +75,14 @@ fn symbol_name(value: &Value) -> Option<String> {
     }
 }
 
+/// A Word's name as `CONTRACT` reads it: a Symbol, or a String spelling one.
+fn word_name(value: &Value) -> Option<String> {
+    match &value.data {
+        ValueData::Text(text) => Some(String::from(&**text)),
+        _ => symbol_name(value),
+    }
+}
+
 /// `DIGEST ( [ x ] -> [ digest ] )`: a Word's content identity for a Symbol
 /// naming one, the denotation digest for every other value.
 pub(crate) fn op_digest(interp: &mut Interpreter) -> Result<()> {
@@ -96,9 +108,9 @@ pub(crate) fn op_digest(interp: &mut Interpreter) -> Result<()> {
     Ok(())
 }
 
-/// `CONTRACT ( [ symbol | code ] -> [ record ] )`: the registered contract of
+/// `CONTRACT ( [ name | code ] -> [ record ] )`: the registered contract of
 /// a Core Word, the inferred contract of a User Word or of a block (never
-/// evaluated); `notFound` for a Symbol naming neither.
+/// evaluated); `notFound` for a name (String or Symbol) of neither.
 pub(crate) fn op_contract(interp: &mut Interpreter) -> Result<()> {
     let operand = take_operand(interp)?;
     // A block's inference walks the whole block, charged before it runs.
@@ -122,10 +134,10 @@ pub(crate) fn op_contract(interp: &mut Interpreter) -> Result<()> {
         interp.stack.push(contract_record(&contract));
         return Ok(());
     }
-    let Some(name) = symbol_name(&operand) else {
+    let Some(name) = word_name(&operand) else {
         let got = crate::types::Value::domain_name(&operand);
         restore(interp, operand);
-        return Err(not_a_symbol("CONTRACT", got));
+        return Err(not_a_name(got));
     };
     let canonical = canonical_name(&name);
     let answer = match resolve(interp, &canonical) {

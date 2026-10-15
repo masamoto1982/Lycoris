@@ -19,6 +19,8 @@ Specification: 1.0.0-beta.2.
 
 - **The call-depth ceiling is `callDepth`.** A run nested past 256 User Word calls and block evaluations fails as `resourceLimitExceeded` with `error.resource: "callDepth"`, like every other ceiling; it used to be the separate category `recursionLimitExceeded`, which no longer exists. `ajisai://limits` lists `callDepth`, and the golden limit cases pin its boundary.
 
+- **`CONTRACT` takes a String name.** `'INC' CONTRACT` answers the Word's contract, as `[ INC ] 0 GET CONTRACT` does; it used to be `error:notASymbol`. `DIGEST` keeps reading a String as text, and the quickstart's §3 says which spelling reaches a Word.
+
 ### Added
 
 - **`specificationVersion`.** Every engine result names the specification version the engine implements, at the top level, as the engine's own envelope states it. `result.schema.json` declares it, and `--version` prints it. A stored result now says which rules produced it.

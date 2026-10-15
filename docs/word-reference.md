@@ -986,17 +986,17 @@ A block run where it stands, its results left on the stack: `[ 1 2 ADD ] EXEC` i
 
 ## `CONTRACT`
 
-The contract of a Word or of a block, as a Record keyed `inputs` `outputs` `field`: `[ SQRT ] 0 GET CONTRACT 'inputs' GET` is `1`. `inputs` and `outputs` are counts, or `'variable'` where the arity is decided by the data; `field` names `'closed'` or `'leaving'` (LANG.CONTRACT.FIELD), so `[ 0 DIV ] CONTRACT 'field' GET` is `'leaving'`: whether code can answer a point over zero from operands holding none is read before it runs. For a Symbol naming a Core Word it is the registered contract of `spec/words.json` (LANG.CONTRACT.REGISTRY); for a Symbol naming a User Word, or for a block of code, it is the contract inferred without running anything — the same inference `ajisai check` runs from outside the language — in the same keys and the same vocabulary, so the two compare directly. A block is never evaluated, so `[ 42 PRINT ] CONTRACT` prints nothing. A Symbol that names no Word projects `notFound`; an operand that is neither a Symbol nor a block is an ERROR (`notASymbol`).
+The contract of a Word or of a block, as a Record keyed `inputs` `outputs` `field`: `'SQRT' CONTRACT 'inputs' GET` is `1`. `inputs` and `outputs` are counts, or `'variable'` where the arity is decided by the data; `field` names `'closed'` or `'leaving'` (LANG.CONTRACT.FIELD), so `[ 0 DIV ] CONTRACT 'field' GET` is `'leaving'`: whether code can answer a point over zero from operands holding none is read before it runs. A Word is named the way DEF, BIND and DEL name one, by a String, or by a Symbol (`[ SQRT ] 0 GET`); both read the same entry. For a name of a Core Word it is the registered contract of `spec/words.json` (LANG.CONTRACT.REGISTRY); for a name of a User Word, or for a block of code, it is the contract inferred without running anything — the same inference `ajisai check` runs from outside the language — in the same keys and the same vocabulary, so the two compare directly. Reading a contract calls nothing, so a String here names a Word without ever becoming a call (LANG.SOURCE.CODE). A block is never evaluated, so `[ 42 PRINT ] CONTRACT` prints nothing. A name of no Word projects `notFound`; an operand that is neither a name nor a block is an ERROR (`notASymbol`).
 
 - **Vocabulary tier:** Semantic Kernel
 - **Family:** `dictionary`
 - **Stack:** 1 input(s) → 1 output(s)
 - **Operands:** `control` (LANG.FAILURE.PASSTHROUGH)
-- **NIL policy:** `createsNil`; projection: symbolNamesNoWord → notFound
+- **NIL policy:** `createsNil`; projection: nameNamesNoWord → notFound
 - **Purity / determinism:** `pure` / `stateRelative`
 - **Effects:** none
 - **Clauses:** `LANG.CONTRACT.REGISTRY`, `LANG.CONTRACT.CHECK`, `LANG.DICTIONARY.RESOLUTION`, `LANG.SOURCE.CODE`, `LANG.FAILURE.PROJECT`
-- **Syntax:** `[ ADD ] 0 GET CONTRACT`
+- **Syntax:** `'ADD' CONTRACT`
 - **ERROR conditions:** `notASymbol`
 
 ## `FAIL`
@@ -1117,7 +1117,7 @@ Delete a User Word from the dictionary: `[ 1 ] 'W' DEF 'W' DEL [ W ] 0 GET CONTR
 
 ## `DIGEST`
 
-The content identity of a Word, or the digest of a value's denotation, as text: `8 SQRT DIGEST 2 SQRT 2 SQRT ADD DIGEST EQ` is `TRUE`. A Symbol naming a User Word answers that Word's content identity — the digest over its normalized definition and the identities of the Words it calls that the dictionary already keeps (LANG.DICTIONARY.MUTATION) — and a Symbol naming a Core Word answers the fixed identity of that sealed Word. Any other value, a Symbol naming nothing included, answers the digest of its denotation: two values that `EQ` calls one value digest alike, however each was built, so `8 SQRT DIGEST` equals `2 SQRT 2 SQRT ADD DIGEST`, and a NIL digests by its reason. Equal digests mean one thing; unequal digests mean nothing.
+The content identity of a Word, or the digest of a value's denotation, as text: `8 SQRT DIGEST 2 SQRT 2 SQRT ADD DIGEST EQ` is `TRUE`. A Symbol naming a User Word answers that Word's content identity — the digest over its normalized definition and the identities of the Words it calls that the dictionary already keeps (LANG.DICTIONARY.MUTATION) — and a Symbol naming a Core Word answers the fixed identity of that sealed Word. Any other value, a Symbol naming nothing included, answers the digest of its denotation — a String too, even one that spells a Word's name, because a String is text: `'TWICE' DIGEST` is the digest of the text `TWICE`, and `[ TWICE ] 0 GET DIGEST` is the Word's identity. A value's digest therefore never changes when the dictionary does. For a Word's identity, write the Symbol: two values that `EQ` calls one value digest alike, however each was built, so `8 SQRT DIGEST` equals `2 SQRT 2 SQRT ADD DIGEST`, and a NIL digests by its reason. Equal digests mean one thing; unequal digests mean nothing.
 
 - **Vocabulary tier:** Semantic Kernel
 - **Family:** `dictionary`

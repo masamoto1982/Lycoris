@@ -1252,7 +1252,7 @@ FILTER</code></td>
                     <h3>Word identity</h3>
                     <p>Every Word has a <strong>content identity</strong>: a digest over its normalized definition and the identities of the Words it calls. Two definitions with the same identity are the same Word whatever their names, and changing a definition changes the identity of everything that depends on it. This is why <code>DEF</code> and <code>DEL</code> refuse to disturb a Word something else still refers to: the dependency is on the Word, not on its spelling.</p>
                     <h3 id="reflection">Reading the dictionary and contracts from inside the language: <code>DIGEST</code> and <code>CONTRACT</code></h3>
-                    <p>Two Words read, from inside the language, what the machine already knows about the dictionary. The operand that names a Word is a <strong>Symbol</strong> — a bare name written inside <code>[ ]</code> — not a string (<code>CONTRACT</code> also accepts a code block). <code>'ADD' CONTRACT</code> is a <code>notASymbol</code> error. A Word that could look a name up from text would break the fact that "no Word turns text into a Symbol", which the cycle check at <code>DEF</code> time relies on.</p>
+                    <p>Two Words read, from inside the language, what the machine already knows about the dictionary. <code>CONTRACT</code> names a Word by a string, as <code>DEF</code>, <code>BIND</code> and <code>DEL</code> do, or by a <strong>Symbol</strong> — a bare name written inside <code>[ ]</code> — and both read the same entry (it also accepts a code block). Reading a contract calls nothing, so a string there does not break the fact that "no Word turns text into a call", which the cycle check at <code>DEF</code> time relies on. <code>DIGEST</code> is different: a string is a value there. <code>'TWICE' DIGEST</code> is the digest of the text <code>TWICE</code>, and a Word's identity is written <code>[ TWICE ] 0 GET DIGEST</code>. Otherwise the digest of a piece of text would change the moment a Word of that spelling was defined.</p>
                     <p><code>DIGEST</code> answers, as text, the content identity of a Symbol that names a Word, and the digest of the meaning of any other value. The same digest means the same thing; different digests mean nothing. <code>CONTRACT</code> answers a Word's contract as a Record keyed <code>inputs</code>, <code>outputs</code> and <code>field</code>: the registered contract for a Core Word, or the contract inferred from the body for a Word you defined. Pass a code block as it is, and its contract is inferred <strong>without running it</strong> — the pre-execution check (<code>ajisai check</code>) called from inside the language; where it cannot decide, it answers the weaker claim, <code>'variable'</code> or <code>'leaving'</code>.</p>
                     <p class="ref-note">Whether a Symbol resolves as a <code>Core</code> or <code>User</code> Word shows in whether <code>CONTRACT</code> answers a contract. A name that is not a Word returns a reasoned <code>NIL</code>, so <code>sym CONTRACT NIL? NOT</code> is that question. <code>NIL?</code> consumes its operand, so only the Boolean remains.</p>
                     <div class="sample">
@@ -1268,9 +1268,14 @@ FILTER</code></td>
                                     <td class="notes">An undefined name has no contract, so <code>FALSE</code>.</td>
                                 </tr>
                                 <tr>
-                                    <td><code>'ADD' CONTRACT</code></td>
-                                    <td>error</td>
-                                    <td class="notes">A string is not a name (<code>notASymbol</code>).</td>
+                                    <td><code>'ADD' CONTRACT [ ADD ] 0 GET CONTRACT EQ</code></td>
+                                    <td><code>TRUE</code></td>
+                                    <td class="notes">A string names the Word as the Symbol does.</td>
+                                </tr>
+                                <tr>
+                                    <td><code>'TWICE' DIGEST [ 2 MUL ] 'TWICE' DEF 'TWICE' DIGEST EQ</code></td>
+                                    <td><code>TRUE</code></td>
+                                    <td class="notes">A string is text to <code>DIGEST</code>, whatever it spells.</td>
                                 </tr>
                                 <tr>
                                     <td><code>[ 2 MUL ] 'TWICE' DEF [ 2 MUL ] 'DOUBLE' DEF [ TWICE ] 0 GET DIGEST [ DOUBLE ] 0 GET DIGEST EQ</code></td>
@@ -1330,13 +1335,13 @@ FILTER</code></td>
 <h3 id="family-dictionary">Contracts: Dictionary and names</h3>
 <div class="word-entry" id="word-CONTRACT">
 <h4><code>CONTRACT</code> <span class="word-tier">Semantic Kernel</span></h4>
-<p>The contract of a Word or of a block, as a Record keyed <code>inputs</code> <code>outputs</code> <code>field</code>: <code>[ SQRT ] 0 GET CONTRACT 'inputs' GET</code> is <code>1</code>. <code>inputs</code> and <code>outputs</code> are counts, or <code>'variable'</code> where the arity is decided by the data; <code>field</code> names <code>'closed'</code> or <code>'leaving'</code> (LANG.CONTRACT.FIELD), so <code>[ 0 DIV ] CONTRACT 'field' GET</code> is <code>'leaving'</code>: whether code can answer a point over zero from operands holding none is read before it runs. For a Symbol naming a Core Word it is the registered contract of <code>spec/words.json</code> (LANG.CONTRACT.REGISTRY); for a Symbol naming a User Word, or for a block of code, it is the contract inferred without running anything — the same inference <code>ajisai check</code> runs from outside the language — in the same keys and the same vocabulary, so the two compare directly. A block is never evaluated, so <code>[ 42 PRINT ] CONTRACT</code> prints nothing. A Symbol that names no Word projects <code>notFound</code>; an operand that is neither a Symbol nor a block is an ERROR (<code>notASymbol</code>).</p>
+<p>The contract of a Word or of a block, as a Record keyed <code>inputs</code> <code>outputs</code> <code>field</code>: <code>'SQRT' CONTRACT 'inputs' GET</code> is <code>1</code>. <code>inputs</code> and <code>outputs</code> are counts, or <code>'variable'</code> where the arity is decided by the data; <code>field</code> names <code>'closed'</code> or <code>'leaving'</code> (LANG.CONTRACT.FIELD), so <code>[ 0 DIV ] CONTRACT 'field' GET</code> is <code>'leaving'</code>: whether code can answer a point over zero from operands holding none is read before it runs. A Word is named the way DEF, BIND and DEL name one, by a String, or by a Symbol (<code>[ SQRT ] 0 GET</code>); both read the same entry. For a name of a Core Word it is the registered contract of <code>spec/words.json</code> (LANG.CONTRACT.REGISTRY); for a name of a User Word, or for a block of code, it is the contract inferred without running anything — the same inference <code>ajisai check</code> runs from outside the language — in the same keys and the same vocabulary, so the two compare directly. Reading a contract calls nothing, so a String here names a Word without ever becoming a call (LANG.SOURCE.CODE). A block is never evaluated, so <code>[ 42 PRINT ] CONTRACT</code> prints nothing. A name of no Word projects <code>notFound</code>; an operand that is neither a name nor a block is an ERROR (<code>notASymbol</code>).</p>
 <dl class="word-contract">
-<dt>Syntax</dt><dd><code>[ ADD ] 0 GET CONTRACT</code></dd>
-<dt>Stack effect</dt><dd><span class="notation">[ symbol | code ] -&gt; [ record ]</span></dd>
+<dt>Syntax</dt><dd><code>'ADD' CONTRACT</code></dd>
+<dt>Stack effect</dt><dd><span class="notation">[ name | code ] -&gt; [ record ]</span></dd>
 <dt>Stack</dt><dd>1 input(s) → 1 output(s)</dd>
 <dt>Operands</dt><dd><code>control</code> (LANG.FAILURE.PASSTHROUGH)</dd>
-<dt>NIL policy</dt><dd><code>createsNil</code>; projection: <code>symbolNamesNoWord</code> → <code>notFound</code></dd>
+<dt>NIL policy</dt><dd><code>createsNil</code>; projection: <code>nameNamesNoWord</code> → <code>notFound</code></dd>
 <dt>Partiality</dt><dd><code>projecting</code></dd>
 <dt>Field</dt><dd><code>closed</code> (LANG.CONTRACT.FIELD)</dd>
 <dt>Purity / determinism</dt><dd><code>pure</code> / <code>stateRelative</code></dd>
@@ -1398,7 +1403,7 @@ FILTER</code></td>
 </div>
 <div class="word-entry" id="word-DIGEST">
 <h4><code>DIGEST</code> <span class="word-tier">Semantic Kernel</span></h4>
-<p>The content identity of a Word, or the digest of a value's denotation, as text: <code>8 SQRT DIGEST 2 SQRT 2 SQRT ADD DIGEST EQ</code> is <code>TRUE</code>. A Symbol naming a User Word answers that Word's content identity — the digest over its normalized definition and the identities of the Words it calls that the dictionary already keeps (LANG.DICTIONARY.MUTATION) — and a Symbol naming a Core Word answers the fixed identity of that sealed Word. Any other value, a Symbol naming nothing included, answers the digest of its denotation: two values that <code>EQ</code> calls one value digest alike, however each was built, so <code>8 SQRT DIGEST</code> equals <code>2 SQRT 2 SQRT ADD DIGEST</code>, and a NIL digests by its reason. Equal digests mean one thing; unequal digests mean nothing.</p>
+<p>The content identity of a Word, or the digest of a value's denotation, as text: <code>8 SQRT DIGEST 2 SQRT 2 SQRT ADD DIGEST EQ</code> is <code>TRUE</code>. A Symbol naming a User Word answers that Word's content identity — the digest over its normalized definition and the identities of the Words it calls that the dictionary already keeps (LANG.DICTIONARY.MUTATION) — and a Symbol naming a Core Word answers the fixed identity of that sealed Word. Any other value, a Symbol naming nothing included, answers the digest of its denotation — a String too, even one that spells a Word's name, because a String is text: <code>'TWICE' DIGEST</code> is the digest of the text <code>TWICE</code>, and <code>[ TWICE ] 0 GET DIGEST</code> is the Word's identity. A value's digest therefore never changes when the dictionary does. For a Word's identity, write the Symbol: two values that <code>EQ</code> calls one value digest alike, however each was built, so <code>8 SQRT DIGEST</code> equals <code>2 SQRT 2 SQRT ADD DIGEST</code>, and a NIL digests by its reason. Equal digests mean one thing; unequal digests mean nothing.</p>
 <dl class="word-contract">
 <dt>Syntax</dt><dd><code>[ ADD ] 0 GET DIGEST</code></dd>
 <dt>Stack effect</dt><dd><span class="notation">[ x ] -&gt; [ digest ]</span></dd>

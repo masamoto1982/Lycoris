@@ -2117,10 +2117,10 @@ W</pre>
 </section>
 
 <section class="ajisai-case" id="core-contract-rejects-scalar" data-category="core">
-  <h3>CONTRACT rejects a Scalar: only a Symbol or a block has a contract</h3>
+  <h3>CONTRACT rejects a Scalar: only a name or a block has a contract</h3>
   <pre class="ajisai-source">5 CONTRACT</pre>
   <pre class="ajisai-expect-result"></pre>
-  <pre class="ajisai-expect-error">expected a Symbol naming a Word or a block</pre>
+  <pre class="ajisai-expect-error">expected a name of a Word (a String or a Symbol) or a block</pre>
   <div class="ajisai-expect-effects"></div>
 </section>
 
@@ -2139,6 +2139,13 @@ W</pre>
 <section class="ajisai-case" id="core-digest-value-denotation" data-category="core">
   <h3>DIGEST of a value is the digest of its denotation</h3>
   <pre class="ajisai-source">8 SQRT DIGEST 2 SQRT 2 SQRT ADD DIGEST EQ [ 1 2 ] DIGEST [ 2 1 ] DIGEST EQ</pre>
+  <pre class="ajisai-expect-result">TRUE FALSE</pre>
+  <div class="ajisai-expect-effects"></div>
+</section>
+
+<section class="ajisai-case" id="core-digest-string-is-text" data-category="core">
+  <h3>DIGEST of a String is the text's digest, even when the text spells a Word's name: a value's digest never depends on the dictionary (LANG.DICTIONARY.MUTATION)</h3>
+  <pre class="ajisai-source">'INC' DIGEST [ 1 ADD ] 'INC' DEF 'INC' DIGEST EQ 'INC' DIGEST [ INC ] 0 GET DIGEST EQ</pre>
   <pre class="ajisai-expect-result">TRUE FALSE</pre>
   <div class="ajisai-expect-effects"></div>
 </section>
@@ -2176,9 +2183,16 @@ W</pre>
 </section>
 
 <section class="ajisai-case" id="core-contract-unknown-name" data-category="core">
-  <h3>CONTRACT projects notFound for a Symbol naming no Word</h3>
-  <pre class="ajisai-source">[ NOPE ] 0 GET CONTRACT NIL-REASON</pre>
-  <pre class="ajisai-expect-result">'notFound'</pre>
+  <h3>CONTRACT projects notFound for a name of no Word, written as a Symbol or as a String</h3>
+  <pre class="ajisai-source">[ NOPE ] 0 GET CONTRACT NIL-REASON 'NOPE' CONTRACT NIL-REASON</pre>
+  <pre class="ajisai-expect-result">'notFound' 'notFound'</pre>
+  <div class="ajisai-expect-effects"></div>
+</section>
+
+<section class="ajisai-case" id="core-contract-string-name" data-category="core">
+  <h3>CONTRACT names a Word by a String, as DEF, BIND and DEL do, and reads the same entry the Symbol does</h3>
+  <pre class="ajisai-source">'SQRT' CONTRACT 'inputs' GET [ 1 ADD ] 'INC' DEF 'inc' CONTRACT [ INC ] 0 GET CONTRACT EQ</pre>
+  <pre class="ajisai-expect-result">1/1 TRUE</pre>
   <div class="ajisai-expect-effects"></div>
 </section>
 

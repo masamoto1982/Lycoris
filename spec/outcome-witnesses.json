@@ -108,9 +108,9 @@
     },
     {
       "id": "notASymbol",
-      "source": "'ADD' CONTRACT",
+      "source": "5 CONTRACT",
       "expect": "error:notASymbol",
-      "rationale": "The exhaustive table hands CONTRACT every domain representative, so the category is reached there too; stated beside its registry entry because the String case is the one a reader will try first, and the one LANG.DICTIONARY.ACYCLIC forbids answering."
+      "rationale": "The exhaustive table hands CONTRACT every domain representative, so the category is reached there too; stated beside its registry entry because a number is the operand that is neither a name nor a block. A String names a Word since 1.0.0-beta.2 and is no longer this error."
     },
     {
       "id": "contractViolation",
