@@ -8,7 +8,7 @@
     "LANG.SOURCE.FRAME",
     "LANG.COLLECTIONS.HIGHER"
   ],
-  "description": "Why every Ajisai evaluation is finite, as data rather than as a sentence. Ajisai has no recursion and no unbounded loop, so this is a real property of the language and not a budget the host happens to enforce — but it is a property with an exact shape, and that shape is what this file states: the places evaluation descends into more evaluation, what strictly decreases at each one, and the invariant the whole argument rests on.",
+  "description": "Why every Ajisai evaluation is finite, as data rather than as a sentence. Ajisai has no recursion and no unbounded loop, so this is a real property of the language and not a budget the host happens to enforce — but it is a property with an exact shape, and that shape is what this file states: the places evaluation descends into more evaluation, what strictly decreases at each one, and the two rules the whole argument rests on — no Word reaches itself through the dictionary, and no block built from data runs inside another.",
   "claim": "Every evaluation of a well-formed Ajisai program halts. The ceilings of LANG.MACHINE.LIMITS bound what a run may cost; none of them decides whether it ends.",
   "consequence": {
     "totality": "Ajisai is a total language: it is not Turing-complete, and that is a deliberate trade rather than an omission.",
@@ -47,7 +47,7 @@
     "clause": "LANG.DICTIONARY.ACYCLIC",
     "statement": "The reference graph the Symbols of a program can reach is acyclic. DEF refuses a definition whose body names the Word being defined, directly or through any chain of other User Words, however that name is reached — a Symbol inside a Record or other value the body carries whole included. BIND refuses a value that names its own binding, directly or through other bindings the frame can see, because a binding is looked up when its Vector runs and would otherwise call itself with no Word in between.",
     "errorCategory": "selfReferentialDefinition",
-    "consequence": "A chain of Word calls is therefore shorter than the number of User Words, and a chain of bound values run by name is shorter than the number of bindings, so neither can be infinite.",
+    "consequence": "A chain of Word calls is therefore shorter than the number of User Words, so it cannot be infinite. The binding check is not what bounds a chain of bound values — a bound value run in a frame other than the one that wrote it is built from data, and `stratification` bounds that — but it refuses a binding cycle when the binding is made, which is earlier and plainer than the run that would reach it.",
     "witnesses": {
       "refused": [
         {
@@ -99,24 +99,74 @@
       ]
     }
   },
+  "stratification": {
+    "id": "oneDataBlockAtATime",
+    "clause": "LANG.SOURCE.CODE",
+    "statement": "A block run by EXEC, MAP, FILTER, FOLD or SCAN is written when it equals a Vector literal of the code running it, or a Vector nested inside one, or names no Word; otherwise it is built from data. A block built from data is refused while another block built from data is running.",
+    "errorCategory": "nestedDataBlock",
+    "why": "The dictionary's acyclicity bounds every call made by name, but a block can be taken apart and rebuilt from data — `1 COLLECT [ 0 0 ] GET` makes two copies of one — and a copy names nothing that a reference graph could see. A written block is part of the code that runs it, so it is smaller; a block built from data can be as large as anything, including the block running it. Allowing one such run per chain of descents and no more is what puts it under a measure.",
+    "history": "Until 1.0.0-beta.3 nothing enforced this. `[ 1 COLLECT [ 0 0 ] GET EXEC EXEC ] 1 COLLECT [ 0 0 ] GET EXEC EXEC` ran a copy of itself until the callDepth ceiling stopped it at 257 frames, and a block that chose its own base case with SELECT ran a countdown that ended on its own: the claim below was false, and a ceiling decided termination.",
+    "witnesses": {
+      "refused": [
+        {
+          "source": "[ 1 COLLECT [ 0 0 ] GET EXEC EXEC ] 1 COLLECT [ 0 0 ] GET EXEC EXEC",
+          "expect": "error:nestedDataBlock",
+          "note": "Self-application with no Word and no binding: the written block runs, its copy is built from data, and the copy's copy is the second one."
+        },
+        {
+          "source": "[ 'N' BIND N PRINT 1 COLLECT [ 0 0 ] GET EXEC N 1 SUB 3 COLLECT [ 0 2 1 ] GET [ EXEC EXEC ] [ 'done' ] N 0 GT SELECT EXEC ] 3 [ 'N' BIND N PRINT 1 COLLECT [ 0 0 ] GET EXEC N 1 SUB 3 COLLECT [ 0 2 1 ] GET [ EXEC EXEC ] [ 'done' ] N 0 GT SELECT EXEC ] EXEC",
+          "expect": "error:nestedDataBlock",
+          "note": "A recursion with a base case chosen by SELECT, which ended on its own before this rule: a terminating recursion is refused as surely as a divergent one, because the rule reads where a block stands and not what it would do."
+        },
+        {
+          "source": "[ 'F' BIND F F EXEC ] 'RUN' DEF [ RUN ] RUN",
+          "expect": "error:nestedDataBlock",
+          "note": "Through a User Word: RUN's body runs its operand, which is built from data, and that operand calls RUN again."
+        },
+        {
+          "source": "[ 1 ] 'A0' BIND\n[ A0 EXEC ] 'A1' BIND\n[ A1 EXEC ] 'A2' BIND\n[ A2 EXEC ] 'A3' BIND\nA3 EXEC",
+          "expect": "error:nestedDataBlock",
+          "note": "The price, not a recursion: each block is bound in the top frame and run from inside the next, so A2 is built from data inside A3 and A1 inside A2 — the second run is refused, though the chain would end. Write such a chain as Words, which run no block."
+        }
+      ],
+      "accepted": [
+        {
+          "source": "[ 2 MUL ] 'F' BIND [ 1 2 3 ] F MAP",
+          "note": "A block bound and run in the frame that wrote it is written there."
+        },
+        {
+          "source": "[ [ 1 2 ] [ [ 3 ] [ 1 ADD ] MAP 0 GET ADD ] MAP ] EXEC",
+          "note": "Blocks written inside blocks run at any depth."
+        },
+        {
+          "source": "[ 'F' BIND 1 F EXEC ] 'APPLY' DEF [ 2 ADD ] APPLY",
+          "note": "One block built from data, run by a Word that was handed it."
+        },
+        {
+          "source": "[ 'a' ] [ 'b' ] TRUE SELECT EXEC",
+          "note": "SELECT chooses between two written blocks, and the chosen one is still written: a branch costs nothing new."
+        }
+      ]
+    }
+  },
   "measure": {
-    "note": "Lexicographic, outermost component first. Every descent below strictly decreases one component and increases none before it, so no descent chain is infinite.",
+    "note": "Lexicographic, outermost component first. Every descent below strictly decreases one component and increases none before it, so no descent chain is infinite; each frame descends finitely often, since its code is finite and a walk visits a collection that already exists, so the whole evaluation is finite.",
     "components": [
       {
-        "id": "dictionaryRank",
-        "description": "The length of the longest chain of User Word references leaving the Word being evaluated. Finite because the reference graph is acyclic and the dictionary is finite."
+        "id": "dataBlockRuns",
+        "description": "How many runs of a block built from data the chain may still make: one before any, none after. Nothing raises it, because a second run while one is active is refused (`stratification`)."
       },
       {
-        "id": "bindingRank",
-        "description": "The length of the longest chain of binding references leaving the code being evaluated, in the frame's bindings at the moment of descent. Finite because BIND keeps that graph acyclic and a frame holds finitely many bindings; a User Word call starts from a frame with none (LANG.SOURCE.FRAME), which is why this component comes after dictionaryRank."
+        "id": "dictionaryRank",
+        "description": "The length of the longest chain of User Word references leaving the code being evaluated: the rank of the Word whose body it is part of, or one more than the dictionary's longest chain for the program and for a block built from data. Finite because the reference graph is acyclic and the dictionary is finite."
+      },
+      {
+        "id": "codeSize",
+        "description": "The size of the code being evaluated. A written block equals part of the code running it, so it is strictly smaller; finite because a Vector is finite and cannot contain itself."
       },
       {
         "id": "remainingElements",
         "description": "How many elements of the collection being walked are still unvisited. The collection is already materialized when the walk begins, so this is a finite number that falls by one per step."
-      },
-      {
-        "id": "blockNesting",
-        "description": "The nesting depth of code blocks still to be entered within the token sequence being evaluated. Finite because a Vector is finite and cannot contain itself — values are immutable and built from parts that already exist."
       }
     ]
   },
@@ -126,23 +176,23 @@
       "kind": "dictionary",
       "descendsInto": "the body of the named Word",
       "decreases": "dictionaryRank",
-      "why": "The callee's longest outgoing reference chain is shorter than the caller's, because the graph is acyclic.",
+      "why": "The callee's longest outgoing reference chain is shorter than that of the code calling it, because the graph is acyclic, and the call runs no block, so dataBlockRuns is unchanged.",
       "witness": "[ 1 ] 'W1' DEF\n[ W1 ] 'W2' DEF\nW2"
     },
     {
-      "id": "boundValue",
-      "kind": "binding",
-      "descendsInto": "the value a name is bound to, when EXEC or a higher-order Word runs it",
-      "decreases": "bindingRank",
-      "why": "The value's longest outgoing binding chain is shorter than that of the code which named it, because BIND refused every value that reaches its own name.",
+      "id": "dataBuiltBlock",
+      "kind": "stratum",
+      "descendsInto": "a block built from data, when EXEC or a higher-order Word runs it",
+      "decreases": "dataBlockRuns",
+      "why": "It is the only run of a block built from data on its chain: a second one is refused. Inside it dictionaryRank and codeSize start again from the block's own, which is why dataBlockRuns comes first.",
       "witness": "[ [ 1 ] EXEC ] 'F' BIND\n[ F EXEC ] 'G' BIND\nG EXEC"
     },
     {
       "id": "EXEC",
       "kind": "word",
-      "descendsInto": "the Vector operand, read as code",
-      "decreases": "blockNesting",
-      "why": "The operand is a finite Vector that existed before EXEC ran, and the tokens inside it can only name blocks nested within it, bindings reached through the acyclic binding graph, or Words reached through the acyclic dictionary.",
+      "descendsInto": "the Vector operand, read as code, when it is written",
+      "decreases": "codeSize",
+      "why": "A written operand equals a Vector literal of the code running EXEC, or one nested inside it, so the code it runs is strictly part of the code that ran it. An operand built from data is the dataBuiltBlock site.",
       "witness": "[ [ [ 1 ] EXEC ] EXEC ] EXEC"
     },
     {
@@ -150,7 +200,7 @@
       "kind": "word",
       "descendsInto": "the code block, once per element",
       "decreases": "remainingElements",
-      "why": "The collection is finite and already materialized, so the block runs a fixed number of times.",
+      "why": "The collection is finite and already materialized, so the block runs a fixed number of times; each run descends as EXEC's does, into a written block or the dataBuiltBlock site.",
       "witness": "[ 1 2 3 ] [ 2 MUL ] MAP"
     },
     {

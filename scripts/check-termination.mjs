@@ -19,6 +19,8 @@
 // the argument names must exist. The behavioural half — that the witnesses
 // actually behave as claimed, and that no ceiling is what stops them — is in
 // rust/tests/termination_laws.rs, which runs them against the real engine.
+// The stratification witnesses are run there too: the refused ones must be
+// refused as the category they name, before any ceiling.
 //
 // Usage:
 //   node scripts/check-termination.mjs
@@ -98,11 +100,16 @@ for (const clause of termination.clauses) {
 }
 
 const errorCategories = new Set(outcomes.errorCategories.map((c) => c.id));
-if (!errorCategories.has(termination.acyclicity.errorCategory)) {
-  fail(
-    `acyclicity names error category "${termination.acyclicity.errorCategory}", which ` +
-      'spec/outcomes.json does not declare',
-  );
+for (const part of ['acyclicity', 'stratification']) {
+  if (!errorCategories.has(termination[part].errorCategory)) {
+    fail(
+      `${part} names error category "${termination[part].errorCategory}", which ` +
+        'spec/outcomes.json does not declare',
+    );
+  }
+}
+if (!semantics.includes(termination.stratification.clause)) {
+  fail(`stratification names "${termination.stratification.clause}", which spec/language-semantics.md does not define`);
 }
 for (const id of termination.ceilings.notLoadBearing) {
   if (!errorCategories.has(id)) {
@@ -134,6 +141,8 @@ const witnessGroups = [
   ['invariant.witnesses.accepted', termination.invariant.witnesses.accepted],
   ['acyclicity.witnesses.refused', termination.acyclicity.witnesses.refused],
   ['acyclicity.witnesses.accepted', termination.acyclicity.witnesses.accepted],
+  ['stratification.witnesses.refused', termination.stratification.witnesses.refused],
+  ['stratification.witnesses.accepted', termination.stratification.witnesses.accepted],
 ];
 for (const [label, group] of witnessGroups) {
   if (!Array.isArray(group) || group.length === 0) {
@@ -146,11 +155,13 @@ for (const [label, group] of witnessGroups) {
     }
   }
 }
-for (const w of termination.invariant.witnesses.refused) {
-  if (typeof w.expect !== 'string' || !w.expect.startsWith('error:')) {
-    fail(`invariant refused witness ${JSON.stringify(w.source)} must declare an error: outcome`);
-  } else if (!errorCategories.has(w.expect.slice(6))) {
-    fail(`invariant refused witness expects "${w.expect}", which spec/outcomes.json does not declare`);
+for (const part of ['invariant', 'stratification']) {
+  for (const w of termination[part].witnesses.refused) {
+    if (typeof w.expect !== 'string' || !w.expect.startsWith('error:')) {
+      fail(`${part} refused witness ${JSON.stringify(w.source)} must declare an error: outcome`);
+    } else if (!errorCategories.has(w.expect.slice(6))) {
+      fail(`${part} refused witness expects "${w.expect}", which spec/outcomes.json does not declare`);
+    }
   }
 }
 

@@ -91,9 +91,7 @@ impl Interpreter {
         }
 
         // Call-depth ceiling: refuses before the native stack overflows (a
-        // WASM trap). It is reached by a long acyclic call chain, and by a
-        // block that runs a copy of itself — LANG.DICTIONARY.ACYCLIC rules
-        // out a body that names itself, not a block rebuilt from data. The
+        // WASM trap). It is reached by a long acyclic call chain. The
         // matching decrement is just before the return below; there are no
         // `?` early returns between this point and the decrement.
         self.check_call_depth()?;
@@ -163,11 +161,29 @@ impl Interpreter {
     /// before any route is chosen, so a fused or compiled route reaches the
     /// same answer as the interpreted one (LANG.AUTHORITY.FREEDOM); a refusal
     /// comes before the operands are taken, so they stay where they were.
+    ///
+    /// It is also where the run of a block built from data is limited to one
+    /// at a time (LANG.DICTIONARY.ACYCLIC): a block the running code wrote
+    /// runs less code than the code running it, but a block built from data
+    /// can be a copy of the very block running it, and two such runs nested
+    /// are how a block would run itself without end. The refusal comes
+    /// before the operands are taken, as the depth's does.
     fn in_block_frame(&mut self, op: fn(&mut Interpreter) -> Result<()>) -> Result<()> {
         self.check_call_depth()?;
+        let from_data = !self.block_is_written();
+        if from_data && self.data_block_running {
+            return Err(AjisaiError::declared(
+                "nestedDataBlock",
+                "this block was built from data while another block built from data is running; \
+                 a block run inside one must be written there (LANG.DICTIONARY.ACYCLIC)",
+            ));
+        }
+        let outer = self.data_block_running;
+        self.data_block_running = outer || from_data;
         self.call_depth += 1;
         let result = op(self);
         self.call_depth -= 1;
+        self.data_block_running = outer;
         result
     }
 

@@ -53,11 +53,13 @@ listed here for the same reason:
 | A cost axis says when its charge grows with an algebraic value (`LANG.MACHINE.LIMITS`) | `scripts/check-value-dependent-cost.mjs`, which measures every Word that can take a number |
 | The corpus reaches every outcome a program can reach (`LANG.CONFORMANCE.CORPUS`) | `scripts/check-conformance-coverage.mjs`, which runs every case and exempts two error categories with their reasons |
 
-The termination argument (`LANG.DICTIONARY.ACYCLIC`, `spec/termination.json`)
-is verified by `rust/tests/termination_laws.rs` and
-`rust/src/runtime_limits_tests.rs`. The second also pins that a block which
-runs a copy of itself is stopped by the `callDepth` ceiling, the open question
-docs/dev/observation-remediation-work-order-2026-10-15.md holds for the owner.
+The termination argument (`LANG.DICTIONARY.ACYCLIC`, `LANG.SOURCE.CODE`,
+`spec/termination.json`) is verified by `rust/tests/termination_laws.rs`:
+every witness runs as the argument says, and a property over random programs
+built from block-copying pieces finds no run a ceiling ends (with the
+`nestedDataBlock` check taken out, it finds the self-applying block at once).
+`rust/src/runtime_limits_tests.rs` pins that such a block is refused before
+the `callDepth` ceiling, with nothing left counted.
 
 ## Unassigned requirement IDs
 

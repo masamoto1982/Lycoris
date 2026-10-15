@@ -3074,6 +3074,7 @@
       "errorWhen": [
         "nonVector",
         "notExecutable",
+        "nestedDataBlock",
         "blockContractViolation"
       ],
       "purity": "conditional",
@@ -3135,6 +3136,7 @@
       "errorWhen": [
         "nonVector",
         "notExecutable",
+        "nestedDataBlock",
         "blockContractViolation",
         "nonTruthValue"
       ],
@@ -3200,6 +3202,7 @@
       "errorWhen": [
         "nonVector",
         "notExecutable",
+        "nestedDataBlock",
         "blockContractViolation"
       ],
       "purity": "conditional",
@@ -3263,6 +3266,7 @@
       "errorWhen": [
         "nonVector",
         "notExecutable",
+        "nestedDataBlock",
         "blockContractViolation"
       ],
       "purity": "conditional",
@@ -4119,7 +4123,8 @@
         "reason": null
       },
       "errorWhen": [
-        "notExecutable"
+        "notExecutable",
+        "nestedDataBlock"
       ],
       "purity": "conditional",
       "determinism": "stateRelative",
@@ -4142,7 +4147,7 @@
         "LANG.SOURCE.CODE"
       ],
       "documentation": {
-        "summary": "A block run where it stands, its results left on the stack: `[ 1 2 ADD ] EXEC` is `3`. It reads and writes the stack like any other code, so `2 [ 3 MUL ] EXEC` is `6`. A non-block is `notExecutable`.",
+        "summary": "A block run where it stands, its results left on the stack: `[ 1 2 ADD ] EXEC` is `3`. It reads and writes the stack like any other code, so `2 [ 3 MUL ] EXEC` is `6`. A non-block is `notExecutable`, and a block built from data while another built from data runs is `nestedDataBlock` (LANG.SOURCE.CODE): a block may run the blocks written inside it, but not a copy of itself.",
         "hover": "EXEC — evaluate a code block",
         "syntax": "[ 1 2 ADD ] EXEC",
         "stackEffect": "[ code ] -> [ result... ]"

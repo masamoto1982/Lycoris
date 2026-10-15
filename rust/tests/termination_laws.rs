@@ -2,9 +2,10 @@
 //!
 //! `spec/termination.json` states why every Ajisai evaluation is finite: the
 //! places evaluation descends into more evaluation, what strictly decreases at
-//! each one, and the invariant underneath — that a Word runs only when a Symbol
+//! each one, and the rules underneath — that a Word runs only when a Symbol
 //! naming it is written in source, so the DEF-time acyclicity check sees every
-//! call a body can make. `scripts/check-termination.mjs` keeps that file closed
+//! call a body can make, and that a block built from data never runs inside
+//! another, so no block runs a copy of itself. `scripts/check-termination.mjs` keeps that file closed
 //! against the vocabulary; this file runs it.
 //!
 //! The acyclicity check is the load-bearing part and had no test of its own: no
@@ -15,6 +16,7 @@
 //! definition graphs.
 
 use ajisai_core::interpreter::Interpreter;
+use ajisai_core::ErrorCategory;
 use proptest::prelude::*;
 use serde_json::Value as Json;
 use std::collections::{HashMap, HashSet};
@@ -38,6 +40,22 @@ fn run(src: &str) -> Result<(), String> {
             .await
             .map(|_| ())
             .map_err(|e| e.to_string())
+    })
+}
+
+/// Run a program on a fresh interpreter, returning the outcome category of its
+/// failure if it failed.
+fn run_category(src: &str) -> Result<(), String> {
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .build()
+        .expect("tokio current-thread runtime");
+    rt.block_on(async {
+        let mut interp = Interpreter::new();
+        interp.execute(src).await.map(|_| ()).map_err(|e| {
+            ErrorCategory::from_error(&e)
+                .map(|c| c.as_protocol_str().to_string())
+                .unwrap_or_else(|| e.to_string())
+        })
     })
 }
 
@@ -301,11 +319,8 @@ proptest! {
     /// block adds the element). Calling the last Word must answer exactly that
     /// sum and stop on its own, never at `callDepth` or `executionSteps`.
     ///
-    /// The inverse half of this law — that a program which is *not* over an
-    /// acyclic dictionary cannot be written — does not hold today: a block can
-    /// run a copy of itself (see `self_application_is_stopped_by_a_ceiling_today`
-    /// below). docs/dev/observation-remediation-work-order-2026-10-15.md,
-    /// stage 2 and D1, holds that decision.
+    /// The inverse half is `no_program_reaches_a_ceiling_by_running_blocks`
+    /// below.
     #[test]
     fn programs_over_an_acyclic_dictionary_end_at_their_value(
         calls in prop::collection::vec(
@@ -355,15 +370,77 @@ proptest! {
     }
 }
 
-/// Today's counter-example to "every evaluation is structurally finite": a
-/// block copies itself with `1 COLLECT [ 0 0 ] GET` and runs the copy, with no
-/// User Word and no binding, and only the `callDepth` ceiling stops it.
-/// This pins the present behaviour so a change to it is deliberate: when the
-/// owner decides D1, either this becomes a refusal before anything runs, or
-/// the specification's claim is restated around the ceiling.
+/// The stratification witnesses behave as the argument says: each refused one
+/// is refused as the category it names — never stopped by a ceiling, which
+/// is how the first of them used to end — and each accepted one runs.
 #[test]
-fn self_application_is_stopped_by_a_ceiling_today() {
-    let message = run("[ 1 COLLECT [ 0 0 ] GET EXEC EXEC ] 1 COLLECT [ 0 0 ] GET EXEC EXEC")
-        .expect_err("a block that runs a copy of itself does not end on its own");
-    assert_eq!(message, "callDepth of 257 exceeds the limit of 256");
+fn a_block_built_from_data_never_runs_inside_another() {
+    let s = spec();
+
+    for w in witnesses(&s, &["stratification", "witnesses", "refused"]) {
+        let src = source_of(w);
+        let expect = w["expect"].as_str().expect("expected outcome");
+        let category = expect.strip_prefix("error:").expect("an error: outcome");
+        assert_eq!(
+            run_category(src),
+            Err(category.to_string()),
+            "{src:?} must be refused as {category}"
+        );
+    }
+
+    for w in witnesses(&s, &["stratification", "witnesses", "accepted"]) {
+        let src = source_of(w);
+        run(src).unwrap_or_else(|e| panic!("{src:?} must be accepted: {e}"));
+    }
+}
+
+/// Pieces of a program that build, copy, bind, choose and run blocks — every
+/// way the counter-example of 1.0.0-beta.2 was put together, and the ways a
+/// rewrite of it would reach for.
+const BLOCK_PIECES: &[&str] = &[
+    "[ 1 COLLECT [ 0 0 ] GET EXEC EXEC ]",
+    "[ 1 COLLECT [ 0 0 ] GET EXEC ]",
+    "1 COLLECT [ 0 0 ] GET",
+    "1 COLLECT [ 0 0 ] GET EXEC EXEC",
+    "EXEC",
+    "[ EXEC ]",
+    "[ EXEC EXEC ]",
+    "[ 1 ]",
+    "[ 'F' BIND F F EXEC ]",
+    "'G' BIND G",
+    "TRUE SELECT",
+    "'B' BIND [ 1 2 ] B MAP",
+    "'C' BIND [ 1 ] C 1 COLLECT CONCAT",
+    "'D' BIND [ 1 2 ] 0 D FOLD",
+    "[ 1 COLLECT [ 0 0 ] GET 'E' BIND E EXEC ]",
+    "RUN",
+];
+
+/// The inverse of the law above: however a program puts blocks together, it
+/// ends — with a value or with a refusal — and no ceiling is what ends it.
+/// Before 1.0.0-beta.3 a block could run a copy of itself, and only
+/// `callDepth` stopped it; take the `nestedDataBlock` check out of the engine
+/// and this property finds that again within a few cases.
+mod inverse {
+    use super::*;
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(1024))]
+
+        #[test]
+        fn no_program_reaches_a_ceiling_by_running_blocks(
+            run_word in prop::collection::vec(prop::sample::select(BLOCK_PIECES), 0..4),
+            program in prop::collection::vec(prop::sample::select(BLOCK_PIECES), 1..12),
+        ) {
+            let body: Vec<&str> = run_word.into_iter().filter(|p| *p != "RUN").collect();
+            let source = format!("[ {} ] 'RUN' DEF\n{}", body.join(" "), program.join(" "));
+            match run_category(&source) {
+                Ok(()) => {}
+                Err(category) => prop_assert!(
+                    category != "resourceLimitExceeded" && category != "executionLimitExceeded",
+                    "{} was stopped by {}", source, category
+                ),
+            }
+        }
+    }
 }

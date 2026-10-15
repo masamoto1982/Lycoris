@@ -535,13 +535,13 @@
                             <tbody>
                                 <tr><td><code>executionLimitExceeded</code></td><td class="notes">プログラム全体が費やせる作業ステップの総量</td><td class="notes">一括操作(<code>SORT</code>や<code>GET</code>)へ書き換える、終了条件を見直す</td></tr>
                                 <tr><td><code>resourceLimitExceeded</code></td><td class="notes">1つの値そのものの大きさ(係数のビット幅、代数項の数など)</td><td class="notes"><code>1/d</code>の格子に丸めて履歴を刈り込む、閉じた形を探す</td></tr>
-                                <tr><td><code>resourceLimitExceeded</code>(<code>callDepth</code>)</td><td class="notes">同時に重なっているワード呼び出しとブロック評価(<code>EXEC</code>、<code>MAP</code>など)の深さ。ワードがワードを呼ぶ長い鎖や、自分の複製を実行するブロックで届く</td><td class="notes">呼び出しの連鎖を浅くする、または一括操作に書き換える</td></tr>
+                                <tr><td><code>resourceLimitExceeded</code>(<code>callDepth</code>)</td><td class="notes">同時に重なっているワード呼び出しとブロック評価(<code>EXEC</code>、<code>MAP</code>など)の深さ。ワードがワードを呼ぶ長い鎖と、その中に入れ子になったブロックで届く</td><td class="notes">呼び出しの連鎖を浅くする、または一括操作に書き換える</td></tr>
                             </tbody>
                         </table>
                     </div>
                     <p><code>executionLimitExceeded</code>には、CLIの<code>ajisai run --step-limit &lt;N&gt;</code>で明示的に指定できるという特徴があります。既定値はホストの実行環境が定める実装上の選択であり、本書が固定の数として約束するものではありません。</p>
                     <p class="ref-note">上の3つはインタプリタが数える上限ですが、Playgroundにはもう1つ、<strong>実時間</strong>の打ち切りがあります。1回の実行が5秒を超えると、実行中のワーカーごと停止され、<code>Execution timed out after 5000 ms</code>として報告されます。これは言語の意味論でもインタプリタの予算でもなく、この画面だけが持つホスト側のガードです。上のどの名前も付かないのはそのためで、代わりに「どのガードが止めたか」「一括操作への書き換え」「格子への丸めによる刈り込み」を述べる診断が付きます。ホストごとの上限は、画面上部のビルド表示の隣にある<code>resource limits:</code>バッジにマウスを合わせると一覧できます(このガードもそこに載ります)。MCPホストはこれとは別の、より厳しい具体化上限を宣言します。同じ<code>0 100001 RANGE</code>が、Playgroundでは成功し、MCPホストでは<code>materializedElements</code>を名指すエラー(<code>resourceLimitExceeded</code>)になるのはこのためです。両方のホストで動くプログラムは、両方で同じ答えを返します。</p>
-                    <p class="ref-note">プログラム全体の作業量と、1つの値の大きさは別々に測られています。<code>0 99999 RANGE UNIQUE</code>のように、ステップ数としては1回でも内部で要素数ぶんの比較を行うワードがあるので、ステップ予算だけを見ていては値の重さは見えません。反復のコストの節で見た、分母が肥大化していく分数を思い出してください。格子に丸めて刈り込まずに育て続ければ、行き着く先はまさにこの<code>resourceLimitExceeded</code>です。<code>callDepth</code>を名指す<code>resourceLimitExceeded</code>はさらに別の性質を持ちます。値の大きさではなく、同時に重なっている呼び出しの深さです。<a href="#acyclic">ワードは本体で自分自身を名指せない</a>ので、A→B→C→…と多数の異なるワードを渡り歩く長い連鎖で届きます。データから自分の複製を作って実行するブロックもここで止まります。</p>
+                    <p class="ref-note">プログラム全体の作業量と、1つの値の大きさは別々に測られています。<code>0 99999 RANGE UNIQUE</code>のように、ステップ数としては1回でも内部で要素数ぶんの比較を行うワードがあるので、ステップ予算だけを見ていては値の重さは見えません。反復のコストの節で見た、分母が肥大化していく分数を思い出してください。格子に丸めて刈り込まずに育て続ければ、行き着く先はまさにこの<code>resourceLimitExceeded</code>です。<code>callDepth</code>を名指す<code>resourceLimitExceeded</code>はさらに別の性質を持ちます。値の大きさではなく、同時に重なっている呼び出しの深さです。<a href="#acyclic">ワードは本体で自分自身を名指せない</a>ので、A→B→C→…と多数の異なるワードを渡り歩く長い連鎖で届きます。データから自分の複製を作って実行するブロックは、ここに届くずっと前に<code>nestedDataBlock</code>で拒否されます(<a href="#data-blocks">ブロックは自分自身を走らせられない</a>)。</p>
 
                     <h3>具体化の上限: 値ではなくエラー</h3>
                     <p><code>RANGE</code>と<code>FILL</code>は、1回の呼び出しで生成するベクトルの大きさに上限を持ちます。要求そのものは整った形をしていても、それを超えて具体化しようとすると、何も組み立てずに<code>materializedElements</code>を名指す<strong>エラー</strong>(<code>resourceLimitExceeded</code>)になります。<code>NIL</code>にはなりません。上限はホストのものであり、<code>NIL</code>は流れ続けるので、<code>0 X X NIL? SELECT</code>のような代替処理が、上限の小さいホストでだけ別の分岐を選んでしまうからです。負の数や非整数のように、次元や形状の指定そのものが誤っている場合も、それぞれの名前のエラーになります。</p>
@@ -1237,7 +1237,44 @@ FILTER</code></td>
                     <h3 id="acyclic">ワードは自分自身を呼び出せない</h3>
                     <p>User辞書の参照グラフは循環しません。<code>[ REC ] 'REC' DEF</code>のように、定義しようとしているワード自身の名前を本体が含む場合、<code>DEF</code>はエラーで拒否します。名前がどこに書かれていても関係ありません。本体の中に直接書かれていても、<code>MAP</code>や<code>EXEC</code>に渡す<code>[ ]</code>ブロックの内側だけに書かれていても同じです。</p>
                     <p>これは間接的な循環にも及びます。<code>A</code>が<code>B</code>を呼び出すよう定義し、続けて<code>B</code>が<code>A</code>を呼び出すよう定義しようとすると、その2つ目の<code>DEF</code>が拒否されます。<code>A</code>はすでに<code>B</code>という名前を(まだ存在しなくても)本体に含んでおり、そこへ<code>B</code>から<code>A</code>への参照を足すと<code>A</code>に戻る循環が閉じるからです。すでに存在する言葉を新しい定義が呼び出すこと自体は自由です。禁じられているのは、今まさに定義しようとしているワードへ、その連鎖が戻ってくることだけです。</p>
-                    <p class="ref-note">反復はワードが自分自身を呼び出すことでは表現できません。すでに有限な<code>Vector</code>に対する<code>MAP</code> <code>FILTER</code> <code>FOLD</code> <code>SCAN</code>だけが反復の手段です。User辞書に循環がなければどのワードも自分自身を呼び出せないため、すべての評価は構造的に有限です。これは実行時のステップ予算(<a href="#limits">実行時エラー</a>で扱います)より強い性質で、予算はなお1回の評価のコストを制限しますが、予算を大きくしても止まらないプログラムというもの自体が存在しません。</p>
+                    <p class="ref-note">反復はワードが自分自身を呼び出すことでは表現できません。すでに有限な<code>Vector</code>に対する<code>MAP</code> <code>FILTER</code> <code>FOLD</code> <code>SCAN</code>だけが反復の手段です。User辞書に循環がなければどのワードも自分自身を呼び出せず、次の規則によりどのブロックも自分の複製を走らせられないため、すべての評価は構造的に有限です。これは実行時のステップ予算(<a href="#limits">実行時エラー</a>で扱います)より強い性質で、予算はなお1回の評価のコストを制限しますが、予算を大きくしても止まらないプログラムというもの自体が存在しません。</p>
+                    <h3 id="data-blocks">ブロックは自分自身を走らせられない</h3>
+                    <p>ブロックは分解してデータから組み立て直せ、その複製は参照グラフに見える名前を何も名指しません。<code>1 COLLECT [ 0 0 ] GET</code>は1つのブロックから2つの複製を作ります。そこで最初の規則の隣に2つ目の規則があります。<code>EXEC</code>、<code>MAP</code>、<code>FILTER</code>、<code>FOLD</code>、<code>SCAN</code>が走らせるブロックは、それを走らせているコード(プログラム、ワードの本体、または実行中のブロック)の<code>[ ]</code>リテラルかその中に入れ子になった<code>[ ]</code>に等しいとき、あるいはワードをまったく名指さないとき<strong>書かれた</strong>ものです。それ以外は<strong>データから組み立てた</strong>ものです。書かれたブロックはそれを走らせるコードの一部なので、より小さい。データから組み立てたブロックは走れますが、別のデータから組み立てたブロックが走っている間は走れず、オペランドを取る前に<code>nestedDataBlock</code>で拒否されます。</p>
+                    <div class="sample">
+                        <div class="ref-table-wrap">
+                        <table class="ref-table">
+                            <thead>
+                                <tr><th>サンプルコード</th><th>期待値</th><th>注記</th></tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><code>[ 1 COLLECT [ 0 0 ] GET EXEC EXEC ] 1 COLLECT [ 0 0 ] GET EXEC EXEC</code></td>
+                                    <td>error</td>
+                                    <td class="notes">最初の<code>EXEC</code>は書かれたブロックを走らせる。その中で複製はデータから組み立てたものとして走り、複製の複製が2つ目になって<code>nestedDataBlock</code>で拒否される。</td>
+                                </tr>
+                                <tr>
+                                    <td><code>[ 'F' BIND 1 F EXEC ] 'APPLY' DEF [ 2 ADD ] APPLY</code></td>
+                                    <td><code>3/1</code></td>
+                                    <td class="notes">渡されたブロックを走らせるワード。データから組み立てたブロックは1つ。</td>
+                                </tr>
+                                <tr>
+                                    <td><code>[ 'F' BIND 1 F EXEC ] 'APPLY' DEF [ [ 2 ADD ] APPLY ] APPLY</code></td>
+                                    <td>error</td>
+                                    <td class="notes">代価。渡されたブロックがさらに別のブロックを<code>APPLY</code>に渡し、最初のものが走っている間にそれが走る。</td>
+                                </tr>
+                                <tr>
+                                    <td><code>[ 2 MUL ] 'F' BIND [ 1 2 3 ] F MAP</code></td>
+                                    <td><code>[ 2/1 4/1 6/1 ]</code></td>
+                                    <td class="notes">それを書いたフレームで束縛して走らせるので、そこでは書かれたものである。</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        </div>
+                        <div class="sample-actions">
+                            <a class="btn js-open-playground" href="../../index.html">Playgroundで開く</a>
+                        </div>
+                    </div>
+                    <p class="ref-note">代価はコンビネータです。与えられたブロックを走らせるコードに、同じことをするブロックを与えることはできず、あるフレームで束縛して別のブロックの中で走らせるブロックはそこではデータから組み立てたものと数えられます。ワードの呼び出しはブロックを走らせないので、こうしたコードは<code>DEF</code>でワードとして書けば、どの深さにも入れ子にできます。ブロックが書かれたものかどうかは、その値と走っているコードで決まり、どう組み立てたかでは決まりません。<code>SELECT</code>が2つの書かれたブロックから選んでも、選ばれたほうは書かれたままです。</p>
                     <h3>ワードの管理</h3>
                     <p><code>DEL</code>は、引用された名前でユーザー定義ワードを削除します。依存関係は追跡されており、他のワードが依存しているワードはまったく削除できません。したがって宙ぶらりんの参照は起こり得ません。先に依存している側を削除してください。</p>
                     <p class="ref-note">ワード名は大文字・小文字を区別しないので、<code>add10</code>と<code>ADD10</code>は同じワードです。慣例として<code>APPLY-GAIN</code>のような動詞-目的語の形に従います。名前がどのように定義と対応付けられるかは、<a href="#dictionaries">辞書とワードの同一性</a>で扱います。</p>
@@ -3911,7 +3948,7 @@ SELECT</code></td>
 <dt>体</dt><dd><code>closed</code> (LANG.CONTRACT.FIELD)</dd>
 <dt>純粋性 / 決定性</dt><dd><code>conditional</code> / <code>stateRelative</code></dd>
 <dt>作用</dt><dd>なし</dd>
-<dt>ERROR条件</dt><dd><code>nonVector</code>, <code>notExecutable</code>, <code>blockContractViolation</code></dd>
+<dt>ERROR条件</dt><dd><code>nonVector</code>, <code>notExecutable</code>, <code>nestedDataBlock</code>, <code>blockContractViolation</code></dd>
 <dt>条項</dt><dd><code>LANG.COLLECTIONS.HIGHER</code></dd>
 </dl>
 </div>
@@ -3928,7 +3965,7 @@ SELECT</code></td>
 <dt>体</dt><dd><code>closed</code> (LANG.CONTRACT.FIELD)</dd>
 <dt>純粋性 / 決定性</dt><dd><code>conditional</code> / <code>stateRelative</code></dd>
 <dt>作用</dt><dd>なし</dd>
-<dt>ERROR条件</dt><dd><code>nonVector</code>, <code>notExecutable</code>, <code>blockContractViolation</code>, <code>nonTruthValue</code></dd>
+<dt>ERROR条件</dt><dd><code>nonVector</code>, <code>notExecutable</code>, <code>nestedDataBlock</code>, <code>blockContractViolation</code>, <code>nonTruthValue</code></dd>
 <dt>条項</dt><dd><code>LANG.COLLECTIONS.HIGHER</code></dd>
 </dl>
 </div>
@@ -3945,7 +3982,7 @@ SELECT</code></td>
 <dt>体</dt><dd><code>closed</code> (LANG.CONTRACT.FIELD)</dd>
 <dt>純粋性 / 決定性</dt><dd><code>conditional</code> / <code>stateRelative</code></dd>
 <dt>作用</dt><dd>なし</dd>
-<dt>ERROR条件</dt><dd><code>nonVector</code>, <code>notExecutable</code>, <code>blockContractViolation</code></dd>
+<dt>ERROR条件</dt><dd><code>nonVector</code>, <code>notExecutable</code>, <code>nestedDataBlock</code>, <code>blockContractViolation</code></dd>
 <dt>条項</dt><dd><code>LANG.COLLECTIONS.HIGHER</code></dd>
 </dl>
 </div>
@@ -3962,14 +3999,14 @@ SELECT</code></td>
 <dt>体</dt><dd><code>closed</code> (LANG.CONTRACT.FIELD)</dd>
 <dt>純粋性 / 決定性</dt><dd><code>conditional</code> / <code>stateRelative</code></dd>
 <dt>作用</dt><dd>なし</dd>
-<dt>ERROR条件</dt><dd><code>nonVector</code>, <code>notExecutable</code>, <code>blockContractViolation</code></dd>
+<dt>ERROR条件</dt><dd><code>nonVector</code>, <code>notExecutable</code>, <code>nestedDataBlock</code>, <code>blockContractViolation</code></dd>
 <dt>条項</dt><dd><code>LANG.COLLECTIONS.HIGHER</code></dd>
 </dl>
 </div>
 <h3 id="family-control">契約: 制御</h3>
 <div class="word-entry" id="word-EXEC">
 <h4><code>EXEC</code> <span class="word-tier">Semantic Kernel</span></h4>
-<p>ブロックをその場で実行し、結果をスタックに残す。<code>[ 1 2 ADD ] EXEC</code>は<code>3</code>。他のコードと同じくスタックを読み書きするので、<code>2 [ 3 MUL ] EXEC</code>は<code>6</code>。ブロックでないものは<code>notExecutable</code>。</p>
+<p>ブロックをその場で実行し、結果をスタックに残す。<code>[ 1 2 ADD ] EXEC</code>は<code>3</code>。他のコードと同じくスタックを読み書きするので、<code>2 [ 3 MUL ] EXEC</code>は<code>6</code>。ブロックでないものは<code>notExecutable</code>、データから組み立てたブロックを、同じくデータから組み立てた別のブロックの実行中に走らせると<code>nestedDataBlock</code>(LANG.SOURCE.CODE)。ブロックは中に書かれたブロックを走らせられるが、自分の複製は走らせられない。</p>
 <dl class="word-contract">
 <dt>構文</dt><dd><code>[ 1 2 ADD ] EXEC</code></dd>
 <dt>スタック効果</dt><dd><span class="notation">[ code ] -&gt; [ result... ]</span></dd>
@@ -3980,7 +4017,7 @@ SELECT</code></td>
 <dt>体</dt><dd><code>closed</code> (LANG.CONTRACT.FIELD)</dd>
 <dt>純粋性 / 決定性</dt><dd><code>conditional</code> / <code>stateRelative</code></dd>
 <dt>作用</dt><dd>なし</dd>
-<dt>ERROR条件</dt><dd><code>notExecutable</code></dd>
+<dt>ERROR条件</dt><dd><code>notExecutable</code>, <code>nestedDataBlock</code></dd>
 <dt>条項</dt><dd><code>LANG.MACHINE.TRANSFORMERS</code>, <code>LANG.SOURCE.CODE</code></dd>
 </dl>
 </div>

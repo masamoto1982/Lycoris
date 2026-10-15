@@ -1964,7 +1964,8 @@ W</pre>
 <!-- CodeBlock/Vector unification (LANG.VALUES.DISJOINT, LANG.SOURCE.CODE):
      code is a Vector holding source for later evaluation, not a distinct
      domain from data — EXEC does not distinguish how its operand was built,
-     only whether its elements form a valid program. -->
+     only whether its elements form a valid program and, below, whether the
+     code running it wrote it. -->
 
 <section class="ajisai-case" id="core-exec-runs-a-literal-vector" data-category="control">
   <h3>EXEC runs a literal Vector's elements as a program</h3>
@@ -1978,6 +1979,61 @@ W</pre>
   <pre class="ajisai-source">5 EXEC</pre>
   <pre class="ajisai-expect-result"></pre>
   <pre class="ajisai-expect-error">EXEC: expected a Vector ([ ... ]) as the code operand, got Scalar</pre>
+  <div class="ajisai-expect-effects"></div>
+</section>
+
+<!-- LANG.SOURCE.CODE: a block run as code is written — a Vector literal of the
+     code running it, a Vector inside one, or a block naming no Word — or built
+     from data, and a block built from data is refused as nestedDataBlock while
+     another runs. That is what keeps a block from running a copy of itself
+     (LANG.DICTIONARY.ACYCLIC, spec/termination.json `stratification`); before
+     1.0.0-beta.3 the first case below ran until the callDepth ceiling stopped
+     it, and the second printed 3 2 1 0. -->
+
+<section class="ajisai-case" id="core-exec-copy-of-itself-refused" data-category="control">
+  <h3>A block that runs a copy of itself is refused at the copy's copy (errorWhen: nestedDataBlock)</h3>
+  <pre class="ajisai-source">[ 1 COLLECT [ 0 0 ] GET EXEC EXEC ] 1 COLLECT [ 0 0 ] GET EXEC EXEC</pre>
+  <pre class="ajisai-expect-result"></pre>
+  <pre class="ajisai-expect-error">EXEC: this block was built from data while another block built from data is running</pre>
+  <div class="ajisai-expect-effects"></div>
+</section>
+
+<section class="ajisai-case" id="core-exec-recursion-with-a-base-case-refused" data-category="control">
+  <h3>A recursion that would end is refused as surely: the rule reads where a block stands, not what it would do</h3>
+  <pre class="ajisai-source">[ 'N' BIND N PRINT 1 COLLECT [ 0 0 ] GET EXEC N 1 SUB 3 COLLECT [ 0 2 1 ] GET [ EXEC EXEC ] [ 'done' ] N 0 GT SELECT EXEC ] 3 [ 'N' BIND N PRINT 1 COLLECT [ 0 0 ] GET EXEC N 1 SUB 3 COLLECT [ 0 2 1 ] GET [ EXEC EXEC ] [ 'done' ] N 0 GT SELECT EXEC ] EXEC</pre>
+  <pre class="ajisai-expect-result"></pre>
+  <pre class="ajisai-expect-error">built from data while another block built from data is running</pre>
+  <div class="ajisai-expect-effects"><span class="ajisai-effect" data-kind="print" data-payload="3/1"></span><span class="ajisai-effect" data-kind="print" data-payload="2/1"></span></div>
+</section>
+
+<section class="ajisai-case" id="core-exec-passed-block-runs-once" data-category="control">
+  <h3>A Word runs the block it is handed: one block built from data may run</h3>
+  <pre class="ajisai-source">[ 'F' BIND 1 F EXEC ] 'APPLY' DEF
+[ 2 ADD ] APPLY</pre>
+  <pre class="ajisai-expect-result">3/1</pre>
+  <div class="ajisai-expect-effects"></div>
+</section>
+
+<section class="ajisai-case" id="core-exec-passed-block-cannot-pass-another" data-category="control">
+  <h3>The price: a block handed in cannot hand in another to the same kind of Word</h3>
+  <pre class="ajisai-source">[ 'F' BIND 1 F EXEC ] 'APPLY' DEF
+[ [ 2 ADD ] APPLY ] APPLY</pre>
+  <pre class="ajisai-expect-result"></pre>
+  <pre class="ajisai-expect-error">built from data while another block built from data is running</pre>
+  <div class="ajisai-expect-effects"></div>
+</section>
+
+<section class="ajisai-case" id="core-exec-written-blocks-nest" data-category="control">
+  <h3>Blocks written inside blocks run at any depth</h3>
+  <pre class="ajisai-source">[ [ 1 2 ] [ [ 3 ] [ 1 ADD ] MAP 0 GET ADD ] MAP ] EXEC</pre>
+  <pre class="ajisai-expect-result">[ 5/1 6/1 ]</pre>
+  <div class="ajisai-expect-effects"></div>
+</section>
+
+<section class="ajisai-case" id="core-map-block-bound-in-its-own-frame-is-written" data-category="higherOrder">
+  <h3>A block bound and run in the frame that wrote it is written there</h3>
+  <pre class="ajisai-source">[ 2 MUL ] 'F' BIND [ 1 2 3 ] F MAP</pre>
+  <pre class="ajisai-expect-result">[ 2/1 4/1 6/1 ]</pre>
   <div class="ajisai-expect-effects"></div>
 </section>
 

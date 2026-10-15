@@ -109,6 +109,12 @@
       "documentation": "A binding and a Word were asked to share a name: BIND to a name a Word holds, or DEF to a name a live binding holds. The two name spaces are disjoint by rule (LANG.DICTIONARY.RESOLUTION), so this is one condition from either side."
     },
     {
+      "id": "nestedDataBlock",
+      "kind": "declared",
+      "repair": "program",
+      "documentation": "EXEC, MAP, FILTER, FOLD or SCAN was handed a block built from data while another block built from data was running (LANG.SOURCE.CODE). A block the running code wrote may run at any depth, and one built from data may run when no other is; two nested is how a block would run a copy of itself, so the second is refused before its operands are taken (LANG.DICTIONARY.ACYCLIC). Code that runs a block it is given is written as a Word, which runs no block, rather than as a block handed to another."
+    },
+    {
       "id": "nonRecord",
       "kind": "declared",
       "documentation": "A Record Word (KEYS, VALUES, WITHOUT, HAS?, MERGE) was given something other than a Record where one is required. A Record is its own domain (LANG.VALUES.DISJOINT): a Vector of pairs is not a Record and nothing converts one implicitly."
