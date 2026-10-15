@@ -1,0 +1,14 @@
+{
+  "phase": 2,
+  "route": "cli (Claude Code subagents running code through cli.mjs compute)",
+  "families": ["series", "prose", "ledger"],
+  "models": { "A": "opus", "B": "sonnet", "C": "haiku" },
+  "capacity": 8,
+  "conditions": {
+    "bottleneck": "gen0-gen2, lexicon chosen by evolve with K=8",
+    "solo": "gen0 only, no lexicon: the H1 baseline beside bottleneck gen0",
+    "shuffled": "gen1-gen2, bottleneck gen1's lexicon renamed by shuffle, then its own evolve, renamed again"
+  },
+  "engine": "ajisai-mcp-server 0.9.0, engine and specification 1.0.0-beta.3",
+  "started": "2026-10-15"
+}
