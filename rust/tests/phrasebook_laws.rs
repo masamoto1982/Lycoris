@@ -99,7 +99,10 @@ async fn every_digest_line_is_the_identity_of_the_word_it_names() {
     assert_eq!(report["status"], "ok", "{report}");
     let shown = report["stackDisplay"].as_array().expect("stackDisplay");
     for ((name, recorded), actual) in digests.iter().zip(shown) {
-        let actual = actual.as_str().expect("a display string").trim_matches('\'');
+        let actual = actual
+            .as_str()
+            .expect("a display string")
+            .trim_matches('\'');
         assert_eq!(*recorded, actual, "#:digest {name} is stale");
     }
 }
