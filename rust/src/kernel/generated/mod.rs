@@ -18,7 +18,7 @@ mod word_registry;
 pub use word_registry::{
     Arity, CostAxis, CostClass, Determinism, Family, FieldClosure, GeneratedWord, NilPolicy,
     OperandRole, Partiality, Purity, ValueDomain, VocabularyTier, WordCost, WordId,
-    GENERATED_WORDS,
+    GENERATED_WORDS, SPECIFICATION_VERSION,
 };
 
 /// The declared contract for a Word, by canonical name.

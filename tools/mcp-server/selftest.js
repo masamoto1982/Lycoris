@@ -173,6 +173,12 @@ check(
 const vocabularyResource = JSON.parse(
   (await client.readResource({ uri: "ajisai://vocabulary" })).contents[0]?.text ?? "{}",
 );
+// The versions a result must name are the repository's, read where they are
+// written rather than repeated here.
+const rootPackageVersion = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8")).version;
+const lockedSpecificationVersion = JSON.parse(
+  readFileSync(new URL("../../spec/version-lock.json", import.meta.url), "utf8"),
+).specificationVersion;
 const registryNames = JSON.parse(readFileSync(new URL("./assets/words.json", import.meta.url), "utf8"))
   .entries.map(({ name }) => name).sort();
 check(
@@ -670,7 +676,8 @@ if (compute.structuredContent?.error?.code === "backendUnavailable") {
   check(
     "compute reports engine provenance and names the applied profile",
     compute.structuredContent?.mcp?.serverVersion === serverVersion() &&
-      compute.structuredContent?.mcp?.engineVersion === "1.0.0-beta.1" &&
+      compute.structuredContent?.mcp?.engineVersion === rootPackageVersion &&
+      compute.structuredContent?.specificationVersion === lockedSpecificationVersion &&
       compute.structuredContent?.mcp?.limitProfile === LIMIT_PROFILE &&
       compute.structuredContent?.mcp?.limitProfile === limitsResource.profile &&
       !("limits" in (compute.structuredContent?.mcp ?? {})),

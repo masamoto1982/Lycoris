@@ -396,6 +396,8 @@ export function registryDigest() {
 }
 function metadata() { return metadataCache ??= JSON.parse(readFileSync(metadataPath, "utf8")); }
 export function engineVersion() { return metadata().engineVersion; }
+/** The specification version the packaged engine implements (`spec/version-lock.json`). */
+export function specificationVersion() { return metadata().specificationVersion; }
 export function serverVersion() {
   return serverVersionCache ??= JSON.parse(readFileSync(serverPackagePath, "utf8")).version;
 }

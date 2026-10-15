@@ -15,6 +15,8 @@ it defines Ajisai semantics.
 | `retired-words.json` | The names that were once Words and must stay unknown — read by both the registry gate and the runtime test |
 | `gui-semantics.md` | Presentation |
 | `host-protocol.schema.json` | The host protocol boundary between them |
+| `version-lock.json` | The specification version, and the digests of the sources above it was computed over |
+| `CHANGELOG.md` | What changed in each specification version, each change marked `breaking`, `compatible` or `editorial` |
 
 `grammar.json` is the one source here that is executed rather than only read.
 `scripts/lib/reference-lexer.mjs` interprets it — it hardcodes no character, no
@@ -59,8 +61,23 @@ independently — they both began beta at `1.0.0-beta.1` — and the
 specification's moves only when the language does: a breaking change to the
 vocabulary, to program meaning, or to the host protocol raises it. A
 build-date stamp on the specification would have been a third, redundant
-axis, so the Status block does not carry one; git history is the record of
-when a given specification text was current.
+axis, so the Status block does not carry one; `CHANGELOG.md` records when each
+version's changes were made.
+
+That promise is a gate, not a convention. `version-lock.json` holds the
+specification version and two digests: one over the machine-read sources
+with their prose keys removed, one over the two prose sources.
+`npm run check:spec-version -- --base <ref>` recomputes them and refuses a
+change to the machine-read sources under an unchanged version, a breaking
+changelog entry under a version the base already had, and any change to the
+specification that adds no changelog entry (`scripts/lib/spec-version.mjs`
+states the rule; `npm run test:scripts` exercises it). After an intended
+change, record it in `CHANGELOG.md`, raise the version where the rule asks,
+and run `node scripts/check-spec-version.mjs --update` to rewrite the
+digests. The Word registry carries the version into every agent envelope as
+`specificationVersion`. The version stayed 1.0.0-beta.1 through a week of
+breaking changes before this gate existed; `CHANGELOG.md`'s 1.0.0-beta.2
+section records them after the fact.
 
 `npm run semantic-kernel:check` enforces the budgets that keep the language
 small — ceilings on the kernel's lines, on semantic families and on canonical

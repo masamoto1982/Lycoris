@@ -206,10 +206,15 @@ fn cmd_version(json: bool) -> i32 {
             "schemaVersion": report::SCHEMA_VERSION,
             "status": "ok",
             "version": version,
+            "specificationVersion": crate::kernel::generated::SPECIFICATION_VERSION,
         });
         println!("{}", pretty(&doc));
     } else {
-        println!("ajisai {}", version);
+        println!(
+            "ajisai {} (specification {})",
+            version,
+            crate::kernel::generated::SPECIFICATION_VERSION
+        );
     }
     0
 }

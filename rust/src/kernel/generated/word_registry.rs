@@ -5,6 +5,10 @@
 // fields. Regenerate with `npm run word-registry:generate`; CI runs
 // `npm run word-registry:check` to guard against drift.
 
+/// The specification version this registry was generated from
+/// (`spec/version-lock.json`), which every agent envelope names.
+pub const SPECIFICATION_VERSION: &str = "1.0.0-beta.2";
+
 /// Canonical identity of a Core Word, named by its executor key (unique across
 /// the registry).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]

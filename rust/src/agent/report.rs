@@ -159,6 +159,7 @@ impl Report {
     fn document(&self, stack: Json) -> Json {
         let mut doc = json!({
             "schemaVersion": SCHEMA_VERSION,
+            "specificationVersion": crate::kernel::generated::SPECIFICATION_VERSION,
             "status": self.status,
             "stackDisplay": self.stack_display,
             "output": self.output,

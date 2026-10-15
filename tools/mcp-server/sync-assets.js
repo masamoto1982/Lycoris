@@ -17,9 +17,11 @@ const sources = [
 ];
 const rootPackage = JSON.parse(readFileSync(join(repoRoot, "package.json"), "utf8"));
 const words = readFileSync(sources[0][0]);
+const versionLock = JSON.parse(readFileSync(join(repoRoot, "spec", "version-lock.json"), "utf8"));
 const metadata = `${JSON.stringify({
   schemaVersion: 1,
   engineVersion: rootPackage.version,
+  specificationVersion: versionLock.specificationVersion,
   registryDigest: createHash("sha256").update(words).digest("hex"),
 }, null, 2)}\n`;
 

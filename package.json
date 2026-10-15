@@ -1,6 +1,6 @@
 {
   "name": "ajisai",
-  "version": "1.0.0-beta.1",
+  "version": "1.0.0-beta.2",
   "description": "Ajisai - AI-first, vector-oriented, fractional-dataflow language",
   "type": "module",
   "scripts": {
@@ -62,6 +62,8 @@
     "check:coverage-ratchet": "node scripts/check-coverage-ratchet.mjs --rust rust/target/coverage/coverage.json --ts coverage/ts/coverage-summary.json",
     "check:spec-citations": "node scripts/check-spec-citations.mjs",
     "check:version-sync": "node scripts/check-version-sync.mjs",
+    "check:spec-version": "node scripts/check-spec-version.mjs",
+    "test:scripts": "node --test 'scripts/**/*.test.mjs'",
     "check:runtime-metadata": "node scripts/check-runtime-metadata-source.mjs",
     "check:agent-cli-contract": "node scripts/check-agent-cli-contract.mjs",
     "generate:skill": "node scripts/generate-skill-md.mjs",

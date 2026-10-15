@@ -276,6 +276,27 @@ jobs:
       - name: Package, crate and Tauri versions agree
         run: npm run check:version-sync
 
+      - name: The specification version moves with the specification (LANG.AUTHORITY.SOURCES)
+        # spec/version-lock.json records the specification version and the
+        # digests of the sources it covers. Measured against the pull
+        # request's base, or the push's previous head: a change to the
+        # machine-read specification under an unchanged version fails, and so
+        # does a change to the specification with no spec/CHANGELOG.md entry.
+        # The version stayed 1.0.0-beta.1 through a week of breaking changes
+        # before this step existed. The checkout is shallow, so the base
+        # commit is fetched first; a base that predates the lock checks only
+        # the tree's own consistency.
+        env:
+          SPEC_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if [ -n "$SPEC_BASE" ] && ! [[ "$SPEC_BASE" =~ ^0+$ ]]; then
+            git fetch --no-tags --depth=1 origin "$SPEC_BASE"
+          fi
+          npm run check:spec-version -- --base "$SPEC_BASE"
+
+      - name: The specification version rule's own tests
+        run: npm run test:scripts
+
       - name: Runtime Core Word metadata is the generated registry, not authored
         # The runtime view reads the generated registry entry directly, never
         # a copy of it and never a second place to write language facts down.

@@ -38,6 +38,11 @@
    "type": "integer",
    "minimum": 1
   },
+  "specificationVersion": {
+   "type": "string",
+   "minLength": 1,
+   "description": "The specification version the engine implements, as the engine's own envelope states it. During the beta a program's answer can change when it does; spec/CHANGELOG.md in the Ajisai repository names each change. Carried once, here, beside `mcp.engineVersion`'s release number."
+  },
   "status": {
    "type": "string",
    "enum": [

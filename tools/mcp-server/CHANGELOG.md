@@ -6,7 +6,22 @@ beta, and promises compatibility from 1.0.0; this file records changes to
 the adapter's own surface — tool list, envelope fields, resources and
 descriptions.
 
+Each release names the specification version its packaged engine implements.
+During the beta a program's answer can change when that version does, and
+the Ajisai repository's `spec/CHANGELOG.md` names every such change with a
+program and its answer before and after.
+
+## Unreleased
+
+Specification: 1.0.0-beta.2.
+
+### Added
+
+- **`specificationVersion`.** Every engine result names the specification version the engine implements, at the top level, as the engine's own envelope states it. `result.schema.json` declares it, and `--version` prints it. A stored result now says which rules produced it.
+
 ## 0.9.0
+
+Specification: the packaged engine implements what `spec/CHANGELOG.md` records as 1.0.0-beta.2, while reporting `engineVersion` 1.0.0-beta.1 — the version did not move with the breaking changes listed below, which is why the version lock exists. Releases before 0.9.0 predate the lock.
 
 The first release published since 0.7.2: 0.8.0, 0.8.1 and 0.8.2 below were recorded but never reached npm, so their changes ship here too.
 

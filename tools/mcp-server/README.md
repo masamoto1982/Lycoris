@@ -93,7 +93,7 @@ The server is silent when it is healthy, which makes it indistinguishable from
 one that is wedged. The same executable answers for itself:
 
 ```sh
-node index.js --version    # adapter version, engine version, registry digest
+node index.js --version    # adapter, engine and specification versions, registry digest
 node index.js --doctor     # Node, assets, backend and two real computations
 node index.js --help
 ```
@@ -297,6 +297,12 @@ separately released components: `serverVersion` is this Node adapter, and
 `engineVersion` is the Ajisai language it speaks for. A saved result used to
 name only the second, so a field missing from an archived envelope could not be
 told apart from a field that adapter version never sent.
+
+`specificationVersion`, at the top level of every engine result, names the
+version of the language specification the engine implements. The engine is beta: until 1.0.0 a program's answer can
+change when this version does, and the Ajisai repository's `spec/CHANGELOG.md`
+lists each such change with a program and its answer before and after. Keep the
+field with any result you store.
 
 The packaged registry is verified against its recorded digest at **startup**,
 so a corrupt asset stops the server rather than surfacing as a generic failure

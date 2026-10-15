@@ -139,7 +139,11 @@ stdio budget. It also reports median and maximum response size — for the whole
 result and for its text block alone — and fails against
 `medianResponseBytesBudget`; response bytes are deterministic for a fixed
 corpus and engine, so unlike the latency figures that gate is exact and
-reproducible. The latency measurements describe this adapter and machine, not
+reproducible. The budget is a ceiling against accidental growth, and a field
+added on purpose raises it by what that field costs and no more: 1,100 became
+1,140 bytes on 2026-10-15 for `specificationVersion`, which a result carries
+once (an earlier draft carried it twice, in the envelope and in `mcp`, and the
+budget refused that). The latency measurements describe this adapter and machine, not
 remote service latency.
 `eval:number-baseline` compares canonical results for five selected rational,
 decimal and integer operations with JavaScript `Number`. It includes two

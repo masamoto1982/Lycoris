@@ -67,6 +67,7 @@ Both operations emit schema version 5:
 ```json
 {
   "schemaVersion": 5,
+  "specificationVersion": "1.0.0-beta.2",
   "status": "ok",
   "stack": [],
   "stackDisplay": [],
@@ -78,6 +79,13 @@ Both operations emit schema version 5:
   "stackElided": null
 }
 ```
+
+`specificationVersion` is the version of the specification the engine
+implements, read from `spec/version-lock.json` when the Word registry was
+generated; `spec/CHANGELOG.md` says what changed in each. During the beta a
+program's answer can change when this field does, so a stored result that
+names it can be explained later. `agent infer-contracts`, `test --json` and
+`version --json` carry it too.
 
 `status` is `ok` or `error`. Ajisai language errors use exit 1 and retain this
 JSON envelope. `check` tokenizes, checks delimiter structure, performs
@@ -360,7 +368,7 @@ Ajisai Words.
 `version --json` emits:
 
 ```json
-{ "schemaVersion": 5, "status": "ok", "version": "1.0.0-beta.1" }
+{ "schemaVersion": 5, "status": "ok", "version": "1.0.0-beta.2", "specificationVersion": "1.0.0-beta.2" }
 ```
 
 

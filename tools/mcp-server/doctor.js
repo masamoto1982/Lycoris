@@ -16,6 +16,7 @@
 import {
   createBackend,
   engineVersion,
+  specificationVersion,
   LIMITS,
   packageEngines,
   registryDigest,
@@ -49,7 +50,7 @@ function versionLine() {
     // answers what it can rather than failing to identify the build at all.
     registry = "unavailable";
   }
-  return `ajisai-mcp-server ${serverVersion()} (engine ${engineVersion()}, registry ${registry})`;
+  return `ajisai-mcp-server ${serverVersion()} (engine ${engineVersion()}, specification ${specificationVersion()}, registry ${registry})`;
 }
 
 /** The declared Node floor, read from the package rather than restated here. */
