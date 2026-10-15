@@ -39,6 +39,10 @@ and supersedes the previous one; exactly one protocol is current at a time.
 
 `SPECIFICATION.html` is a distribution artifact assembled from the semantic
 sources, the implementation-rules fragment, and `specification.template.html`.
+Under each clause heading it folds a Japanese summary from
+`docs/i18n/clause-summaries.ja.json`. The summaries are not canonical; each
+records a digest of its clause's English text, and the generator refuses to
+run when a clause has changed since its summary was written.
 
 `npm run specification:check` runs in CI (`.github/workflows/test.yml`), so
 the committed copy cannot drift from `spec/`: a change to any source here is
