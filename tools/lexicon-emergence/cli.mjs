@@ -3,7 +3,10 @@
 //
 //   node cli.mjs prompt  <run> <condition> <gen> <agent>   subject prompt for one agent
 //   node cli.mjs grade   <run> <condition> <gen>           grade every submission of a generation
-//   node cli.mjs evolve  <run> <condition> <gen> <K>       choose generation gen+1's lexicon
+//   node cli.mjs evolve  <run> <condition> <gen> <K> [--rule uses|reinvention]
+//                                                          choose generation gen+1's lexicon (K may be
+//                                                          Infinity for C-open; --into <condition> writes
+//                                                          it into another condition's gen+1)
 //   node cli.mjs analyze <run>                             H1–H5 over every condition and generation
 //
 // The cli route (Phase 2: Claude Code subagents that run code through this file):
@@ -13,10 +16,15 @@
 //   node cli.mjs shuffle <run> <from-condition> <from-gen> <condition> <gen>
 //                                                                       C-shuffled: rename a lexicon's Words
 //   node cli.mjs prompt  <run> <condition> <gen> <agent> --route cli    the cli route's subject prompt
+//   node cli.mjs seal    <run> <condition> <gen>   move a graded generation's solutions out of the tree
+//   node cli.mjs unseal  <run>                     bring every sealed generation back, for analysis
+// Sealing keeps later subjects from reading earlier solutions: only the lexicon stays where they run.
+// The stash is $LEXICON_STASH, or ~/.lexicon-stash, outside the repository.
 // runs/<run>/design.json, when present, names the task families ("families") and which model
 // each subject letter ran on ("models": { "A": "opus", … }), for grading and for the report,
-// and may cap how many times each subject may run code ("callBudget": n). The cap is stated in
-// the cli route's prompt, and `compute` refuses a subject's run past it.
+// and may cap how many times each subject may run code ("callBudget": n, or per condition
+// { "default": 0, "runs": null }, null meaning unlimited). The cap is stated in the cli route's
+// prompt, and `compute` refuses a subject's run past it.
 //
 // Route B (the API harness, lib/harness.mjs) — needs ANTHROPIC_API_KEY and spends money:
 //   node cli.mjs run   <run> <condition> <gen> <A,B,…> [options]   one generation's subjects
@@ -30,7 +38,9 @@
 // for route B transcripts/*.json, and for the cli route calls/*.jsonl (every compute a subject ran)
 // and work/<agent>/ (the files it ran).
 
-import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { appendFileSync, cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { connect } from './lib/ajisai.mjs';
 import { analyze, renderReport } from './lib/analyze.mjs';
@@ -80,6 +90,13 @@ const designOf = (name) => {
   return url && existsSync(url) ? readJson(url) : {};
 };
 const design = designOf(run);
+// "callBudget" is a number for every condition of a run, or an object keyed by
+// condition with an optional "default"; null or absent means unlimited.
+const budgetFor = (conditionName) => {
+  const b = design.callBudget;
+  if (b !== null && typeof b === 'object') return b[conditionName] !== undefined ? b[conditionName] : (b.default ?? null);
+  return b ?? null;
+};
 const families = loadFamilies(TASKS, design.families);
 
 async function gradeGeneration(ajisai, dir) {
@@ -130,9 +147,12 @@ async function evolveGeneration(ajisai, runName, conditionName, generation, capa
   const graded = readAll(new URL('graded/', dir));
   const words = collectWords(graded, [lexicon]);
   const classes = await classify(ajisai, words);
-  const next = nextLexicon(generation + 1, capacity, graded, words, classes);
-  writeJson(new URL('lexicon.json', genDir(runName, conditionName, generation + 1)), next);
-  console.log(`gen${generation + 1} lexicon: ${next.entries.map((e) => e.name).join(' ')}`);
+  const next = nextLexicon(generation + 1, capacity, graded, words, classes, options.rule ?? design.selectionRule ?? 'uses');
+  // Conditions that share a generation (Phase 3's gen0 feeds several
+  // lexicon rules) write the next lexicon into another condition with --into.
+  const into = options.into ?? conditionName;
+  writeJson(new URL('lexicon.json', genDir(runName, into, generation + 1)), next);
+  console.log(`${into} gen${generation + 1} lexicon (${next.rule}, K=${capacity}): ${next.entries.map((e) => e.name).join(' ')}`);
 }
 
 /** Route B: run every named subject of one generation in parallel through the API harness. */
@@ -199,7 +219,7 @@ const letters = (n) => [...'ABCDEFGHIJ'].slice(0, n);
 if (command === 'prompt') {
   process.stdout.write(
     subjectPrompt({ run, condition, generation: Number(gen), agent: arg }, lexiconOf(genDir(run, condition, gen)), families, options.route, {
-      callBudget: design.callBudget,
+      callBudget: budgetFor(condition),
     }),
   );
 } else if (command === 'prepare') {
@@ -225,8 +245,9 @@ if (command === 'prompt') {
   // 1,184 programs where Opus ran 116). A budget makes the runs count.
   const log = new URL(`calls/${arg}.jsonl`, dir);
   const spent = existsSync(log) ? readFileSync(log, 'utf8').split('\n').filter(Boolean).length : 0;
-  if (design.callBudget != null && spent >= design.callBudget) {
-    process.stdout.write(`${JSON.stringify({ status: 'refused', message: `run budget spent: ${spent} of ${design.callBudget} runs used; write your submission from what you have` })}\n`);
+  const budget = budgetFor(condition);
+  if (budget != null && spent >= budget) {
+    process.stdout.write(`${JSON.stringify({ status: 'refused', message: `run budget spent: ${spent} of ${budget} runs used; write your submission from what you have` })}\n`);
     process.exit(3);
   }
   // The phrasebook is written by the first call of a generation (or by
@@ -271,6 +292,31 @@ if (command === 'prompt') {
   shuffled.generation = Number(toGen);
   writeJson(new URL('lexicon.json', genDir(run, toCondition, toGen)), shuffled);
   console.log(`${toCondition} gen${toGen} lexicon: ${shuffled.entries.map((e) => e.name).join(' ')}`);
+} else if (command === 'seal' || command === 'unseal') {
+  const stash = join(process.env.LEXICON_STASH ?? join(homedir(), '.lexicon-stash'), run);
+  const moved = [];
+  const move = (from, to) => {
+    if (!existsSync(from)) return;
+    cpSync(from, to, { recursive: true });
+    rmSync(from, { recursive: true, force: true });
+    moved.push(to);
+  };
+  if (command === 'seal') {
+    const dir = fileURLToPath(genDir(run, condition, gen));
+    for (const part of ['submissions', 'graded', 'calls', 'work']) {
+      move(join(dir, part), join(stash, condition, `gen${gen}`, part));
+    }
+  } else if (existsSync(stash)) {
+    for (const c of readdirSync(stash)) {
+      for (const g of readdirSync(join(stash, c))) {
+        for (const part of readdirSync(join(stash, c, g))) {
+          move(join(stash, c, g, part), fileURLToPath(new URL(`runs/${run}/${c}/${g}/${part}`, ROOT)));
+        }
+      }
+    }
+    rmSync(stash, { recursive: true, force: true });
+  }
+  console.log(`${command}: ${moved.length} director${moved.length === 1 ? 'y' : 'ies'} moved`);
 } else if (command === 'grade') {
   const ajisai = await connect();
   await gradeGeneration(ajisai, genDir(run, condition, gen));

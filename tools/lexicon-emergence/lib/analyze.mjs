@@ -37,6 +37,15 @@ export async function analyze(ajisai, gens, families, models = {}) {
         meanTokens: correct.length ? +(sum(correct, 'tokens') / correct.length).toFixed(1) : null,
         compression: correct.length ? +(sum(correct, 'tokens') / sum(correct, 'expandedTokens')).toFixed(3) : null,
         coreEquivalent: `${correct.filter((r) => r.coreEquivalent).length}/${correct.length}`,
+        // Runs each subject made (cli route), on average: with runs allowed,
+        // difficulty shows here rather than in accuracy (difficulty calibration).
+        meanRuns: g.graded.some((x) => x.calls)
+          ? +(g.graded.reduce((n, x) => n + (x.calls?.total ?? 0), 0) / g.graded.length).toFixed(1)
+          : null,
+        // Correct solutions per model in this generation.
+        byModel: Object.fromEntries(
+          g.graded.map((x) => [modelOf(models, x.agent) ?? x.agent, `${x.results.filter((r) => r.correct).length}/${x.results.length}`]),
+        ),
       };
     })
     .sort((a, b) => a.condition.localeCompare(b.condition) || a.generation - b.generation);
@@ -146,6 +155,15 @@ export async function analyze(ajisai, gens, families, models = {}) {
       return { condition: g.condition, generation: g.generation, solutionsReaching: `${reaching}/${correct.length}`, perAgent };
     });
 
+  // Correct solutions whose text is a task's reference solution, per subject:
+  // the reference is in tasks/*.json, which subjects are told not to read. A
+  // few short canonical answers match by themselves; a high count is a flag.
+  const referenceOf = new Map(families.flatMap((f) => f.tasks.map((t) => [t.id, tokenize(t.reference).join(' ')])));
+  const referenceMatches = graded.map((g) => ({
+    agent: g.agent,
+    matches: g.results.filter((r) => r.correct && tokenize(r.solution).join(' ') === referenceOf.get(r.task)).map((r) => r.task),
+  }));
+
   // The cli route's call log, per subject.
   const calls = graded.filter((g) => g.calls).map((g) => ({ agent: g.agent, ...g.calls }));
 
@@ -163,6 +181,7 @@ export async function analyze(ajisai, gens, families, models = {}) {
     baseline,
     reuse,
     calls,
+    referenceMatches,
     convergent,
     classCount: byClass.size,
     wordCount: words.size,
@@ -180,6 +199,18 @@ export function renderReport(report) {
   out.push('| --- | --- | --- | --- | --- | --- | --- | --- |');
   for (const g of report.perGeneration) {
     out.push(`| ${g.condition} | ${g.generation} | ${g.agents} | ${g.lexiconSize} | ${g.accuracy} | ${g.meanTokens} | ${g.compression} | ${g.coreEquivalent} |`);
+  }
+  if (report.perGeneration.some((g) => g.byModel && Object.keys(g.byModel).length)) {
+    out.push('', '## Correct solutions by generation and model', '');
+    const modelsSeen = [...new Set(report.perGeneration.flatMap((g) => Object.keys(g.byModel ?? {})))];
+    out.push(`| condition | gen | ${modelsSeen.join(' | ')} | mean runs |`, `| --- | --- | ${modelsSeen.map(() => '---').join(' | ')} | --- |`);
+    for (const g of report.perGeneration) {
+      out.push(`| ${g.condition} | ${g.generation} | ${modelsSeen.map((m) => g.byModel?.[m] ?? '—').join(' | ')} | ${g.meanRuns ?? '—'} |`);
+    }
+  }
+  if (report.referenceMatches?.some((r) => r.matches.length)) {
+    out.push('', '## Correct solutions identical to the reference', '');
+    for (const r of report.referenceMatches.filter((x) => x.matches.length)) out.push(`- ${r.agent}: ${r.matches.length} (${r.matches.join(', ')})`);
   }
   if (report.perModel?.length) {
     out.push('', '## Accuracy per model', '');

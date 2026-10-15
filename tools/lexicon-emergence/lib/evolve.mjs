@@ -79,7 +79,19 @@ function usage(graded, classes) {
  * joined at D1 agreed on the probes only, so its members are carried as they
  * are.
  */
-export function nextLexicon(generation, capacity, graded, words, classes) {
+/**
+ * How classes are ranked for the next lexicon. `uses` (the pilot's and Phase
+ * 2's rule): by how many correct solutions reached the class. `reinvention`:
+ * first by how many of this generation's subjects defined a member of the
+ * class themselves and reached it in a correct solution, then by uses. Phase
+ * 2 found `uses` locks the lexicon in after one generation — inherited Words
+ * gather uses because they are inherited — while the Words most often
+ * reinvented never entered it (M-6); `reinvention` ranks those first.
+ */
+export const SELECTION_RULES = ['uses', 'reinvention'];
+
+export function nextLexicon(generation, capacity, graded, words, classes, rule = 'uses') {
+  if (!SELECTION_RULES.includes(rule)) throw new Error(`unknown selection rule ${rule}; one of ${SELECTION_RULES.join(', ')}`);
   const perClass = usage(graded, classes);
   const memberUses = new Map();
   for (const g of graded) {
@@ -110,7 +122,23 @@ export function nextLexicon(generation, capacity, graded, words, classes) {
     return [...plan, name];
   };
 
-  const ranked = [...perClass.entries()].sort(([, a], [, b]) => b.uses - a.uses || b.agents.size - a.agents.size);
+  // Subjects who defined a member of a class themselves and reached it in a correct solution.
+  const reinventors = new Map();
+  for (const g of graded) {
+    const own = new Set(g.definitions.map((d) => classes.get(norm(d.name))?.classId).filter(Boolean));
+    for (const r of g.results) {
+      if (!r.correct) continue;
+      for (const name of r.uses) {
+        const classId = classes.get(name)?.classId;
+        if (classId && own.has(classId)) reinventors.set(classId, (reinventors.get(classId) ?? new Set()).add(g.agent));
+      }
+    }
+  }
+  const reinvented = (classId) => reinventors.get(classId)?.size ?? 0;
+  const ranked = [...perClass.entries()].sort(
+    ([ca, a], [cb, b]) =>
+      (rule === 'reinvention' ? reinvented(cb) - reinvented(ca) : 0) || b.uses - a.uses || b.agents.size - a.agents.size,
+  );
   for (const [classId] of ranked) {
     if (representative.has(classId)) continue;
     const members = membersOf.get(classId).map((c) => c.name).sort(byPreference);
@@ -131,5 +159,5 @@ export function nextLexicon(generation, capacity, graded, words, classes) {
       if (strong(c.classId)) representative.set(c.classId, d.name);
     }
   }
-  return { generation, capacity, entries: chosen };
+  return { generation, capacity, rule, entries: chosen };
 }

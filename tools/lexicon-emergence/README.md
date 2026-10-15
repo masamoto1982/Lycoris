@@ -13,7 +13,9 @@ Nothing here defines Ajisai. Results are observation notes: the pilot's are
 `docs/dev/lexicon-emergence-pilot-results-2026-09-23.md`, Phase 2's
 `docs/dev/lexicon-emergence-phase2-results-2026-10-15.md`; each holds the
 numbers from its run's `report.md`; the difficulty calibration's is
-`docs/dev/lexicon-emergence-difficulty-calibration-2026-10-15.md`. No run is kept under `runs/` (each run's
+`docs/dev/lexicon-emergence-difficulty-calibration-2026-10-15.md`. Phase 3's
+design, not yet run, is `docs/dev/lexicon-emergence-phase3-design-2026-10-15.md`.
+No run is kept under `runs/` (each run's
 raw data was committed and then removed, and lives in git history);
 the experiment's original work order was removed from `docs/dev/` at the
 same time, and the hypotheses H1–H5 it named are restated in the pilot
@@ -28,14 +30,14 @@ results.
 | `lib/source.mjs` | Tokenizing, bound-variable renaming, and expanding user Words into Core-only source |
 | `lib/grade.mjs` | A solution is correct when every input leaves the reference's final stack; also runs the Core-only expansion (H5) |
 | `lib/identity.mjs` | D0 (DIGEST), D0α (DIGEST after renaming bound variables), D1 (probe-battery fingerprint) |
-| `lib/evolve.mjs` | Equivalence classes and the next generation's top-K lexicon |
-| `lib/analyze.mjs` | H1, H2, H4, H5 over a run |
+| `lib/evolve.mjs` | Equivalence classes and the next generation's top-K lexicon, ranked by uses (`uses`, Phase 2's rule) or first by how many subjects wrote the Word's class themselves (`reinvention`) |
+| `lib/analyze.mjs` | H1, H2, H4, H5 over a run; correct solutions per generation and model with the mean number of runs; correct solutions token-identical to the reference |
 | `lib/prompt.mjs` | The single message a subject agent receives (route A: read SKILL.md, write a file, paste the inherited definitions; cli route: read SKILL.md, run files through `cli.mjs compute`, name inherited Words with `--words`, write a file; route B: the harness supplies SKILL.md and a `submit` tool, and the inherited Words come through `words`) |
 | `lib/shuffle.mjs` | C-shuffled: a lexicon renamed to nonsense names, notes dropped, references between its Words rewritten |
 | `lib/lexicon-phrasebook.mjs` | Route B: a generation's lexicon written as a phrasebook file with each Word's `#:digest`, served to that generation's subjects through the MCP server's `words` argument (`AJISAI_PHRASEBOOK`), and the check that a result's `prelude` matches it by content |
 | `lib/harness.mjs` | Route B: one subject through the Claude API. Offers the MCP server's own `compute` / `check` / `word_contract` definitions plus `submit`, relays calls unchanged, caps turns and spending, records every request's served model, usage and cost |
 | `test/` | The harness against a scripted model (no API call) with the real server and grader: `npm test` |
-| `runs/<run>/design.json` | The families a run uses, the model behind each subject letter (`"models": { "A": "opus", … }`) and, optionally, how many times each subject may run code (`"callBudget"`; 0 forbids running at all, and the prompt says so) |
+| `runs/<run>/design.json` | The families a run uses, the model behind each subject letter (`"models": { "A": "opus", … }`), optionally the selection rule (`"selectionRule"`) and how many times each subject may run code (`"callBudget"`: a number, or per condition `{ "default": 0, "runs": null }`; 0 forbids running at all, and the prompt says so; null is unlimited) |
 | `runs/<run>/<condition>/gen<g>/` | `lexicon.json`, `submissions/`, `graded/`; with a lexicon, `phrasebook.ajisai` and `lexicon-digests.json`; for route B `transcripts/`; for the cli route `calls/<agent>.jsonl` (every run, its `--words` and its `prelude`) and `work/<agent>/` |
 
 ## Use
@@ -53,6 +55,12 @@ node cli.mjs prepare <run> <condition> <gen>                     # phrasebook fo
 node cli.mjs prompt  <run> <condition> <gen> <agent> --route cli # message for one subagent
 node cli.mjs compute <run> <condition> <gen> <agent> <file> [--words A,B]   # what the subagent runs
 node cli.mjs shuffle <run> bottleneck 1 shuffled 1               # C-shuffled from bottleneck's lexicon
+
+# Phase 3 — several lexicon rules fed from one generation, earlier solutions sealed away.
+node cli.mjs evolve  <run> bottleneck 0 8 --rule reinvention --into reinvention
+node cli.mjs evolve  <run> bottleneck 0 Infinity --into open     # C-open: no capacity
+node cli.mjs seal    <run> <condition> <gen>   # after grade and evolve: solutions leave the tree
+node cli.mjs unseal  <run>                     # before analyze: everything comes back
 
 # Route B — needs ANTHROPIC_API_KEY in the environment and spends money.
 node cli.mjs run   <run> <condition> <gen> G0A,G0B --model large --budget 10
