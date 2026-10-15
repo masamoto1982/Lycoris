@@ -85,6 +85,12 @@ pub enum ResourceLimit {
     /// How many containers deep one value nests (`max_nesting_depth`) —
     /// whether written as a literal, decoded from JSON, or built by Words.
     NestingDepth,
+    /// How many User Word calls and block evaluations are active at once
+    /// (`interpreter_core::MAX_CALL_DEPTH`). Each nests native frames, so the
+    /// depth is bounded where the native stack would otherwise overflow.
+    /// Fixed by the engine rather than chosen by a host, and published in
+    /// every limit profile beside the ceilings a host does choose.
+    CallDepth,
     /// Execution-step budget (`Interpreter::max_execution_steps`). Kept in the
     /// same vocabulary even though it lives outside `RuntimeLimits`, because a
     /// host publishes it as one more entry in the same limit table.
@@ -137,6 +143,7 @@ impl ResourceLimit {
             ResourceLimit::NestingDepth => "nestingDepth",
             ResourceLimit::ExecutionSteps => "executionSteps",
             ResourceLimit::MaterializedElements => "materializedElements",
+            ResourceLimit::CallDepth => "callDepth",
         }
     }
 }
@@ -151,7 +158,6 @@ pub enum ErrorCategory {
     /// from `ExecutionLimitExceeded` so "the program never terminated" and
     /// "one value grew past the declared size ceiling" stop sharing an answer.
     ResourceLimitExceeded,
-    RecursionLimitExceeded,
     /// A `#:contract` declaration the inferred contract contradicts
     /// (`agent::contract`). Raised before anything runs — by `check`,
     /// and by `compute`, which refuses to execute a program whose own
@@ -173,7 +179,6 @@ impl ErrorCategory {
             ErrorCategory::MalformedSource => "malformedSource",
             ErrorCategory::ExecutionLimitExceeded => "executionLimitExceeded",
             ErrorCategory::ResourceLimitExceeded => "resourceLimitExceeded",
-            ErrorCategory::RecursionLimitExceeded => "recursionLimitExceeded",
             ErrorCategory::ContractViolation => "contractViolation",
             ErrorCategory::Declared(condition) => condition,
         }
@@ -187,7 +192,6 @@ impl ErrorCategory {
             AjisaiError::MalformedSource(_) => ErrorCategory::MalformedSource,
             AjisaiError::ExecutionLimitExceeded { .. } => ErrorCategory::ExecutionLimitExceeded,
             AjisaiError::ResourceLimitExceeded { .. } => ErrorCategory::ResourceLimitExceeded,
-            AjisaiError::RecursionLimitExceeded { .. } => ErrorCategory::RecursionLimitExceeded,
             AjisaiError::DeclaredCondition { condition, .. } => ErrorCategory::Declared(condition),
         })
     }
@@ -267,13 +271,6 @@ pub enum AjisaiError {
         /// that is charged as it goes. `None` everywhere else — see
         /// [`ResourceProgress`] for why the distinction is the whole point.
         progress: Option<ResourceProgress>,
-    },
-    /// Native call-depth guard (LANG.DICTIONARY.ACYCLIC): `word` reached `limit` nested
-    /// activations — a pathologically long acyclic call chain, since the
-    /// DEF-time acyclicity check (LANG.DICTIONARY.ACYCLIC) rules out recursion.
-    RecursionLimitExceeded {
-        limit: usize,
-        word: String,
     },
     /// A raise the failing Word's own registry entry already names: `condition`
     /// is one of the conditions its `errorWhen` declares, spelled the way
@@ -422,9 +419,6 @@ impl fmt::Display for AjisaiError {
                     limit
                 ),
             },
-            AjisaiError::RecursionLimitExceeded { limit, word } => {
-                write!(f, "recursion limit exceeded ({}) in '{}'", limit, word)
-            }
             AjisaiError::DeclaredCondition {
                 condition,
                 message,

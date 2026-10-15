@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use crate::interpreter::arithmetic::ExactArithmeticSchema;
 use crate::interpreter::engine::{Code, Op as CodeOp};
 use crate::interpreter::fused_block::{one_lane_of, Compare, Instr, Op, Plain, Src};
-use crate::interpreter::interpreter_core::MAX_USER_WORD_DEPTH;
+use crate::interpreter::interpreter_core::MAX_CALL_DEPTH;
 use crate::interpreter::Interpreter;
 use crate::kernel::generated::WordId;
 use crate::types::fraction::Fraction;
@@ -161,7 +161,7 @@ impl Lowering<'_> {
     }
 
     fn call(&mut self, name: &str, call_depth: usize) -> Option<()> {
-        if call_depth + 1 > MAX_USER_WORD_DEPTH {
+        if call_depth + 1 > MAX_CALL_DEPTH {
             return None;
         }
         let def = self.interp.user_words.get(name)?.clone();

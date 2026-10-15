@@ -38,6 +38,15 @@ function materialize(probe) {
       if (!probe.repetitions) return cascade;
       return `[ ${cascade} ] 'C' DEF${" C".repeat(probe.repetitions)}`;
     }
+    if (probe.generator === "wordChain") {
+      // W1 pushes 1 and each Wk calls W(k-1), so calling the last Word nests
+      // exactly `words` User Word frames: the call depth is the count, by
+      // construction rather than by counting brackets.
+      const lines = ["[ 1 ] 'W1' DEF"];
+      for (let k = 2; k <= probe.words; k += 1) lines.push(`[ W${k - 1} ] 'W${k}' DEF`);
+      lines.push(`W${probe.words}`);
+      return lines.join("\n");
+    }
     if (probe.generator === "widePowers") {
       // One 4096-digit literal, parsed once into a user word, multiplied in N
       // times. Each product widens the accumulator by the literal's width, so

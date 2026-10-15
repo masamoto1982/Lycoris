@@ -672,7 +672,7 @@ if (compute.structuredContent?.error?.code === "backendUnavailable") {
     compute.structuredContent?.stackDisplay?.[0] === "[ sqrt(2) ]",
   );
   // The ceilings travel once, in `ajisai://limits`; a result names the
-  // profile and carries none of the twelve numbers.
+  // profile and carries none of the thirteen numbers.
   check(
     "compute reports engine provenance and names the applied profile",
     compute.structuredContent?.mcp?.serverVersion === serverVersion() &&

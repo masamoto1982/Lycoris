@@ -73,8 +73,8 @@ mod tests {
     #[test]
     fn absence_and_diagnosis_protocol_strings_do_not_use_debug_names() {
         assert_eq!(
-            ErrorCategory::RecursionLimitExceeded.as_protocol_str(),
-            "recursionLimitExceeded"
+            ErrorCategory::ResourceLimitExceeded.as_protocol_str(),
+            "resourceLimitExceeded"
         );
     }
 

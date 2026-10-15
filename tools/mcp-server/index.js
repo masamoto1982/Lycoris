@@ -49,6 +49,7 @@ export const LIMITS = Object.freeze({
   bigintBits: 262_144,
   algebraicTerms: 512,
   nestingDepth: 256,
+  callDepth: 256,
 });
 /**
  * How long a saturated server waits for an execution slot before answering
@@ -432,7 +433,7 @@ function provenance() {
     // Named for what it digests: the packaged asset, not the engine.
     assetDigest: registryDigest(),
     backend: { kind: selected?.kind ?? null },
-    // The profile by name; the twelve ceilings themselves are one resource
+    // The profile by name; the thirteen ceilings themselves are one resource
     // read away (`ajisai://limits`) and never change between calls. They
     // used to travel on every result — 300 bytes of constants — and a ceiling that
     // fires names itself in `error.resource` and its value in `message`, so

@@ -15,6 +15,10 @@ program and its answer before and after.
 
 Specification: 1.0.0-beta.2.
 
+### Changed
+
+- **The call-depth ceiling is `callDepth`.** A run nested past 256 User Word calls and block evaluations fails as `resourceLimitExceeded` with `error.resource: "callDepth"`, like every other ceiling; it used to be the separate category `recursionLimitExceeded`, which no longer exists. `ajisai://limits` lists `callDepth`, and the golden limit cases pin its boundary.
+
 ### Added
 
 - **`specificationVersion`.** Every engine result names the specification version the engine implements, at the top level, as the engine's own envelope states it. `result.schema.json` declares it, and `--version` prints it. A stored result now says which rules produced it.

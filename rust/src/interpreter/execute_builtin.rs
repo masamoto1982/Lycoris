@@ -90,17 +90,13 @@ impl Interpreter {
                 .and_then(|()| self.check_fresh_nesting());
         }
 
-        // Call-depth guard: catches blown Rust stack before WASM traps. Guards
-        // a pathologically long acyclic call chain, not recursion — the
-        // DEF-time acyclicity check (LANG.DICTIONARY.ACYCLIC) makes recursion impossible to
-        // construct. The matching decrement is just before the return below;
-        // there are no `?` early returns between this point and the decrement.
-        if self.call_depth + 1 > super::interpreter_core::MAX_USER_WORD_DEPTH {
-            return Err(AjisaiError::RecursionLimitExceeded {
-                limit: super::interpreter_core::MAX_USER_WORD_DEPTH,
-                word: name.to_string(),
-            });
-        }
+        // Call-depth ceiling: refuses before the native stack overflows (a
+        // WASM trap). It is reached by a long acyclic call chain, and by a
+        // block that runs a copy of itself — LANG.DICTIONARY.ACYCLIC rules
+        // out a body that names itself, not a block rebuilt from data. The
+        // matching decrement is just before the return below; there are no
+        // `?` early returns between this point and the decrement.
+        self.check_call_depth()?;
         self.call_depth += 1;
 
         let code = self.body_code(&def);
@@ -167,17 +163,29 @@ impl Interpreter {
     /// before any route is chosen, so a fused or compiled route reaches the
     /// same answer as the interpreted one (LANG.AUTHORITY.FREEDOM); a refusal
     /// comes before the operands are taken, so they stay where they were.
-    fn in_block_frame(&mut self, word: &str, op: fn(&mut Interpreter) -> Result<()>) -> Result<()> {
-        if self.call_depth + 1 > super::interpreter_core::MAX_USER_WORD_DEPTH {
-            return Err(AjisaiError::RecursionLimitExceeded {
-                limit: super::interpreter_core::MAX_USER_WORD_DEPTH,
-                word: word.to_string(),
-            });
-        }
+    fn in_block_frame(&mut self, op: fn(&mut Interpreter) -> Result<()>) -> Result<()> {
+        self.check_call_depth()?;
         self.call_depth += 1;
         let result = op(self);
         self.call_depth -= 1;
         result
+    }
+
+    /// Refuse one more nested call or block evaluation past `MAX_CALL_DEPTH`
+    /// as `resourceLimitExceeded`, naming `callDepth` like every other ceiling
+    /// (LANG.MACHINE.LIMITS). Attribution to the Word that tried is the
+    /// dispatcher's, as for any other refusal.
+    fn check_call_depth(&self) -> Result<()> {
+        let limit = super::interpreter_core::MAX_CALL_DEPTH;
+        if self.call_depth + 1 > limit {
+            return Err(AjisaiError::ResourceLimitExceeded {
+                resource: crate::error::ResourceLimit::CallDepth,
+                limit: limit as u64,
+                observed: Some((self.call_depth + 1) as u64),
+                progress: None,
+            });
+        }
+        Ok(())
     }
 
     /// Run the primitive for a Word's canonical identity.
@@ -195,10 +203,10 @@ impl Interpreter {
             WordId::Eq => comparison::op_eq(self),
             WordId::Lt => comparison::op_lt(self),
             WordId::Gt => comparison::op_gt(self),
-            WordId::Map => self.in_block_frame("MAP", higher_order::op_map),
-            WordId::Filter => self.in_block_frame("FILTER", higher_order::op_filter),
-            WordId::Fold => self.in_block_frame("FOLD", higher_order_fold::op_fold),
-            WordId::Scan => self.in_block_frame("SCAN", higher_order_fold::op_scan),
+            WordId::Map => self.in_block_frame(higher_order::op_map),
+            WordId::Filter => self.in_block_frame(higher_order::op_filter),
+            WordId::Fold => self.in_block_frame(higher_order_fold::op_fold),
+            WordId::Scan => self.in_block_frame(higher_order_fold::op_scan),
             WordId::Get => vector_ops::op_get(self),
             WordId::Length => vector_ops::op_length(self),
             WordId::Concat => vector_ops::op_concat(self),
@@ -217,7 +225,7 @@ impl Interpreter {
                 Ok(())
             }
             WordId::Reconcile => logic::op_reconcile(self),
-            WordId::Exec => self.in_block_frame("EXEC", control::op_exec),
+            WordId::Exec => self.in_block_frame(control::op_exec),
             WordId::Contract => reflection_ops::op_contract(self),
             WordId::Digest => reflection_ops::op_digest(self),
             WordId::Bind => bindings::op_bind(self),

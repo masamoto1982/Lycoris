@@ -307,7 +307,7 @@ async fn test_direct_recursion_hits_execution_limit() {
 // exhaustion. The depth guard fires before the execution-step guard when
 // steps are left high.
 #[tokio::test]
-async fn test_infinite_recursion_hits_recursion_depth_limit() {
+async fn test_deep_call_chain_hits_the_call_depth_ceiling() {
     let mut interp = Interpreter::new();
     // Leave the step limit at default so the depth guard fires first.
     let (source, entry) = deep_chain_source(300);
@@ -320,8 +320,8 @@ async fn test_infinite_recursion_hits_recursion_depth_limit() {
     );
     let err_msg = result.unwrap_err().to_string();
     assert!(
-        err_msg.contains("recursion limit exceeded"),
-        "Error message should mention recursion limit: {}",
+        err_msg.contains("callDepth of 257 exceeds the limit of 256"),
+        "Error message should name the callDepth ceiling: {}",
         err_msg
     );
 }

@@ -12,7 +12,8 @@ pub(crate) type WordCacheEntry = (u64, Name, Option<Arc<WordDefinition>>);
 /// comment for the host-time-budget derivation).
 pub const DEFAULT_MAX_EXECUTION_STEPS: usize = super::runtime_limits::DEFAULT_MAX_EXECUTION_STEPS;
 
-/// Cap on the user-word call stack depth. Hit before Rust's native call stack
+/// The `callDepth` ceiling: how many User Word calls and block evaluations may
+/// be active at once. Hit before Rust's native call stack
 /// runs out and panics the WASM module to an unrecoverable trap. The value is
 /// set well above any reasonable hand-written nesting (the existing deep
 /// non-recursive test uses 5 frames) but well below the Rust stack budget on
@@ -21,14 +22,19 @@ pub const DEFAULT_MAX_EXECUTION_STEPS: usize = super::runtime_limits::DEFAULT_MA
 /// → `run_op_slow` → `dispatch_word_beyond_core`), so the empirical
 /// safe ceiling is roughly 256 levels in debug builds. `DEFAULT_MAX_EXECUTION_STEPS`
 /// is still the primary backstop for runaway computation generally; this
-/// guard turns a pathologically long acyclic call chain into a recoverable
-/// `AjisaiError` regardless of that step budget's value — a stack overflow is
-/// a depth problem, not a count problem. Recursion itself cannot reach this
-/// guard: LANG.DICTIONARY.ACYCLIC's DEF-time acyclicity check makes a self-referential
-/// definition impossible to construct. A Word that evaluates a block nests
-/// the same frames, so it counts one level too (`in_block_frame`): the depth
-/// is that of calls and blocks together.
-pub const MAX_USER_WORD_DEPTH: usize = 256;
+/// guard turns deep nesting into `resourceLimitExceeded` naming `callDepth`
+/// regardless of that step budget's value — a stack overflow is a depth
+/// problem, not a count problem. Two things reach it: a long acyclic call
+/// chain, and a block that runs a copy of itself (`[ 1 COLLECT [ 0 0 ] GET
+/// EXEC EXEC ] 1 COLLECT [ 0 0 ] GET EXEC EXEC`). LANG.DICTIONARY.ACYCLIC's
+/// DEF-time check refuses a body that names itself, not a block rebuilt from
+/// data; docs/dev/observation-remediation-work-order-2026-10-15.md, stage 2,
+/// holds what the language should say about the second. A Word that
+/// evaluates a block nests the same frames, so it counts one level too
+/// (`in_block_frame`): the depth is that of calls and blocks together. Fixed
+/// by the engine rather than by a host profile, and published in every
+/// profile as `callDepth` (`host_profile_defaults::entries`).
+pub const MAX_CALL_DEPTH: usize = 256;
 
 /// What this run spent of the budgets that can refuse it.
 ///
@@ -92,7 +98,7 @@ pub struct Interpreter {
     /// User-word call depth. Incremented on entry to a user-word body in
     /// `call_user_word`, and around a Word that evaluates a block
     /// (`in_block_frame`), decremented on exit. Compared against
-    /// `MAX_USER_WORD_DEPTH` to prevent a deep recursion from blowing the
+    /// `MAX_CALL_DEPTH` to prevent deep nesting from blowing the
     /// Rust call stack and trapping the WASM module.
     pub(crate) call_depth: usize,
     pub(crate) execution_step_count: usize,

@@ -386,7 +386,8 @@
       "algebraicTerms",
       "nestingDepth",
       "materializedElements",
-      "executionSteps"
+      "executionSteps",
+      "callDepth"
      ],
      "description": "For `resourceLimitExceeded`, the ceiling crossed — an entry of the `ajisai://limits` profile."
     },
