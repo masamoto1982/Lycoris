@@ -1,0 +1,5 @@
+{
+  "families": ["runs", "number", "brackets", "sensor", "orders", "messy"],
+  "models": { "A": "opus", "B": "sonnet", "C": "haiku", "D": "fable" },
+  "callBudget": { "default": 0, "runs": null }
+}
