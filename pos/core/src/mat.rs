@@ -21,7 +21,7 @@ use crate::rng::Rng;
 pub const RETRY_MS: u64 = 600;
 pub const HEARTBEAT_MS: u64 = 2_000;
 pub const LINK_TIMEOUT_MS: u64 = 5_000;
-pub const BUZZ_MS: u64 = 1_500;
+pub const BUZZ_MS: u64 = 3_000;
 /// 未対応の呼び出しがある間、鳴らし直す間隔
 pub const RERING_MS: u64 = 10_000;
 
