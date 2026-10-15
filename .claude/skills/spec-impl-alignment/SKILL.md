@@ -138,7 +138,7 @@ retired.
 
 Only now compare the two. For each observed disagreement between what
 `spec/` says and what a real build actually does (confirm with a live
-program run — `ajisai agent compute - --json`, or the WASM/GUI
+program run — `ajisai agent compute -`, which always emits JSON, or the WASM/GUI
 equivalent — never trust a doc comment's claim about behavior),
 apply the suite-arbitration rule:
 

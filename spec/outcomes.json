@@ -9,7 +9,7 @@
     {
       "id": "domainMiss",
       "projectable": true,
-      "documentation": "A well-formed operand outside the operation's domain — the canonical case is SQRT of a negative rational; an order asked of `0/0`, which has none (LT, GT, MIN, MAX, SORT, ORDER, BSEARCH), a decimal asked of a number over zero (FORMAT), and NIL-REASON asked of a value that is not a NIL are others."
+      "documentation": "A well-formed operand outside the operation's domain — the canonical case is SQRT of a negative rational; an order asked of a point over zero, `1/0` or `0/0`, which has none (LT, GT, MIN, MAX, SORT, ORDER, BSEARCH), a decimal asked of a number over zero (FORMAT), and NIL-REASON asked of a value that is not a NIL are others."
     },
     {
       "id": "indexOutOfBounds",
@@ -100,7 +100,7 @@
       "kind": "structural",
       "attribution": "machine",
       "repair": "program",
-      "documentation": "Program text that does not parse — an unclosed block, a | outside a clause, a mismatched delimiter."
+      "documentation": "Program text the lexical grammar refuses (spec/grammar.json, LANG.SOURCE.TEXT): an unclosed string literal, a delimiter glued to another lexeme, or an unbalanced `[` or `]`. There are no other source errors, and a source error refuses the whole program before any of it runs."
     },
     {
       "id": "nameConflict",
@@ -146,7 +146,7 @@
     {
       "id": "notExecutable",
       "kind": "declared",
-      "documentation": "A higher-order Word's block operand is not a CodeBlock."
+      "documentation": "The code operand of a higher-order Word (MAP, FILTER, FOLD, SCAN) or of EXEC is not a Vector. Code is a Vector read as executable (LANG.SOURCE.CODE), and nothing else is code: a String, even one naming a Word, is refused, because a computed name would escape the acyclicity check (LANG.DICTIONARY.ACYCLIC)."
     },
     {
       "id": "protectedWord",

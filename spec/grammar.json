@@ -163,7 +163,7 @@
         "pattern": "numeric"
       },
       "emits": "Number",
-      "note": "The whole lexeme must be accepted. This is why no character needs a rule of its own: '1/2' is a number because the entire token parses as one, and a bare '/' is a name for exactly the same reason. A denominator of zero is accepted like any other: '1/0' denotes one of the three points over zero (LANG.VALUES.EXACT)."
+      "note": "The whole lexeme must be accepted. This is why no character needs a rule of its own: '1/2' is a number because the entire token parses as one, and a bare '/' is a name for exactly the same reason. A denominator of zero is accepted like any other: '1/0' denotes one of the two points over zero (LANG.VALUES.EXACT)."
     },
     {
       "id": "symbol",

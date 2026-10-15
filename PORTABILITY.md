@@ -32,10 +32,6 @@ Primitive registry の各 primitive は `admission_reason`、`introduced_by`、`
 `effect_schema`、Exploratory は `reason`、`exit_options`、`review_gate` を持つ。
 これらの欠落は `npm run check:formalization-coverage` で検出する。
 
-`npm run simplify:report` は同じ semantic graph から Markdown のレビュー資料を生成する。
-このレポートは仕様そのものではなく、未分類語彙、未使用 primitive、HostedEffect の Core 混入、
-Exploratory debt、Derived 実装圧縮候補を次の PR へ渡すための事象作用レビュー資料である。
-
 ## Lineage
 Ajisai は FORTH から辞書システムを継承した遠縁である。ただし FORTH が
 スタックベースなのに対し Ajisai は Vector ベースであり、実行モデルの根幹が

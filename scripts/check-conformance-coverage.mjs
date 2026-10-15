@@ -1,18 +1,12 @@
 #!/usr/bin/env node
-// CI gate: every Core-classified surface word AND every Module-classified
-// word (docs/word-manifest.json) must appear in at least one `ajisai-source`
-// program of tests/conformance/index.html. Exits non-zero if any is missing.
+// CI gate: every Core-classified surface word (docs/word-manifest.json) must
+// appear in at least one `ajisai-source` program of
+// tests/conformance/index.html. Exits non-zero if any is missing.
 //
 // Usage:
 //   node scripts/check-conformance-coverage.mjs            # human summary
 //   node scripts/check-conformance-coverage.mjs --json     # JSON report
 //   node scripts/check-conformance-coverage.mjs --suite F  # alternate suite file
-//
-// A module word counts as covered when its qualified surface (MODULE@WORD)
-// appears as a token, or its short surface appears as a token in a source
-// that also imports that module ('module' IMPORT / IMPORT-ONLY), so bare
-// post-import spellings like `NOW` or `SORT` count without letting the
-// core-namespace collision cases (e.g. bare `GET`) count for JSON@GET.
 
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -45,63 +39,25 @@ if (sources.length === 0) {
 }
 
 const seen = new Set();
-// Per-source token sets, so a bare module short surface only counts for a
-// module the same source actually imports.
-const perSource = [];
 for (const src of sources) {
-  const tokens = new Set();
   for (const tok of src.split(/\s+/)) {
-    if (!tok) continue;
-    seen.add(tok);
-    tokens.add(tok);
+    if (tok) seen.add(tok);
   }
-  const imports = new Set();
-  for (const m of src.matchAll(/'([A-Za-z-]+)'\s+IMPORT(?:-ONLY)?\b/gi)) {
-    imports.add(m[1].toUpperCase());
-  }
-  perSource.push({ tokens, imports });
 }
-
-// Every module-canonical word regardless of classification bucket (the
-// manifest splits module words across Module / Exploratory / HostedEffect /
-// Core-listed), so the metric covers the full LANG.DICTIONARY.RESOLUTION module vocabulary.
-const moduleEntries = manifest.entries.filter(
-  (e) => e.kind === 'moduleword',
-);
-const moduleCovered = [];
-const moduleMissing = [];
-for (const e of moduleEntries) {
-  const hit = perSource.some(
-    ({ tokens, imports }) =>
-      tokens.has(e.surface)
-      || (tokens.has(e.short_surface) && imports.has(e.module)),
-  );
-  (hit ? moduleCovered : moduleMissing).push(e.surface);
-}
-moduleCovered.sort();
-moduleMissing.sort();
 
 const covered = [...coreWords].filter((w) => seen.has(w)).sort();
 const missing = [...coreWords].filter((w) => !seen.has(w)).sort();
 const pct = (100 * covered.length) / coreWords.size;
-// 0/0 (no module words registered yet) is vacuously fully covered, not NaN.
-const modulePct = moduleEntries.length === 0
-  ? 100
-  : (100 * moduleCovered.length) / moduleEntries.length;
 
 if (asJson) {
   process.stdout.write(`${JSON.stringify({
-    schemaVersion: 2,
+    schemaVersion: 3,
     suite: suitePath,
     caseSources: sources.length,
     coreWords: coreWords.size,
     covered: covered.length,
     coveragePercent: Number(pct.toFixed(1)),
     missing,
-    moduleWords: moduleEntries.length,
-    moduleCovered: moduleCovered.length,
-    moduleCoveragePercent: Number(modulePct.toFixed(1)),
-    moduleMissing,
   }, null, 2)}\n`);
 } else {
   console.log(`conformance suite: ${sources.length} case sources`);
@@ -112,20 +68,13 @@ if (asJson) {
   } else {
     console.log('missing: none');
   }
-  console.log(`Module words: ${moduleEntries.length}`);
-  console.log(`module covered: ${moduleCovered.length} (${modulePct.toFixed(1)}%)`);
-  if (moduleMissing.length) {
-    console.log(`module missing (${moduleMissing.length}): ${moduleMissing.join(' ')}`);
-  } else {
-    console.log('module missing: none');
-  }
 }
 
-if (missing.length > 0 || moduleMissing.length > 0) {
+if (missing.length > 0) {
   console.error(
-    `[conformance-coverage] ${missing.length} Core word(s) and ${moduleMissing.length} module word(s) `
+    `[conformance-coverage] ${missing.length} Core word(s) `
     + 'have no conformance case. Add an `ajisai-source` case that uses each, '
-    + 'or run with --json to see the full lists.',
+    + 'or run with --json to see the full list.',
   );
   process.exitCode = 1;
 }

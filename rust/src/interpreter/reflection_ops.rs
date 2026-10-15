@@ -19,7 +19,7 @@ use super::ordering_ops::{restore, take_operand};
 use crate::builtins::lookup_builtin_spec;
 use crate::error::{AjisaiError, NilReason, Result};
 use crate::interpreter::collection_meter;
-use crate::interpreter::contract_record::contract_record;
+use crate::interpreter::contract_record::{contract_record, core_contract_record};
 use crate::interpreter::value_digest::value_digest;
 use crate::interpreter::word_identity::content_digest;
 use crate::interpreter::Interpreter;
@@ -128,9 +128,13 @@ pub(crate) fn op_contract(interp: &mut Interpreter) -> Result<()> {
         return Err(not_a_symbol("CONTRACT", got));
     };
     let canonical = canonical_name(&name);
-    let answer = resolve(interp, &canonical)
-        .and_then(|_| interp.infer_word_contract(&canonical))
-        .map(|contract| contract_record(&contract));
+    let answer = match resolve(interp, &canonical) {
+        Some(Resolved::Core) => core_contract_record(&canonical),
+        Some(Resolved::User) => interp
+            .infer_word_contract(&canonical)
+            .map(|contract| contract_record(&contract)),
+        None => None,
+    };
     match answer {
         Some(record) => interp.stack.push(record),
         None => interp
