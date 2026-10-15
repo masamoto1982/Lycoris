@@ -14,7 +14,9 @@
 //                                                                       C-shuffled: rename a lexicon's Words
 //   node cli.mjs prompt  <run> <condition> <gen> <agent> --route cli    the cli route's subject prompt
 // runs/<run>/design.json, when present, names the task families ("families") and which model
-// each subject letter ran on ("models": { "A": "opus", … }), for grading and for the report.
+// each subject letter ran on ("models": { "A": "opus", … }), for grading and for the report,
+// and may cap how many times each subject may run code ("callBudget": n). The cap is stated in
+// the cli route's prompt, and `compute` refuses a subject's run past it.
 //
 // Route B (the API harness, lib/harness.mjs) — needs ANTHROPIC_API_KEY and spends money:
 //   node cli.mjs run   <run> <condition> <gen> <A,B,…> [options]   one generation's subjects
@@ -196,7 +198,9 @@ const letters = (n) => [...'ABCDEFGHIJ'].slice(0, n);
 
 if (command === 'prompt') {
   process.stdout.write(
-    subjectPrompt({ run, condition, generation: Number(gen), agent: arg }, lexiconOf(genDir(run, condition, gen)), families, options.route),
+    subjectPrompt({ run, condition, generation: Number(gen), agent: arg }, lexiconOf(genDir(run, condition, gen)), families, options.route, {
+      callBudget: design.callBudget,
+    }),
   );
 } else if (command === 'prepare') {
   const ajisai = await connect();
@@ -215,6 +219,15 @@ if (command === 'prompt') {
   if (!arg || !file) {
     console.error('usage: node cli.mjs compute <run> <condition> <gen> <agent> <file> [--words A,B] [--tool check]');
     process.exit(2);
+  }
+  // With unlimited runs every subject tried until it was right, so accuracy
+  // carried no information and only the number of runs differed (Haiku ran
+  // 1,184 programs where Opus ran 116). A budget makes the runs count.
+  const log = new URL(`calls/${arg}.jsonl`, dir);
+  const spent = existsSync(log) ? readFileSync(log, 'utf8').split('\n').filter(Boolean).length : 0;
+  if (design.callBudget != null && spent >= design.callBudget) {
+    process.stdout.write(`${JSON.stringify({ status: 'refused', message: `run budget spent: ${spent} of ${design.callBudget} runs used; write your submission from what you have` })}\n`);
+    process.exit(3);
   }
   // The phrasebook is written by the first call of a generation (or by
   // `prepare`); later calls only read it.

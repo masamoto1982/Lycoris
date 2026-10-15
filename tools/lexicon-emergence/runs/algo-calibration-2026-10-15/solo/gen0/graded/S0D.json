@@ -1,0 +1,1104 @@
+{
+  "agent": "S0D",
+  "generation": 0,
+  "condition": "solo",
+  "definitions": [
+    {
+      "name": "S0D.RUNSTARTS",
+      "body": "'V' BIND 0 V LENGTH 1 SUB RANGE [ 'I' BIND I 0 EQ NOT V I GET V I 1 SUB GET SUB 0 EQ AND NOT ] FILTER",
+      "note": "Vector -> indices where a maximal run of equal adjacent values starts (index 0 always included)"
+    },
+    {
+      "name": "S0D.DIVISORS",
+      "body": "'X' BIND 1 X RANGE [ 'D' BIND X D DIV RATIO 1 GET 1 EQ ] FILTER",
+      "note": "positive integer -> its positive divisors ascending"
+    },
+    {
+      "name": "S0D.ISPRIME",
+      "body": "S0D.DIVISORS LENGTH 2 EQ",
+      "note": "positive integer -> TRUE when it has exactly two divisors"
+    },
+    {
+      "name": "S0D.BRSTEP",
+      "body": "'C' BIND 'A' BIND A CHARS 'AC' BIND '?' 1 COLLECT AC CONCAT -1 GET 'T' BIND '(' '[' C ')' EQ SELECT T EQ 'MATCH' BIND AC AC LENGTH 1 SUB 0 MAX TAKE JOIN A '!' 2 COLLECT JOIN MATCH SELECT 'CLOSED' BIND A C 2 COLLECT JOIN CLOSED '([' C SEARCH NIL? NOT SELECT",
+      "note": "FOLD/SCAN step for bracket matching: open-stack String, bracket char -> new stack; an opener is pushed, a matching closer pops, a bad closer appends a permanent '!' so the stack is '' at the end iff balanced"
+    },
+    {
+      "name": "S0D.CANCEL",
+      "body": "'C' BIND 'A' BIND A CHARS 'AC' BIND '?' 1 COLLECT AC CONCAT -1 GET C 2 COLLECT JOIN 'PAIR' BIND AC AC LENGTH 1 SUB 0 MAX TAKE JOIN A C 2 COLLECT JOIN PAIR '()' EQ NOT PAIR '[]' EQ NOT AND NOT SELECT",
+      "note": "FOLD step for deleting adjacent matched pairs: stack String, char -> stack with the char pushed, or the top popped when top+char is '()' or '[]'"
+    }
+  ],
+  "lexiconNames": [],
+  "results": [
+    {
+      "task": "runs.rle",
+      "submitted": true,
+      "solution": "'V' BIND V S0D.RUNSTARTS 'S' BIND V S GET S 1 DROP V LENGTH 1 COLLECT CONCAT S SUB 2 COLLECT ZIP",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 22,
+      "expandedTokens": 54,
+      "uses": [
+        "S0D.RUNSTARTS"
+      ],
+      "perInput": [
+        {
+          "input": "[ 1 1 2 2 2 3 1 1 ]",
+          "ok": true,
+          "got": [
+            "[ [ 1/1 2/1 ] [ 2/1 3/1 ] [ 3/1 1/1 ] [ 1/1 2/1 ] ]"
+          ],
+          "expected": [
+            "[ [ 1/1 2/1 ] [ 2/1 3/1 ] [ 3/1 1/1 ] [ 1/1 2/1 ] ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 5 ]",
+          "ok": true,
+          "got": [
+            "[ [ 5/1 1/1 ] ]"
+          ],
+          "expected": [
+            "[ [ 5/1 1/1 ] ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 4 4 4 4 ]",
+          "ok": true,
+          "got": [
+            "[ [ 4/1 4/1 ] ]"
+          ],
+          "expected": [
+            "[ [ 4/1 4/1 ] ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 1 2 1 2 ]",
+          "ok": true,
+          "got": [
+            "[ [ 1/1 1/1 ] [ 2/1 1/1 ] [ 1/1 1/1 ] [ 2/1 1/1 ] ]"
+          ],
+          "expected": [
+            "[ [ 1/1 1/1 ] [ 2/1 1/1 ] [ 1/1 1/1 ] [ 2/1 1/1 ] ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 3 1 4 1 5 9 2 6 5 3 5 ]",
+          "ok": true,
+          "got": [
+            "[ [ 3/1 1/1 ] [ 1/1 1/1 ] [ 4/1 1/1 ] [ 1/1 1/1 ] [ 5/1 1/1 ] [ 9/1 1/1 ] [ 2/1 1/1 ] [ 6/1 1/1 ] [ 5/1 1/1 ] [ 3/1 1/1 ] [ 5/1 1/1 ] ]"
+          ],
+          "expected": [
+            "[ [ 3/1 1/1 ] [ 1/1 1/1 ] [ 4/1 1/1 ] [ 1/1 1/1 ] [ 5/1 1/1 ] [ 9/1 1/1 ] [ 2/1 1/1 ] [ 6/1 1/1 ] [ 5/1 1/1 ] [ 3/1 1/1 ] [ 5/1 1/1 ] ]"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "runs.upruns",
+      "submitted": true,
+      "solution": "'V' BIND V 1 DROP V -1 DROP SUB 0 [ 'E' BIND 'A' BIND A 1 ADD 0 E 0 GT SELECT ] SCAN 0 [ MAX ] FOLD 1 ADD",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 32,
+      "expandedTokens": 32,
+      "uses": [],
+      "perInput": [
+        {
+          "input": "[ 1 1 2 2 2 3 1 1 ]",
+          "ok": true,
+          "got": [
+            "2/1"
+          ],
+          "expected": [
+            "2/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 5 ]",
+          "ok": true,
+          "got": [
+            "1/1"
+          ],
+          "expected": [
+            "1/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 4 4 4 4 ]",
+          "ok": true,
+          "got": [
+            "1/1"
+          ],
+          "expected": [
+            "1/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 1 2 1 2 ]",
+          "ok": true,
+          "got": [
+            "2/1"
+          ],
+          "expected": [
+            "2/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 3 1 4 1 5 9 2 6 5 3 5 ]",
+          "ok": true,
+          "got": [
+            "3/1"
+          ],
+          "expected": [
+            "3/1"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "runs.dedupe",
+      "submitted": true,
+      "solution": "'V' BIND V V S0D.RUNSTARTS GET",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 6,
+      "expandedTokens": 38,
+      "uses": [
+        "S0D.RUNSTARTS"
+      ],
+      "perInput": [
+        {
+          "input": "[ 1 1 2 2 2 3 1 1 ]",
+          "ok": true,
+          "got": [
+            "[ 1/1 2/1 3/1 1/1 ]"
+          ],
+          "expected": [
+            "[ 1/1 2/1 3/1 1/1 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 5 ]",
+          "ok": true,
+          "got": [
+            "[ 5/1 ]"
+          ],
+          "expected": [
+            "[ 5/1 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 4 4 4 4 ]",
+          "ok": true,
+          "got": [
+            "[ 4/1 ]"
+          ],
+          "expected": [
+            "[ 4/1 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 1 2 1 2 ]",
+          "ok": true,
+          "got": [
+            "[ 1/1 2/1 1/1 2/1 ]"
+          ],
+          "expected": [
+            "[ 1/1 2/1 1/1 2/1 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 3 1 4 1 5 9 2 6 5 3 5 ]",
+          "ok": true,
+          "got": [
+            "[ 3/1 1/1 4/1 1/1 5/1 9/1 2/1 6/1 5/1 3/1 5/1 ]"
+          ],
+          "expected": [
+            "[ 3/1 1/1 4/1 1/1 5/1 9/1 2/1 6/1 5/1 3/1 5/1 ]"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "runs.second_largest",
+      "submitted": true,
+      "solution": "UNIQUE SORT -2 GET",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 4,
+      "expandedTokens": 4,
+      "uses": [],
+      "perInput": [
+        {
+          "input": "[ 1 1 2 2 2 3 1 1 ]",
+          "ok": true,
+          "got": [
+            "2/1"
+          ],
+          "expected": [
+            "2/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 5 ]",
+          "ok": true,
+          "got": [
+            "NIL"
+          ],
+          "expected": [
+            "NIL"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 4 4 4 4 ]",
+          "ok": true,
+          "got": [
+            "NIL"
+          ],
+          "expected": [
+            "NIL"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 1 2 1 2 ]",
+          "ok": true,
+          "got": [
+            "1/1"
+          ],
+          "expected": [
+            "1/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 3 1 4 1 5 9 2 6 5 3 5 ]",
+          "ok": true,
+          "got": [
+            "6/1"
+          ],
+          "expected": [
+            "6/1"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "runs.majority",
+      "submitted": true,
+      "solution": "'V' BIND V LENGTH 'N' BIND V TALLY 'T' BIND T VALUES 'C' BIND C ORDER -1 GET 'M' BIND T KEYS M GET NIL C M GET 2 MUL N GT SELECT",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 33,
+      "expandedTokens": 33,
+      "uses": [],
+      "perInput": [
+        {
+          "input": "[ 1 1 2 2 2 3 1 1 ]",
+          "ok": true,
+          "got": [
+            "NIL"
+          ],
+          "expected": [
+            "NIL"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 5 ]",
+          "ok": true,
+          "got": [
+            "5/1"
+          ],
+          "expected": [
+            "5/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 4 4 4 4 ]",
+          "ok": true,
+          "got": [
+            "4/1"
+          ],
+          "expected": [
+            "4/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 1 2 1 2 ]",
+          "ok": true,
+          "got": [
+            "NIL"
+          ],
+          "expected": [
+            "NIL"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 3 1 4 1 5 9 2 6 5 3 5 ]",
+          "ok": true,
+          "got": [
+            "NIL"
+          ],
+          "expected": [
+            "NIL"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "number.primes",
+      "submitted": true,
+      "solution": "'N' BIND 1 N RANGE [ S0D.ISPRIME ] FILTER",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 9,
+      "expandedTokens": 35,
+      "uses": [
+        "S0D.DIVISORS",
+        "S0D.ISPRIME"
+      ],
+      "perInput": [
+        {
+          "input": "10",
+          "ok": true,
+          "got": [
+            "[ 2/1 3/1 5/1 7/1 ]"
+          ],
+          "expected": [
+            "[ 2/1 3/1 5/1 7/1 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "1",
+          "ok": true,
+          "got": [
+            "[ ]"
+          ],
+          "expected": [
+            "[ ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "27",
+          "ok": true,
+          "got": [
+            "[ 2/1 3/1 5/1 7/1 11/1 13/1 17/1 19/1 23/1 ]"
+          ],
+          "expected": [
+            "[ 2/1 3/1 5/1 7/1 11/1 13/1 17/1 19/1 23/1 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "60",
+          "ok": true,
+          "got": [
+            "[ 2/1 3/1 5/1 7/1 11/1 13/1 17/1 19/1 23/1 29/1 31/1 37/1 41/1 43/1 47/1 53/1 59/1 ]"
+          ],
+          "expected": [
+            "[ 2/1 3/1 5/1 7/1 11/1 13/1 17/1 19/1 23/1 29/1 31/1 37/1 41/1 43/1 47/1 53/1 59/1 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "2",
+          "ok": true,
+          "got": [
+            "[ 2/1 ]"
+          ],
+          "expected": [
+            "[ 2/1 ]"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "number.divisors",
+      "submitted": true,
+      "solution": "S0D.DIVISORS",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 1,
+      "expandedTokens": 21,
+      "uses": [
+        "S0D.DIVISORS"
+      ],
+      "perInput": [
+        {
+          "input": "10",
+          "ok": true,
+          "got": [
+            "[ 1/1 2/1 5/1 10/1 ]"
+          ],
+          "expected": [
+            "[ 1/1 2/1 5/1 10/1 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "1",
+          "ok": true,
+          "got": [
+            "[ 1/1 ]"
+          ],
+          "expected": [
+            "[ 1/1 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "27",
+          "ok": true,
+          "got": [
+            "[ 1/1 3/1 9/1 27/1 ]"
+          ],
+          "expected": [
+            "[ 1/1 3/1 9/1 27/1 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "60",
+          "ok": true,
+          "got": [
+            "[ 1/1 2/1 3/1 4/1 5/1 6/1 10/1 12/1 15/1 20/1 30/1 60/1 ]"
+          ],
+          "expected": [
+            "[ 1/1 2/1 3/1 4/1 5/1 6/1 10/1 12/1 15/1 20/1 30/1 60/1 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "2",
+          "ok": true,
+          "got": [
+            "[ 1/1 2/1 ]"
+          ],
+          "expected": [
+            "[ 1/1 2/1 ]"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "number.binary",
+      "submitted": true,
+      "solution": "'N' BIND 0 N RANGE [ 'K' BIND 2 K POW N GT NOT ] FILTER LENGTH 1 SUB 0 RANGE [ 'K' BIND N 2 K POW DIV FLOOR 2 DIV RATIO 1 GET 1 SUB STR ] MAP JOIN",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 41,
+      "expandedTokens": 41,
+      "uses": [],
+      "perInput": [
+        {
+          "input": "10",
+          "ok": true,
+          "got": [
+            "'1010'"
+          ],
+          "expected": [
+            "'1010'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "1",
+          "ok": true,
+          "got": [
+            "'1'"
+          ],
+          "expected": [
+            "'1'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "27",
+          "ok": true,
+          "got": [
+            "'11011'"
+          ],
+          "expected": [
+            "'11011'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "60",
+          "ok": true,
+          "got": [
+            "'111100'"
+          ],
+          "expected": [
+            "'111100'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "2",
+          "ok": true,
+          "got": [
+            "'10'"
+          ],
+          "expected": [
+            "'10'"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "number.collatz",
+      "submitted": true,
+      "solution": "'N' BIND 1 300 RANGE N 0 2 COLLECT [ 'J' BIND [ 'C' 'S' ] BIND C S 2 COLLECT C 2 DIV C 3 MUL 1 ADD C 2 DIV RATIO 1 GET 1 EQ SELECT S 1 ADD 2 COLLECT C 1 EQ SELECT ] FOLD 1 GET",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 51,
+      "expandedTokens": 51,
+      "uses": [],
+      "perInput": [
+        {
+          "input": "10",
+          "ok": true,
+          "got": [
+            "6/1"
+          ],
+          "expected": [
+            "6/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "1",
+          "ok": true,
+          "got": [
+            "0/1"
+          ],
+          "expected": [
+            "0/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "27",
+          "ok": true,
+          "got": [
+            "111/1"
+          ],
+          "expected": [
+            "111/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "60",
+          "ok": true,
+          "got": [
+            "19/1"
+          ],
+          "expected": [
+            "19/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "2",
+          "ok": true,
+          "got": [
+            "1/1"
+          ],
+          "expected": [
+            "1/1"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "number.digital_root",
+      "submitted": true,
+      "solution": "1 SUB 'M' BIND M M 9 DIV FLOOR 9 MUL SUB 1 ADD",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 14,
+      "expandedTokens": 14,
+      "uses": [],
+      "perInput": [
+        {
+          "input": "10",
+          "ok": true,
+          "got": [
+            "1/1"
+          ],
+          "expected": [
+            "1/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "1",
+          "ok": true,
+          "got": [
+            "1/1"
+          ],
+          "expected": [
+            "1/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "27",
+          "ok": true,
+          "got": [
+            "9/1"
+          ],
+          "expected": [
+            "9/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "60",
+          "ok": true,
+          "got": [
+            "6/1"
+          ],
+          "expected": [
+            "6/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "2",
+          "ok": true,
+          "got": [
+            "2/1"
+          ],
+          "expected": [
+            "2/1"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "number.fib_index",
+      "submitted": true,
+      "solution": "'N' BIND 1 N RANGE 0 1 2 COLLECT [ 'J' BIND [ 'A' 'B' ] BIND B A B ADD 2 COLLECT ] SCAN [ 0 GET ] MAP [ N LT ] FILTER LENGTH 1 ADD",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 38,
+      "expandedTokens": 38,
+      "uses": [],
+      "perInput": [
+        {
+          "input": "10",
+          "ok": true,
+          "got": [
+            "7/1"
+          ],
+          "expected": [
+            "7/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "1",
+          "ok": true,
+          "got": [
+            "1/1"
+          ],
+          "expected": [
+            "1/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "27",
+          "ok": true,
+          "got": [
+            "9/1"
+          ],
+          "expected": [
+            "9/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "60",
+          "ok": true,
+          "got": [
+            "11/1"
+          ],
+          "expected": [
+            "11/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "2",
+          "ok": true,
+          "got": [
+            "3/1"
+          ],
+          "expected": [
+            "3/1"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "brackets.depth",
+      "submitted": true,
+      "solution": "CHARS [ 'C' BIND 1 -1 '([' C SEARCH NIL? NOT SELECT ] MAP 0 [ ADD ] SCAN 0 [ MAX ] FOLD",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 24,
+      "expandedTokens": 24,
+      "uses": [],
+      "perInput": [
+        {
+          "input": "'([]())'",
+          "ok": true,
+          "got": [
+            "2/1"
+          ],
+          "expected": [
+            "2/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "''",
+          "ok": true,
+          "got": [
+            "0/1"
+          ],
+          "expected": [
+            "0/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'([)]'",
+          "ok": true,
+          "got": [
+            "2/1"
+          ],
+          "expected": [
+            "2/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'(('",
+          "ok": true,
+          "got": [
+            "2/1"
+          ],
+          "expected": [
+            "2/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'[](([]))'",
+          "ok": true,
+          "got": [
+            "3/1"
+          ],
+          "expected": [
+            "3/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'])'",
+          "ok": true,
+          "got": [
+            "0/1"
+          ],
+          "expected": [
+            "0/1"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "brackets.balanced",
+      "submitted": true,
+      "solution": "CHARS '' [ S0D.BRSTEP ] FOLD '' EQ",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 8,
+      "expandedTokens": 67,
+      "uses": [
+        "S0D.BRSTEP"
+      ],
+      "perInput": [
+        {
+          "input": "'([]())'",
+          "ok": true,
+          "got": [
+            "TRUE"
+          ],
+          "expected": [
+            "TRUE"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "''",
+          "ok": true,
+          "got": [
+            "TRUE"
+          ],
+          "expected": [
+            "TRUE"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'([)]'",
+          "ok": true,
+          "got": [
+            "FALSE"
+          ],
+          "expected": [
+            "FALSE"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'(('",
+          "ok": true,
+          "got": [
+            "FALSE"
+          ],
+          "expected": [
+            "FALSE"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'[](([]))'",
+          "ok": true,
+          "got": [
+            "TRUE"
+          ],
+          "expected": [
+            "TRUE"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'])'",
+          "ok": true,
+          "got": [
+            "FALSE"
+          ],
+          "expected": [
+            "FALSE"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "brackets.balanced_prefix",
+      "submitted": true,
+      "solution": "CHARS '' [ S0D.BRSTEP ] SCAN [ '' EQ ] MAP 'M' BIND M 0 [ 'X' BIND 1 ADD ] SCAN 0 M SELECT 0 [ MAX ] FOLD",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 30,
+      "expandedTokens": 89,
+      "uses": [
+        "S0D.BRSTEP"
+      ],
+      "perInput": [
+        {
+          "input": "'([]())'",
+          "ok": true,
+          "got": [
+            "6/1"
+          ],
+          "expected": [
+            "6/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "''",
+          "ok": true,
+          "got": [
+            "0/1"
+          ],
+          "expected": [
+            "0/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'([)]'",
+          "ok": true,
+          "got": [
+            "0/1"
+          ],
+          "expected": [
+            "0/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'(('",
+          "ok": true,
+          "got": [
+            "0/1"
+          ],
+          "expected": [
+            "0/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'[](([]))'",
+          "ok": true,
+          "got": [
+            "8/1"
+          ],
+          "expected": [
+            "8/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'])'",
+          "ok": true,
+          "got": [
+            "0/1"
+          ],
+          "expected": [
+            "0/1"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "brackets.unmatched",
+      "submitted": true,
+      "solution": "CHARS '' [ S0D.CANCEL ] FOLD CHARS LENGTH",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 8,
+      "expandedTokens": 56,
+      "uses": [
+        "S0D.CANCEL"
+      ],
+      "perInput": [
+        {
+          "input": "'([]())'",
+          "ok": true,
+          "got": [
+            "0/1"
+          ],
+          "expected": [
+            "0/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "''",
+          "ok": true,
+          "got": [
+            "0/1"
+          ],
+          "expected": [
+            "0/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'([)]'",
+          "ok": true,
+          "got": [
+            "4/1"
+          ],
+          "expected": [
+            "4/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'(('",
+          "ok": true,
+          "got": [
+            "2/1"
+          ],
+          "expected": [
+            "2/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'[](([]))'",
+          "ok": true,
+          "got": [
+            "0/1"
+          ],
+          "expected": [
+            "0/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'])'",
+          "ok": true,
+          "got": [
+            "2/1"
+          ],
+          "expected": [
+            "2/1"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    }
+  ],
+  "calls": {
+    "total": 153,
+    "withWords": 0,
+    "preludeMismatches": 0
+  }
+}

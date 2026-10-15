@@ -1,0 +1,27 @@
+{
+  "agent": "S0D", "generation": 0, "condition": "solo",
+  "definitions": [
+    { "name": "S0D.RUNSTARTS", "body": "'V' BIND 0 V LENGTH 1 SUB RANGE [ 'I' BIND I 0 EQ NOT V I GET V I 1 SUB GET SUB 0 EQ AND NOT ] FILTER", "note": "Vector -> indices where a maximal run of equal adjacent values starts (index 0 always included)" },
+    { "name": "S0D.DIVISORS", "body": "'X' BIND 1 X RANGE [ 'D' BIND X D DIV RATIO 1 GET 1 EQ ] FILTER", "note": "positive integer -> its positive divisors ascending" },
+    { "name": "S0D.ISPRIME", "body": "S0D.DIVISORS LENGTH 2 EQ", "note": "positive integer -> TRUE when it has exactly two divisors" },
+    { "name": "S0D.BRSTEP", "body": "'C' BIND 'A' BIND A CHARS 'AC' BIND '?' 1 COLLECT AC CONCAT -1 GET 'T' BIND '(' '[' C ')' EQ SELECT T EQ 'MATCH' BIND AC AC LENGTH 1 SUB 0 MAX TAKE JOIN A '!' 2 COLLECT JOIN MATCH SELECT 'CLOSED' BIND A C 2 COLLECT JOIN CLOSED '([' C SEARCH NIL? NOT SELECT", "note": "FOLD/SCAN step for bracket matching: open-stack String, bracket char -> new stack; an opener is pushed, a matching closer pops, a bad closer appends a permanent '!' so the stack is '' at the end iff balanced" },
+    { "name": "S0D.CANCEL", "body": "'C' BIND 'A' BIND A CHARS 'AC' BIND '?' 1 COLLECT AC CONCAT -1 GET C 2 COLLECT JOIN 'PAIR' BIND AC AC LENGTH 1 SUB 0 MAX TAKE JOIN A C 2 COLLECT JOIN PAIR '()' EQ NOT PAIR '[]' EQ NOT AND NOT SELECT", "note": "FOLD step for deleting adjacent matched pairs: stack String, char -> stack with the char pushed, or the top popped when top+char is '()' or '[]'" }
+  ],
+  "solutions": {
+    "runs.rle": "'V' BIND V S0D.RUNSTARTS 'S' BIND V S GET S 1 DROP V LENGTH 1 COLLECT CONCAT S SUB 2 COLLECT ZIP",
+    "runs.upruns": "'V' BIND V 1 DROP V -1 DROP SUB 0 [ 'E' BIND 'A' BIND A 1 ADD 0 E 0 GT SELECT ] SCAN 0 [ MAX ] FOLD 1 ADD",
+    "runs.dedupe": "'V' BIND V V S0D.RUNSTARTS GET",
+    "runs.second_largest": "UNIQUE SORT -2 GET",
+    "runs.majority": "'V' BIND V LENGTH 'N' BIND V TALLY 'T' BIND T VALUES 'C' BIND C ORDER -1 GET 'M' BIND T KEYS M GET NIL C M GET 2 MUL N GT SELECT",
+    "number.primes": "'N' BIND 1 N RANGE [ S0D.ISPRIME ] FILTER",
+    "number.divisors": "S0D.DIVISORS",
+    "number.binary": "'N' BIND 0 N RANGE [ 'K' BIND 2 K POW N GT NOT ] FILTER LENGTH 1 SUB 0 RANGE [ 'K' BIND N 2 K POW DIV FLOOR 2 DIV RATIO 1 GET 1 SUB STR ] MAP JOIN",
+    "number.collatz": "'N' BIND 1 300 RANGE N 0 2 COLLECT [ 'J' BIND [ 'C' 'S' ] BIND C S 2 COLLECT C 2 DIV C 3 MUL 1 ADD C 2 DIV RATIO 1 GET 1 EQ SELECT S 1 ADD 2 COLLECT C 1 EQ SELECT ] FOLD 1 GET",
+    "number.digital_root": "1 SUB 'M' BIND M M 9 DIV FLOOR 9 MUL SUB 1 ADD",
+    "number.fib_index": "'N' BIND 1 N RANGE 0 1 2 COLLECT [ 'J' BIND [ 'A' 'B' ] BIND B A B ADD 2 COLLECT ] SCAN [ 0 GET ] MAP [ N LT ] FILTER LENGTH 1 ADD",
+    "brackets.depth": "CHARS [ 'C' BIND 1 -1 '([' C SEARCH NIL? NOT SELECT ] MAP 0 [ ADD ] SCAN 0 [ MAX ] FOLD",
+    "brackets.balanced": "CHARS '' [ S0D.BRSTEP ] FOLD '' EQ",
+    "brackets.balanced_prefix": "CHARS '' [ S0D.BRSTEP ] SCAN [ '' EQ ] MAP 'M' BIND M 0 [ 'X' BIND 1 ADD ] SCAN 0 M SELECT 0 [ MAX ] FOLD",
+    "brackets.unmatched": "CHARS '' [ S0D.CANCEL ] FOLD CHARS LENGTH"
+  }
+}
