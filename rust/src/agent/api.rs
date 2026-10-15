@@ -257,6 +257,19 @@ pub fn check(source: &str) -> AgentResponse {
     let unknown = &resolved.unknown;
     if let Some(first) = unknown.first() {
         let mut message = format!("Unknown words: {}", unknown.join(", "));
+        // The same repair the runtime's Unknown Word diagnosis appends, one
+        // per name that has one.
+        let hints: Vec<String> = unknown
+            .iter()
+            .filter(|name| !resolved.bound_elsewhere.contains(name))
+            .filter_map(|name| {
+                crate::diagnostic_hint::unknown_word_hint(name)
+                    .map(|hint| format!("{name} — {hint}"))
+            })
+            .collect();
+        if !hints.is_empty() {
+            message.push_str(&format!(". {}", hints.join("; ")));
+        }
         if !resolved.bound_elsewhere.is_empty() {
             message.push_str(&format!(
                 ". {} is bound in another frame: a binding is reachable in the frame that made it \

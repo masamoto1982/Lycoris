@@ -489,35 +489,38 @@ cannot produce a value produces NIL (§4); a malformed one raises an error.
 ## 7. Common errors — actual CLI output, and the fix
 
 - **Typo / unknown word** — `[ 1 ] ADDD`
-  → exit 1, `message: "Unknown word: ADDD"`, `error: {"category":"unknownWord","column":7,"line":1,"word":"ADDD"}`.
-  Fix: Grep §9 for the word you meant (here: `ADD`). Word names are upper-cased automatically.
+  → exit 1, `message: "Unknown word: ADDD — did you mean ADD or AND?"`, `error: {"category":"unknownWord","column":7,"line":1,"word":"ADDD"}`.
+  Fix: The message names the Core Words within a typo of what you wrote (here: `ADD`); otherwise grep §9. Word names are upper-cased automatically.
+- **A Word from another language that Ajisai writes as a phrase** — `10 3 MOD`
+  → exit 1, `` message: "Unknown word: MOD — written as a phrase, for example `10 'X' BIND 3 'Y' BIND X X Y DIV FLOOR Y MUL SUB`" ``, `error: {"category":"unknownWord","column":6,"line":1,"word":"MOD"}`.
+  Fix: The message carries one runnable line that does the same thing with Core Words — MOD, OR, ABS, DUP, SWAP, IF, SUM and the like each have one. Adapt it to your operands; DEF it as a User Word if you need it more than once.
 - **Stack underflow: operands must be pushed first** — `ADD`
-  → exit 1, `message: "ADD: stack underflow"`, `error: {"category":"stackUnderflow","column":1,"line":1,"word":"ADD"}`.
+  → exit 1, `` message: "ADD: stack underflow — for example `1 2 ADD`" ``, `error: {"category":"stackUnderflow","column":1,"line":1,"word":"ADD"}`.
   Fix: Push both operands before the operator: `1 2 ADD`. Ajisai is postfix; there is no infix form.
 - **FOLD without an initial value** — `[ 1 2 3 ] [ ADD ] FOLD`
-  → exit 1, `message: "FOLD: stack underflow"`, `error: {"category":"stackUnderflow","column":19,"line":1,"word":"FOLD"}`.
+  → exit 1, `` message: "FOLD: stack underflow — for example `[ 1 2 3 ] 0 [ ADD ] FOLD`" ``, `error: {"category":"stackUnderflow","column":19,"line":1,"word":"FOLD"}`.
   Fix: FOLD is `vector init [ op ] FOLD`: `[ 1 2 3 ] 0 [ ADD ] FOLD`.
 - **A block that leaves more than its one result** — `[ 1 2 3 ] [ 2 MUL 7 ] MAP`
   → exit 1, `message: "MAP: expected the block to leave one value, and it left 2"`, `error: {"category":"blockContractViolation","column":23,"line":1,"word":"MAP"}`.
   Fix: A MAP / FILTER / FOLD / SCAN block leaves exactly one value — its result. A surplus is not discarded, it is this error. Consume what you computed before the block ends, or name it with `BIND`, which leaves nothing: `[ 2 MUL ]`, or `[ 'X' BIND X X MUL ]`.
 - **A `#:contract` declaration the body contradicts** — `#:contract DOUBLE inputs=2 outputs=1
 [ 2 MUL ] 'DOUBLE' DEF 5 DOUBLE`
-  → exit 1, `message: "Contract declaration violated: `#:contract DOUBLE`: declared `inputs=2` but inferred `inputs=1`."`, `error: {"category":"contractViolation","word":"DOUBLE"}`.
+  → exit 1, `` message: "Contract declaration violated: `#:contract DOUBLE`: declared `inputs=2` but inferred `inputs=1`." ``, `error: {"category":"contractViolation","word":"DOUBLE"}`.
   Fix: The declaration is checked before anything runs, and a violated one stops the run (`contractDecls.findings` lists every finding). Fix the body or the line; `ajisai agent infer-contracts` answers a paste-ready `suggested` line for the Word as written.
 - **SELECT takes three operands: both candidates, then the truth** — `[ 'big' ] [ 5 ] [ 3 ] GT SELECT`
-  → exit 1, `message: "SELECT: stack underflow"`, `error: {"category":"stackUnderflow","column":26,"line":1,"word":"SELECT"}`.
+  → exit 1, `` message: "SELECT: stack underflow — for example `[ 'yes' ] [ 'no' ] TRUE SELECT`" ``, `error: {"category":"stackUnderflow","column":26,"line":1,"word":"SELECT"}`.
   Fix: SELECT is `whenTrue whenFalse truth SELECT` — push both candidates before the test that chooses between them: `[ 'big' ] [ 'small' ] [ 5 ] [ 3 ] GT SELECT`. It chooses between values, never running either one, so an effect goes after it: `... SELECT PRINT`.
 - **SELECT needs a truth value, not a number** — `[ 'y' ] [ 'n' ] 1 SELECT`
-  → exit 1, `message: "SELECT: expected a truth value, got Scalar"`, `error: {"category":"nonTruthValue","column":19,"line":1,"word":"SELECT"}`.
+  → exit 1, `` message: "SELECT: expected a truth value, got Scalar — for example `[ 'yes' ] [ 'no' ] TRUE SELECT`" ``, `error: {"category":"nonTruthValue","column":19,"line":1,"word":"SELECT"}`.
   Fix: The third operand must be TRUE, FALSE or an absence — a scalar is not a truth value (§4). Write the test: `1 0 EQ NOT`.
 - **Broadcast shape mismatch** — `[ 1 2 ] [ 1 2 3 ] ADD`
   → exit 1, `message: "ADD: expected shapes that align, got [2] and [3] (axis 0 is 2 and 3, and neither is 1)"`, `error: {"category":"shapeMismatch","column":19,"line":1,"word":"ADD"}`.
   Fix: Elementwise ops need equal or broadcastable shapes (a scalar `5`, or a one-element vector, broadcasts; `[2]` vs `[3]` does not).
 - **NUM casts strings, not booleans** — `TRUE NUM`
-  → exit 1, `message: "NUM: expected a String, got Boolean"`, `error: {"category":"nonText","column":6,"line":1,"word":"NUM"}`.
+  → exit 1, `` message: "NUM: expected a String, got Boolean — for example `'42' NUM`" ``, `error: {"category":"nonText","column":6,"line":1,"word":"NUM"}`.
   Fix: NUM accepts strings: `'42' NUM`. There is no boolean→number cast.
 - **Old one-vector RANGE form** — `[ 0 5 ] RANGE`
-  → exit 1, `message: "RANGE: stack underflow"`, `error: {"category":"stackUnderflow","column":9,"line":1,"word":"RANGE"}`.
+  → exit 1, `` message: "RANGE: stack underflow — for example `0 5 RANGE`" ``, `error: {"category":"stackUnderflow","column":9,"line":1,"word":"RANGE"}`.
   Fix: RANGE takes two bounds: `0 5 RANGE`. A stride is a multiplication: `0 5 RANGE 2 MUL`.
 
 These raise. The next one does not — it succeeds and answers something other

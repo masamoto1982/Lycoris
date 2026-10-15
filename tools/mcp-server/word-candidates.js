@@ -4,7 +4,8 @@
 // `word_contract` result, and the complete name list is sitting in the same
 // process. The ranking is fixed so the same misspelling always produces the
 // same list: a distance ceiling by name length, at most three suggestions,
-// ties broken alphabetically. word-candidates.test.js pins it.
+// ties broken by name. rust/src/diagnostic_hint.rs ranks the same way for the
+// Unknown Word diagnosis; word-candidates.cases.json pins both.
 
 const MAX_CANDIDATES = 3;
 
@@ -63,6 +64,8 @@ export function suggestWords(word, entries) {
     seen.add(upper);
     scored.push([distance, upper]);
   }
-  scored.sort((left, right) => left[0] - right[0] || left[1].localeCompare(right[1]));
+  // Code-unit order, not localeCompare: the tie-break must not depend on the
+  // host's collation, and it is the order the Rust suggester sorts in.
+  scored.sort((left, right) => left[0] - right[0] || (left[1] < right[1] ? -1 : left[1] > right[1] ? 1 : 0));
   return scored.slice(0, MAX_CANDIDATES).map(([, name]) => name);
 }
