@@ -262,6 +262,11 @@ body.dragging .drop-hint { display: inline; }
 /* 操作できない側の画面（排他）：表示は続けるが、ボタンは押せない */
 .banner.watch { background: var(--line); color: var(--ink); }
 .staff-screen .banner.watch { background: var(--staff-line); color: var(--staff-ink); }
-.screen.inactive button { opacity: .35; }
+.screen.inactive [data-region] { filter: grayscale(1); opacity: .55; }
+.screen.inactive [data-region] button, .screen.inactive [data-region] input,
+.screen.inactive [data-region] select, .screen.inactive [data-region] summary { pointer-events: none; }
+.screen.inactive::after {
+  content: ""; position: absolute; inset: 0; background: var(--line); opacity: .25; pointer-events: none; border-radius: inherit;
+}
 .screen-title::after { content: ""; }
 .screen.inactive .screen-title::after { content: "　表示のみ"; font-weight: 700; }
