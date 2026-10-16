@@ -1,1 +1,0 @@
-[ 3 NIL 5 1 NIL NIL 4 ] 'V' BIND V [ NIL? NOT ] FILTER

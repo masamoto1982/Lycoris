@@ -13,15 +13,15 @@ Nothing here defines Ajisai. Results are observation notes: the pilot's are
 `docs/dev/lexicon-emergence-pilot-results-2026-09-23.md`, Phase 2's
 `docs/dev/lexicon-emergence-phase2-results-2026-10-15.md`; each holds the
 numbers from its run's `report.md`; the difficulty calibration's is
-`docs/dev/lexicon-emergence-difficulty-calibration-2026-10-15.md`. Phase 3's
-design is `docs/dev/lexicon-emergence-phase3-design-2026-10-15.md`; it ran on
-2026-10-15 and stopped at generation 0 on its ceiling rule (262/264 with no
-code run), and its results are `docs/dev/lexicon-emergence-phase3-results-2026-10-15.md`.
+`docs/dev/lexicon-emergence-difficulty-calibration-2026-10-15.md`; Phase 3's
+(68 subjects over generations 0–3, four selection conditions and a control
+that may run code) is `docs/dev/lexicon-emergence-phase3-results-2026-10-15.md`,
+whose appendix keeps the design it ran under.
 No run is kept under `runs/` (each run's
 raw data was committed and then removed, and lives in git history);
-the experiment's original work order was removed from `docs/dev/` at the
-same time, and the hypotheses H1–H5 it named are restated in the pilot
-results.
+the experiment's original work order and Phase 3's design were removed from
+`docs/dev/` the same way, and the hypotheses H1–H5 the work order named are
+restated in the pilot results.
 
 ## Layout
 
