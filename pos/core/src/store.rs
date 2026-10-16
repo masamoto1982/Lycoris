@@ -138,6 +138,12 @@ pub enum Command {
         password: String,
         rule_id: u32,
     },
+    SetProductAge {
+        owner_id: String,
+        password: String,
+        code: String,
+        min_age: Option<u8>,
+    },
     SetMatLoss {
         percent: u8,
     },
@@ -687,6 +693,16 @@ impl Store {
                 self.age_rules.remove(rule_id, by, self.now)?;
                 done("年確ルールを削除しました")
             }
+            C::SetProductAge {
+                owner_id,
+                password,
+                code,
+                min_age,
+            } => {
+                let by = self.owner(&owner_id, &password)?;
+                self.age_rules.set_product(&code, min_age, by, self.now)?;
+                done("年確ルールを変更しました")
+            }
             C::SetMatLoss { percent } => {
                 self.mat_loss = percent.min(100);
                 done(format!("MAT の通信ロスを {}% にしました", self.mat_loss))
@@ -1064,6 +1080,8 @@ impl Store {
                     category: p.category,
                     category_label: p.category.label(),
                     age: self.age_rules.age_for(p.code, p.category),
+                    legal_age: self.age_rules.legal_age_for(p.code, p.category),
+                    store_age: self.age_rules.store_age_for(p.code),
                 })
                 .collect(),
             categories: Category::ALL.iter().map(|c| (*c, c.label())).collect(),
@@ -1313,6 +1331,8 @@ pub struct CatalogItem {
     pub category: Category,
     pub category_label: &'static str,
     pub age: Option<u8>,
+    pub legal_age: Option<u8>,
+    pub store_age: Option<u8>,
 }
 
 #[derive(Clone, Debug, Serialize)]

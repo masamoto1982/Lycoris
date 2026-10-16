@@ -277,3 +277,14 @@ body.dragging .drop-hint { display: inline; }
 .mirror .muted { color: var(--muted); }
 .login-sel { margin-left: auto; display: inline-flex; gap: 6px; align-items: center; font-size: 13px; font-weight: 500; color: var(--muted); }
 .login-sel select { font-size: 13px; padding: 4px 8px; }
+
+/* 年確ルール設定（売り場タイトルの右端から開く） */
+.rules-open { margin-left: auto; }
+.rules-dlg { width: min(720px, calc(100vw - 32px)); max-height: calc(100vh - 48px); border: 1px solid var(--line); border-radius: 12px; background: var(--panel); color: var(--ink); padding: 16px; }
+.rules-dlg::backdrop { background: rgba(0, 0, 0, .45); }
+.rules-dlg .dlg-head { display: flex; align-items: center; gap: 8px; }
+.rules-dlg .dlg-head h2 { margin: 0; font-size: 16px; flex: 1; }
+.rules-dlg .toast { position: sticky; top: 0; z-index: 1; margin: 6px 0; }
+.rules-dlg .toast:not(.show) { display: none; }
+.lines.rules tr.grp th { text-align: left; padding-top: 10px; color: var(--muted); font-size: 12px; }
+.lines.rules select { font-size: 13px; padding: 3px 6px; }

@@ -58,6 +58,11 @@ function reset(registers: number, mats: number): void {
   t0 = performance.now();
   snap = JSON.parse(sim.snapshot()) as Snapshot;
   buildSkeleton();
+  // 閉じたら（Esc でも）オーナーのパスワードを消す
+  rulesDlg().addEventListener("close", () => {
+    const pw = rulesDlg().querySelector<HTMLInputElement>(`[data-owner="pw"]`);
+    if (pw) pw.value = "";
+  });
   render();
 }
 
@@ -111,7 +116,7 @@ function buildSkeleton(): void {
         </section>
       </div>
       <aside class="right" aria-label="売り場">
-        <h2>売り場</h2>
+        <h2>売り場 <button class="small ghost rules-open" data-open-rules aria-haspopup="dialog">年確ルール設定</button></h2>
         <div data-region="shelf"></div>
       </aside>
     </article>
@@ -123,14 +128,23 @@ function buildSkeleton(): void {
           <li>レジ2（セルフ）：缶ビールをお客様画面に落として「お会計」。年確の呼び出しで MAT が鳴ります。レジ名の右の「店員」でログインすると「20歳以上です」が押せます。</li>
           <li>FF：レジ2のお客様画面で「FF を注文」→ 「店員」でログイン → FF 登録 →「お渡し」→ お客様画面で「受け取りました」。</li>
           <li>宅急便・代行収納をお客様画面に落とすと係員の呼び出しになり、店員が金額を入れて受け付けます。</li>
-          <li>出金パスワードは <b>7777</b>（ログインとは別）。年確ルールはオーナー 9001 / <b>9999</b> で変更できます。</li>
+          <li>出金パスワードは <b>7777</b>（ログインとは別）。年確ルールは売り場の「年確ルール設定」から、オーナー 9001 / <b>9999</b> で商品ごとに変更できます。</li>
         </ol>
         <p class="muted">店員：${staffList}（各レジのレジ名の右にある「店員」で選ぶとログインします。「未ログイン」でログアウト）</p>
       </section>
-      <details><summary>年確ルール（オーナー設定）</summary><div data-region="owner"></div></details>
       <details><summary>出金の記録</summary><div data-region="audit"></div></details>
       <p class="copyright"><a href="https://github.com/masamoto1982" target="_blank" rel="noopener">© 2026 masamoto yamashiro</a></p>
     </footer>
+    <dialog class="rules-dlg" id="rules-dlg" aria-labelledby="rules-title">
+      <div class="dlg-head"><h2 id="rules-title">年確ルール設定</h2><button class="small ghost" data-close-rules>閉じる</button></div>
+      <p class="muted">変えられるのはオーナーだけです。変更のたびにここのパスワードで認証し、閉じるとパスワードは消えます。法令の年齢（酒・たばこ 20歳）は外せず、それより厳しくだけできます。年確は会計ボタンを押した時点で、カゴの中で最も厳しい年齢で1回だけ行います。</p>
+      <div class="row wrap">
+        <input data-owner="id" placeholder="オーナーの従業員番号" value="9001" aria-label="オーナーの従業員番号" />
+        <input data-owner="pw" type="password" placeholder="パスワード" autocomplete="off" aria-label="オーナーのパスワード" />
+      </div>
+      <div class="toast" id="toast-rules"></div>
+      <div data-region="owner"></div>
+    </dialog>
     <div class="drag-ghost" id="ghost" hidden></div>`;
 }
 
@@ -209,17 +223,18 @@ function toast(where: string, text: string, error: boolean): void {
   );
 }
 
-function send(cmd: Command): void {
+function send(cmd: Command): boolean {
   sim.tick(performance.now() - t0);
   const res = JSON.parse(sim.dispatch(JSON.stringify(cmd))) as { ok: boolean; message?: string; error?: string };
   const side = sideOf(cmd);
-  const where = side === "store" ? "toast-store" : `toast-${cmd.register}-${side}`;
+  const where = cmd.type === "set_product_age" ? "toast-rules" : side === "store" ? "toast-store" : `toast-${cmd.register}-${side}`;
   if (res.ok) {
     if (res.message) toast(where, res.message, false);
   } else {
     toast(where, res.error ?? "操作できません", true);
   }
   frame();
+  return res.ok;
 }
 
 // ---------------------------------------------------------------------------
@@ -248,22 +263,24 @@ function form(b: HTMLElement): void {
       });
       clear(`co-pw-${reg}`);
       break;
-    case "add-rule": {
-      const kind = val("ar-kind");
-      const target = kind === "product" ? { kind, code: val("ar-code") } : { kind, category: val("ar-cat") };
-      send({ type: "add_age_rule", owner_id: val("ow-id"), password: val("ow-pw"), target, min_age: Number(val("ar-age")) });
-      clear("ow-pw");
-      break;
-    }
-    case "remove-rule":
-      send({ type: "remove_age_rule", owner_id: val("ow-id"), password: val("ow-pw"), rule_id: Number(b.dataset.rule) });
-      clear("ow-pw");
-      break;
   }
 }
 
 app.addEventListener("change", (e) => {
   const sel = e.target as HTMLSelectElement;
+  if (sel.dataset.age) {
+    const owner = (k: string) => app.querySelector<HTMLInputElement>(`[data-owner="${k}"]`)?.value.trim() ?? "";
+    const ok = send({
+      type: "set_product_age",
+      owner_id: owner("id"),
+      password: owner("pw"),
+      code: sel.dataset.age,
+      min_age: sel.value ? Number(sel.value) : null,
+    });
+    // 認められなかったら表示を元の設定に戻す
+    if (!ok) for (const o of sel.options) o.selected = o.defaultSelected;
+    return;
+  }
   if (!sel.dataset.login) return;
   const register = Number(sel.dataset.login);
   if (sel.value) send({ type: "scan", register, side: "staff", code: sel.value });
@@ -271,9 +288,13 @@ app.addEventListener("change", (e) => {
   sel.blur();
 });
 
+const rulesDlg = (): HTMLDialogElement => document.getElementById("rules-dlg") as HTMLDialogElement;
+
 app.addEventListener("click", (e) => {
   const b = (e.target as Element).closest("button");
   if (!b || b.disabled) return;
+  if (b.hasAttribute("data-open-rules")) return rulesDlg().showModal();
+  if (b.hasAttribute("data-close-rules")) return rulesDlg().close();
   if (b.dataset.cmd) send(JSON.parse(b.dataset.cmd) as Command);
   else if (b.dataset.form) form(b);
 });

@@ -398,3 +398,22 @@ fn staff_and_customer_screens_are_exclusive() {
     assert_eq!(reg(&s, 1).active_side, Side::Staff);
     ok(&mut s, json!({"type":"void_transaction","register":1}));
 }
+
+/// 年確ルールは売り場のどの商品にも個別に付けられる（オーナーのみ、法令は外せない）。
+#[test]
+fn owner_sets_age_rule_per_product() {
+    let mut s = Store::new(1, 2, 1);
+    let set = |id: &str, pw: &str, code: &str, age: Option<u8>| {
+        json!({"type":"set_product_age","owner_id":id,"password":pw,"code":code,"min_age":age})
+    };
+    assert!(run(&mut s, set("1001", "1111", LOTTERY, Some(20))).is_err());
+    ok(&mut s, set("9001", "9999", LOTTERY, Some(20)));
+    ok(&mut s, set("9001", "9999", LIGHTER, None));
+    assert!(run(&mut s, set("9001", "9999", BEER, None)).is_ok());
+    assert!(run(&mut s, set("9001", "9999", BEER, Some(18))).is_err());
+    let cat = s.snapshot().catalog;
+    let age = |c: &str| cat.iter().find(|p| p.code == c).unwrap().age;
+    assert_eq!(age(LOTTERY), Some(20));
+    assert_eq!(age(LIGHTER), None);
+    assert_eq!(age(BEER), Some(20));
+}

@@ -314,31 +314,35 @@ export function simPanel(s: Snapshot): string {
     <h4>開いている呼び出し（シミュレーター表示）</h4><ul>${calls}</ul>`;
 }
 
+const AGE_CHOICES = [15, 18, 20, 21, 25];
+
+/** 年確ルール：売り場のすべての商品に、商品ごとの店舗ルールを付けられる */
 export function ownerPanel(s: Snapshot): string {
-  const rules = s.age_rules.rules
-    .map(
-      (r) => `<tr><td>${esc(r.label)}</td><td class="num">${r.min_age}歳</td>
-        <td>${r.legal ? `<span class="tag">法令（外せません）</span>` : `<button class="small ghost" data-form="remove-rule" data-rule="${r.id}">削除</button>`}</td></tr>`,
-    )
-    .join("");
-  const cats = s.categories.map(([k, label]) => `<option value="${esc(k)}">${esc(label)}</option>`).join("");
-  const prods = s.catalog.map((p) => `<option value="${esc(p.code)}">${esc(p.name)}</option>`).join("");
+  const rows = SHELVES.map((g) => {
+    const items = s.catalog.filter(g.match);
+    if (!items.length) return "";
+    const body = items
+      .map((p) => {
+        const legal = p.legal_age ?? 0;
+        const ages = AGE_CHOICES.filter((a) => a > legal);
+        if (p.store_age && !ages.includes(p.store_age)) ages.push(p.store_age);
+        ages.sort((x, y) => x - y);
+        const opts = [`<option value="" ${p.store_age ? "" : "selected"}>${legal ? "法令のみ" : "なし"}</option>`]
+          .concat(ages.map((a) => `<option value="${a}" ${p.store_age === a ? "selected" : ""}>${a}歳以上</option>`))
+          .join("");
+        return `<tr><td>${esc(p.name)}</td>
+          <td>${p.legal_age ? `<span class="tag">法令 ${p.legal_age}歳</span>` : `<span class="muted">—</span>`}</td>
+          <td><select data-age="${esc(p.code)}" aria-label="${esc(p.name)}の店舗ルール">${opts}</select></td>
+          <td class="num">${p.age ? `<b>${p.age}歳以上</b>` : `<span class="muted">年確なし</span>`}</td></tr>`;
+      })
+      .join("");
+    return `<tr class="grp"><th colspan="4">${esc(g.label)}</th></tr>${body}`;
+  }).join("");
   const hist = s.age_rules.history.length
     ? s.age_rules.history.map((h) => `<li>${esc(h.by)}：${esc(h.change)}</li>`).join("")
     : `<li class="muted">変更はまだありません</li>`;
-  return `<p class="muted">年確ルールを変えられるのはオーナーだけです。操作のたびにオーナーのパスワードで再認証します。</p>
-    <div class="row wrap">
-      <input data-key="ow-id" placeholder="オーナーの従業員番号" value="9001" />
-      <input data-key="ow-pw" type="password" placeholder="パスワード" autocomplete="off" />
-    </div>
-    <table class="lines"><thead><tr><th>対象</th><th>年齢</th><th></th></tr></thead><tbody>${rules}</tbody></table>
-    <div class="row wrap">
-      <select data-key="ar-kind"><option value="category">分類で指定</option><option value="product">商品で指定</option></select>
-      <select data-key="ar-cat">${cats}</select>
-      <select data-key="ar-code">${prods}</select>
-      <input data-key="ar-age" type="number" min="1" max="99" value="20" style="width:5em" />歳以上
-      <button data-form="add-rule">ルールを追加</button>
-    </div>
+  return `<table class="lines rules"><thead><tr><th>商品</th><th>法令</th><th>店舗ルール</th><th class="num">会計時の年確</th></tr></thead>
+    <tbody>${rows}</tbody></table>
     <h4>変更履歴</h4><ul>${hist}</ul>`;
 }
 

@@ -74,28 +74,21 @@ impl Default for AgeRules {
             20,
             true,
         );
-        // 店舗ルールの初期値（オーナーが変更できる）
-        r.push(
-            RuleTarget::Category {
-                category: Category::SmokingGoods,
-            },
-            20,
-            false,
-        );
-        r.push(
-            RuleTarget::Category {
-                category: Category::AdultBook,
-            },
-            18,
-            false,
-        );
-        r.push(
-            RuleTarget::Category {
-                category: Category::AdultGoods,
-            },
-            18,
-            false,
-        );
+        // 店舗ルールの初期値（オーナーが商品ごとに変更できる）
+        for p in catalog::CATALOG {
+            let age = match p.category {
+                Category::SmokingGoods => 20,
+                Category::AdultBook | Category::AdultGoods => 18,
+                _ => continue,
+            };
+            r.push(
+                RuleTarget::Product {
+                    code: p.code.into(),
+                },
+                age,
+                false,
+            );
+        }
         r
     }
 }
@@ -124,6 +117,64 @@ impl AgeRules {
             })
             .map(|r| r.min_age)
             .max()
+    }
+
+    /// 法令ルールで決まる年齢（店舗からは変えられない部分）
+    pub fn legal_age_for(&self, code: &str, category: Category) -> Option<u8> {
+        self.rules
+            .iter()
+            .filter(|r| r.legal)
+            .filter(|r| match &r.target {
+                RuleTarget::Category { category: c } => *c == category,
+                RuleTarget::Product { code: c } => c == code,
+            })
+            .map(|r| r.min_age)
+            .max()
+    }
+
+    /// この商品だけに店舗が付けた年齢
+    pub fn store_age_for(&self, code: &str) -> Option<u8> {
+        self.rules
+            .iter()
+            .find(|r| !r.legal && r.target == RuleTarget::Product { code: code.into() })
+            .map(|r| r.min_age)
+    }
+
+    /// 商品ごとの店舗ルールを設定する（None で外す）。法令より緩くはできない。
+    pub fn set_product(
+        &mut self,
+        code: &str,
+        min_age: Option<u8>,
+        by: &str,
+        now: u64,
+    ) -> Result<(), String> {
+        let p = catalog::find(code).ok_or("商品が見つかりません")?;
+        if let Some(a) = min_age {
+            if !(1..=99).contains(&a) {
+                return Err("年齢は 1〜99 で指定してください".into());
+            }
+            if let Some(l) = self.legal_age_for(code, p.category) {
+                if a <= l {
+                    return Err(format!("{}は法令で{l}歳以上です。それ以下にはできません", p.name));
+                }
+            }
+        }
+        let before = self.store_age_for(code);
+        if before == min_age {
+            return Ok(());
+        }
+        let target = RuleTarget::Product { code: code.into() };
+        self.rules.retain(|r| r.legal || r.target != target);
+        if let Some(a) = min_age {
+            self.push(target, a, false);
+        }
+        let fmt = |a: Option<u8>| a.map_or("なし".to_string(), |a| format!("{a}歳以上"));
+        self.history.push(RuleChange {
+            at: now,
+            by: by.into(),
+            change: format!("{}：{} → {}", p.name, fmt(before), fmt(min_age)),
+        });
+        Ok(())
     }
 
     pub fn add(
@@ -209,5 +260,24 @@ mod tests {
         .unwrap();
         assert_eq!(r.age_for("4900000000158", Category::Lottery), Some(20));
         assert_eq!(r.history.len(), 2);
+    }
+
+    #[test]
+    fn every_product_can_have_its_own_store_age() {
+        let mut r = AgeRules::default();
+        let lighter = "4900000000134";
+        assert_eq!(r.store_age_for(lighter), Some(20));
+        r.set_product(lighter, Some(18), "オーナー", 0).unwrap();
+        assert_eq!(r.age_for(lighter, Category::SmokingGoods), Some(18));
+        r.set_product(lighter, None, "オーナー", 0).unwrap();
+        assert_eq!(r.age_for(lighter, Category::SmokingGoods), None);
+        // 法令の対象は外せず、法令より緩くもできない
+        let beer = "4900000000103";
+        assert!(r.set_product(beer, Some(18), "オーナー", 0).is_err());
+        r.set_product(beer, Some(25), "オーナー", 0).unwrap();
+        assert_eq!(r.age_for(beer, Category::Alcohol), Some(25));
+        r.set_product(beer, None, "オーナー", 0).unwrap();
+        assert_eq!(r.age_for(beer, Category::Alcohol), Some(20));
+        assert_eq!(r.history.len(), 4);
     }
 }

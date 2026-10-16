@@ -122,7 +122,7 @@ export interface Snapshot {
   ff_stock: { code: string; name: string; price: number; stock: number }[];
   mat_loss: number;
   accounts: { id: string; barcode: string; name: string; role: string }[];
-  catalog: { code: string; name: string; price: number; category: string; category_label: string; age: number | null }[];
+  catalog: { code: string; name: string; price: number; category: string; category_label: string; age: number | null; legal_age: number | null; store_age: number | null }[];
   categories: [string, string][];
 }
 
