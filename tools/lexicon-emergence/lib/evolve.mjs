@@ -50,7 +50,7 @@ export async function classify(ajisai, words) {
   return classes;
 }
 
-/** Uses per class: how many correct solutions reached it, and by which agents. */
+/** Uses per class: how many correct solutions reached it, by which agents, from which tasks. */
 function usage(graded, classes) {
   const byClass = new Map();
   for (const g of graded) {
@@ -58,9 +58,10 @@ function usage(graded, classes) {
       if (!r.correct) continue;
       const reached = new Set(r.uses.map((name) => classes.get(name)?.classId).filter(Boolean));
       for (const classId of reached) {
-        const u = byClass.get(classId) ?? { uses: 0, agents: new Set() };
+        const u = byClass.get(classId) ?? { uses: 0, agents: new Set(), tasks: new Set() };
         u.uses += 1;
         u.agents.add(g.agent);
+        u.tasks.add(r.task);
         byClass.set(classId, u);
       }
     }
@@ -86,12 +87,21 @@ function usage(graded, classes) {
  * class themselves and reached it in a correct solution, then by uses. Phase
  * 2 found `uses` locks the lexicon in after one generation — inherited Words
  * gather uses because they are inherited — while the Words most often
- * reinvented never entered it (M-6); `reinvention` ranks those first.
+ * reinvented never entered it (M-6); `reinvention` ranks those first. Phase 3
+ * found `reinvention` punishes inheritance: a Word its heirs reuse is not
+ * written again, falls out, is rewritten, and comes back. `breadth`: first by
+ * how many distinct tasks correct solutions reached the class from, whoever
+ * defined it, then by uses — a Word that solves one task outright reaches one
+ * task however many subjects call it.
+ *
+ * Results marked `heldOut` (rotation.mjs) never count: the next lexicon is
+ * chosen from the training tasks only.
  */
-export const SELECTION_RULES = ['uses', 'reinvention'];
+export const SELECTION_RULES = ['uses', 'reinvention', 'breadth'];
 
 export function nextLexicon(generation, capacity, graded, words, classes, rule = 'uses') {
   if (!SELECTION_RULES.includes(rule)) throw new Error(`unknown selection rule ${rule}; one of ${SELECTION_RULES.join(', ')}`);
+  graded = graded.map((g) => ({ ...g, results: g.results.filter((r) => !r.heldOut) }));
   const perClass = usage(graded, classes);
   const memberUses = new Map();
   for (const g of graded) {
@@ -137,7 +147,10 @@ export function nextLexicon(generation, capacity, graded, words, classes, rule =
   const reinvented = (classId) => reinventors.get(classId)?.size ?? 0;
   const ranked = [...perClass.entries()].sort(
     ([ca, a], [cb, b]) =>
-      (rule === 'reinvention' ? reinvented(cb) - reinvented(ca) : 0) || b.uses - a.uses || b.agents.size - a.agents.size,
+      (rule === 'reinvention' ? reinvented(cb) - reinvented(ca) : 0) ||
+      (rule === 'breadth' ? b.tasks.size - a.tasks.size : 0) ||
+      b.uses - a.uses ||
+      b.agents.size - a.agents.size,
   );
   for (const [classId] of ranked) {
     if (representative.has(classId)) continue;
@@ -153,6 +166,7 @@ export function nextLexicon(generation, capacity, graded, words, classes, rule =
         note: d.note ?? '',
         classId: c.classId,
         uses: perClass.get(c.classId)?.uses ?? 0,
+        tasks: perClass.get(c.classId)?.tasks.size ?? 0,
         agents: [...(perClass.get(c.classId)?.agents ?? [])],
       });
       chosenNames.add(name);
