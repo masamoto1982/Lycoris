@@ -16,6 +16,31 @@ const coreWordOf = (token) => {
 /** The model a subject ran on: its letter (the last character of its name) looked up in `models`. */
 const modelOf = (models, agent) => models[agent.at(-1)] ?? null;
 
+/**
+ * One generation's results on the training tasks and on the held-out ones
+ * (rotation.mjs), each as correct/attempted, compression and the share of
+ * correct solutions reaching an inherited Word; null when nothing is held
+ * out. Held-out reuse is the lexicon carrying over to tasks it was not
+ * chosen on.
+ */
+export function heldOutSplit(gen) {
+  const all = gen.graded.flatMap((x) => x.results);
+  if (!all.some((r) => r.heldOut)) return null;
+  const inheritedNames = new Set(gen.lexicon.entries.map((e) => norm(e.name)));
+  const part = (results) => {
+    const correct = results.filter((r) => r.correct);
+    const sum = (k) => correct.reduce((n, r) => n + r[k], 0);
+    const reaching = correct.filter((r) => r.uses.some((n) => inheritedNames.has(n)));
+    return {
+      correct: `${correct.length}/${results.length}`,
+      compression: correct.length ? +(sum('tokens') / sum('expandedTokens')).toFixed(3) : null,
+      reaching: inheritedNames.size ? `${reaching.length}/${correct.length}` : null,
+      tasksReaching: inheritedNames.size ? new Set(reaching.map((r) => r.task)).size : null,
+    };
+  };
+  return { train: part(all.filter((r) => !r.heldOut)), heldOut: part(all.filter((r) => r.heldOut)) };
+}
+
 export async function analyze(ajisai, gens, families, models = {}) {
   const graded = gens.flatMap((g) => g.graded.map((x) => ({ ...x, condition: g.condition })));
   const words = collectWords(graded, gens.map((g) => g.lexicon));
@@ -33,7 +58,8 @@ export async function analyze(ajisai, gens, families, models = {}) {
         generation: g.generation,
         agents: g.graded.length,
         lexiconSize: g.lexicon.entries.length,
-        accuracy: `${correct.length}/${g.graded.length * families.reduce((n, f) => n + f.tasks.length, 0)}`,
+        // Over what this generation's subjects were given, which with rotation differs by generation.
+        accuracy: `${correct.length}/${g.graded.reduce((n, x) => n + x.results.length, 0)}`,
         meanTokens: correct.length ? +(sum(correct, 'tokens') / correct.length).toFixed(1) : null,
         compression: correct.length ? +(sum(correct, 'tokens') / sum(correct, 'expandedTokens')).toFixed(3) : null,
         coreEquivalent: `${correct.filter((r) => r.coreEquivalent).length}/${correct.length}`,
@@ -42,6 +68,7 @@ export async function analyze(ajisai, gens, families, models = {}) {
         meanRuns: g.graded.some((x) => x.calls)
           ? +(g.graded.reduce((n, x) => n + (x.calls?.total ?? 0), 0) / g.graded.length).toFixed(1)
           : null,
+        split: heldOutSplit(g),
         // Correct solutions per model in this generation.
         byModel: Object.fromEntries(
           g.graded.map((x) => [modelOf(models, x.agent) ?? x.agent, `${x.results.filter((r) => r.correct).length}/${x.results.length}`]),
@@ -99,13 +126,13 @@ export async function analyze(ajisai, gens, families, models = {}) {
   }
 
   // Accuracy per model, over every subject that ran on it.
-  const taskCount = families.reduce((n, f) => n + f.tasks.length, 0);
   const perModel = [...new Set(graded.map((g) => modelOf(models, g.agent)))]
     .filter(Boolean)
     .map((model) => {
       const mine = graded.filter((g) => modelOf(models, g.agent) === model);
       const correct = mine.reduce((n, g) => n + g.results.filter((r) => r.correct).length, 0);
-      return { model, agents: mine.length, accuracy: `${correct}/${mine.length * taskCount}` };
+      const attempted = mine.reduce((n, g) => n + g.results.length, 0);
+      return { model, agents: mine.length, accuracy: `${correct}/${attempted}` };
     });
 
   // H1's baseline, split by model: for every two subjects that inherited
@@ -199,6 +226,16 @@ export function renderReport(report) {
   out.push('| --- | --- | --- | --- | --- | --- | --- | --- |');
   for (const g of report.perGeneration) {
     out.push(`| ${g.condition} | ${g.generation} | ${g.agents} | ${g.lexiconSize} | ${g.accuracy} | ${g.meanTokens} | ${g.compression} | ${g.coreEquivalent} |`);
+  }
+  if (report.perGeneration.some((g) => g.split)) {
+    out.push('', '## Training and held-out tasks', '');
+    out.push('Held-out results never rank a Word for the next lexicon. "reaching" is correct solutions that call an inherited Word; "tasks" is how many distinct tasks those are.', '');
+    out.push('| condition | gen | train correct | train ÷ expanded | train reaching | held-out correct | held-out ÷ expanded | held-out reaching | held-out tasks |');
+    out.push('| --- | --- | --- | --- | --- | --- | --- | --- | --- |');
+    for (const g of report.perGeneration.filter((x) => x.split)) {
+      const { train: t, heldOut: h } = g.split;
+      out.push(`| ${g.condition} | ${g.generation} | ${t.correct} | ${t.compression} | ${t.reaching ?? '—'} | ${h.correct} | ${h.compression} | ${h.reaching ?? '—'} | ${h.tasksReaching ?? '—'} |`);
+    }
   }
   if (report.perGeneration.some((g) => g.byModel && Object.keys(g.byModel).length)) {
     out.push('', '## Correct solutions by generation and model', '');

@@ -3,7 +3,7 @@
 //
 //   node cli.mjs prompt  <run> <condition> <gen> <agent>   subject prompt for one agent
 //   node cli.mjs grade   <run> <condition> <gen>           grade every submission of a generation
-//   node cli.mjs evolve  <run> <condition> <gen> <K> [--rule uses|reinvention]
+//   node cli.mjs evolve  <run> <condition> <gen> <K> [--rule uses|reinvention|breadth]
 //                                                          choose generation gen+1's lexicon (K may be
 //                                                          Infinity for C-open; --into <condition> writes
 //                                                          it into another condition's gen+1)
@@ -24,7 +24,10 @@
 // each subject letter ran on ("models": { "A": "opus", … }), for grading and for the report,
 // and may cap how many times each subject may run code ("callBudget": n, or per condition
 // { "default": 0, "runs": null }, null meaning unlimited). The cap is stated in the cli route's
-// prompt, and `compute` refuses a subject's run past it.
+// prompt, and `compute` refuses a subject's run past it. "rotation" (Phase 4, lib/rotation.mjs)
+// replaces "families": { "train": [[…], […]], "heldOut": […], "fixed": [<condition>, …] } —
+// generation g trains on train[g mod n] (a fixed condition on train[0]) and also solves the
+// held-out families, whose results never rank a Word for the next lexicon.
 //
 // Route B (the API harness, lib/harness.mjs) — needs ANTHROPIC_API_KEY and spends money:
 //   node cli.mjs run   <run> <condition> <gen> <A,B,…> [options]   one generation's subjects
@@ -46,6 +49,7 @@ import { connect } from './lib/ajisai.mjs';
 import { analyze, renderReport } from './lib/analyze.mjs';
 import { classify, collectWords, nextLexicon } from './lib/evolve.mjs';
 import { grade, loadFamilies } from './lib/grade.mjs';
+import { allFamilyNames, familyNames } from './lib/rotation.mjs';
 import { anthropicClient, Budget, MODELS, priceOf, runSubject, subjectSystem } from './lib/harness.mjs';
 import { subjectPrompt } from './lib/prompt.mjs';
 import { preludeMatches, writeLexiconPhrasebook } from './lib/lexicon-phrasebook.mjs';
@@ -97,12 +101,17 @@ const budgetFor = (conditionName) => {
   if (b !== null && typeof b === 'object') return b[conditionName] !== undefined ? b[conditionName] : (b.default ?? null);
   return b ?? null;
 };
-const families = loadFamilies(TASKS, design.families);
+// The families one condition's generation solves, and which of them are held out.
+const familiesFor = (conditionName, generation) => {
+  const names = familyNames(design, conditionName, generation);
+  return { families: loadFamilies(TASKS, names.all), heldOut: names.heldOut };
+};
 
-async function gradeGeneration(ajisai, dir) {
+async function gradeGeneration(ajisai, dir, conditionName, generation) {
   const lexicon = lexiconOf(dir);
+  const { families, heldOut } = familiesFor(conditionName, generation);
   for (const submission of readAll(new URL('submissions/', dir))) {
-    const graded = await grade(ajisai, submission, lexicon, families);
+    const graded = await grade(ajisai, submission, lexicon, families, heldOut);
     graded.calls = auditCalls(dir, submission.agent);
     writeJson(new URL(`graded/${submission.agent}.json`, dir), graded);
     const correct = graded.results.filter((r) => r.correct).length;
@@ -184,7 +193,7 @@ async function runSubjects(ajisai, harness, dir, runName, conditionName, generat
       const { submission, record } = await runSubject({
         ...harness,
         ajisai,
-        prompt: subjectPrompt(meta, lexicon, families, 'harness'),
+        prompt: subjectPrompt(meta, lexicon, familiesFor(conditionName, generation).families, 'harness'),
         meta,
       });
       writeJson(new URL(`transcripts/${agent}.json`, dir), record);
@@ -218,7 +227,7 @@ const letters = (n) => [...'ABCDEFGHIJ'].slice(0, n);
 
 if (command === 'prompt') {
   process.stdout.write(
-    subjectPrompt({ run, condition, generation: Number(gen), agent: arg }, lexiconOf(genDir(run, condition, gen)), families, options.route, {
+    subjectPrompt({ run, condition, generation: Number(gen), agent: arg }, lexiconOf(genDir(run, condition, gen)), familiesFor(condition, gen).families, options.route, {
       callBudget: budgetFor(condition),
     }),
   );
@@ -319,7 +328,7 @@ if (command === 'prompt') {
   console.log(`${command}: ${moved.length} director${moved.length === 1 ? 'y' : 'ies'} moved`);
 } else if (command === 'grade') {
   const ajisai = await connect();
-  await gradeGeneration(ajisai, genDir(run, condition, gen));
+  await gradeGeneration(ajisai, genDir(run, condition, gen), condition, gen);
   await ajisai.close();
 } else if (command === 'evolve') {
   const ajisai = await connect();
@@ -345,11 +354,11 @@ if (command === 'prompt') {
   try {
     for (let g = 0; g < gens; g += 1) {
       await runGeneration(ajisai, harness, run, 'bottleneck', g, letters(agents).map((l) => `G${g}${l}`));
-      await gradeGeneration(ajisai, genDir(run, 'bottleneck', g));
+      await gradeGeneration(ajisai, genDir(run, 'bottleneck', g), 'bottleneck', g);
       if (g + 1 < gens) await evolveGeneration(ajisai, run, 'bottleneck', g, capacity);
     }
     await runGeneration(ajisai, harness, run, 'solo', 0, letters(agents).map((l) => `S0${l}`));
-    await gradeGeneration(ajisai, genDir(run, 'solo', 0));
+    await gradeGeneration(ajisai, genDir(run, 'solo', 0), 'solo', 0);
   } finally {
     await ajisai.close();
   }
@@ -369,7 +378,7 @@ if (command === 'prompt') {
     graded: readAll(new URL('graded/', dir)),
   }));
   const ajisai = await connect();
-  const report = await analyze(ajisai, gens, families, design.models ?? {});
+  const report = await analyze(ajisai, gens, loadFamilies(TASKS, allFamilyNames(design)), design.models ?? {});
   await ajisai.close();
   writeJson(new URL(`runs/${run}/report.json`, ROOT), report);
   writeFileSync(new URL(`runs/${run}/report.md`, ROOT), renderReport(report));

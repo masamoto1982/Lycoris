@@ -21,17 +21,22 @@ function definitionsOf(submission, lexicon) {
 
 const sameStack = (a, b) => a !== null && b !== null && JSON.stringify(a) === JSON.stringify(b);
 
-export async function grade(ajisai, submission, lexicon, families) {
+/**
+ * `heldOut` names families whose results are marked `heldOut: true`: graded
+ * like any other, but never ranking a Word for the next lexicon (Phase 4).
+ */
+export async function grade(ajisai, submission, lexicon, families, heldOut = []) {
   const byName = definitionsOf(submission, lexicon);
   const known = new Set(byName.keys());
   const bodies = new Map([...byName].map(([name, entry]) => [name, entry.body]));
   const results = [];
 
   for (const family of families) {
+    const held = heldOut.includes(family.family) ? { heldOut: true } : {};
     for (const task of family.tasks) {
       const solution = submission.solutions?.[task.id];
       if (typeof solution !== 'string') {
-        results.push({ task: task.id, submitted: false, correct: false });
+        results.push({ task: task.id, ...held, submitted: false, correct: false });
         continue;
       }
       const used = [...closure(referencedWords(solution, known), byName)].map((entry) => norm(entry.name));
@@ -54,6 +59,7 @@ export async function grade(ajisai, submission, lexicon, families) {
       }
       results.push({
         task: task.id,
+        ...held,
         submitted: true,
         solution,
         correct: perInput.every((r) => r.ok),

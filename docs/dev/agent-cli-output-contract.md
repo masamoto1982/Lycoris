@@ -119,7 +119,9 @@ their next-check suggestions and spelling candidates. What survives of them
 is text: a `message` may end in ` — ` and a one-line repair
 (`rust/src/diagnostic_hint.rs`) — for an unknown word, a runnable phrase or
 the Core names within a typo of it; for a stack underflow or an operand of
-the wrong domain, the Word's own `documentation.syntax` example. It is part
+the wrong domain, the Word's own `documentation.syntax` example; for a known
+misreading of a Word (two whole Vectors of different lengths given to
+`SELECT`), what was meant. It is part
 of the message, which may evolve, and nothing branches on it.
 
 `compute` runs the same declaration check **before executing anything**
