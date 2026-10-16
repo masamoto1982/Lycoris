@@ -19,7 +19,10 @@ that may run code) is `docs/dev/lexicon-emergence-phase3-results-2026-10-15.md`,
 whose appendix keeps the design it ran under. Phase 4's (52 subjects; two
 training sets rotating by generation and three held-out families never
 selected from) is `docs/dev/lexicon-emergence-phase4-results-2026-10-16.md`,
-whose appendix likewise keeps its design.
+whose appendix likewise keeps its design. Phase 5's design (a lexicon chosen
+by the number of task families reaching each Word, and the same lexicon
+given to subjects who may not define Words of their own) is
+`docs/dev/lexicon-emergence-phase5-design-2026-10-16.md`.
 No run is kept under `runs/` (each run's
 raw data was committed and then removed, and lives in git history);
 the experiment's original work order and the Phase 3 and Phase 4 designs were removed from
@@ -35,15 +38,15 @@ restated in the pilot results.
 | `lib/source.mjs` | Tokenizing, bound-variable renaming, and expanding user Words into Core-only source |
 | `lib/grade.mjs` | A solution is correct when every input leaves the reference's final stack; also runs the Core-only expansion (H5) |
 | `lib/identity.mjs` | D0 (DIGEST), D0α (DIGEST after renaming bound variables), D1 (probe-battery fingerprint) |
-| `lib/evolve.mjs` | Equivalence classes and the next generation's top-K lexicon, ranked by uses (`uses`, Phase 2's rule), first by how many subjects wrote the Word's class themselves (`reinvention`), or first by how many distinct tasks reached it (`breadth`); held-out results never count |
+| `lib/evolve.mjs` | Equivalence classes and the next generation's top-K lexicon, ranked by uses (`uses`, Phase 2's rule), first by how many subjects wrote the Word's class themselves (`reinvention`), first by how many distinct tasks reached it (`breadth`), or first by how many task families did (`families`); held-out results never count, and no rule gives a class two places |
 | `lib/rotation.mjs` | Phase 4: the families a condition's generation solves — training families that rotate by generation, and held-out ones graded but never selected from |
-| `lib/analyze.mjs` | H1, H2, H4, H5 over a run; correct solutions per generation and model with the mean number of runs; correct solutions token-identical to the reference; with held-out families, training and held-out results side by side |
+| `lib/analyze.mjs` | H1, H2, H4, H5 over a run; correct solutions per generation and model with the mean number of runs; correct solutions token-identical to the reference; with held-out families, training and held-out results side by side, and per held-out family the correct solutions sharing a Word with their subject's own training solutions beside those reaching an inherited Word |
 | `lib/prompt.mjs` | The single message a subject agent receives (route A: read SKILL.md, write a file, paste the inherited definitions; cli route: read SKILL.md, run files through `cli.mjs compute`, name inherited Words with `--words`, write a file; route B: the harness supplies SKILL.md and a `submit` tool, and the inherited Words come through `words`) |
 | `lib/shuffle.mjs` | C-shuffled: a lexicon renamed to nonsense names, notes dropped, references between its Words rewritten |
 | `lib/lexicon-phrasebook.mjs` | Route B: a generation's lexicon written as a phrasebook file with each Word's `#:digest`, served to that generation's subjects through the MCP server's `words` argument (`AJISAI_PHRASEBOOK`), and the check that a result's `prelude` matches it by content |
 | `lib/harness.mjs` | Route B: one subject through the Claude API. Offers the MCP server's own `compute` / `check` / `word_contract` definitions plus `submit`, relays calls unchanged, caps turns and spending, records every request's served model, usage and cost |
 | `test/` | The harness against a scripted model (no API call) with the real server and grader: `npm test` |
-| `runs/<run>/design.json` | The families a run uses (or, in their place, a `"rotation"`: `{ "train": [[…], […]], "heldOut": […], "fixed": [<condition>, …] }`), the model behind each subject letter (`"models": { "A": "opus", … }`), optionally the selection rule (`"selectionRule"`) and how many times each subject may run code (`"callBudget"`: a number, or per condition `{ "default": 0, "runs": null }`; 0 forbids running at all, and the prompt says so; null is unlimited) |
+| `runs/<run>/design.json` | The families a run uses (or, in their place, a `"rotation"`: `{ "train": [[…], […]], "heldOut": […], "fixed": [<condition>, …] }`), the model behind each subject letter (`"models": { "A": "opus", … }`), optionally the selection rule (`"selectionRule"`) and how many times each subject may run code (`"callBudget"`: a number, or per condition `{ "default": 0, "runs": null }`; 0 forbids running at all, and the prompt says so; null is unlimited), and how many Words each subject may define (`"definitionBudget"`, shaped the same; the grader drops definitions past it and names them in `definitionsDropped`) |
 | `runs/<run>/<condition>/gen<g>/` | `lexicon.json`, `submissions/`, `graded/`; with a lexicon, `phrasebook.ajisai` and `lexicon-digests.json`; for route B `transcripts/`; for the cli route `calls/<agent>.jsonl` (every run, its `--words` and its `prelude`) and `work/<agent>/` |
 
 ## Use
@@ -70,6 +73,9 @@ node cli.mjs unseal  <run>                     # before analyze: everything come
 
 # Phase 4 — design.json's "rotation" picks each generation's families; held-out results are not selected from.
 node cli.mjs evolve  <run> base 0 8 --rule breadth --into breadth   # rank by distinct tasks reached
+
+# Phase 5 — rank by task families reached; a condition with "definitionBudget": 0 gets the same lexicon.
+node cli.mjs evolve  <run> families 1 8 --rule families --into probe
 
 # Route B — needs ANTHROPIC_API_KEY in the environment and spends money.
 node cli.mjs run   <run> <condition> <gen> G0A,G0B --model large --budget 10

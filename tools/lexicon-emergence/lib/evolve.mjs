@@ -50,7 +50,10 @@ export async function classify(ajisai, words) {
   return classes;
 }
 
-/** Uses per class: how many correct solutions reached it, by which agents, from which tasks. */
+// A task id is `<family>.<task>`.
+const familyOf = (task) => task.slice(0, task.indexOf('.'));
+
+/** Uses per class: how many correct solutions reached it, by which agents, from which tasks and families. */
 function usage(graded, classes) {
   const byClass = new Map();
   for (const g of graded) {
@@ -58,10 +61,11 @@ function usage(graded, classes) {
       if (!r.correct) continue;
       const reached = new Set(r.uses.map((name) => classes.get(name)?.classId).filter(Boolean));
       for (const classId of reached) {
-        const u = byClass.get(classId) ?? { uses: 0, agents: new Set(), tasks: new Set() };
+        const u = byClass.get(classId) ?? { uses: 0, agents: new Set(), tasks: new Set(), families: new Set() };
         u.uses += 1;
         u.agents.add(g.agent);
         u.tasks.add(r.task);
+        u.families.add(familyOf(r.task));
         byClass.set(classId, u);
       }
     }
@@ -92,12 +96,24 @@ function usage(graded, classes) {
  * written again, falls out, is rewritten, and comes back. `breadth`: first by
  * how many distinct tasks correct solutions reached the class from, whoever
  * defined it, then by uses — a Word that solves one task outright reaches one
- * task however many subjects call it.
+ * task however many subjects call it. Phase 4 found `breadth` ranks a Word
+ * that reaches every task of one family (bracket encoding) with the Words
+ * that cross families. `families`: first by how many distinct task families
+ * reached the class, then by tasks, then by uses.
+ *
+ * Every rule gives a class one place at most. Phase 4's `breadth` lexicon
+ * carried two means: a chosen Word depended on its own mean, which had joined
+ * the class of the mean already chosen at D1 only, so it was neither rewritten
+ * nor refused. A member whose dependencies would bring a second member of a
+ * chosen class is now passed over for the class's next member; a class none
+ * of whose members fits that way waits until every class has been tried, and
+ * then takes what capacity is left, duplicates and all — so a duplicate never
+ * displaces a class, and a lexicon without capacity loses no class.
  *
  * Results marked `heldOut` (rotation.mjs) never count: the next lexicon is
  * chosen from the training tasks only.
  */
-export const SELECTION_RULES = ['uses', 'reinvention', 'breadth'];
+export const SELECTION_RULES = ['uses', 'reinvention', 'breadth', 'families'];
 
 export function nextLexicon(generation, capacity, graded, words, classes, rule = 'uses') {
   if (!SELECTION_RULES.includes(rule)) throw new Error(`unknown selection rule ${rule}; one of ${SELECTION_RULES.join(', ')}`);
@@ -115,6 +131,7 @@ export function nextLexicon(generation, capacity, graded, words, classes, rule =
     tokenize(words.get(a).body).length - tokenize(words.get(b).body).length;
 
   const representative = new Map(); // classId → chosen name, for strong classes
+  const placed = new Set(); // every class with a member in the lexicon
   const chosen = [];
   const chosenNames = new Set();
   const rewrite = (body) =>
@@ -148,15 +165,24 @@ export function nextLexicon(generation, capacity, graded, words, classes, rule =
   const ranked = [...perClass.entries()].sort(
     ([ca, a], [cb, b]) =>
       (rule === 'reinvention' ? reinvented(cb) - reinvented(ca) : 0) ||
-      (rule === 'breadth' ? b.tasks.size - a.tasks.size : 0) ||
+      (rule === 'families' ? b.families.size - a.families.size : 0) ||
+      (rule === 'breadth' || rule === 'families' ? b.tasks.size - a.tasks.size : 0) ||
       b.uses - a.uses ||
       b.agents.size - a.agents.size,
   );
-  for (const [classId] of ranked) {
-    if (representative.has(classId)) continue;
-    const members = membersOf.get(classId).map((c) => c.name).sort(byPreference);
-    const plan = [...new Set(include(members[0]))];
-    if (chosen.length + plan.length > capacity) continue;
+  // A plan that would give some class a second place: two of its own names in
+  // one class, or a name in a class already placed.
+  const duplicates = (plan) => {
+    const seen = new Set();
+    return plan.some((name) => {
+      const classId = classes.get(name).classId;
+      if (placed.has(classId) || seen.has(classId)) return true;
+      seen.add(classId);
+      return false;
+    });
+  };
+  const waiting = [];
+  const place = (plan) => {
     for (const name of plan) {
       const c = classes.get(name);
       const d = words.get(name);
@@ -167,11 +193,25 @@ export function nextLexicon(generation, capacity, graded, words, classes, rule =
         classId: c.classId,
         uses: perClass.get(c.classId)?.uses ?? 0,
         tasks: perClass.get(c.classId)?.tasks.size ?? 0,
+        families: perClass.get(c.classId)?.families.size ?? 0,
         agents: [...(perClass.get(c.classId)?.agents ?? [])],
       });
       chosenNames.add(name);
+      placed.add(c.classId);
       if (strong(c.classId)) representative.set(c.classId, d.name);
     }
+  };
+  for (const [classId] of ranked) {
+    if (placed.has(classId)) continue;
+    const members = membersOf.get(classId).map((c) => c.name).sort(byPreference);
+    const plan = members.map((m) => [...new Set(include(m))]).find((p) => !duplicates(p));
+    if (!plan) waiting.push(members[0]);
+    else if (chosen.length + plan.length <= capacity) place(plan);
+  }
+  for (const name of waiting) {
+    if (placed.has(classes.get(name).classId)) continue;
+    const plan = [...new Set(include(name))];
+    if (chosen.length + plan.length <= capacity) place(plan);
   }
   return { generation, capacity, rule, entries: chosen };
 }
