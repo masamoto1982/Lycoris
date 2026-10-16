@@ -14,7 +14,9 @@
 //! * A Core Word called with too few operands or with an operand of the wrong
 //!   domain: the Word's own one-line example (`documentation.syntax` in
 //!   `spec/words.json`), preceded where a Word is commonly mistaken for
-//!   another by a pointer to the right one ([`MISTAKEN_DOMAIN`]).
+//!   another by a pointer to the right one ([`MISTAKEN_DOMAIN`]). A Word
+//!   refused for its operands' shapes gets a pointer only where the refusal
+//!   is a known misreading of what the Word does ([`MISTAKEN_SHAPE`]).
 //!
 //! Every example here is run by `diagnostic_hint_tests`, so a hint is
 //! verified Ajisai rather than prose that resembles it.
@@ -128,6 +130,20 @@ pub(crate) const MISTAKEN_DOMAIN: &[(&str, &str, &str, &str)] = &[
     ("REVERSE", "nonVector", "String", "a String is not a Vector of characters: `'abc' CHARS REVERSE JOIN`"),
 ];
 
+/// A Core Word refused for its operands' shapes, where the refusal usually
+/// means the writer read the Word as doing something it does not:
+/// `(word, condition, pointer)`. The pointer is the whole repair, and its
+/// backticked line is run by `diagnostic_hint_tests`.
+///
+/// SELECT chooses lane by lane, so two whole Vectors of different lengths are
+/// `shapeMismatch` — the one error the lexicon-emergence experiment's subjects
+/// kept making after SKILL.md said so (Phase 3, 2026-10-15).
+pub(crate) const MISTAKEN_SHAPE: &[(&str, &str, &str)] = &[(
+    "SELECT",
+    "shapeMismatch",
+    "SELECT chooses lane by lane; to choose one whole value by one truth, collect both and read one: `[ 1 2 3 ] [ 9 ] 2 COLLECT 0 1 FALSE SELECT GET`",
+)];
+
 /// The retired names that have a phrase, read once from the retired-word list.
 fn retired_phrases() -> &'static HashMap<String, String> {
     static PHRASES: OnceLock<HashMap<String, String>> = OnceLock::new();
@@ -164,14 +180,21 @@ pub(crate) fn unknown_word_hint(name: &str) -> Option<String> {
     }
 }
 
-/// The repair for a Core Word that failed for want of operands or for an
-/// operand of the wrong domain: a pointer to the Word meant, if the failure
-/// is a known confusion, and otherwise the Word's own one-line example.
+/// The repair for a Core Word that failed for want of operands, for an
+/// operand of the wrong domain or for operands of the wrong shapes: a pointer
+/// to what was meant, if the failure is a known confusion, and otherwise —
+/// for the first two — the Word's own one-line example.
 /// `got` is the domain the message reports, when it reports one.
 pub(crate) fn usage_hint(word: &str, condition: &str, got: Option<&str>) -> Option<String> {
     if let Some((_, _, _, pointer)) = MISTAKEN_DOMAIN
         .iter()
         .find(|(w, c, g, _)| *w == word && *c == condition && Some(*g) == got)
+    {
+        return Some((*pointer).to_string());
+    }
+    if let Some((_, _, pointer)) = MISTAKEN_SHAPE
+        .iter()
+        .find(|(w, c, _)| *w == word && *c == condition)
     {
         return Some((*pointer).to_string());
     }

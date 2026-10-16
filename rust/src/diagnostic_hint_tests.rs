@@ -1,7 +1,10 @@
 //! Every repair `diagnostic_hint` can append is verified Ajisai: each example
 //! runs on a fresh interpreter, and each hint reaches the diagnosis it is for.
 
-use super::{suggest_core_words, unknown_word_hint, usage_hint, FOREIGN_IDIOMS, MISTAKEN_DOMAIN};
+use super::{
+    suggest_core_words, unknown_word_hint, usage_hint, FOREIGN_IDIOMS, MISTAKEN_DOMAIN,
+    MISTAKEN_SHAPE,
+};
 use crate::interpreter::Interpreter;
 use crate::kernel::generated::generated_word;
 
@@ -129,6 +132,23 @@ async fn a_mistaken_domain_points_to_the_word_meant() {
     assert!(
         join.starts_with("JOIN: expected a Vector, got String — JOIN reads one Vector"),
         "{join}"
+    );
+}
+
+#[tokio::test]
+async fn a_known_shape_misreading_is_answered_with_what_was_meant() {
+    for (word, condition, pointer) in MISTAKEN_SHAPE {
+        assert!(generated_word(word).is_some(), "{word} is not a Core Word");
+        runs(backticked(pointer)).await;
+        assert_eq!(usage_hint(word, condition, None).as_deref(), Some(*pointer));
+    }
+    // Two whole Vectors chosen by one truth: the experiment's subjects wrote
+    // this after an optional key was absent and the fallback was `[ ]`.
+    let select = diagnosis("[ 'a' 'b' ] [ ] TRUE SELECT").await;
+    assert!(
+        select.starts_with("SELECT: expected shapes that align")
+            && select.ends_with(MISTAKEN_SHAPE[0].2),
+        "{select}"
     );
 }
 
