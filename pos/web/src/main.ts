@@ -16,6 +16,7 @@ import {
   esc,
   matPanel,
   ownerPanel,
+  loginPanel,
   shelfPanel,
   sideOf,
   simPanel,
@@ -83,6 +84,7 @@ function buildSkeleton(): void {
           <div class="toast" id="toast-${r.id}-customer"></div>
         </section>
       </div>
+      <div class="hw"><span class="hw-label">店員ログイン（店員側の名札リーダー）</span>${loginPanel(r.id, snap)}</div>
       <div class="hw"><span class="hw-label">紙幣・硬貨の投入口／電子マネー端末（お客様側）</span>${cashPanel(r.id)}</div>
     </section>`,
     )
@@ -113,12 +115,12 @@ function buildSkeleton(): void {
         <h3>試し方</h3>
         <ol class="help">
           <li>レジ1（セミセルフ）：商品を店員画面に落とし、店員画面の「会計」。お客様画面で支払方法を選ぶか、投入口に現金を入れます。</li>
-          <li>レジ2（セルフ）：缶ビールをお客様画面に落として「お会計」。年確の呼び出しで MAT が鳴ります。名札を店員画面に落とすと「20歳以上です」が押せます。</li>
-          <li>FF：レジ2のお客様画面で「FF を注文」→ 名札を店員画面へ → FF 登録 →「お渡し」→ お客様画面で「受け取りました」。</li>
+          <li>レジ2（セルフ）：缶ビールをお客様画面に落として「お会計」。年確の呼び出しで MAT が鳴ります。店員ログインすると「20歳以上です」が押せます。</li>
+          <li>FF：レジ2のお客様画面で「FF を注文」→ 店員ログイン → FF 登録 →「お渡し」→ お客様画面で「受け取りました」。</li>
           <li>宅急便・代行収納をお客様画面に落とすと係員の呼び出しになり、店員が金額を入れて受け付けます。</li>
           <li>出金パスワードは <b>7777</b>（ログインとは別）。年確ルールはオーナー 9001 / <b>9999</b> で変更できます。</li>
         </ol>
-        <p class="muted">店員：${staffList}（名札は売り場の「カード・名札」にあります）</p>
+        <p class="muted">店員：${staffList}（各レジの「店員ログイン」から入れます）</p>
       </section>
       <details><summary>年確ルール（オーナー設定）</summary><div data-region="owner"></div></details>
       <details><summary>出金の記録</summary><div data-region="audit"></div></details>
