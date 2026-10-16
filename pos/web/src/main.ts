@@ -4,6 +4,8 @@
 // - 描き直しは領域ごとに、内容が変わったときだけ行う（問題1：無駄な再描画で操作が重くならない）。
 //   入力中の値とフォーカスは描き直しの前後で引き継ぐ。
 // - 確認ダイアログは使わない。結果はその画面に数秒だけ出るお知らせで返す（問題4）。
+// - 買い物は、右の売り場から商品をレジの画面へドラッグ＆ドロップして再現する。
+//   店員画面に落とせば店員側スキャナー、お客様画面に落とせばお客様側スキャナーで読んだことになる。
 
 import init, { PosSimulator } from "./wasm/generated/lycoris_pos.js";
 import type { Command, Snapshot } from "./types";
@@ -14,7 +16,7 @@ import {
   esc,
   matPanel,
   ownerPanel,
-  scannerPanel,
+  shelfPanel,
   sideOf,
   simPanel,
   staffCalls,
@@ -46,6 +48,7 @@ async function boot(): Promise<void> {
   const b64 = window.__LYCORIS_WASM_B64__;
   await init(b64 ? { module_or_path: bytesFromB64(b64) } : undefined);
   reset(2, 1);
+  setupDrag();
   window.setInterval(frame, 100);
 }
 
@@ -54,7 +57,7 @@ function reset(registers: number, mats: number): void {
   sim = new PosSimulator(Date.now() & 0xffff, registers, mats);
   t0 = performance.now();
   snap = JSON.parse(sim.snapshot()) as Snapshot;
-  buildSkeleton(registers, mats);
+  buildSkeleton();
   render();
 }
 
@@ -62,72 +65,66 @@ function reset(registers: number, mats: number): void {
 // 骨組み（一度だけ作る）
 // ---------------------------------------------------------------------------
 
-function buildSkeleton(registers: number, mats: number): void {
-  const regOpts = Array.from({ length: 10 }, (_, i) => i + 1)
-    .map((n) => `<option value="${n}" ${n === registers ? "selected" : ""}>レジ${n}台</option>`)
-    .join("");
-  const matOpts = Array.from({ length: 5 }, (_, i) => i + 1)
-    .map((n) => `<option value="${n}" ${n === mats ? "selected" : ""}>MAT${n}台</option>`)
-    .join("");
-
+function buildSkeleton(): void {
   const regs = snap.registers
     .map(
-      (r) => `<article class="register">
+      (r) => `<section class="register" aria-label="レジ${r.id}">
       <h2>レジ${r.id} <span data-region="mode-${r.id}"></span></h2>
       <div class="screens">
-        <section class="screen staff-screen">
-          <div class="screen-title">店員画面</div>
+        <section class="screen staff-screen" data-drop="${r.id}:staff">
+          <div class="screen-title">店員画面<span class="drop-hint">ここに落とす＝店員側スキャナーで読む</span></div>
           <div data-region="calls-${r.id}"></div>
           <div data-region="staff-${r.id}"></div>
           <div class="toast" id="toast-${r.id}-staff"></div>
         </section>
-        <section class="screen customer-screen">
-          <div class="screen-title">お客様画面</div>
+        <section class="screen customer-screen" data-drop="${r.id}:customer">
+          <div class="screen-title">お客様画面<span class="drop-hint">ここに落とす＝お客様側スキャナーで読む</span></div>
           <div data-region="cust-${r.id}"></div>
           <div class="toast" id="toast-${r.id}-customer"></div>
         </section>
       </div>
-      <div class="hw">
-        <div class="hw-block"><h3>店員側スキャナー</h3>${scannerPanel(r.id, "staff", snap)}</div>
-        <div class="hw-block"><h3>お客様側スキャナー</h3>${scannerPanel(r.id, "customer", snap)}</div>
-        <div class="hw-block"><h3>紙幣・硬貨の投入口／電子マネー端末（お客様側）</h3>${cashPanel(r.id)}</div>
-      </div>
-    </article>`,
+      <div class="hw"><span class="hw-label">紙幣・硬貨の投入口／電子マネー端末（お客様側）</span>${cashPanel(r.id)}</div>
+    </section>`,
     )
     .join("");
 
-  const pw = snap.accounts.map((a) => `${esc(a.name)}（名札 ${esc(a.barcode)}）`).join("、");
+  const staffList = snap.accounts.map((a) => `${esc(a.name)}`).join("・");
   app.innerHTML = `
     <header class="top">
-      <div>
-        <h1>Lycoris セミセルフPOS シミュレーター <span class="muted">叩き台</span></h1>
-        <p class="muted">レジ1台につき状態は1つ。店員画面とお客様画面は同じ取引の見え方違いです。</p>
-      </div>
-      <div class="row">
-        <select id="cfg-reg">${regOpts}</select><select id="cfg-mat">${matOpts}</select>
-        <button id="cfg-apply" class="ghost">この構成で作り直す</button>
-      </div>
+      <h1>The ideal POS system</h1>
+      <p class="muted">右の売り場から商品をつかんで、レジの店員画面かお客様画面に落とすと、その側のスキャナーで読んだことになります。</p>
     </header>
-    <div class="layout">
-      <div class="registers">${regs}</div>
-      <aside class="side">
-        <section class="panel"><h3>MAT（呼び鈴）</h3><div class="mats" data-region="mats"></div>
-          <div class="toast" id="toast-store"></div></section>
-        <section class="panel"><h3>試し方</h3>
-          <ol class="help">
-            <li>レジ1（セミセルフ）：店員側スキャナーで商品を読み、店員画面の「会計」。お客様画面で支払方法を選ぶか現金を投入。</li>
-            <li>レジ2（セルフ）：お客様側で「缶ビール」→「お会計」。年確の呼び出しで MAT が鳴ります。店員側で名札を読むと、お客様画面の「20歳以上です」が押せます。</li>
-            <li>FF：レジ2のお客様画面で「FF を注文」→ 名札 → FF 登録 →「お渡し」→ お客様画面で「受け取りました」。</li>
-            <li>会計画面で何かを読むと、登録画面に戻って追加されます（投入済みの現金はそのまま）。</li>
-            <li>出金パスワードは <b>7777</b>（ログインとは別）。オーナーは 9001 / <b>9999</b>。</li>
-          </ol>
-          <p class="muted">店員：${pw}</p>
+    <article class="floor">
+      <div class="left">
+        ${regs}
+        <section class="mat-area" aria-label="携帯情報端末">
+          <h2>携帯情報端末（MAT）</h2>
+          <div class="mat-row"><div class="mats" data-region="mats"></div><div class="mat-sim" data-region="sim"></div></div>
+          <div class="toast" id="toast-store"></div>
         </section>
-        <section class="panel"><h3>障害を起こす（シミュレーター用）</h3><div data-region="sim"></div></section>
-        <details class="panel"><summary><h3>年確ルール（オーナー設定）</h3></summary><div data-region="owner"></div></details>
-        <details class="panel"><summary><h3>出金の記録</h3></summary><div data-region="audit"></div></details>
+      </div>
+      <aside class="right" aria-label="売り場">
+        <h2>売り場</h2>
+        <div data-region="shelf"></div>
       </aside>
-    </div>`;
+    </article>
+    <footer class="bottom">
+      <section>
+        <h3>試し方</h3>
+        <ol class="help">
+          <li>レジ1（セミセルフ）：商品を店員画面に落とし、店員画面の「会計」。お客様画面で支払方法を選ぶか、投入口に現金を入れます。</li>
+          <li>レジ2（セルフ）：缶ビールをお客様画面に落として「お会計」。年確の呼び出しで MAT が鳴ります。名札を店員画面に落とすと「20歳以上です」が押せます。</li>
+          <li>FF：レジ2のお客様画面で「FF を注文」→ 名札を店員画面へ → FF 登録 →「お渡し」→ お客様画面で「受け取りました」。</li>
+          <li>宅急便・代行収納をお客様画面に落とすと係員の呼び出しになり、店員が金額を入れて受け付けます。</li>
+          <li>出金パスワードは <b>7777</b>（ログインとは別）。年確ルールはオーナー 9001 / <b>9999</b> で変更できます。</li>
+        </ol>
+        <p class="muted">店員：${staffList}（名札は売り場の「カード・名札」にあります）</p>
+      </section>
+      <details><summary>年確ルール（オーナー設定）</summary><div data-region="owner"></div></details>
+      <details><summary>出金の記録</summary><div data-region="audit"></div></details>
+      <p class="copyright"><a href="https://github.com/masamoto1982" target="_blank" rel="noopener">© 2026 masamoto yamashiro</a></p>
+    </footer>
+    <div class="drag-ghost" id="ghost" hidden></div>`;
 }
 
 // ---------------------------------------------------------------------------
@@ -145,8 +142,8 @@ function setRegion(name: string, html: string): void {
   const activeKey = active && el.contains(active) ? active.dataset.key : undefined;
   const sel = activeKey && "selectionStart" in active! ? active!.selectionStart : null;
   const open = new Set<number>();
-  el.querySelectorAll("details").forEach((d, i) => d.open && open.add(i));
-  const hadDetails = el.querySelectorAll("details").length > 0;
+  el.querySelectorAll<HTMLDetailsElement>("details[data-keep]").forEach((d, i) => d.open && open.add(i));
+  const hadDetails = el.querySelectorAll("details[data-keep]").length > 0;
 
   el.innerHTML = html;
 
@@ -154,7 +151,7 @@ function setRegion(name: string, html: string): void {
     const v = values.get(i.dataset.key!);
     if (v !== undefined) i.value = v;
   });
-  if (hadDetails) el.querySelectorAll("details").forEach((d, i) => (d.open = open.has(i)));
+  if (hadDetails) el.querySelectorAll<HTMLDetailsElement>("details[data-keep]").forEach((d, i) => (d.open = open.has(i)));
   if (activeKey) {
     const next = el.querySelector<HTMLInputElement>(`[data-key="${activeKey}"]`);
     if (next) {
@@ -175,6 +172,7 @@ function render(): void {
   setRegion("sim", simPanel(snap));
   setRegion("owner", ownerPanel(snap));
   setRegion("audit", auditPanel(snap));
+  setRegion("shelf", shelfPanel(snap));
 }
 
 function frame(): void {
@@ -221,13 +219,6 @@ const clear = (key: string): void => {
 function form(b: HTMLElement): void {
   const reg = Number(b.dataset.reg);
   switch (b.dataset.form) {
-    case "scan": {
-      const key = `bc-${reg}-${b.dataset.side}`;
-      const code = val(key);
-      if (code) send({ type: "scan", register: reg, side: b.dataset.side, code });
-      clear(key);
-      break;
-    }
     case "service":
       send({ type: "complete_service", register: reg, line_id: Number(b.dataset.line), amount: Number(val(`svc-${reg}-${b.dataset.line}`) || 0) });
       break;
@@ -258,24 +249,69 @@ function form(b: HTMLElement): void {
 app.addEventListener("click", (e) => {
   const b = (e.target as Element).closest("button");
   if (!b || b.disabled) return;
-  if (b.id === "cfg-apply") {
-    const r = Number((document.getElementById("cfg-reg") as HTMLSelectElement).value);
-    const m = Number((document.getElementById("cfg-mat") as HTMLSelectElement).value);
-    reset(r, m);
-    return;
-  }
   if (b.dataset.cmd) send(JSON.parse(b.dataset.cmd) as Command);
   else if (b.dataset.form) form(b);
 });
 
-app.addEventListener("keydown", (e) => {
-  const t = e.target as HTMLInputElement;
-  if (e.key !== "Enter" || !t.dataset.scan) return;
-  const [reg, side] = t.dataset.scan.split(":");
-  const code = t.value.trim();
-  if (code) send({ type: "scan", register: Number(reg), side, code });
-  t.value = "";
-});
+// ---------------------------------------------------------------------------
+// ドラッグ＆ドロップ（ポインターイベントで実装。マウスでもタッチでも同じに動く）
+// ---------------------------------------------------------------------------
+
+function setupDrag(): void {
+  const ghost = document.getElementById("ghost")!;
+  let drag: { code: string; label: string; x: number; y: number; moved: boolean; id: number } | null = null;
+  let over: Element | null = null;
+
+  const target = (x: number, y: number): Element | null => document.elementFromPoint(x, y)?.closest("[data-drop]") ?? null;
+  const highlight = (el: Element | null) => {
+    if (over === el) return;
+    over?.classList.remove("drop-over");
+    el?.classList.add("drop-over");
+    over = el;
+  };
+  const end = () => {
+    drag = null;
+    ghost.hidden = true;
+    highlight(null);
+    document.body.classList.remove("dragging");
+  };
+
+  app.addEventListener("pointerdown", (e) => {
+    const b = (e.target as Element).closest<HTMLElement>("[data-code]");
+    if (!b || e.button !== 0) return;
+    e.preventDefault();
+    drag = { code: b.dataset.code!, label: b.querySelector(".item-name")?.textContent ?? "", x: e.clientX, y: e.clientY, moved: false, id: e.pointerId };
+  });
+
+  window.addEventListener("pointermove", (e) => {
+    if (!drag || e.pointerId !== drag.id) return;
+    if (!drag.moved && Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < 5) return;
+    if (!drag.moved) {
+      drag.moved = true;
+      ghost.textContent = drag.label;
+      ghost.hidden = false;
+      document.body.classList.add("dragging");
+    }
+    ghost.style.transform = `translate(${e.clientX + 8}px, ${e.clientY + 8}px)`;
+    highlight(target(e.clientX, e.clientY));
+  });
+
+  window.addEventListener("pointerup", (e) => {
+    if (!drag || e.pointerId !== drag.id) return;
+    const d = drag;
+    const t = target(e.clientX, e.clientY);
+    end();
+    if (!d.moved) {
+      toast("toast-store", "商品はドラッグして、レジの店員画面かお客様画面に落としてください", false);
+      return;
+    }
+    if (!t) return;
+    const [reg, side] = (t as HTMLElement).dataset.drop!.split(":");
+    send({ type: "scan", register: Number(reg), side, code: d.code });
+  });
+
+  window.addEventListener("pointercancel", end);
+}
 
 boot().catch((e) => {
   app.innerHTML = `<p class="error">読み込みに失敗しました：${esc(e)}</p>`;

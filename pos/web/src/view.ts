@@ -92,8 +92,8 @@ export function staffScreen(r: RegisterView, snap: Snapshot): string {
   if (v.state !== "ready") {
     return `<div class="locked">
       <div class="big">${v.state === "locked" ? "🔒 ロック中" : "店員未ログイン"}</div>
-      <p>スタッフバーコードを読むと${v.state === "locked" ? "解除" : "ログイン"}します</p>
-      ${r.mode === "full_self" ? `<p class="muted">セルフモード：お客様の操作は続いています。下の「お客様画面」と同じ取引です。</p>` : ""}
+      <p>名札（スタッフバーコード）をこの画面に落とすと${v.state === "locked" ? "解除" : "ログイン"}します</p>
+      ${r.mode === "full_self" ? `<p class="muted">セルフモード：お客様の操作は続いています。右の「お客様画面」と同じ取引です。</p>` : ""}
       <div class="mirror">${miniLines(r)}</div>
     </div>`;
   }
@@ -114,7 +114,7 @@ export function staffScreen(r: RegisterView, snap: Snapshot): string {
   const ffMenu = snap.ff_stock
     .map((f) =>
       btn(
-        `${f.name} ${yen(f.price)}（残${f.stock}）`,
+        `${f.name}（残${f.stock}）`,
         { type: "register_ff", register: reg, code: f.code, qty: 1 },
         f.stock > 0 ? a("register_ff") : { action: "register_ff", allowed: false, reason: "在庫がありません" },
         "small ff",
@@ -152,8 +152,8 @@ export function staffScreen(r: RegisterView, snap: Snapshot): string {
       ${btn("ロック", { type: "lock", register: reg }, a("lock"), "ghost")}
       ${btn("ログアウト", { type: "end_staff_mode", register: reg }, a("end_staff_mode"), "ghost")}
     </div>
-    <details class="ffmenu" open><summary>FF 登録（店員操作モードのみ）</summary><div class="row wrap">${ffMenu}</div></details>
-    <details class="cashout"><summary>出金（返品返金・経費支出・緊急出金・途中集金）</summary>
+    <div class="ffmenu"><span class="muted">FF 登録</span>${ffMenu}</div>
+    <details class="cashout" data-keep><summary>出金（返品返金・経費支出・緊急出金・途中集金）</summary>
       <div class="row wrap">
         <select data-key="co-kind-${reg}">
           <option value="refund">返品返金</option><option value="expense">経費支出</option>
@@ -305,7 +305,7 @@ export function simPanel(s: Snapshot): string {
     : `<li class="muted">なし</li>`;
   return `<div class="row wrap">MAT 通信ロス：${loss}</div>${links}
     <div class="muted">未対応（店員がまだ来ていない）呼び出し ${s.bell.open_calls} 件。残っている間は ${10} 秒ごとに鳴らし直します。</div>
-    <h4>開いている呼び出し</h4><ul>${calls}</ul>`;
+    <h4>開いている呼び出し（シミュレーター表示）</h4><ul>${calls}</ul>`;
 }
 
 export function ownerPanel(s: Snapshot): string {
@@ -350,21 +350,38 @@ export function auditPanel(s: Snapshot): string {
 // ハードウェア（スキャナー・現金・電子マネー端末）
 // ---------------------------------------------------------------------------
 
-export function scannerPanel(reg: number, side: "staff" | "customer", s: Snapshot): string {
-  const chips = s.catalog
-    .map((p) => {
-      return `<button class="chip" data-cmd="${esc(JSON.stringify({ type: "scan", register: reg, side, code: p.code }))}" title="${esc(p.code)}">${esc(p.name)}</button>`;
-    })
-    .join("");
-  const staff = s.accounts
-    .map((a) => `<button class="chip staff" data-cmd="${esc(JSON.stringify({ type: "scan", register: reg, side, code: a.barcode }))}">名札 ${esc(a.name)}</button>`)
-    .join("");
-  return `<div class="chips">${chips}
-      <button class="chip pc" data-cmd="${esc(JSON.stringify({ type: "scan", register: reg, side, code: "PC12345678" }))}">ポイントカード</button>
-      ${staff}
-    </div>
-    <div class="row"><input data-key="bc-${reg}-${side}" placeholder="バーコードを入力して Enter" data-scan="${reg}:${side}" />
-    <button data-form="scan" data-reg="${reg}" data-side="${side}">読む</button></div>`;
+type Shelf = { label: string; match: (p: Snapshot["catalog"][number]) => boolean };
+
+/** 売り場の棚。並び順はご指示の順（食べ物・飲み物・新聞・雑誌・代行収納・宅急便・酒・ライター）に、そのほかを足したもの */
+const SHELVES: Shelf[] = [
+  { label: "食べ物", match: (p) => p.category === "food" },
+  { label: "飲み物", match: (p) => p.category === "drink" },
+  { label: "新聞", match: (p) => p.category === "newspaper" },
+  { label: "雑誌", match: (p) => p.category === "magazine" || p.category === "adult_book" },
+  { label: "代行収納", match: (p) => p.category === "service" && p.name.includes("代行収納") },
+  { label: "宅急便", match: (p) => p.category === "service" && p.name.includes("宅急便") },
+  { label: "酒", match: (p) => p.category === "alcohol" },
+  { label: "ライター・たばこ", match: (p) => p.category === "smoking_goods" || p.category === "tobacco" },
+  { label: "そのほか", match: (p) => ["daily", "lottery", "adult_goods", "bag"].includes(p.category) },
+];
+
+function item(code: string, name: string, sub: string, cls = ""): string {
+  return `<button type="button" class="item ${cls}" data-code="${esc(code)}" aria-label="${esc(name)}をドラッグ">
+    <span class="item-name">${esc(name)}</span><span class="item-sub">${sub}</span></button>`;
+}
+
+export function shelfPanel(s: Snapshot): string {
+  const groups = SHELVES.map((g) => {
+    const items = s.catalog.filter(g.match);
+    if (!items.length) return "";
+    return `<div class="shelf"><h3>${esc(g.label)}</h3><div class="items">${items
+      .map((p) => item(p.code, p.name, `${p.price ? yen(p.price) : "金額は受付時"}${p.age ? ` ・<b>年確${p.age}</b>` : ""}`))
+      .join("")}</div></div>`;
+  }).join("");
+  const cards =
+    item("PC12345678", "ポイントカード", "お客様のカード", "card") +
+    s.accounts.map((a) => item(a.barcode, `名札 ${a.name}`, "スタッフバーコード", "staff")).join("");
+  return `${groups}<div class="shelf"><h3>カード・名札</h3><div class="items">${cards}</div></div>`;
 }
 
 export function cashPanel(reg: number): string {
