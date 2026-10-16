@@ -104,7 +104,7 @@ export function staffScreen(r: RegisterView, snap: Snapshot): string {
     const how =
       v.state === "ready" && (v.age_pending || v.lines.some((l) => l.kind === "ff" && l.state === "presented"))
         ? "お客様の確認が済むと操作に戻ります"
-        : "下の「店員ログイン」で操作できます";
+        : "レジ名の右の「店員」でログインすると操作できます";
     return `<div class="mirror-head"><b>${why}</b>　${how}</div>
       <div class="mirror">${customerScreen(r)}</div>`;
   }
@@ -387,13 +387,6 @@ export function shelfPanel(s: Snapshot): string {
   const cards =
     item("PC12345678", "ポイントカード", "お客様のカード", "card");
   return `${groups}<div class="shelf"><h3>カード</h3><div class="items">${cards}</div></div>`;
-}
-
-/** 店員側の名札リーダー（暫定のログイン手段。売り場には置かない） */
-export function loginPanel(reg: number, s: Snapshot): string {
-  return `<div class="row wrap">${s.accounts
-    .map((a) => `<button class="login" data-cmd="${esc(JSON.stringify({ type: "scan", register: reg, side: "staff", code: a.barcode }))}">${esc(a.name)}でログイン</button>`)
-    .join("")}</div>`;
 }
 
 export function cashPanel(reg: number): string {

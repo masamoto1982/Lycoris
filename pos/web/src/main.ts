@@ -16,7 +16,6 @@ import {
   esc,
   matPanel,
   ownerPanel,
-  loginPanel,
   shelfPanel,
   sideOf,
   simPanel,
@@ -70,7 +69,14 @@ function buildSkeleton(): void {
   const regs = snap.registers
     .map(
       (r) => `<section class="register" aria-label="レジ${r.id}">
-      <h2>レジ${r.id} <span data-region="mode-${r.id}"></span></h2>
+      <h2>レジ${r.id} <span data-region="mode-${r.id}"></span>
+        <label class="login-sel">店員
+          <select data-login="${r.id}" aria-label="レジ${r.id}の店員ログイン">
+            <option value="">未ログイン</option>
+            ${snap.accounts.map((a) => `<option value="${esc(a.barcode)}">${esc(a.name)}</option>`).join("")}
+          </select>
+        </label>
+      </h2>
       <div class="screens">
         <section class="screen staff-screen" data-drop="${r.id}:staff">
           <div class="screen-title">店員画面<span class="drop-hint">ここに落とす＝店員側スキャナーで読む</span></div>
@@ -84,7 +90,6 @@ function buildSkeleton(): void {
           <div class="toast" id="toast-${r.id}-customer"></div>
         </section>
       </div>
-      <div class="hw"><span class="hw-label">店員ログイン（店員側の名札リーダー）</span>${loginPanel(r.id, snap)}</div>
       <div class="hw"><span class="hw-label">紙幣・硬貨の投入口／電子マネー端末（お客様側）</span>${cashPanel(r.id)}</div>
     </section>`,
     )
@@ -115,12 +120,12 @@ function buildSkeleton(): void {
         <h3>試し方</h3>
         <ol class="help">
           <li>レジ1（セミセルフ）：商品を店員画面に落とし、店員画面の「会計」。お客様画面で支払方法を選ぶか、投入口に現金を入れます。</li>
-          <li>レジ2（セルフ）：缶ビールをお客様画面に落として「お会計」。年確の呼び出しで MAT が鳴ります。店員ログインすると「20歳以上です」が押せます。</li>
-          <li>FF：レジ2のお客様画面で「FF を注文」→ 店員ログイン → FF 登録 →「お渡し」→ お客様画面で「受け取りました」。</li>
+          <li>レジ2（セルフ）：缶ビールをお客様画面に落として「お会計」。年確の呼び出しで MAT が鳴ります。レジ名の右の「店員」でログインすると「20歳以上です」が押せます。</li>
+          <li>FF：レジ2のお客様画面で「FF を注文」→ 「店員」でログイン → FF 登録 →「お渡し」→ お客様画面で「受け取りました」。</li>
           <li>宅急便・代行収納をお客様画面に落とすと係員の呼び出しになり、店員が金額を入れて受け付けます。</li>
           <li>出金パスワードは <b>7777</b>（ログインとは別）。年確ルールはオーナー 9001 / <b>9999</b> で変更できます。</li>
         </ol>
-        <p class="muted">店員：${staffList}（各レジの「店員ログイン」から入れます）</p>
+        <p class="muted">店員：${staffList}（各レジのレジ名の右にある「店員」で選ぶとログインします。「未ログイン」でログアウト）</p>
       </section>
       <details><summary>年確ルール（オーナー設定）</summary><div data-region="owner"></div></details>
       <details><summary>出金の記録</summary><div data-region="audit"></div></details>
@@ -165,6 +170,12 @@ function setRegion(name: string, html: string): void {
 
 function render(): void {
   for (const r of snap.registers) {
+    // 店員ログインのセレクタは、操作中でなければ現在のログイン状態に合わせる
+    const sel = app.querySelector<HTMLSelectElement>(`[data-login="${r.id}"]`);
+    if (sel && document.activeElement !== sel) {
+      const acc = r.staff.state === "absent" ? undefined : snap.accounts.find((a) => a.name === r.staff.name);
+      sel.value = acc?.barcode ?? "";
+    }
     // 操作できない側の画面は表示のみ（排他）
     app.querySelector(`[data-drop="${r.id}:staff"]`)?.classList.toggle("inactive", r.active_side !== "staff");
     app.querySelector(`[data-drop="${r.id}:customer"]`)?.classList.toggle("inactive", r.active_side !== "customer");
@@ -250,6 +261,15 @@ function form(b: HTMLElement): void {
       break;
   }
 }
+
+app.addEventListener("change", (e) => {
+  const sel = e.target as HTMLSelectElement;
+  if (!sel.dataset.login) return;
+  const register = Number(sel.dataset.login);
+  if (sel.value) send({ type: "scan", register, side: "staff", code: sel.value });
+  else send({ type: "end_staff_mode", register });
+  sel.blur();
+});
 
 app.addEventListener("click", (e) => {
   const b = (e.target as Element).closest("button");

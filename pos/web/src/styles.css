@@ -275,4 +275,5 @@ body.dragging .drop-hint { display: inline; }
 .mirror-head { font-size: 13px; padding: 6px 8px; border-radius: 6px; background: var(--staff-line); margin-bottom: 8px; }
 .mirror { background: var(--cust-bg); color: var(--ink); border-radius: 8px; padding: 8px 10px; }
 .mirror .muted { color: var(--muted); }
-button.login { background: var(--staff-bg); color: var(--staff-ink); padding: 4px 10px; font-size: 13px; }
+.login-sel { margin-left: auto; display: inline-flex; gap: 6px; align-items: center; font-size: 13px; font-weight: 500; color: var(--muted); }
+.login-sel select { font-size: 13px; padding: 4px 8px; }
