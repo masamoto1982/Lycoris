@@ -1,0 +1,2285 @@
+{
+  "agent": "Z3C",
+  "generation": 3,
+  "condition": "shuffled",
+  "definitions": [
+    {
+      "name": "Z3C.DIVISORS",
+      "body": "'DK' BIND 1 DK RANGE [ DK DIV RATIO 0 GET 1 EQ ] FILTER",
+      "note": "Ascending positive divisors of a positive integer (d divides k iff d/k has numerator 1)."
+    },
+    {
+      "name": "Z3C.ISPRIME",
+      "body": "Z3C.DIVISORS LENGTH 2 EQ",
+      "note": "TRUE when a positive integer has exactly two divisors."
+    },
+    {
+      "name": "Z3C.UPSTEP",
+      "body": "'EL' BIND 'AC' BIND AC 0 GET 1 ADD 'XX' BIND XX 0 EL SELECT 'CU' BIND CU CU AC 1 GET MAX 2 COLLECT",
+      "note": "FOLD step on [run best] with a truth element: extend the run or reset it, keep the best."
+    },
+    {
+      "name": "Z3C.COLSTEP",
+      "body": "'EL' BIND 'AC' BIND AC 0 GET 'CX' BIND AC 1 GET 'CS' BIND CX 1 EQ 'DN' BIND CX 2 DIV FLOOR 'HF' BIND HF 2 MUL CX EQ 'EV' BIND HF CX 3 MUL 1 ADD EV SELECT 'NV' BIND CX NV DN SELECT 'NX' BIND CS CS 1 ADD DN SELECT 'NS' BIND NX NS 2 COLLECT",
+      "note": "FOLD step on [x steps] applying one Collatz move unless x is already 1."
+    },
+    {
+      "name": "Z3C.FIBSTEP",
+      "body": "'EL' BIND 'AC' BIND AC 0 GET 'FA' BIND AC 1 GET 'FB' BIND AC 2 GET 'FC' BIND AC 3 GET 'NV' BIND FA NV LT 'LTN' BIND FC 1 ADD FC LTN SELECT 'NC' BIND FB FA FB ADD NC NV 4 COLLECT",
+      "note": "FOLD step on [F(j) F(j+1) count n]: counts the Fibonacci terms below n."
+    },
+    {
+      "name": "Z3C.DELTA",
+      "body": "'CH' BIND 1 -1 CH '(' EQ NOT CH '[' EQ NOT AND NOT SELECT",
+      "note": "One-character bracket to +1 (open) or -1 (close)."
+    },
+    {
+      "name": "Z3C.REDSTEP",
+      "body": "'EL' BIND '()' '' REPLACE '[]' '' REPLACE",
+      "note": "One reduction round: delete every adjacent () and [] pair (element ignored)."
+    },
+    {
+      "name": "Z3C.RED",
+      "body": "'SS' BIND 1 8 RANGE SS [ Z3C.REDSTEP ] FOLD",
+      "note": "Bracket String reduced to its irreducible remainder (8 rounds cover 12 characters)."
+    },
+    {
+      "name": "Z3C.SCORE",
+      "body": "'PP' BIND PP CHARS LENGTH 0 PP Z3C.RED CHARS LENGTH 0 EQ SELECT",
+      "note": "Length of a bracket prefix if it is balanced, else 0."
+    },
+    {
+      "name": "Z3C.FILLSTEP",
+      "body": "'EL' BIND 'AC' BIND EL AC EL NIL? NOT SELECT",
+      "note": "SCAN step: a present reading replaces the carried value, a missing one keeps it."
+    },
+    {
+      "name": "Z3C.GAPSTEP",
+      "body": "'EL' BIND 'AC' BIND AC 0 GET 'CN' BIND AC 1 GET 'PV' BIND EL NIL? 'MI' BIND CN 1 ADD CN MI PV NOT AND SELECT 'NC' BIND NC MI 2 COLLECT",
+      "note": "FOLD step on [gap count, previous missing]: counts starts of missing runs."
+    },
+    {
+      "name": "Z3C.GAPMAX",
+      "body": "'EL' BIND 'AC' BIND AC 0 GET 'CU' BIND AC 1 GET 'BE' BIND EL NIL? 'MI' BIND CU 1 ADD 0 MI SELECT 'NC' BIND NC NC BE MAX 2 COLLECT",
+      "note": "FOLD step on [current missing run, longest run]."
+    },
+    {
+      "name": "Z3C.LINE",
+      "body": "'OD' BIND OD 'qty' GET OD 'price' GET 0 OD 'price' GET NIL? NOT SELECT MUL",
+      "note": "qty times price for an order record, 0 when the order has no price."
+    },
+    {
+      "name": "Z3C.REVENUE",
+      "body": "[ Z3C.LINE ] MAP 0 [ ADD ] FOLD",
+      "note": "Total of qty times price over an orders Vector."
+    },
+    {
+      "name": "Z3C.TAGS",
+      "body": "'OD' BIND OD 'tags' GET 'TG' BIND TG [ ] TG NIL? NOT SELECT UNIQUE",
+      "note": "Distinct tags of one order record; an empty Vector when it has none."
+    },
+    {
+      "name": "Z3C.CAP",
+      "body": "'WD' BIND WD CHARS 0 GET UPPER WD CHARS 1 DROP JOIN LOWER 2 COLLECT JOIN",
+      "note": "Word with its first letter upper case and the rest lower case."
+    }
+  ],
+  "lexiconNames": [
+    "X3.KEGAFE",
+    "X3.SIBIGE",
+    "X3.ZOSEBI",
+    "X3.FOZABA",
+    "X3.LUDAFU",
+    "X3.FASENO",
+    "X3.VEFAZE",
+    "X3.NIFULO"
+  ],
+  "results": [
+    {
+      "task": "runs.rle",
+      "submitted": true,
+      "solution": "'RV' BIND RV LENGTH 'LN' BIND RV LN 1 SUB TAKE 'PRE' BIND RV 1 DROP 'POST' BIND PRE POST SUB [ 0 EQ NOT ] MAP 'DF' BIND TRUE 1 COLLECT DF CONCAT 'FL' BIND 0 LN 1 SUB RANGE 'IX' BIND IX FL 2 COLLECT ZIP [ 1 GET ] FILTER [ 0 GET ] MAP 'ST' BIND ST 1 DROP LN 1 COLLECT CONCAT 'EN' BIND RV ST GET 'VL' BIND EN ST SUB 'CN' BIND VL CN 2 COLLECT ZIP",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 84,
+      "expandedTokens": 84,
+      "uses": [],
+      "perInput": [
+        {
+          "input": "[ 1 1 2 2 2 3 1 1 ]",
+          "ok": true,
+          "got": [
+            "[ [ 1/1 2/1 ] [ 2/1 3/1 ] [ 3/1 1/1 ] [ 1/1 2/1 ] ]"
+          ],
+          "expected": [
+            "[ [ 1/1 2/1 ] [ 2/1 3/1 ] [ 3/1 1/1 ] [ 1/1 2/1 ] ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 5 ]",
+          "ok": true,
+          "got": [
+            "[ [ 5/1 1/1 ] ]"
+          ],
+          "expected": [
+            "[ [ 5/1 1/1 ] ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 4 4 4 4 ]",
+          "ok": true,
+          "got": [
+            "[ [ 4/1 4/1 ] ]"
+          ],
+          "expected": [
+            "[ [ 4/1 4/1 ] ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 1 2 1 2 ]",
+          "ok": true,
+          "got": [
+            "[ [ 1/1 1/1 ] [ 2/1 1/1 ] [ 1/1 1/1 ] [ 2/1 1/1 ] ]"
+          ],
+          "expected": [
+            "[ [ 1/1 1/1 ] [ 2/1 1/1 ] [ 1/1 1/1 ] [ 2/1 1/1 ] ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 3 1 4 1 5 9 2 6 5 3 5 ]",
+          "ok": true,
+          "got": [
+            "[ [ 3/1 1/1 ] [ 1/1 1/1 ] [ 4/1 1/1 ] [ 1/1 1/1 ] [ 5/1 1/1 ] [ 9/1 1/1 ] [ 2/1 1/1 ] [ 6/1 1/1 ] [ 5/1 1/1 ] [ 3/1 1/1 ] [ 5/1 1/1 ] ]"
+          ],
+          "expected": [
+            "[ [ 3/1 1/1 ] [ 1/1 1/1 ] [ 4/1 1/1 ] [ 1/1 1/1 ] [ 5/1 1/1 ] [ 9/1 1/1 ] [ 2/1 1/1 ] [ 6/1 1/1 ] [ 5/1 1/1 ] [ 3/1 1/1 ] [ 5/1 1/1 ] ]"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "runs.upruns",
+      "submitted": true,
+      "solution": "'VV' BIND VV LENGTH 1 SUB 'LN' BIND VV 1 DROP VV LN TAKE SUB [ 0 GT ] MAP 0 0 2 COLLECT [ Z3C.UPSTEP ] FOLD 1 GET 1 ADD",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 32,
+      "expandedTokens": 59,
+      "uses": [
+        "Z3C.UPSTEP"
+      ],
+      "perInput": [
+        {
+          "input": "[ 1 1 2 2 2 3 1 1 ]",
+          "ok": true,
+          "got": [
+            "2/1"
+          ],
+          "expected": [
+            "2/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 5 ]",
+          "ok": true,
+          "got": [
+            "1/1"
+          ],
+          "expected": [
+            "1/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 4 4 4 4 ]",
+          "ok": true,
+          "got": [
+            "1/1"
+          ],
+          "expected": [
+            "1/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 1 2 1 2 ]",
+          "ok": true,
+          "got": [
+            "2/1"
+          ],
+          "expected": [
+            "2/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 3 1 4 1 5 9 2 6 5 3 5 ]",
+          "ok": true,
+          "got": [
+            "3/1"
+          ],
+          "expected": [
+            "3/1"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "runs.dedupe",
+      "submitted": true,
+      "solution": "'RV' BIND RV LENGTH 'LN' BIND RV LN 1 SUB TAKE 'PRE' BIND RV 1 DROP 'POST' BIND PRE POST SUB [ 0 EQ NOT ] MAP 'DF' BIND TRUE 1 COLLECT DF CONCAT 'FL' BIND RV FL 2 COLLECT ZIP [ 1 GET ] FILTER [ 0 GET ] MAP",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 51,
+      "expandedTokens": 51,
+      "uses": [],
+      "perInput": [
+        {
+          "input": "[ 1 1 2 2 2 3 1 1 ]",
+          "ok": true,
+          "got": [
+            "[ 1/1 2/1 3/1 1/1 ]"
+          ],
+          "expected": [
+            "[ 1/1 2/1 3/1 1/1 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 5 ]",
+          "ok": true,
+          "got": [
+            "[ 5/1 ]"
+          ],
+          "expected": [
+            "[ 5/1 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 4 4 4 4 ]",
+          "ok": true,
+          "got": [
+            "[ 4/1 ]"
+          ],
+          "expected": [
+            "[ 4/1 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 1 2 1 2 ]",
+          "ok": true,
+          "got": [
+            "[ 1/1 2/1 1/1 2/1 ]"
+          ],
+          "expected": [
+            "[ 1/1 2/1 1/1 2/1 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 3 1 4 1 5 9 2 6 5 3 5 ]",
+          "ok": true,
+          "got": [
+            "[ 3/1 1/1 4/1 1/1 5/1 9/1 2/1 6/1 5/1 3/1 5/1 ]"
+          ],
+          "expected": [
+            "[ 3/1 1/1 4/1 1/1 5/1 9/1 2/1 6/1 5/1 3/1 5/1 ]"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "runs.second_largest",
+      "submitted": true,
+      "solution": "UNIQUE SORT -2 GET",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 4,
+      "expandedTokens": 4,
+      "uses": [],
+      "perInput": [
+        {
+          "input": "[ 1 1 2 2 2 3 1 1 ]",
+          "ok": true,
+          "got": [
+            "2/1"
+          ],
+          "expected": [
+            "2/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 5 ]",
+          "ok": true,
+          "got": [
+            "NIL"
+          ],
+          "expected": [
+            "NIL"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 4 4 4 4 ]",
+          "ok": true,
+          "got": [
+            "NIL"
+          ],
+          "expected": [
+            "NIL"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 1 2 1 2 ]",
+          "ok": true,
+          "got": [
+            "1/1"
+          ],
+          "expected": [
+            "1/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 3 1 4 1 5 9 2 6 5 3 5 ]",
+          "ok": true,
+          "got": [
+            "6/1"
+          ],
+          "expected": [
+            "6/1"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "runs.majority",
+      "submitted": true,
+      "solution": "'MV' BIND MV LENGTH 'LN' BIND MV SORT LN 2 DIV FLOOR GET 'CAND' BIND MV [ CAND EQ ] FILTER LENGTH 'CNT' BIND CAND NIL LN CNT 2 MUL LT SELECT",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 32,
+      "expandedTokens": 32,
+      "uses": [],
+      "perInput": [
+        {
+          "input": "[ 1 1 2 2 2 3 1 1 ]",
+          "ok": true,
+          "got": [
+            "NIL"
+          ],
+          "expected": [
+            "NIL"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 5 ]",
+          "ok": true,
+          "got": [
+            "5/1"
+          ],
+          "expected": [
+            "5/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 4 4 4 4 ]",
+          "ok": true,
+          "got": [
+            "4/1"
+          ],
+          "expected": [
+            "4/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 1 2 1 2 ]",
+          "ok": true,
+          "got": [
+            "NIL"
+          ],
+          "expected": [
+            "NIL"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 3 1 4 1 5 9 2 6 5 3 5 ]",
+          "ok": true,
+          "got": [
+            "NIL"
+          ],
+          "expected": [
+            "NIL"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "number.primes",
+      "submitted": true,
+      "solution": "'NN' BIND 1 NN RANGE [ Z3C.ISPRIME ] FILTER",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 9,
+      "expandedTokens": 32,
+      "uses": [
+        "Z3C.DIVISORS",
+        "Z3C.ISPRIME"
+      ],
+      "perInput": [
+        {
+          "input": "10",
+          "ok": true,
+          "got": [
+            "[ 2/1 3/1 5/1 7/1 ]"
+          ],
+          "expected": [
+            "[ 2/1 3/1 5/1 7/1 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "1",
+          "ok": true,
+          "got": [
+            "[ ]"
+          ],
+          "expected": [
+            "[ ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "27",
+          "ok": true,
+          "got": [
+            "[ 2/1 3/1 5/1 7/1 11/1 13/1 17/1 19/1 23/1 ]"
+          ],
+          "expected": [
+            "[ 2/1 3/1 5/1 7/1 11/1 13/1 17/1 19/1 23/1 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "60",
+          "ok": true,
+          "got": [
+            "[ 2/1 3/1 5/1 7/1 11/1 13/1 17/1 19/1 23/1 29/1 31/1 37/1 41/1 43/1 47/1 53/1 59/1 ]"
+          ],
+          "expected": [
+            "[ 2/1 3/1 5/1 7/1 11/1 13/1 17/1 19/1 23/1 29/1 31/1 37/1 41/1 43/1 47/1 53/1 59/1 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "2",
+          "ok": true,
+          "got": [
+            "[ 2/1 ]"
+          ],
+          "expected": [
+            "[ 2/1 ]"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "number.divisors",
+      "submitted": true,
+      "solution": "Z3C.DIVISORS",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 1,
+      "expandedTokens": 18,
+      "uses": [
+        "Z3C.DIVISORS"
+      ],
+      "perInput": [
+        {
+          "input": "10",
+          "ok": true,
+          "got": [
+            "[ 1/1 2/1 5/1 10/1 ]"
+          ],
+          "expected": [
+            "[ 1/1 2/1 5/1 10/1 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "1",
+          "ok": true,
+          "got": [
+            "[ 1/1 ]"
+          ],
+          "expected": [
+            "[ 1/1 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "27",
+          "ok": true,
+          "got": [
+            "[ 1/1 3/1 9/1 27/1 ]"
+          ],
+          "expected": [
+            "[ 1/1 3/1 9/1 27/1 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "60",
+          "ok": true,
+          "got": [
+            "[ 1/1 2/1 3/1 4/1 5/1 6/1 10/1 12/1 15/1 20/1 30/1 60/1 ]"
+          ],
+          "expected": [
+            "[ 1/1 2/1 3/1 4/1 5/1 6/1 10/1 12/1 15/1 20/1 30/1 60/1 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "2",
+          "ok": true,
+          "got": [
+            "[ 1/1 2/1 ]"
+          ],
+          "expected": [
+            "[ 1/1 2/1 ]"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "number.binary",
+      "submitted": true,
+      "solution": "'NN' BIND 5 0 RANGE 'EE' BIND 2 EE POW 'PP' BIND NN PP DIV FLOOR 'WW' BIND WW WW 2 DIV FLOOR 2 MUL SUB 'BT' BIND 0 WW LT 'KP' BIND BT KP 2 COLLECT ZIP [ 1 GET ] FILTER [ 0 GET ] MAP [ STR ] MAP JOIN",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 53,
+      "expandedTokens": 53,
+      "uses": [],
+      "perInput": [
+        {
+          "input": "10",
+          "ok": true,
+          "got": [
+            "'1010'"
+          ],
+          "expected": [
+            "'1010'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "1",
+          "ok": true,
+          "got": [
+            "'1'"
+          ],
+          "expected": [
+            "'1'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "27",
+          "ok": true,
+          "got": [
+            "'11011'"
+          ],
+          "expected": [
+            "'11011'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "60",
+          "ok": true,
+          "got": [
+            "'111100'"
+          ],
+          "expected": [
+            "'111100'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "2",
+          "ok": true,
+          "got": [
+            "'10'"
+          ],
+          "expected": [
+            "'10'"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "number.collatz",
+      "submitted": true,
+      "solution": "'NN' BIND 1 150 RANGE NN 0 2 COLLECT [ Z3C.COLSTEP ] FOLD 1 GET",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 15,
+      "expandedTokens": 77,
+      "uses": [
+        "Z3C.COLSTEP"
+      ],
+      "perInput": [
+        {
+          "input": "10",
+          "ok": true,
+          "got": [
+            "6/1"
+          ],
+          "expected": [
+            "6/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "1",
+          "ok": true,
+          "got": [
+            "0/1"
+          ],
+          "expected": [
+            "0/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "27",
+          "ok": true,
+          "got": [
+            "111/1"
+          ],
+          "expected": [
+            "111/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "60",
+          "ok": true,
+          "got": [
+            "19/1"
+          ],
+          "expected": [
+            "19/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "2",
+          "ok": true,
+          "got": [
+            "1/1"
+          ],
+          "expected": [
+            "1/1"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "number.digital_root",
+      "submitted": true,
+      "solution": "'NN' BIND NN 1 SUB 'M1' BIND M1 M1 9 DIV FLOOR 9 MUL SUB 1 ADD",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 17,
+      "expandedTokens": 17,
+      "uses": [],
+      "perInput": [
+        {
+          "input": "10",
+          "ok": true,
+          "got": [
+            "1/1"
+          ],
+          "expected": [
+            "1/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "1",
+          "ok": true,
+          "got": [
+            "1/1"
+          ],
+          "expected": [
+            "1/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "27",
+          "ok": true,
+          "got": [
+            "9/1"
+          ],
+          "expected": [
+            "9/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "60",
+          "ok": true,
+          "got": [
+            "6/1"
+          ],
+          "expected": [
+            "6/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "2",
+          "ok": true,
+          "got": [
+            "2/1"
+          ],
+          "expected": [
+            "2/1"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "number.fib_index",
+      "submitted": true,
+      "solution": "'NN' BIND 1 20 RANGE 1 1 0 NN 4 COLLECT [ Z3C.FIBSTEP ] FOLD 2 GET 1 ADD",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 19,
+      "expandedTokens": 66,
+      "uses": [
+        "Z3C.FIBSTEP"
+      ],
+      "perInput": [
+        {
+          "input": "10",
+          "ok": true,
+          "got": [
+            "7/1"
+          ],
+          "expected": [
+            "7/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "1",
+          "ok": true,
+          "got": [
+            "1/1"
+          ],
+          "expected": [
+            "1/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "27",
+          "ok": true,
+          "got": [
+            "9/1"
+          ],
+          "expected": [
+            "9/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "60",
+          "ok": true,
+          "got": [
+            "11/1"
+          ],
+          "expected": [
+            "11/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "2",
+          "ok": true,
+          "got": [
+            "3/1"
+          ],
+          "expected": [
+            "3/1"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "brackets.depth",
+      "submitted": true,
+      "solution": "CHARS [ Z3C.DELTA ] MAP 0 [ ADD ] SCAN 0 [ MAX ] FOLD",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 15,
+      "expandedTokens": 32,
+      "uses": [
+        "Z3C.DELTA"
+      ],
+      "perInput": [
+        {
+          "input": "'([]())'",
+          "ok": true,
+          "got": [
+            "2/1"
+          ],
+          "expected": [
+            "2/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "''",
+          "ok": true,
+          "got": [
+            "0/1"
+          ],
+          "expected": [
+            "0/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'([)]'",
+          "ok": true,
+          "got": [
+            "2/1"
+          ],
+          "expected": [
+            "2/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'(('",
+          "ok": true,
+          "got": [
+            "2/1"
+          ],
+          "expected": [
+            "2/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'[](([]))'",
+          "ok": true,
+          "got": [
+            "3/1"
+          ],
+          "expected": [
+            "3/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'])'",
+          "ok": true,
+          "got": [
+            "0/1"
+          ],
+          "expected": [
+            "0/1"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "brackets.balanced",
+      "submitted": true,
+      "solution": "Z3C.RED CHARS LENGTH 0 EQ",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 5,
+      "expandedTokens": 27,
+      "uses": [
+        "Z3C.REDSTEP",
+        "Z3C.RED"
+      ],
+      "perInput": [
+        {
+          "input": "'([]())'",
+          "ok": true,
+          "got": [
+            "TRUE"
+          ],
+          "expected": [
+            "TRUE"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "''",
+          "ok": true,
+          "got": [
+            "TRUE"
+          ],
+          "expected": [
+            "TRUE"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'([)]'",
+          "ok": true,
+          "got": [
+            "FALSE"
+          ],
+          "expected": [
+            "FALSE"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'(('",
+          "ok": true,
+          "got": [
+            "FALSE"
+          ],
+          "expected": [
+            "FALSE"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'[](([]))'",
+          "ok": true,
+          "got": [
+            "TRUE"
+          ],
+          "expected": [
+            "TRUE"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'])'",
+          "ok": true,
+          "got": [
+            "FALSE"
+          ],
+          "expected": [
+            "FALSE"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "brackets.balanced_prefix",
+      "submitted": true,
+      "solution": "CHARS 'CC' BIND CC '' [ 2 COLLECT JOIN ] SCAN [ Z3C.SCORE ] MAP 0 [ MAX ] FOLD",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 20,
+      "expandedTokens": 57,
+      "uses": [
+        "Z3C.REDSTEP",
+        "Z3C.RED",
+        "Z3C.SCORE"
+      ],
+      "perInput": [
+        {
+          "input": "'([]())'",
+          "ok": true,
+          "got": [
+            "6/1"
+          ],
+          "expected": [
+            "6/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "''",
+          "ok": true,
+          "got": [
+            "0/1"
+          ],
+          "expected": [
+            "0/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'([)]'",
+          "ok": true,
+          "got": [
+            "0/1"
+          ],
+          "expected": [
+            "0/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'(('",
+          "ok": true,
+          "got": [
+            "0/1"
+          ],
+          "expected": [
+            "0/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'[](([]))'",
+          "ok": true,
+          "got": [
+            "8/1"
+          ],
+          "expected": [
+            "8/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'])'",
+          "ok": true,
+          "got": [
+            "0/1"
+          ],
+          "expected": [
+            "0/1"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "brackets.unmatched",
+      "submitted": true,
+      "solution": "Z3C.RED CHARS LENGTH",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 3,
+      "expandedTokens": 25,
+      "uses": [
+        "Z3C.REDSTEP",
+        "Z3C.RED"
+      ],
+      "perInput": [
+        {
+          "input": "'([]())'",
+          "ok": true,
+          "got": [
+            "0/1"
+          ],
+          "expected": [
+            "0/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "''",
+          "ok": true,
+          "got": [
+            "0/1"
+          ],
+          "expected": [
+            "0/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'([)]'",
+          "ok": true,
+          "got": [
+            "4/1"
+          ],
+          "expected": [
+            "4/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'(('",
+          "ok": true,
+          "got": [
+            "2/1"
+          ],
+          "expected": [
+            "2/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'[](([]))'",
+          "ok": true,
+          "got": [
+            "0/1"
+          ],
+          "expected": [
+            "0/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'])'",
+          "ok": true,
+          "got": [
+            "2/1"
+          ],
+          "expected": [
+            "2/1"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "sensor.present_mean",
+      "submitted": true,
+      "solution": "'RD' BIND RD [ NIL? NOT ] FILTER 'PR' BIND PR 0 [ ADD ] FOLD PR LENGTH DIV",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 19,
+      "expandedTokens": 19,
+      "uses": [],
+      "perInput": [
+        {
+          "input": "[ 3 NIL 5 1 NIL NIL 4 ]",
+          "ok": true,
+          "got": [
+            "13/4"
+          ],
+          "expected": [
+            "13/4"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ NIL NIL 2 2 NIL 8 ]",
+          "ok": true,
+          "got": [
+            "4/1"
+          ],
+          "expected": [
+            "4/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 6 NIL ]",
+          "ok": true,
+          "got": [
+            "6/1"
+          ],
+          "expected": [
+            "6/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ -1 0 2 NIL -3 0 0 ]",
+          "ok": true,
+          "got": [
+            "-1/3"
+          ],
+          "expected": [
+            "-1/3"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ NIL -2 0 ]",
+          "ok": true,
+          "got": [
+            "-1/1"
+          ],
+          "expected": [
+            "-1/1"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "sensor.filled",
+      "submitted": true,
+      "solution": "'RD' BIND RD [ NIL? NOT ] FILTER 0 GET 'FI' BIND RD FI [ Z3C.FILLSTEP ] SCAN",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 18,
+      "expandedTokens": 30,
+      "uses": [
+        "Z3C.FILLSTEP"
+      ],
+      "perInput": [
+        {
+          "input": "[ 3 NIL 5 1 NIL NIL 4 ]",
+          "ok": true,
+          "got": [
+            "[ 3/1 3/1 5/1 1/1 1/1 1/1 4/1 ]"
+          ],
+          "expected": [
+            "[ 3/1 3/1 5/1 1/1 1/1 1/1 4/1 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ NIL NIL 2 2 NIL 8 ]",
+          "ok": true,
+          "got": [
+            "[ 2/1 2/1 2/1 2/1 2/1 8/1 ]"
+          ],
+          "expected": [
+            "[ 2/1 2/1 2/1 2/1 2/1 8/1 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 6 NIL ]",
+          "ok": true,
+          "got": [
+            "[ 6/1 6/1 ]"
+          ],
+          "expected": [
+            "[ 6/1 6/1 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ -1 0 2 NIL -3 0 0 ]",
+          "ok": true,
+          "got": [
+            "[ -1/1 0/1 2/1 2/1 -3/1 0/1 0/1 ]"
+          ],
+          "expected": [
+            "[ -1/1 0/1 2/1 2/1 -3/1 0/1 0/1 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ NIL -2 0 ]",
+          "ok": true,
+          "got": [
+            "[ -2/1 -2/1 0/1 ]"
+          ],
+          "expected": [
+            "[ -2/1 -2/1 0/1 ]"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "sensor.gap_count",
+      "submitted": true,
+      "solution": "'RD' BIND RD 0 FALSE 2 COLLECT [ Z3C.GAPSTEP ] FOLD 0 GET",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 13,
+      "expandedTokens": 48,
+      "uses": [
+        "Z3C.GAPSTEP"
+      ],
+      "perInput": [
+        {
+          "input": "[ 3 NIL 5 1 NIL NIL 4 ]",
+          "ok": true,
+          "got": [
+            "2/1"
+          ],
+          "expected": [
+            "2/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ NIL NIL 2 2 NIL 8 ]",
+          "ok": true,
+          "got": [
+            "2/1"
+          ],
+          "expected": [
+            "2/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 6 NIL ]",
+          "ok": true,
+          "got": [
+            "1/1"
+          ],
+          "expected": [
+            "1/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ -1 0 2 NIL -3 0 0 ]",
+          "ok": true,
+          "got": [
+            "1/1"
+          ],
+          "expected": [
+            "1/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ NIL -2 0 ]",
+          "ok": true,
+          "got": [
+            "1/1"
+          ],
+          "expected": [
+            "1/1"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "sensor.longest_gap",
+      "submitted": true,
+      "solution": "'RD' BIND RD 0 0 2 COLLECT [ Z3C.GAPMAX ] FOLD 1 GET",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 13,
+      "expandedTokens": 47,
+      "uses": [
+        "Z3C.GAPMAX"
+      ],
+      "perInput": [
+        {
+          "input": "[ 3 NIL 5 1 NIL NIL 4 ]",
+          "ok": true,
+          "got": [
+            "2/1"
+          ],
+          "expected": [
+            "2/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ NIL NIL 2 2 NIL 8 ]",
+          "ok": true,
+          "got": [
+            "2/1"
+          ],
+          "expected": [
+            "2/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 6 NIL ]",
+          "ok": true,
+          "got": [
+            "1/1"
+          ],
+          "expected": [
+            "1/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ -1 0 2 NIL -3 0 0 ]",
+          "ok": true,
+          "got": [
+            "1/1"
+          ],
+          "expected": [
+            "1/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ NIL -2 0 ]",
+          "ok": true,
+          "got": [
+            "1/1"
+          ],
+          "expected": [
+            "1/1"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "sensor.ratios",
+      "submitted": true,
+      "solution": "'RD' BIND RD 1 DROP RD RD LENGTH 1 SUB TAKE DIV",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 12,
+      "expandedTokens": 12,
+      "uses": [],
+      "perInput": [
+        {
+          "input": "[ 3 NIL 5 1 NIL NIL 4 ]",
+          "ok": true,
+          "got": [
+            "[ NIL NIL 1/5 NIL NIL NIL ]"
+          ],
+          "expected": [
+            "[ NIL NIL 1/5 NIL NIL NIL ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ NIL NIL 2 2 NIL 8 ]",
+          "ok": true,
+          "got": [
+            "[ NIL NIL 1/1 NIL NIL ]"
+          ],
+          "expected": [
+            "[ NIL NIL 1/1 NIL NIL ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 6 NIL ]",
+          "ok": true,
+          "got": [
+            "[ NIL ]"
+          ],
+          "expected": [
+            "[ NIL ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ -1 0 2 NIL -3 0 0 ]",
+          "ok": true,
+          "got": [
+            "[ 0/1 1/0 NIL NIL 0/1 0/0 ]"
+          ],
+          "expected": [
+            "[ 0/1 1/0 NIL NIL 0/1 0/0 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ NIL -2 0 ]",
+          "ok": true,
+          "got": [
+            "[ NIL 0/1 ]"
+          ],
+          "expected": [
+            "[ NIL 0/1 ]"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "sensor.scaled",
+      "submitted": true,
+      "solution": "'RD' BIND RD RD [ NIL? NOT ] FILTER SORT -1 GET DIV",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 13,
+      "expandedTokens": 13,
+      "uses": [],
+      "perInput": [
+        {
+          "input": "[ 3 NIL 5 1 NIL NIL 4 ]",
+          "ok": true,
+          "got": [
+            "[ 3/5 NIL 1/1 1/5 NIL NIL 4/5 ]"
+          ],
+          "expected": [
+            "[ 3/5 NIL 1/1 1/5 NIL NIL 4/5 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ NIL NIL 2 2 NIL 8 ]",
+          "ok": true,
+          "got": [
+            "[ NIL NIL 1/4 1/4 NIL 1/1 ]"
+          ],
+          "expected": [
+            "[ NIL NIL 1/4 1/4 NIL 1/1 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 6 NIL ]",
+          "ok": true,
+          "got": [
+            "[ 1/1 NIL ]"
+          ],
+          "expected": [
+            "[ 1/1 NIL ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ -1 0 2 NIL -3 0 0 ]",
+          "ok": true,
+          "got": [
+            "[ -1/2 0/1 1/1 NIL -3/2 0/1 0/1 ]"
+          ],
+          "expected": [
+            "[ -1/2 0/1 1/1 NIL -3/2 0/1 0/1 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ NIL -2 0 ]",
+          "ok": true,
+          "got": [
+            "[ NIL 1/0 0/0 ]"
+          ],
+          "expected": [
+            "[ NIL 1/0 0/0 ]"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "orders.revenue",
+      "submitted": true,
+      "solution": "X3.SIBIGE Z3C.REVENUE",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 2,
+      "expandedTokens": 36,
+      "uses": [
+        "X3.SIBIGE",
+        "Z3C.LINE",
+        "Z3C.REVENUE"
+      ],
+      "perInput": [
+        {
+          "input": "'{\"orders\":[{\"sku\":\"a1\",\"qty\":2,\"price\":1.5},{\"sku\":\"b2\",\"qty\":1,\"price\":4,\"tags\":[\"gift\"]},{\"sku\":\"a1\",\"qty\":3,\"price\":1.5,\"tags\":[\"bulk\",\"gift\"]},{\"sku\":\"c3\",\"qty\":5}]}'",
+          "ok": true,
+          "got": [
+            "23/2"
+          ],
+          "expected": [
+            "23/2"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'{\"orders\":[{\"sku\":\"z\",\"qty\":0,\"price\":2}]}'",
+          "ok": true,
+          "got": [
+            "0/1"
+          ],
+          "expected": [
+            "0/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'{\"orders\":[{\"sku\":\"m\",\"qty\":1},{\"sku\":\"n\",\"qty\":2,\"tags\":[]},{\"sku\":\"m\",\"qty\":4,\"price\":0.25}]}'",
+          "ok": true,
+          "got": [
+            "1/1"
+          ],
+          "expected": [
+            "1/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'{\"orders\":[{\"sku\":\"q\",\"qty\":1,\"price\":10,\"tags\":[\"x\"]},{\"sku\":\"r\",\"qty\":2,\"price\":0.1,\"tags\":[\"x\",\"y\"]},{\"sku\":\"q\",\"qty\":1},{\"sku\":\"s\",\"qty\":1,\"price\":0.005},{\"sku\":\"r\",\"qty\":0}]}'",
+          "ok": true,
+          "got": [
+            "2041/200"
+          ],
+          "expected": [
+            "2041/200"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "orders.report",
+      "submitted": true,
+      "solution": "X3.SIBIGE Z3C.REVENUE 2 FORMAT",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 4,
+      "expandedTokens": 38,
+      "uses": [
+        "X3.SIBIGE",
+        "Z3C.LINE",
+        "Z3C.REVENUE"
+      ],
+      "perInput": [
+        {
+          "input": "'{\"orders\":[{\"sku\":\"a1\",\"qty\":2,\"price\":1.5},{\"sku\":\"b2\",\"qty\":1,\"price\":4,\"tags\":[\"gift\"]},{\"sku\":\"a1\",\"qty\":3,\"price\":1.5,\"tags\":[\"bulk\",\"gift\"]},{\"sku\":\"c3\",\"qty\":5}]}'",
+          "ok": true,
+          "got": [
+            "'11.50'"
+          ],
+          "expected": [
+            "'11.50'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'{\"orders\":[{\"sku\":\"z\",\"qty\":0,\"price\":2}]}'",
+          "ok": true,
+          "got": [
+            "'0.00'"
+          ],
+          "expected": [
+            "'0.00'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'{\"orders\":[{\"sku\":\"m\",\"qty\":1},{\"sku\":\"n\",\"qty\":2,\"tags\":[]},{\"sku\":\"m\",\"qty\":4,\"price\":0.25}]}'",
+          "ok": true,
+          "got": [
+            "'1.00'"
+          ],
+          "expected": [
+            "'1.00'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'{\"orders\":[{\"sku\":\"q\",\"qty\":1,\"price\":10,\"tags\":[\"x\"]},{\"sku\":\"r\",\"qty\":2,\"price\":0.1,\"tags\":[\"x\",\"y\"]},{\"sku\":\"q\",\"qty\":1},{\"sku\":\"s\",\"qty\":1,\"price\":0.005},{\"sku\":\"r\",\"qty\":0}]}'",
+          "ok": true,
+          "got": [
+            "'10.21'"
+          ],
+          "expected": [
+            "'10.21'"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "orders.unpriced",
+      "submitted": true,
+      "solution": "X3.SIBIGE 'OS' BIND OS [ 'price' GET NIL? ] FILTER [ 'sku' GET ] MAP UNIQUE",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 16,
+      "expandedTokens": 21,
+      "uses": [
+        "X3.SIBIGE"
+      ],
+      "perInput": [
+        {
+          "input": "'{\"orders\":[{\"sku\":\"a1\",\"qty\":2,\"price\":1.5},{\"sku\":\"b2\",\"qty\":1,\"price\":4,\"tags\":[\"gift\"]},{\"sku\":\"a1\",\"qty\":3,\"price\":1.5,\"tags\":[\"bulk\",\"gift\"]},{\"sku\":\"c3\",\"qty\":5}]}'",
+          "ok": true,
+          "got": [
+            "[ 'c3' ]"
+          ],
+          "expected": [
+            "[ 'c3' ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'{\"orders\":[{\"sku\":\"z\",\"qty\":0,\"price\":2}]}'",
+          "ok": true,
+          "got": [
+            "[ ]"
+          ],
+          "expected": [
+            "[ ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'{\"orders\":[{\"sku\":\"m\",\"qty\":1},{\"sku\":\"n\",\"qty\":2,\"tags\":[]},{\"sku\":\"m\",\"qty\":4,\"price\":0.25}]}'",
+          "ok": true,
+          "got": [
+            "[ 'm' 'n' ]"
+          ],
+          "expected": [
+            "[ 'm' 'n' ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'{\"orders\":[{\"sku\":\"q\",\"qty\":1,\"price\":10,\"tags\":[\"x\"]},{\"sku\":\"r\",\"qty\":2,\"price\":0.1,\"tags\":[\"x\",\"y\"]},{\"sku\":\"q\",\"qty\":1},{\"sku\":\"s\",\"qty\":1,\"price\":0.005},{\"sku\":\"r\",\"qty\":0}]}'",
+          "ok": true,
+          "got": [
+            "[ 'q' 'r' ]"
+          ],
+          "expected": [
+            "[ 'q' 'r' ]"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "orders.qty_by_sku",
+      "submitted": true,
+      "solution": "X3.SIBIGE 'OS' BIND OS [ 'sku' GET ] MAP OS [ 'qty' GET ] MAP GROUP 'GR' BIND GR KEYS GR VALUES [ 0 [ ADD ] FOLD ] MAP RECORD",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 31,
+      "expandedTokens": 36,
+      "uses": [
+        "X3.SIBIGE"
+      ],
+      "perInput": [
+        {
+          "input": "'{\"orders\":[{\"sku\":\"a1\",\"qty\":2,\"price\":1.5},{\"sku\":\"b2\",\"qty\":1,\"price\":4,\"tags\":[\"gift\"]},{\"sku\":\"a1\",\"qty\":3,\"price\":1.5,\"tags\":[\"bulk\",\"gift\"]},{\"sku\":\"c3\",\"qty\":5}]}'",
+          "ok": true,
+          "got": [
+            "[ 'a1' 'b2' 'c3' ] [ 5/1 1/1 5/1 ] RECORD"
+          ],
+          "expected": [
+            "[ 'a1' 'b2' 'c3' ] [ 5/1 1/1 5/1 ] RECORD"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'{\"orders\":[{\"sku\":\"z\",\"qty\":0,\"price\":2}]}'",
+          "ok": true,
+          "got": [
+            "[ 'z' ] [ 0/1 ] RECORD"
+          ],
+          "expected": [
+            "[ 'z' ] [ 0/1 ] RECORD"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'{\"orders\":[{\"sku\":\"m\",\"qty\":1},{\"sku\":\"n\",\"qty\":2,\"tags\":[]},{\"sku\":\"m\",\"qty\":4,\"price\":0.25}]}'",
+          "ok": true,
+          "got": [
+            "[ 'm' 'n' ] [ 5/1 2/1 ] RECORD"
+          ],
+          "expected": [
+            "[ 'm' 'n' ] [ 5/1 2/1 ] RECORD"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'{\"orders\":[{\"sku\":\"q\",\"qty\":1,\"price\":10,\"tags\":[\"x\"]},{\"sku\":\"r\",\"qty\":2,\"price\":0.1,\"tags\":[\"x\",\"y\"]},{\"sku\":\"q\",\"qty\":1},{\"sku\":\"s\",\"qty\":1,\"price\":0.005},{\"sku\":\"r\",\"qty\":0}]}'",
+          "ok": true,
+          "got": [
+            "[ 'q' 'r' 's' ] [ 2/1 2/1 1/1 ] RECORD"
+          ],
+          "expected": [
+            "[ 'q' 'r' 's' ] [ 2/1 2/1 1/1 ] RECORD"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "orders.top_sku",
+      "submitted": true,
+      "solution": "X3.SIBIGE 'OS' BIND OS [ 'sku' GET ] MAP 'SK' BIND OS [ 'qty' GET ] MAP 'QT' BIND SK QT GROUP 'GR' BIND GR KEYS 'KE' BIND GR VALUES [ 0 [ ADD ] FOLD ] MAP 'SU' BIND SU SORT -1 GET 'MX' BIND KE SU 2 COLLECT ZIP [ 1 GET MX EQ ] FILTER 0 GET 0 GET",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 62,
+      "expandedTokens": 67,
+      "uses": [
+        "X3.SIBIGE"
+      ],
+      "perInput": [
+        {
+          "input": "'{\"orders\":[{\"sku\":\"a1\",\"qty\":2,\"price\":1.5},{\"sku\":\"b2\",\"qty\":1,\"price\":4,\"tags\":[\"gift\"]},{\"sku\":\"a1\",\"qty\":3,\"price\":1.5,\"tags\":[\"bulk\",\"gift\"]},{\"sku\":\"c3\",\"qty\":5}]}'",
+          "ok": true,
+          "got": [
+            "'a1'"
+          ],
+          "expected": [
+            "'a1'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'{\"orders\":[{\"sku\":\"z\",\"qty\":0,\"price\":2}]}'",
+          "ok": true,
+          "got": [
+            "'z'"
+          ],
+          "expected": [
+            "'z'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'{\"orders\":[{\"sku\":\"m\",\"qty\":1},{\"sku\":\"n\",\"qty\":2,\"tags\":[]},{\"sku\":\"m\",\"qty\":4,\"price\":0.25}]}'",
+          "ok": true,
+          "got": [
+            "'m'"
+          ],
+          "expected": [
+            "'m'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'{\"orders\":[{\"sku\":\"q\",\"qty\":1,\"price\":10,\"tags\":[\"x\"]},{\"sku\":\"r\",\"qty\":2,\"price\":0.1,\"tags\":[\"x\",\"y\"]},{\"sku\":\"q\",\"qty\":1},{\"sku\":\"s\",\"qty\":1,\"price\":0.005},{\"sku\":\"r\",\"qty\":0}]}'",
+          "ok": true,
+          "got": [
+            "'q'"
+          ],
+          "expected": [
+            "'q'"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "orders.tag_counts",
+      "submitted": true,
+      "solution": "X3.SIBIGE [ Z3C.TAGS ] MAP FLATTEN TALLY",
+      "correct": false,
+      "coreEquivalent": false,
+      "tokens": 7,
+      "expandedTokens": 29,
+      "uses": [
+        "X3.SIBIGE",
+        "Z3C.TAGS"
+      ],
+      "perInput": [
+        {
+          "input": "'{\"orders\":[{\"sku\":\"a1\",\"qty\":2,\"price\":1.5},{\"sku\":\"b2\",\"qty\":1,\"price\":4,\"tags\":[\"gift\"]},{\"sku\":\"a1\",\"qty\":3,\"price\":1.5,\"tags\":[\"bulk\",\"gift\"]},{\"sku\":\"c3\",\"qty\":5}]}'",
+          "ok": false,
+          "got": {
+            "error": "SELECT: expected shapes that align, got [2] and [0] (axis 0 is 2 and 0, and neither is 1)"
+          },
+          "expected": [
+            "[ 'gift' 'bulk' ] [ 2/1 1/1 ] RECORD"
+          ],
+          "coreEquivalent": false
+        },
+        {
+          "input": "'{\"orders\":[{\"sku\":\"z\",\"qty\":0,\"price\":2}]}'",
+          "ok": true,
+          "got": [
+            "[ ] [ ] RECORD"
+          ],
+          "expected": [
+            "[ ] [ ] RECORD"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'{\"orders\":[{\"sku\":\"m\",\"qty\":1},{\"sku\":\"n\",\"qty\":2,\"tags\":[]},{\"sku\":\"m\",\"qty\":4,\"price\":0.25}]}'",
+          "ok": true,
+          "got": [
+            "[ ] [ ] RECORD"
+          ],
+          "expected": [
+            "[ ] [ ] RECORD"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'{\"orders\":[{\"sku\":\"q\",\"qty\":1,\"price\":10,\"tags\":[\"x\"]},{\"sku\":\"r\",\"qty\":2,\"price\":0.1,\"tags\":[\"x\",\"y\"]},{\"sku\":\"q\",\"qty\":1},{\"sku\":\"s\",\"qty\":1,\"price\":0.005},{\"sku\":\"r\",\"qty\":0}]}'",
+          "ok": false,
+          "got": {
+            "error": "SELECT: expected shapes that align, got [2] and [0] (axis 0 is 2 and 0, and neither is 1)"
+          },
+          "expected": [
+            "[ 'x' 'y' ] [ 2/1 1/1 ] RECORD"
+          ],
+          "coreEquivalent": false
+        }
+      ]
+    },
+    {
+      "task": "messy.count",
+      "submitted": true,
+      "solution": "X3.KEGAFE LENGTH",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 2,
+      "expandedTokens": 12,
+      "uses": [
+        "X3.KEGAFE"
+      ],
+      "perInput": [
+        {
+          "input": "'  The cat saw THE dog   and the Cat  '",
+          "ok": true,
+          "got": [
+            "8/1"
+          ],
+          "expected": [
+            "8/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'one'",
+          "ok": true,
+          "got": [
+            "1/1"
+          ],
+          "expected": [
+            "1/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'Bb aa  BB Aa bb'",
+          "ok": true,
+          "got": [
+            "5/1"
+          ],
+          "expected": [
+            "5/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "' x  Y z '",
+          "ok": true,
+          "got": [
+            "3/1"
+          ],
+          "expected": [
+            "3/1"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "messy.normalize",
+      "submitted": true,
+      "solution": "X3.KEGAFE [ LOWER ] MAP X3.FOZABA",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 6,
+      "expandedTokens": 27,
+      "uses": [
+        "X3.KEGAFE",
+        "X3.FOZABA"
+      ],
+      "perInput": [
+        {
+          "input": "'  The cat saw THE dog   and the Cat  '",
+          "ok": true,
+          "got": [
+            "'the cat saw the dog and the cat'"
+          ],
+          "expected": [
+            "'the cat saw the dog and the cat'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'one'",
+          "ok": true,
+          "got": [
+            "'one'"
+          ],
+          "expected": [
+            "'one'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'Bb aa  BB Aa bb'",
+          "ok": true,
+          "got": [
+            "'bb aa bb aa bb'"
+          ],
+          "expected": [
+            "'bb aa bb aa bb'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "' x  Y z '",
+          "ok": true,
+          "got": [
+            "'x y z'"
+          ],
+          "expected": [
+            "'x y z'"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "messy.distinct",
+      "submitted": true,
+      "solution": "X3.KEGAFE [ LOWER ] MAP UNIQUE LENGTH",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 7,
+      "expandedTokens": 17,
+      "uses": [
+        "X3.KEGAFE"
+      ],
+      "perInput": [
+        {
+          "input": "'  The cat saw THE dog   and the Cat  '",
+          "ok": true,
+          "got": [
+            "5/1"
+          ],
+          "expected": [
+            "5/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'one'",
+          "ok": true,
+          "got": [
+            "1/1"
+          ],
+          "expected": [
+            "1/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'Bb aa  BB Aa bb'",
+          "ok": true,
+          "got": [
+            "2/1"
+          ],
+          "expected": [
+            "2/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "' x  Y z '",
+          "ok": true,
+          "got": [
+            "3/1"
+          ],
+          "expected": [
+            "3/1"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "messy.top_word",
+      "submitted": true,
+      "solution": "X3.KEGAFE [ LOWER ] MAP 'LW' BIND LW TALLY 'TT' BIND TT KEYS 'KE' BIND TT VALUES 'CO' BIND CO SORT -1 GET 'MX' BIND KE CO 2 COLLECT ZIP [ 1 GET MX EQ ] FILTER 0 GET 0 GET",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 41,
+      "expandedTokens": 51,
+      "uses": [
+        "X3.KEGAFE"
+      ],
+      "perInput": [
+        {
+          "input": "'  The cat saw THE dog   and the Cat  '",
+          "ok": true,
+          "got": [
+            "'the'"
+          ],
+          "expected": [
+            "'the'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'one'",
+          "ok": true,
+          "got": [
+            "'one'"
+          ],
+          "expected": [
+            "'one'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'Bb aa  BB Aa bb'",
+          "ok": true,
+          "got": [
+            "'bb'"
+          ],
+          "expected": [
+            "'bb'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "' x  Y z '",
+          "ok": true,
+          "got": [
+            "'x'"
+          ],
+          "expected": [
+            "'x'"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "messy.title",
+      "submitted": true,
+      "solution": "X3.KEGAFE [ Z3C.CAP ] MAP X3.FOZABA",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 6,
+      "expandedTokens": 45,
+      "uses": [
+        "X3.KEGAFE",
+        "Z3C.CAP",
+        "X3.FOZABA"
+      ],
+      "perInput": [
+        {
+          "input": "'  The cat saw THE dog   and the Cat  '",
+          "ok": true,
+          "got": [
+            "'The Cat Saw The Dog And The Cat'"
+          ],
+          "expected": [
+            "'The Cat Saw The Dog And The Cat'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'one'",
+          "ok": true,
+          "got": [
+            "'One'"
+          ],
+          "expected": [
+            "'One'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'Bb aa  BB Aa bb'",
+          "ok": true,
+          "got": [
+            "'Bb Aa Bb Aa Bb'"
+          ],
+          "expected": [
+            "'Bb Aa Bb Aa Bb'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "' x  Y z '",
+          "ok": true,
+          "got": [
+            "'X Y Z'"
+          ],
+          "expected": [
+            "'X Y Z'"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "messy.sorted_unique",
+      "submitted": true,
+      "solution": "X3.KEGAFE [ LOWER ] MAP UNIQUE SORT X3.FOZABA",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 8,
+      "expandedTokens": 29,
+      "uses": [
+        "X3.KEGAFE",
+        "X3.FOZABA"
+      ],
+      "perInput": [
+        {
+          "input": "'  The cat saw THE dog   and the Cat  '",
+          "ok": true,
+          "got": [
+            "'and cat dog saw the'"
+          ],
+          "expected": [
+            "'and cat dog saw the'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'one'",
+          "ok": true,
+          "got": [
+            "'one'"
+          ],
+          "expected": [
+            "'one'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'Bb aa  BB Aa bb'",
+          "ok": true,
+          "got": [
+            "'aa bb'"
+          ],
+          "expected": [
+            "'aa bb'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "' x  Y z '",
+          "ok": true,
+          "got": [
+            "'x y z'"
+          ],
+          "expected": [
+            "'x y z'"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    }
+  ],
+  "calls": null
+}

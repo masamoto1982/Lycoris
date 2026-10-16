@@ -1,0 +1,108 @@
+{
+  "generation": 2,
+  "capacity": 8,
+  "rule": "uses",
+  "entries": [
+    {
+      "name": "G0C.ORDERS",
+      "body": "JSON-DECODE 'orders' GET",
+      "note": "Parse the orders JSON String into the Vector of order Records.",
+      "classId": "G0C.ORDERS",
+      "uses": 24,
+      "agents": [
+        "U1A",
+        "U1B",
+        "U1C",
+        "U1D"
+      ]
+    },
+    {
+      "name": "G0D.WORDS",
+      "body": "' ' TOKENIZE [ '' EQ NOT ] FILTER",
+      "note": "space-separated String -> Vector of its non-empty words",
+      "classId": "G0D.WORDS",
+      "uses": 24,
+      "agents": [
+        "U1A",
+        "U1B",
+        "U1C",
+        "U1D"
+      ]
+    },
+    {
+      "name": "G0D.SHIFT",
+      "body": "'SV' BIND SV 0 GET 1 COLLECT SV -1 DROP CONCAT",
+      "note": "V -> same-length Vector of each lane's previous element, first lane repeating V[0]",
+      "classId": "G0D.SHIFT",
+      "uses": 17,
+      "agents": [
+        "U1A",
+        "U1B",
+        "U1C",
+        "U1D"
+      ]
+    },
+    {
+      "name": "G0D.RUNS",
+      "body": "'RV' BIND RV RV G0D.SHIFT SUB [ 'D' BIND 0 1 D 0 EQ SELECT ] MAP 0 [ ADD ] SCAN RV GROUP VALUES",
+      "note": "numeric V -> Vector of its maximal runs of equal adjacent values, each run a Vector, in order",
+      "classId": "G0D.RUNS",
+      "uses": 14,
+      "agents": [
+        "U1A",
+        "U1B",
+        "U1C",
+        "U1D"
+      ]
+    },
+    {
+      "name": "G0A.UNWORDS",
+      "body": "[ ' ' 2 COLLECT JOIN ] MAP JOIN TRIM",
+      "note": "Vector of space-free words -> one String joined by single spaces",
+      "classId": "G0A.UNWORDS",
+      "uses": 12,
+      "agents": [
+        "U1A",
+        "U1B",
+        "U1C",
+        "U1D"
+      ]
+    },
+    {
+      "name": "U1D.ARGMAX",
+      "body": "-1 MUL ORDER 0 GET",
+      "note": "numeric Vector -> index of its first largest element (ties go to the earliest)",
+      "classId": "U1D.ARGMAX",
+      "uses": 3,
+      "agents": [
+        "U1D"
+      ]
+    },
+    {
+      "name": "U1D.TOPKEY",
+      "body": "'U1D.TR' BIND U1D.TR KEYS U1D.TR VALUES U1D.ARGMAX GET",
+      "note": "Record with numeric values -> the first key holding the largest value",
+      "classId": "U1A.ARGMAXKEY",
+      "uses": 9,
+      "agents": [
+        "U1A",
+        "U1B",
+        "U1C",
+        "U1D"
+      ]
+    },
+    {
+      "name": "G0D.DIVISORS",
+      "body": "'DK' BIND 1 DK RANGE [ 'DD' BIND DK DD DIV FLOOR DD MUL DK EQ ] FILTER",
+      "note": "positive integer -> ascending Vector of its positive divisors",
+      "classId": "G0D.DIVISORS",
+      "uses": 8,
+      "agents": [
+        "U1A",
+        "U1B",
+        "U1C",
+        "U1D"
+      ]
+    }
+  ]
+}

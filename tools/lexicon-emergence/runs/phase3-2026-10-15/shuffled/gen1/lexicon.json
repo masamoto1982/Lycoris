@@ -1,0 +1,102 @@
+{
+  "generation": 1,
+  "capacity": 8,
+  "rule": "uses",
+  "entries": [
+    {
+      "name": "X1.SEBUFE",
+      "body": "' ' TOKENIZE [ '' EQ NOT ] FILTER",
+      "note": "",
+      "classId": "G0A.WORDS",
+      "uses": 24,
+      "agents": [
+        "G0A",
+        "G0B",
+        "G0C",
+        "G0D"
+      ],
+      "shuffledFrom": "G0D.WORDS"
+    },
+    {
+      "name": "X1.MULAFA",
+      "body": "JSON-DECODE 'orders' GET",
+      "note": "",
+      "classId": "G0A.REVENUE",
+      "uses": 16,
+      "agents": [
+        "G0A",
+        "G0C",
+        "G0D"
+      ],
+      "shuffledFrom": "G0C.ORDERS"
+    },
+    {
+      "name": "X1.FAGAMO",
+      "body": "[ ' ' 2 COLLECT JOIN ] MAP JOIN TRIM",
+      "note": "",
+      "classId": "G0A.UNWORDS",
+      "uses": 6,
+      "agents": [
+        "G0A",
+        "G0B"
+      ],
+      "shuffledFrom": "G0A.UNWORDS"
+    },
+    {
+      "name": "X1.ZARORO",
+      "body": "'SV' BIND SV 0 GET 1 COLLECT SV -1 DROP CONCAT",
+      "note": "",
+      "classId": "G0D.SHIFT",
+      "uses": 6,
+      "agents": [
+        "G0D"
+      ],
+      "shuffledFrom": "G0D.SHIFT"
+    },
+    {
+      "name": "X1.LAVIPA",
+      "body": "'DK' BIND 1 DK RANGE [ 'DD' BIND DK DD DIV FLOOR DD MUL DK EQ ] FILTER",
+      "note": "",
+      "classId": "G0A.DIVISORS",
+      "uses": 4,
+      "agents": [
+        "G0A",
+        "G0D"
+      ],
+      "shuffledFrom": "G0D.DIVISORS"
+    },
+    {
+      "name": "X1.GUFIMI",
+      "body": "'RV' BIND RV RV X1.ZARORO SUB [ 'D' BIND 0 1 D 0 EQ SELECT ] MAP 0 [ ADD ] SCAN RV GROUP VALUES",
+      "note": "",
+      "classId": "G0D.RUNS",
+      "uses": 4,
+      "agents": [
+        "G0D"
+      ],
+      "shuffledFrom": "G0D.RUNS"
+    },
+    {
+      "name": "X1.SOKOLO",
+      "body": "'G0A.SK' BIND 'G0A.SA' BIND [ '(' '[' ')' ']' ] [ 'O' 'O' '(' '[' ] RECORD G0A.SK GET 'G0A.SQ' BIND G0A.SA G0A.SK 2 COLLECT JOIN G0A.SA CHARS -1 DROP JOIN 'X' G0A.SA CHARS -1 GET G0A.SQ EQ SELECT G0A.SQ 'O' EQ SELECT",
+      "note": "",
+      "classId": "G0A.BSTEP",
+      "uses": 3,
+      "agents": [
+        "G0A"
+      ],
+      "shuffledFrom": "G0A.BSTEP"
+    },
+    {
+      "name": "X1.TODIPU",
+      "body": "'()' '' REPLACE '[]' '' REPLACE '()' '' REPLACE '[]' '' REPLACE '()' '' REPLACE '[]' '' REPLACE '()' '' REPLACE '[]' '' REPLACE '()' '' REPLACE '[]' '' REPLACE '()' '' REPLACE '[]' '' REPLACE",
+      "note": "",
+      "classId": "G0B.REDUCE",
+      "uses": 3,
+      "agents": [
+        "G0B"
+      ],
+      "shuffledFrom": "G0B.REDUCE"
+    }
+  ]
+}

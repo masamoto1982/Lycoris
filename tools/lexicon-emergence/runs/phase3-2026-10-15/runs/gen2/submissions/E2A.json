@@ -1,0 +1,207 @@
+{
+  "agent": "E2A",
+  "generation": 2,
+  "condition": "runs",
+  "definitions": [
+    {
+      "name": "E2A.MAXOF",
+      "body": "0 [ MAX ] FOLD",
+      "note": "Vector of numbers -> its largest element, floored at 0 (0 for an empty Vector)"
+    },
+    {
+      "name": "E2A.OR",
+      "body": "NOT 'EB' BIND NOT EB AND NOT",
+      "note": "a b -> a OR b (truth values, element-wise, Kleene)"
+    },
+    {
+      "name": "E2A.RLE",
+      "body": "G0D.RUNS [ 'ER' BIND ER 0 GET ER LENGTH 2 COLLECT ] MAP",
+      "note": "numeric V -> run-length encoding: a Vector of [ value count ], one per maximal run, in order"
+    },
+    {
+      "name": "E2A.UPRUNS",
+      "body": "'EV' BIND EV EV G0D.SHIFT SUB 0 GT 0 [ 'EF' BIND 'EA' BIND EA 1 ADD 1 EF SELECT ] SCAN E2A.MAXOF",
+      "note": "numeric V -> length of its longest stretch of strictly increasing adjacent values"
+    },
+    {
+      "name": "E2A.DEDUPE",
+      "body": "G0D.RUNS [ 0 GET ] MAP",
+      "note": "numeric V -> V with each run of equal adjacent values collapsed to one value"
+    },
+    {
+      "name": "E2A.SECOND",
+      "body": "UNIQUE SORT -2 GET 'ES' BIND NIL ES ES NIL? SELECT",
+      "note": "V -> its second-largest distinct value, or NIL when all values are equal"
+    },
+    {
+      "name": "E2A.MAJORITY",
+      "body": "'EV' BIND EV TALLY 'ET' BIND ET U1D.TOPKEY 'EK' BIND EK NIL ET EK GET 2 MUL EV LENGTH GT SELECT",
+      "note": "V -> the value occupying more than half its positions, or NIL when none does"
+    },
+    {
+      "name": "E2A.PRIMES",
+      "body": "'EN' BIND 1 EN RANGE [ G0D.DIVISORS LENGTH 2 EQ ] FILTER",
+      "note": "positive integer N -> ascending Vector of the primes <= N"
+    },
+    {
+      "name": "E2A.BINARY",
+      "body": "'EN' BIND 0 EN 1 ADD RANGE [ 'EK' BIND 2 EK POW ] MAP REVERSE 'EP' BIND EN EP DIV FLOOR 'EQQ' BIND EQQ EQQ 2 DIV FLOOR 2 MUL SUB EP [ EN GT NOT ] FILTER LENGTH -1 MUL TAKE STR JOIN",
+      "note": "positive integer -> its base-2 digits as a String, no leading zeros"
+    },
+    {
+      "name": "E2A.COLLATZ",
+      "body": "'EN' BIND 1 EN 10 MUL 200 ADD RANGE EN [ 'EI' BIND 'EV' BIND 1 EV 2 DIV EV 3 MUL 1 ADD EV 2 DIV FLOOR 2 MUL EV EQ SELECT EV 1 EQ SELECT ] SCAN 'ES' BIND EN 1 COLLECT ES CONCAT [ 1 EQ NOT ] FILTER LENGTH",
+      "note": "positive integer (small) -> number of Collatz steps to reach 1"
+    },
+    {
+      "name": "E2A.DIGROOT",
+      "body": "1 SUB 'EM' BIND EM EM 9 DIV FLOOR 9 MUL SUB 1 ADD",
+      "note": "positive integer -> its digital root"
+    },
+    {
+      "name": "E2A.FIBS",
+      "body": "'EN' BIND 1 EN RANGE [ 1 1 ] [ 'EI' BIND 'EA' BIND EA EA -1 GET EA -2 GET ADD 1 COLLECT CONCAT ] FOLD",
+      "note": "N>=1 -> Vector of Fibonacci numbers F(1)..F(N+2)"
+    },
+    {
+      "name": "E2A.FIBINDEX",
+      "body": "'EN' BIND EN E2A.FIBS [ EN LT ] FILTER LENGTH 1 ADD",
+      "note": "positive integer N -> smallest k with F(k) >= N"
+    },
+    {
+      "name": "E2A.BRDEPTH",
+      "body": "CHARS [ 'EC' BIND 1 -1 EC '(' EQ EC '[' EQ E2A.OR SELECT ] MAP 0 [ ADD 0 MAX ] SCAN E2A.MAXOF",
+      "note": "bracket String -> greatest number of brackets open at once"
+    },
+    {
+      "name": "E2A.BRREDUCE",
+      "body": "'ES' BIND 0 ES CHARS LENGTH 2 DIV FLOOR RANGE ES [ 'EI' BIND '()' '' REPLACE '[]' '' REPLACE ] FOLD",
+      "note": "bracket String -> what remains after repeatedly deleting adjacent () and [] pairs"
+    },
+    {
+      "name": "E2A.BALANCED",
+      "body": "E2A.BRREDUCE '' EQ",
+      "note": "bracket String -> TRUE when properly nested and matched"
+    },
+    {
+      "name": "E2A.BALPREFIX",
+      "body": "CHARS 'EC' BIND 0 EC LENGTH RANGE [ 'EL' BIND EC EL TAKE JOIN E2A.BALANCED ] FILTER E2A.MAXOF",
+      "note": "bracket String -> length of its longest balanced prefix"
+    },
+    {
+      "name": "E2A.UNMATCHED",
+      "body": "E2A.BRREDUCE CHARS LENGTH",
+      "note": "bracket String -> count of characters left after deleting matched pairs"
+    },
+    {
+      "name": "E2A.PRESENT",
+      "body": "[ NIL? NOT ] FILTER",
+      "note": "V -> its non-NIL elements, in order"
+    },
+    {
+      "name": "E2A.MEAN",
+      "body": "'EP' BIND EP 0 [ ADD ] FOLD EP LENGTH DIV",
+      "note": "non-empty numeric V -> arithmetic mean"
+    },
+    {
+      "name": "E2A.PMEAN",
+      "body": "E2A.PRESENT E2A.MEAN",
+      "note": "V with NILs -> mean of the present values"
+    },
+    {
+      "name": "E2A.FILLED",
+      "body": "'EV' BIND EV EV E2A.PRESENT 0 GET [ 'EX' BIND 'EA' BIND EA EX EX NIL? SELECT ] SCAN",
+      "note": "V with NILs -> each NIL replaced by the previous present value (leading NILs by the first present)"
+    },
+    {
+      "name": "E2A.MISSING",
+      "body": "[ NIL? ] MAP",
+      "note": "V -> Vector of truths, TRUE where the element is NIL"
+    },
+    {
+      "name": "E2A.GAPCOUNT",
+      "body": "E2A.MISSING 'EM' BIND FALSE 1 COLLECT EM -1 DROP CONCAT NOT EM AND [ ] FILTER LENGTH",
+      "note": "V with NILs -> number of runs of consecutive NILs"
+    },
+    {
+      "name": "E2A.LONGGAP",
+      "body": "E2A.MISSING 0 [ 'EF' BIND 'EA' BIND EA 1 ADD 0 EF SELECT ] SCAN E2A.MAXOF",
+      "note": "V with NILs -> length of the longest run of consecutive NILs (0 if none)"
+    },
+    {
+      "name": "E2A.RATIOS",
+      "body": "'EV' BIND EV 1 DROP EV -1 DROP DIV",
+      "note": "V -> each element divided by the one before (NIL where either is NIL), one shorter"
+    },
+    {
+      "name": "E2A.SCALED",
+      "body": "'EV' BIND EV E2A.PRESENT 'EP' BIND EV EP EP 0 GET [ MAX ] FOLD DIV",
+      "note": "V with NILs -> each present value divided by the largest present value, NILs kept"
+    },
+    {
+      "name": "E2A.REVENUE",
+      "body": "G0C.ORDERS [ 'price' HAS? ] FILTER [ 'EO' BIND EO 'qty' GET EO 'price' GET MUL ] MAP 0 [ ADD ] FOLD",
+      "note": "orders JSON String -> total qty*price over orders having a price"
+    },
+    {
+      "name": "E2A.QTYBY",
+      "body": "G0C.ORDERS 'EO' BIND EO [ 'sku' GET ] MAP EO [ 'qty' GET ] MAP GROUP 'EG' BIND EG KEYS EG VALUES [ 0 [ ADD ] FOLD ] MAP RECORD",
+      "note": "orders JSON String -> Record sku -> summed qty, skus in first-appearance order"
+    },
+    {
+      "name": "E2A.UNPRICED",
+      "body": "G0C.ORDERS [ 'price' HAS? NOT ] FILTER [ 'sku' GET ] MAP UNIQUE",
+      "note": "orders JSON String -> distinct skus of orders without a price, first-appearance order"
+    },
+    {
+      "name": "E2A.TAGCOUNTS",
+      "body": "G0C.ORDERS [ 'tags' HAS? ] FILTER [ 'tags' GET UNIQUE ] MAP FLATTEN TALLY",
+      "note": "orders JSON String -> Record tag -> number of orders carrying it"
+    },
+    {
+      "name": "E2A.LWORDS",
+      "body": "LOWER G0D.WORDS",
+      "note": "String -> Vector of its non-empty space-separated words, lower-cased"
+    },
+    {
+      "name": "E2A.CAP",
+      "body": "CHARS 'EC' BIND EC 0 GET UPPER EC 1 DROP JOIN LOWER 2 COLLECT JOIN",
+      "note": "non-empty word -> first letter upper case, rest lower case"
+    }
+  ],
+  "solutions": {
+    "runs.rle": "E2A.RLE",
+    "runs.upruns": "E2A.UPRUNS",
+    "runs.dedupe": "E2A.DEDUPE",
+    "runs.second_largest": "E2A.SECOND",
+    "runs.majority": "E2A.MAJORITY",
+    "number.primes": "E2A.PRIMES",
+    "number.divisors": "G0D.DIVISORS",
+    "number.binary": "E2A.BINARY",
+    "number.collatz": "E2A.COLLATZ",
+    "number.digital_root": "E2A.DIGROOT",
+    "number.fib_index": "E2A.FIBINDEX",
+    "brackets.depth": "E2A.BRDEPTH",
+    "brackets.balanced": "E2A.BALANCED",
+    "brackets.balanced_prefix": "E2A.BALPREFIX",
+    "brackets.unmatched": "E2A.UNMATCHED",
+    "sensor.present_mean": "E2A.PMEAN",
+    "sensor.filled": "E2A.FILLED",
+    "sensor.gap_count": "E2A.GAPCOUNT",
+    "sensor.longest_gap": "E2A.LONGGAP",
+    "sensor.ratios": "E2A.RATIOS",
+    "sensor.scaled": "E2A.SCALED",
+    "orders.revenue": "E2A.REVENUE",
+    "orders.report": "E2A.REVENUE 2 FORMAT",
+    "orders.unpriced": "E2A.UNPRICED",
+    "orders.qty_by_sku": "E2A.QTYBY",
+    "orders.top_sku": "E2A.QTYBY U1D.TOPKEY",
+    "orders.tag_counts": "E2A.TAGCOUNTS",
+    "messy.count": "G0D.WORDS LENGTH",
+    "messy.normalize": "E2A.LWORDS G0A.UNWORDS",
+    "messy.distinct": "E2A.LWORDS UNIQUE LENGTH",
+    "messy.top_word": "E2A.LWORDS TALLY U1D.TOPKEY",
+    "messy.title": "G0D.WORDS [ E2A.CAP ] MAP G0A.UNWORDS",
+    "messy.sorted_unique": "E2A.LWORDS UNIQUE SORT G0A.UNWORDS"
+  }
+}

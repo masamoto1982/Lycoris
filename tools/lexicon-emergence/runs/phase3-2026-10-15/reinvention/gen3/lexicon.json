@@ -1,0 +1,101 @@
+{
+  "generation": 3,
+  "capacity": 8,
+  "rule": "reinvention",
+  "entries": [
+    {
+      "name": "R2A.WORDS",
+      "body": "' ' TOKENIZE [ '' EQ NOT ] FILTER",
+      "note": "space-separated String -> Vector of its non-empty words",
+      "classId": "R2A.WORDS",
+      "uses": 24,
+      "agents": [
+        "R2A",
+        "R2B",
+        "R2C",
+        "R2D"
+      ]
+    },
+    {
+      "name": "R1C.REVENUE",
+      "body": "[ 'XR' BIND XR 'qty' GET XR 'price' GET MUL 0 XR 'price' GET NIL? NOT SELECT ] MAP 0 [ ADD ] FOLD",
+      "note": "Orders Vector -> exact total of qty times price over the orders that have a price.",
+      "classId": "R1C.REVENUE",
+      "uses": 17,
+      "agents": [
+        "R2A",
+        "R2B",
+        "R2C",
+        "R2D"
+      ]
+    },
+    {
+      "name": "R2B.SPACEJOIN",
+      "body": "[ ' ' 2 COLLECT JOIN ] MAP JOIN TRIM",
+      "note": "Vector of Strings -> the Strings joined by single spaces.",
+      "classId": "R2A.UNWORDS",
+      "uses": 12,
+      "agents": [
+        "R2A",
+        "R2B",
+        "R2C",
+        "R2D"
+      ]
+    },
+    {
+      "name": "R2D.PRESENT",
+      "body": "[ NIL? NOT ] FILTER",
+      "note": "Vector -> the elements that are not NIL, in order",
+      "classId": "R2B.FILL0",
+      "uses": 6,
+      "agents": [
+        "R2B",
+        "R2D"
+      ]
+    },
+    {
+      "name": "R2D.STREAKS",
+      "body": "0 [ 'R2D.KE' BIND 1 ADD 0 R2D.KE SELECT ] SCAN",
+      "note": "Boolean Vector -> same-length Vector of running counts of consecutive TRUEs, reset to 0 at each FALSE",
+      "classId": "R2B.RUNLEN",
+      "uses": 4,
+      "agents": [
+        "R2B",
+        "R2D"
+      ]
+    },
+    {
+      "name": "R2B.BSIGN",
+      "body": "'R2B.SC' BIND [ '(' '[' ')' ']' ] [ 1 1 -1 -1 ] RECORD R2B.SC GET",
+      "note": "Bracket char -> 1 for an opener, -1 for a closer.",
+      "classId": "R2A.BVAL",
+      "uses": 2,
+      "agents": [
+        "R2A",
+        "R2B"
+      ]
+    },
+    {
+      "name": "R2B.BDEPTH",
+      "body": "CHARS [ R2B.BSIGN ] MAP 0 [ ADD 0 MAX ] SCAN 0 [ MAX ] FOLD",
+      "note": "Bracket String -> greatest number of brackets open at once (open count never below 0).",
+      "classId": "R2B.BDEPTH",
+      "uses": 3,
+      "agents": [
+        "R2B",
+        "R2D"
+      ]
+    },
+    {
+      "name": "R2D.LONGEST-GAP",
+      "body": "[ NIL? ] MAP R2D.STREAKS 0 [ MAX ] FOLD",
+      "note": "Vector -> length of the longest run of consecutive NILs (0 when none)",
+      "classId": "R2B.GAPS",
+      "uses": 3,
+      "agents": [
+        "R2B",
+        "R2D"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,67 @@
+{
+  "agent": "U3A",
+  "generation": 3,
+  "condition": "uses",
+  "definitions": [
+    {
+      "name": "U3A.COUNT",
+      "body": "[ NOT NOT ] FILTER LENGTH",
+      "note": "Vector of truth values -> how many are TRUE"
+    },
+    {
+      "name": "U3A.DIVISORS",
+      "body": "'U3A.DN' BIND 1 U3A.DN RANGE [ 'U3A.D' BIND U3A.DN U3A.D DIV FLOOR U3A.D MUL U3A.DN EQ ] FILTER",
+      "note": "positive integer N -> ascending Vector of its positive divisors"
+    },
+    {
+      "name": "U3A.RED6",
+      "body": "'()' '' REPLACE '[]' '' REPLACE '()' '' REPLACE '[]' '' REPLACE '()' '' REPLACE '[]' '' REPLACE '()' '' REPLACE '[]' '' REPLACE '()' '' REPLACE '[]' '' REPLACE '()' '' REPLACE '[]' '' REPLACE",
+      "note": "bracket String (up to 12 chars) -> fixpoint after repeatedly deleting adjacent () and [] pairs"
+    },
+    {
+      "name": "U3A.REVENUE",
+      "body": "JSON-DECODE 'orders' GET [ 'U3A.O' BIND U3A.O 'price' GET 'U3A.PP' BIND 0 U3A.PP U3A.PP NIL? SELECT U3A.O 'qty' GET MUL ] MAP 0 [ ADD ] FOLD",
+      "note": "orders JSON String -> total of qty*price over orders with a price (missing price counts 0)"
+    },
+    {
+      "name": "U3A.QTYREC",
+      "body": "JSON-DECODE 'orders' GET 'U3A.OS' BIND U3A.OS [ 'sku' GET ] MAP U3A.OS [ 'qty' GET ] MAP GROUP 'U3A.G' BIND U3A.G KEYS U3A.G VALUES [ 0 [ ADD ] FOLD ] MAP RECORD",
+      "note": "orders JSON String -> Record sku -> summed qty, skus in first-appearance order"
+    }
+  ],
+  "solutions": {
+    "runs.rle": "G0D.RUNS [ 'U3A.R' BIND U3A.R 0 GET U3A.R LENGTH 2 COLLECT ] MAP",
+    "runs.upruns": "'U3A.V' BIND U3A.V U3A.V G0D.SHIFT GT 0 [ 'U3A.B' BIND 'U3A.A' BIND U3A.A 1 ADD 1 U3A.B SELECT ] SCAN 0 [ MAX ] FOLD",
+    "runs.dedupe": "G0D.RUNS [ 0 GET ] MAP",
+    "runs.second_largest": "UNIQUE SORT -2 GET",
+    "runs.majority": "'U3A.V' BIND U3A.V TALLY 'U3A.T' BIND U3A.T U1D.TOPKEY 'U3A.K' BIND U3A.K NIL U3A.T U3A.K GET 2 MUL U3A.V LENGTH GT SELECT",
+    "number.primes": "'U3A.N' BIND 1 U3A.N RANGE [ U3A.DIVISORS LENGTH 2 EQ ] FILTER",
+    "number.divisors": "U3A.DIVISORS",
+    "number.binary": "'U3A.N' BIND [ 32 16 8 4 2 1 ] [ U3A.N GT NOT ] FILTER 'U3A.P' BIND U3A.N U3A.P DIV FLOOR 'U3A.Q' BIND U3A.Q U3A.Q 2 DIV FLOOR 2 MUL SUB STR JOIN",
+    "number.collatz": "'U3A.N' BIND 1 150 RANGE U3A.N [ 'U3A.I' BIND 'U3A.C' BIND 1 U3A.C 2 DIV U3A.C 3 MUL 1 ADD U3A.C 2 DIV FLOOR U3A.C 2 DIV EQ SELECT U3A.C 1 EQ SELECT ] SCAN 'U3A.SQ' BIND U3A.N 1 COLLECT U3A.SQ CONCAT [ 1 GT ] FILTER LENGTH",
+    "number.digital_root": "1 SUB 'U3A.M' BIND U3A.M U3A.M 9 DIV FLOOR 9 MUL SUB 1 ADD",
+    "number.fib_index": "'U3A.N' BIND [ 1 1 2 3 5 8 13 21 34 55 89 ] U3A.N LT U3A.COUNT 1 ADD",
+    "brackets.depth": "CHARS [ 'U3A.CH' BIND [ '(' ')' '[' ']' ] [ 1 -1 1 -1 ] RECORD U3A.CH GET ] MAP 0 [ ADD 0 MAX ] SCAN 0 [ MAX ] FOLD",
+    "brackets.balanced": "U3A.RED6 '' EQ",
+    "brackets.balanced_prefix": "CHARS 'U3A.CS' BIND 0 U3A.CS LENGTH RANGE [ 'U3A.K' BIND U3A.CS U3A.K TAKE JOIN U3A.RED6 '' EQ ] FILTER -1 GET",
+    "brackets.unmatched": "U3A.RED6 CHARS LENGTH",
+    "sensor.present_mean": "[ NIL? NOT ] FILTER 'U3A.P' BIND U3A.P 0 [ ADD ] FOLD U3A.P LENGTH DIV",
+    "sensor.filled": "'U3A.V' BIND U3A.V U3A.V [ NIL? NOT ] FILTER 0 GET [ 'U3A.E' BIND 'U3A.A' BIND U3A.A U3A.E U3A.E NIL? SELECT ] SCAN",
+    "sensor.gap_count": "[ NIL? ] MAP 'U3A.M' BIND FALSE 1 COLLECT U3A.M -1 DROP CONCAT NOT U3A.M AND U3A.COUNT",
+    "sensor.longest_gap": "[ NIL? ] MAP 0 [ 'U3A.B' BIND 'U3A.A' BIND U3A.A 1 ADD 0 U3A.B SELECT ] SCAN 0 [ MAX ] FOLD",
+    "sensor.ratios": "'U3A.V' BIND U3A.V [ NIL? ] MAP 'U3A.M' BIND 1 U3A.V U3A.M SELECT 'U3A.W' BIND U3A.W 1 DROP U3A.W -1 DROP DIV NIL U3A.M 1 DROP NOT U3A.M -1 DROP NOT AND SELECT",
+    "sensor.scaled": "'U3A.V' BIND U3A.V [ NIL? ] MAP 'U3A.M' BIND U3A.V [ NIL? NOT ] FILTER SORT -1 GET 'U3A.X' BIND 1 U3A.V U3A.M SELECT U3A.X DIV NIL U3A.M NOT SELECT",
+    "orders.revenue": "U3A.REVENUE",
+    "orders.report": "U3A.REVENUE 2 FORMAT",
+    "orders.unpriced": "JSON-DECODE 'orders' GET [ 'price' GET NIL? ] FILTER [ 'sku' GET ] MAP UNIQUE",
+    "orders.qty_by_sku": "U3A.QTYREC",
+    "orders.top_sku": "U3A.QTYREC U1D.TOPKEY",
+    "orders.tag_counts": "JSON-DECODE 'orders' GET [ 'tags' HAS? ] FILTER [ 'tags' GET UNIQUE ] MAP FLATTEN TALLY",
+    "messy.count": "G0D.WORDS LENGTH",
+    "messy.normalize": "LOWER G0D.WORDS G0A.UNWORDS",
+    "messy.distinct": "LOWER G0D.WORDS UNIQUE LENGTH",
+    "messy.top_word": "LOWER G0D.WORDS TALLY U1D.TOPKEY",
+    "messy.title": "G0D.WORDS [ CHARS 'U3A.WC' BIND U3A.WC 1 TAKE JOIN UPPER U3A.WC 1 DROP JOIN LOWER 2 COLLECT JOIN ] MAP G0A.UNWORDS",
+    "messy.sorted_unique": "LOWER G0D.WORDS UNIQUE SORT G0A.UNWORDS"
+  }
+}

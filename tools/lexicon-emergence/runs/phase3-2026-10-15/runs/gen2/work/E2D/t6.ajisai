@@ -1,0 +1,1 @@
+10 'N' BIND 1 N RANGE [ 'K' BIND K 2 GT ] FILTER

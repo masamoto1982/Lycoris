@@ -1,0 +1,77 @@
+{
+  "agent": "U2C",
+  "generation": 2,
+  "condition": "uses",
+  "definitions": [
+    {
+      "name": "U2C.ISPRIME",
+      "body": "G0D.DIVISORS LENGTH 2 EQ",
+      "note": "TRUE when the positive integer has exactly two divisors (is prime)."
+    },
+    {
+      "name": "U2C.FLAGS",
+      "body": "'FV' BIND 1 0 FV [ NIL? ] MAP SELECT",
+      "note": "Vector of readings -> numeric 0/1 Vector, 1 where the reading is NIL."
+    },
+    {
+      "name": "U2C.QTYREC",
+      "body": "'OS' BIND OS [ 'OA' BIND OA 'sku' GET ] MAP 'SK' BIND OS [ 'OB' BIND OB 'qty' GET ] MAP 'QT' BIND SK QT GROUP 'G' BIND G KEYS G VALUES [ 0 [ ADD ] FOLD ] MAP RECORD",
+      "note": "Vector of order Records -> Record from sku to total qty, skus in first-appearance order."
+    },
+    {
+      "name": "U2C.CODES",
+      "body": "'CS' BIND [ '(' ')' '[' ']' ' ' ] [ 1 -1 2 -2 0 ] RECORD 'CR' BIND CR CS '            ' 2 COLLECT JOIN CHARS GET",
+      "note": "Bracket String -> numeric codes ( 1, ) -1, [ 2, ] -2, with 12 trailing zero codes so the Vector is never empty."
+    },
+    {
+      "name": "U2C.PASS",
+      "body": "'PC' BIND PC -1 DROP 'PA' BIND PC 1 DROP 'PB' BIND PA PB ADD 'PS' BIND 0 PA LT PS 0 LT NOT PS 0 GT NOT AND AND 'PM' BIND PM [ FALSE ] CONCAT 'PL' BIND [ FALSE ] PM CONCAT 'PR' BIND 1 0 PL NOT PR NOT AND SELECT 'PK' BIND PC PK MUL 'PZ' BIND PZ 0 PC LENGTH 1 SUB RANGE PC LENGTH 1 PK SUB MUL ADD ORDER GET",
+      "note": "One parallel pass over bracket codes: deletes every adjacent matched pair, compacts the rest to the front and zero-pads the tail."
+    },
+    {
+      "name": "U2C.REDUCE",
+      "body": "'RC' BIND [ 0 0 0 0 0 0 ] RC [ 'RE' BIND U2C.PASS ] FOLD",
+      "note": "Six U2C.PASS passes over bracket codes, which reach the fully reduced form (at most 12 characters, so 6 passes suffice)."
+    },
+    {
+      "name": "U2C.UNMATCHED",
+      "body": "U2C.CODES U2C.REDUCE [ 0 EQ NOT ] FILTER LENGTH",
+      "note": "Bracket String -> count of characters left after repeatedly deleting adjacent matched pairs."
+    }
+  ],
+  "solutions": {
+    "runs.rle": "G0D.RUNS [ 'RUN' BIND RUN 0 GET RUN LENGTH 2 COLLECT ] MAP",
+    "runs.upruns": "'V' BIND 1 0 V G0D.SHIFT V LT SELECT G0D.RUNS [ 'RN' BIND RN 0 GET RN LENGTH MUL ] MAP 0 [ MAX ] FOLD 1 ADD",
+    "runs.dedupe": "G0D.RUNS [ 0 GET ] MAP",
+    "runs.second_largest": "UNIQUE SORT REVERSE 1 GET",
+    "runs.majority": "'V' BIND V TALLY 'T' BIND T U1D.TOPKEY 'K' BIND K NIL T K GET 2 MUL V LENGTH GT SELECT",
+    "number.primes": "'N' BIND 1 N RANGE [ U2C.ISPRIME ] FILTER",
+    "number.divisors": "G0D.DIVISORS",
+    "number.binary": "'N' BIND N [ 1 2 4 8 16 32 64 ] DIV FLOOR 'F' BIND F -1 DROP F 1 DROP 2 MUL SUB [ 1 10 100 1000 10000 100000 ] MUL 0 [ ADD ] FOLD STR",
+    "number.collatz": "'N' BIND 1 200 RANGE N 0 2 COLLECT [ 'E' BIND 'A' BIND A 0 GET 'X' BIND 1 X 2 DIV FLOOR X 3 MUL 1 ADD X 2 DIV FLOOR 2 MUL X EQ SELECT X 1 EQ SELECT A 1 GET 0 1 X 1 EQ SELECT ADD 2 COLLECT ] FOLD 1 GET",
+    "number.digital_root": "'N' BIND N N 1 SUB 9 DIV FLOOR 9 MUL SUB",
+    "number.fib_index": "'N' BIND [ 1 1 2 3 5 8 13 21 34 55 89 ] [ N LT ] FILTER LENGTH 1 ADD",
+    "brackets.depth": "'S' BIND S U2C.CODES 'DC' BIND 1 0 0 DC LT SELECT 1 0 DC 0 LT SELECT SUB 'DL' BIND DL 0 [ ADD ] SCAN 'SP' BIND SP 0 [ MIN ] SCAN 'MN' BIND SP MN SUB 0 [ MAX ] FOLD",
+    "brackets.balanced_prefix": "'S' BIND S U2C.CODES 'BC' BIND 0 BC LENGTH 1 SUB RANGE 'BP' BIND 0 S CHARS LENGTH RANGE [ 'BQ' BIND BC 1 0 BP BQ LT SELECT MUL U2C.REDUCE [ 0 EQ NOT ] FILTER LENGTH 0 EQ ] FILTER 0 [ MAX ] FOLD",
+    "brackets.unmatched": "U2C.UNMATCHED",
+    "brackets.balanced": "U2C.UNMATCHED 0 EQ",
+    "sensor.present_mean": "'V' BIND V [ NIL? NOT ] FILTER 'P' BIND P 0 [ ADD ] FOLD P LENGTH DIV",
+    "sensor.filled": "'V' BIND V V [ NIL? NOT ] FILTER 0 GET [ 'E' BIND E E NIL? SELECT ] SCAN",
+    "sensor.gap_count": "U2C.FLAGS G0D.RUNS [ 0 GET 1 EQ ] FILTER LENGTH",
+    "sensor.longest_gap": "U2C.FLAGS G0D.RUNS [ 'RN' BIND RN 0 GET RN LENGTH MUL ] MAP 0 [ MAX ] FOLD",
+    "sensor.ratios": "'V' BIND V 1 DROP V -1 DROP DIV",
+    "sensor.scaled": "'V' BIND V [ NIL? NOT ] FILTER 'P' BIND P P 0 GET [ MAX ] FOLD 'M' BIND V M DIV",
+    "orders.revenue": "G0C.ORDERS 'OS' BIND OS [ 'OA' BIND OA 'price' HAS? ] FILTER [ 'OB' BIND OB 'qty' GET OB 'price' GET MUL ] MAP 0 [ ADD ] FOLD",
+    "orders.report": "G0C.ORDERS 'OS' BIND OS [ 'OA' BIND OA 'price' HAS? ] FILTER [ 'OB' BIND OB 'qty' GET OB 'price' GET MUL ] MAP 0 [ ADD ] FOLD 2 FORMAT",
+    "orders.unpriced": "G0C.ORDERS 'OS' BIND OS [ 'OA' BIND OA 'price' HAS? NOT ] FILTER [ 'OB' BIND OB 'sku' GET ] MAP UNIQUE",
+    "orders.qty_by_sku": "G0C.ORDERS U2C.QTYREC",
+    "orders.top_sku": "G0C.ORDERS U2C.QTYREC U1D.TOPKEY",
+    "orders.tag_counts": "G0C.ORDERS 'OS' BIND OS [ 'OA' BIND OA 'tags' HAS? ] FILTER [ 'OB' BIND OB 'tags' GET UNIQUE ] MAP FLATTEN TALLY",
+    "messy.count": "G0D.WORDS LENGTH",
+    "messy.normalize": "G0D.WORDS [ LOWER ] MAP G0A.UNWORDS",
+    "messy.distinct": "G0D.WORDS [ LOWER ] MAP UNIQUE LENGTH",
+    "messy.top_word": "G0D.WORDS [ LOWER ] MAP TALLY U1D.TOPKEY",
+    "messy.title": "G0D.WORDS [ 'W' BIND W CHARS 'CH' BIND CH 0 GET UPPER CH 1 DROP JOIN LOWER 2 COLLECT JOIN ] MAP G0A.UNWORDS",
+    "messy.sorted_unique": "G0D.WORDS [ LOWER ] MAP UNIQUE SORT G0A.UNWORDS"
+  }
+}

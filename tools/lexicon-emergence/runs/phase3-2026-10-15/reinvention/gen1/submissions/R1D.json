@@ -1,0 +1,87 @@
+{
+  "agent": "R1D",
+  "generation": 1,
+  "condition": "reinvention",
+  "definitions": [
+    {
+      "name": "R1D.STREAKS",
+      "body": "0 [ 'R1D.SF' BIND 'R1D.SA' BIND R1D.SA 1 ADD 0 R1D.SF SELECT ] SCAN",
+      "note": "Vector of truths -> same-length Vector: at each lane, how many consecutive TRUE lanes end there (0 at a FALSE lane)"
+    },
+    {
+      "name": "R1D.CSTEP",
+      "body": "'R1D.CX' BIND R1D.CX 2 DIV 'R1D.CH' BIND R1D.CH R1D.CX 3 MUL 1 ADD R1D.CH FLOOR R1D.CH EQ SELECT 1 R1D.CX 1 EQ NOT SELECT",
+      "note": "positive integer -> its Collatz successor (even halves, odd becomes 3n+1), with 1 staying 1"
+    },
+    {
+      "name": "R1D.DELTAS",
+      "body": "CHARS [ 'R1D.BC' BIND 1 -1 R1D.BC '(' EQ NOT R1D.BC '[' EQ NOT AND NOT SELECT ] MAP",
+      "note": "bracket String -> Vector with 1 for each opener ( [ and -1 for each closer ) ]"
+    },
+    {
+      "name": "R1D.USTEP",
+      "body": "'R1D.UK' BIND 'R1D.US' BIND R1D.US CHARS -1 DROP JOIN R1D.US R1D.UK 2 COLLECT JOIN R1D.US CHARS -1 GET [ ')' ']' '(' '[' ] [ '(' '[' 'O' 'O' ] RECORD R1D.UK GET EQ SELECT",
+      "note": "pair-cancelling step: reduction stack String (base '#') and a bracket char -> next stack; a closer pops a matching opener on top, anything else is pushed"
+    },
+    {
+      "name": "R1D.USTACKS",
+      "body": "'R1D.UV' BIND '#' 1 COLLECT R1D.UV CHARS '#' [ R1D.USTEP ] SCAN CONCAT",
+      "note": "bracket String -> Vector of reduction stacks after each prefix, the empty prefix ('#') first; a prefix is balanced exactly when its stack is '#'"
+    },
+    {
+      "name": "R1D.REVENUE",
+      "body": "[ 'price' HAS? ] FILTER [ 'R1D.OR' BIND R1D.OR 'qty' GET R1D.OR 'price' GET MUL ] MAP 0 [ ADD ] FOLD",
+      "note": "Vector of order Records -> total of qty times price over the orders that have a price"
+    },
+    {
+      "name": "R1D.SKU-QTY",
+      "body": "'R1D.OS' BIND R1D.OS [ 'sku' GET ] MAP R1D.OS [ 'qty' GET ] MAP GROUP 'R1D.OG' BIND R1D.OG KEYS R1D.OG VALUES [ 0 [ ADD ] FOLD ] MAP RECORD",
+      "note": "Vector of order Records -> Record from each sku to the sum of its qty, skus in order of first appearance"
+    },
+    {
+      "name": "R1D.ARGMAX-KEY",
+      "body": "'R1D.AR' BIND R1D.AR KEYS R1D.AR VALUES -1 MUL ORDER 0 GET GET",
+      "note": "Record with numeric values -> the key holding the largest value; on a tie, the earliest key"
+    },
+    {
+      "name": "R1D.CAPITALIZE",
+      "body": "LOWER CHARS 'R1D.TC' BIND R1D.TC 0 GET UPPER 1 COLLECT R1D.TC 1 DROP CONCAT JOIN",
+      "note": "non-empty word -> the word with its first letter upper case and the rest lower case"
+    }
+  ],
+  "solutions": {
+    "runs.rle": "G0D.RUNS [ 'RLR' BIND RLR 0 GET RLR LENGTH 2 COLLECT ] MAP",
+    "runs.upruns": "'UV' BIND UV UV G0D.SHIFT SUB 0 GT R1D.STREAKS 0 [ MAX ] FOLD 1 ADD",
+    "runs.dedupe": "G0D.RUNS [ 0 GET ] MAP",
+    "runs.second_largest": "UNIQUE SORT 'SU' BIND SU -2 GET NIL SU LENGTH 1 GT SELECT",
+    "runs.majority": "'MV' BIND MV TALLY 'MT' BIND MT VALUES 'MC' BIND MC ORDER -1 GET 'MI' BIND MT KEYS MI GET NIL MC MI GET 2 MUL MV LENGTH GT SELECT",
+    "number.primes": "'PN' BIND 1 PN RANGE [ G0D.DIVISORS LENGTH 2 EQ ] FILTER",
+    "number.divisors": "G0D.DIVISORS",
+    "number.binary": "'BN' BIND 5 0 RANGE [ 'BK' BIND BN 2 BK POW DIV FLOOR 'BQ' BIND BQ BQ 2 DIV FLOOR 2 MUL SUB ] MAP STR JOIN 'BS' BIND BS CHARS BS '1' SEARCH DROP JOIN",
+    "number.collatz": "'CN' BIND CN 1 COLLECT 1 150 RANGE CN [ 'CD' BIND R1D.CSTEP ] SCAN CONCAT [ 1 EQ NOT ] FILTER LENGTH",
+    "number.digital_root": "1 SUB 'DM' BIND DM DM 9 DIV FLOOR 9 MUL SUB 1 ADD",
+    "number.fib_index": "'FN' BIND 1 11 RANGE [ 0 1 ] [ 'FD' BIND [ 'FA' 'FB' ] BIND FB FA FB ADD 2 COLLECT ] SCAN [ 0 GET ] MAP [ FN LT ] FILTER LENGTH 1 ADD",
+    "brackets.depth": "R1D.DELTAS 0 [ ADD ] SCAN 0 [ MAX ] FOLD",
+    "brackets.balanced": "R1D.USTACKS -1 GET '#' EQ",
+    "brackets.balanced_prefix": "R1D.USTACKS 'BP' BIND 0 BP LENGTH 1 SUB RANGE [ 'BI' BIND BP BI GET '#' EQ ] FILTER -1 GET",
+    "brackets.unmatched": "R1D.USTACKS -1 GET CHARS LENGTH 1 SUB",
+    "sensor.present_mean": "[ NIL? NOT ] FILTER 'PM' BIND PM 0 [ ADD ] FOLD PM LENGTH DIV",
+    "sensor.filled": "'LV' BIND LV LV [ NIL? NOT ] FILTER 0 GET [ 'LE' BIND 'LA' BIND LA LE LE NIL? SELECT ] SCAN",
+    "sensor.gap_count": "[ NIL? ] MAP R1D.STREAKS [ 1 EQ ] FILTER LENGTH",
+    "sensor.longest_gap": "[ NIL? ] MAP R1D.STREAKS 0 [ MAX ] FOLD",
+    "sensor.ratios": "'QV' BIND 0 QV LENGTH 1 SUB RANGE 1 DROP [ 'RI' BIND QV RI GET 'RB' BIND QV RI 1 SUB GET 'RA' BIND 1 RB RB NIL? SELECT 1 RA RA NIL? SELECT DIV NIL RA NIL? NOT RB NIL? NOT AND SELECT ] MAP",
+    "sensor.scaled": "'ZV' BIND ZV [ NIL? NOT ] FILTER SORT -1 GET 'ZX' BIND ZV [ 'ZE' BIND ZE 1 ZE ZE NIL? SELECT ZX DIV ZE NIL? SELECT ] MAP",
+    "orders.revenue": "G0C.ORDERS R1D.REVENUE",
+    "orders.report": "G0C.ORDERS R1D.REVENUE 2 FORMAT",
+    "orders.unpriced": "G0C.ORDERS [ 'price' HAS? NOT ] FILTER [ 'sku' GET ] MAP UNIQUE",
+    "orders.qty_by_sku": "G0C.ORDERS R1D.SKU-QTY",
+    "orders.top_sku": "G0C.ORDERS R1D.SKU-QTY R1D.ARGMAX-KEY",
+    "orders.tag_counts": "G0C.ORDERS [ 'tags' HAS? ] FILTER [ 'tags' GET UNIQUE ] MAP FLATTEN TALLY",
+    "messy.count": "G0D.WORDS LENGTH",
+    "messy.normalize": "LOWER G0D.WORDS G0A.UNWORDS",
+    "messy.distinct": "LOWER G0D.WORDS UNIQUE LENGTH",
+    "messy.top_word": "LOWER G0D.WORDS TALLY R1D.ARGMAX-KEY",
+    "messy.title": "G0D.WORDS [ R1D.CAPITALIZE ] MAP G0A.UNWORDS",
+    "messy.sorted_unique": "LOWER G0D.WORDS UNIQUE SORT G0A.UNWORDS"
+  }
+}

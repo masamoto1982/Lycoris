@@ -1,0 +1,9 @@
+[ 'DC' BIND 1 -1 DC '(' EQ NOT DC '[' EQ NOT AND NOT SELECT ] 'E2B.DELTA' DEF
+[ '()' '' REPLACE '[]' '' REPLACE ] 'E2B.REDUCE' DEF
+[ E2B.REDUCE E2B.REDUCE E2B.REDUCE E2B.REDUCE E2B.REDUCE E2B.REDUCE ] 'E2B.REDUCE6' DEF
+[ E2B.REDUCE6 '' EQ ] 'E2B.BAL' DEF
+[ LOWER G0D.WORDS ] 'E2B.LWORDS' DEF
+[ G0C.ORDERS 'OS' BIND OS [ 'sku' GET ] MAP OS [ 'qty' GET ] MAP GROUP 'GG' BIND GG KEYS GG VALUES [ 0 [ ADD ] FOLD ] MAP RECORD ] 'E2B.QTYSKU' DEF
+[ G0C.ORDERS [ 'price' GET NIL? NOT ] FILTER [ 'O' BIND O 'qty' GET O 'price' GET MUL ] MAP 0 [ ADD ] FOLD ] 'E2B.REVENUE' DEF
+'{"orders":[{"sku":"a1","qty":2,"price":1.5},{"sku":"b2","qty":1,"price":4,"tags":["gift"]},{"sku":"a1","qty":3,"price":1.5,"tags":["bulk","gift"]},{"sku":"c3","qty":5}]}'
+E2B.QTYSKU

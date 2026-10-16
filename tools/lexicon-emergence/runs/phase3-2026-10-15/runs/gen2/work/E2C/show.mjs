@@ -1,0 +1,1 @@
+let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{const j=JSON.parse(s);console.log(j.status, JSON.stringify(j.stackDisplay), j.message||'', j.error?JSON.stringify(j.error):'', j.output&&j.output.length?JSON.stringify(j.output):'')}catch(e){console.log('RAW', s.slice(0,800))}});

@@ -1,0 +1,61 @@
+runs.rle|[ 1 1 2 2 2 3 1 1 ]|G0D.RUNS [ 'R' BIND R 0 GET R LENGTH 2 COLLECT ] MAP
+runs.rle|[ 5 ]|G0D.RUNS [ 'R' BIND R 0 GET R LENGTH 2 COLLECT ] MAP
+runs.upruns|[ 1 2 3 1 2 ]|'V' BIND V V G0D.SHIFT GT 0 [ 'E' BIND 'A' BIND A 1 ADD 1 E SELECT ] SCAN 0 [ MAX ] FOLD
+runs.upruns|[ 5 4 3 ]|'V' BIND V V G0D.SHIFT GT 0 [ 'E' BIND 'A' BIND A 1 ADD 1 E SELECT ] SCAN 0 [ MAX ] FOLD
+runs.upruns|[ 1 2 2 3 ]|'V' BIND V V G0D.SHIFT GT 0 [ 'E' BIND 'A' BIND A 1 ADD 1 E SELECT ] SCAN 0 [ MAX ] FOLD
+runs.dedupe|[ 1 1 2 2 2 3 1 1 ]|G0D.RUNS [ 0 GET ] MAP
+runs.second_largest|[ 3 1 4 1 5 ]|UNIQUE SORT -2 TAKE 0 GET
+runs.second_largest|[ 7 7 ]|UNIQUE SORT -2 TAKE 0 GET
+runs.majority|[ 1 1 2 1 3 ]|'V' BIND V TALLY 'T' BIND T U1D.TOPKEY 'K' BIND K NIL V LENGTH T K GET 2 MUL LT SELECT
+runs.majority|[ 1 2 3 ]|'V' BIND V TALLY 'T' BIND T U1D.TOPKEY 'K' BIND K NIL V LENGTH T K GET 2 MUL LT SELECT
+runs.majority|[ 1 1 2 2 ]|'V' BIND V TALLY 'T' BIND T U1D.TOPKEY 'K' BIND K NIL V LENGTH T K GET 2 MUL LT SELECT
+runs.majority|[ 4 ]|'V' BIND V TALLY 'T' BIND T U1D.TOPKEY 'K' BIND K NIL V LENGTH T K GET 2 MUL LT SELECT
+number.primes|10|'N' BIND 1 N RANGE [ G0D.DIVISORS LENGTH 2 EQ ] FILTER
+number.primes|1|'N' BIND 1 N RANGE [ G0D.DIVISORS LENGTH 2 EQ ] FILTER
+number.primes|2|'N' BIND 1 N RANGE [ G0D.DIVISORS LENGTH 2 EQ ] FILTER
+number.divisors|10|G0D.DIVISORS
+number.binary|10|'N' BIND N [ 1 2 4 8 16 32 64 128 ] DIV FLOOR 'Q' BIND Q 7 TAKE Q 1 DROP 2 MUL SUB REVERSE STR JOIN NUM STR
+number.binary|1|'N' BIND N [ 1 2 4 8 16 32 64 128 ] DIV FLOOR 'Q' BIND Q 7 TAKE Q 1 DROP 2 MUL SUB REVERSE STR JOIN NUM STR
+number.binary|60|'N' BIND N [ 1 2 4 8 16 32 64 128 ] DIV FLOOR 'Q' BIND Q 7 TAKE Q 1 DROP 2 MUL SUB REVERSE STR JOIN NUM STR
+number.collatz|27|'N' BIND 1 300 RANGE N 0 2 COLLECT [ 'E' BIND 'S' BIND S 0 GET 'X' BIND S 1 GET 'C' BIND X 2 DIV FLOOR 'H' BIND X 3 MUL 1 ADD 'T' BIND H T H 2 MUL X EQ SELECT 'NX' BIND X NX X 1 EQ SELECT C C 1 ADD X 1 EQ SELECT 2 COLLECT ] FOLD 1 GET
+number.collatz|1|'N' BIND 1 300 RANGE N 0 2 COLLECT [ 'E' BIND 'S' BIND S 0 GET 'X' BIND S 1 GET 'C' BIND X 2 DIV FLOOR 'H' BIND X 3 MUL 1 ADD 'T' BIND H T H 2 MUL X EQ SELECT 'NX' BIND X NX X 1 EQ SELECT C C 1 ADD X 1 EQ SELECT 2 COLLECT ] FOLD 1 GET
+number.digital_root|60|1 SUB 'M' BIND M M 9 DIV FLOOR 9 MUL SUB 1 ADD
+number.digital_root|9|1 SUB 'M' BIND M M 9 DIV FLOOR 9 MUL SUB 1 ADD
+number.fib_index|60|'N' BIND [ 1 1 2 3 5 8 13 21 34 55 89 144 ] [ N LT ] FILTER LENGTH 1 ADD
+number.fib_index|2|'N' BIND [ 1 1 2 3 5 8 13 21 34 55 89 144 ] [ N LT ] FILTER LENGTH 1 ADD
+number.fib_index|1|'N' BIND [ 1 1 2 3 5 8 13 21 34 55 89 144 ] [ N LT ] FILTER LENGTH 1 ADD
+brackets.depth|'([]())'|CHARS [ 'C' BIND [ '(' '[' ')' ']' ] [ 1 1 -1 -1 ] RECORD C GET ] MAP 0 [ ADD ] SCAN 0 [ MAX ] FOLD
+brackets.depth|''|CHARS [ 'C' BIND [ '(' '[' ')' ']' ] [ 1 1 -1 -1 ] RECORD C GET ] MAP 0 [ ADD ] SCAN 0 [ MAX ] FOLD
+brackets.depth|'())'|CHARS [ 'C' BIND [ '(' '[' ')' ']' ] [ 1 1 -1 -1 ] RECORD C GET ] MAP 0 [ ADD ] SCAN 0 [ MAX ] FOLD
+brackets.balanced|'([]())'|E2C.BALANCED
+brackets.balanced|'(]'|E2C.BALANCED
+brackets.balanced|''|E2C.BALANCED
+brackets.balanced|'[(])'|E2C.BALANCED
+brackets.balanced_prefix|'([]())'|'S' BIND S CHARS LENGTH 'N' BIND 0 N RANGE [ 'L' BIND S CHARS L TAKE JOIN E2C.BALANCED ] FILTER 0 [ MAX ] FOLD
+brackets.balanced_prefix|'()[](' |'S' BIND S CHARS LENGTH 'N' BIND 0 N RANGE [ 'L' BIND S CHARS L TAKE JOIN E2C.BALANCED ] FILTER 0 [ MAX ] FOLD
+brackets.balanced_prefix|''|'S' BIND S CHARS LENGTH 'N' BIND 0 N RANGE [ 'L' BIND S CHARS L TAKE JOIN E2C.BALANCED ] FILTER 0 [ MAX ] FOLD
+brackets.unmatched|'(]'|E2C.REDUCE CHARS LENGTH
+brackets.unmatched|'(()'|E2C.REDUCE CHARS LENGTH
+brackets.unmatched|')('|E2C.REDUCE CHARS LENGTH
+brackets.unmatched|'([]())'|E2C.REDUCE CHARS LENGTH
+sensor.present_mean|[ 3 NIL 5 1 NIL NIL 4 ]|'V' BIND V [ NIL? NOT ] FILTER 'P' BIND P 0 [ ADD ] FOLD P LENGTH DIV
+sensor.filled|[ 3 NIL 5 1 NIL NIL 4 ]|'V' BIND V [ NIL? NOT ] FILTER 0 GET 'F' BIND V F [ 'E' BIND 'A' BIND E A E NIL? NOT SELECT ] SCAN
+sensor.filled|[ NIL 2 NIL ]|'V' BIND V [ NIL? NOT ] FILTER 0 GET 'F' BIND V F [ 'E' BIND 'A' BIND E A E NIL? NOT SELECT ] SCAN
+sensor.gap_count|[ 3 NIL 5 1 NIL NIL 4 ]|0 0 2 COLLECT [ 'E' BIND 'S' BIND E NIL? 'M' BIND 1 0 M SELECT S 1 GET 1 ADD S 1 GET M S 0 GET 0 EQ AND SELECT 2 COLLECT ] FOLD 1 GET
+sensor.gap_count|[ NIL 2 NIL ]|0 0 2 COLLECT [ 'E' BIND 'S' BIND E NIL? 'M' BIND 1 0 M SELECT S 1 GET 1 ADD S 1 GET M S 0 GET 0 EQ AND SELECT 2 COLLECT ] FOLD 1 GET
+sensor.longest_gap|[ 3 NIL 5 1 NIL NIL 4 ]|0 [ 'E' BIND 'A' BIND A 1 ADD 0 E NIL? SELECT ] SCAN 0 [ MAX ] FOLD
+sensor.longest_gap|[ NIL 2 NIL ]|0 [ 'E' BIND 'A' BIND A 1 ADD 0 E NIL? SELECT ] SCAN 0 [ MAX ] FOLD
+sensor.ratios|[ 3 NIL 5 1 NIL NIL 4 ]|'V' BIND V 1 DROP V -1 DROP DIV
+sensor.scaled|[ 3 NIL 5 1 NIL NIL 4 ]|'V' BIND V [ NIL? NOT ] FILTER 'P' BIND P 1 DROP P 0 GET [ MAX ] FOLD 'MX' BIND V MX DIV
+orders.revenue|'{"orders":[{"sku":"a1","qty":2,"price":1.5},{"sku":"b2","qty":1,"price":4,"tags":["gift"]},{"sku":"a1","qty":3,"price":1.5,"tags":["bulk","gift"]},{"sku":"c3","qty":5}]}'|E2C.REVENUE
+orders.report|'{"orders":[{"sku":"a1","qty":2,"price":1.5},{"sku":"b2","qty":1,"price":4,"tags":["gift"]},{"sku":"a1","qty":3,"price":1.5,"tags":["bulk","gift"]},{"sku":"c3","qty":5}]}'|E2C.REVENUE 2 FORMAT
+orders.unpriced|'{"orders":[{"sku":"a1","qty":2,"price":1.5},{"sku":"b2","qty":1,"price":4,"tags":["gift"]},{"sku":"a1","qty":3,"price":1.5,"tags":["bulk","gift"]},{"sku":"c3","qty":5}]}'|G0C.ORDERS [ 'O' BIND O 'price' GET NIL? ] FILTER [ 'sku' GET ] MAP UNIQUE
+orders.qty_by_sku|'{"orders":[{"sku":"a1","qty":2,"price":1.5},{"sku":"b2","qty":1,"price":4,"tags":["gift"]},{"sku":"a1","qty":3,"price":1.5,"tags":["bulk","gift"]},{"sku":"c3","qty":5}]}'|E2C.QTYSKU
+orders.top_sku|'{"orders":[{"sku":"a1","qty":2,"price":1.5},{"sku":"b2","qty":1,"price":4,"tags":["gift"]},{"sku":"a1","qty":3,"price":1.5,"tags":["bulk","gift"]},{"sku":"c3","qty":5}]}'|E2C.QTYSKU U1D.TOPKEY
+orders.tag_counts|'{"orders":[{"sku":"a1","qty":2,"price":1.5},{"sku":"b2","qty":1,"price":4,"tags":["gift"]},{"sku":"a1","qty":3,"price":1.5,"tags":["bulk","gift"]},{"sku":"c3","qty":5}]}'|G0C.ORDERS [ 'tags' GET NIL? NOT ] FILTER [ 'tags' GET UNIQUE ] MAP FLATTEN TALLY
+messy.count|'  The cat saw THE dog   and the Cat  '|G0D.WORDS LENGTH
+messy.normalize|'  The cat saw THE dog   and the Cat  '|G0D.WORDS [ LOWER ] MAP G0A.UNWORDS
+messy.distinct|'  The cat saw THE dog   and the Cat  '|G0D.WORDS [ LOWER ] MAP UNIQUE LENGTH
+messy.top_word|'  The cat saw THE dog   and the Cat  '|G0D.WORDS [ LOWER ] MAP TALLY U1D.TOPKEY
+messy.title|'  The cat saw THE dog   and the Cat  '|G0D.WORDS [ 'W' BIND W CHARS 'C' BIND C 0 GET UPPER C 1 DROP JOIN LOWER 2 COLLECT JOIN ] MAP G0A.UNWORDS
+messy.sorted_unique|'  The cat saw THE dog   and the Cat  '|G0D.WORDS [ LOWER ] MAP UNIQUE SORT G0A.UNWORDS

@@ -1,0 +1,137 @@
+{
+  "agent": "O1A",
+  "generation": 1,
+  "condition": "open",
+  "definitions": [
+    {
+      "name": "O1A.RLE",
+      "body": "G0D.RUNS [ 'O1A.RR' BIND O1A.RR 0 GET O1A.RR LENGTH 2 COLLECT ] MAP",
+      "note": "numeric V -> Vector of [ value count ] pairs, one per maximal run of equal adjacent values"
+    },
+    {
+      "name": "O1A.UPRUNS",
+      "body": "'O1A.UV' BIND O1A.UV O1A.UV G0D.SHIFT GT 0 [ 'O1A.UB' BIND 'O1A.UA' BIND O1A.UA 1 ADD 1 O1A.UB SELECT ] SCAN 0 [ MAX ] FOLD",
+      "note": "numeric V -> length of the longest strictly increasing adjacent stretch"
+    },
+    {
+      "name": "O1A.DEDUPE",
+      "body": "G0D.RUNS [ 0 GET ] MAP",
+      "note": "numeric V -> V with each run of equal adjacent values collapsed to one"
+    },
+    {
+      "name": "O1A.SECOND-MAX",
+      "body": "UNIQUE SORT -2 GET",
+      "note": "numeric V -> second-largest distinct value, NIL when all equal"
+    },
+    {
+      "name": "O1A.MAJORITY",
+      "body": "'O1A.MV' BIND O1A.MV LENGTH 'O1A.MN' BIND O1A.MV TALLY 'O1A.MT' BIND O1A.MT KEYS O1A.MT VALUES 2 COLLECT ZIP [ 1 GET 2 MUL O1A.MN GT ] FILTER [ 0 GET ] MAP 0 GET",
+      "note": "V -> the value occupying more than half the positions, or NIL"
+    },
+    {
+      "name": "O1A.COLLATZ",
+      "body": "'O1A.CN' BIND O1A.CN 1 COLLECT 1 150 RANGE O1A.CN [ 'O1A.CE' BIND G0B.COLSTEP ] SCAN CONCAT [ 1 GT ] FILTER LENGTH",
+      "note": "positive integer (<= ~100) -> number of Collatz steps to reach 1"
+    },
+    {
+      "name": "O1A.DIGROOT",
+      "body": "1 SUB 'O1A.DR' BIND O1A.DR O1A.DR 9 DIV FLOOR 9 MUL SUB 1 ADD",
+      "note": "positive integer -> digital root, 1 + (n-1) mod 9"
+    },
+    {
+      "name": "O1A.FIBIDX",
+      "body": "'O1A.FN' BIND 1 30 RANGE [ 0 1 ] [ 'O1A.FE' BIND 'O1A.FP' BIND O1A.FP 1 GET O1A.FP 0 GET O1A.FP 1 GET ADD 2 COLLECT ] SCAN [ 0 GET ] MAP [ O1A.FN LT ] FILTER LENGTH 1 ADD",
+      "note": "positive integer n (<= F(30)) -> smallest k with Fibonacci F(k) >= n"
+    },
+    {
+      "name": "O1A.BDEPTH",
+      "body": "CHARS [ 'O1A.DC' BIND [ '(' '[' ')' ']' ] [ 1 1 -1 -1 ] RECORD O1A.DC GET ] MAP 0 [ ADD 0 MAX ] SCAN 0 [ MAX ] FOLD",
+      "note": "bracket String -> greatest number of brackets open at once (stray closers close nothing)"
+    },
+    {
+      "name": "O1A.BPREFIX",
+      "body": "G0A.BSCAN 'O1A.BV' BIND [ '#' ] O1A.BV CONCAT [ '#' EQ ] MAP 'O1A.BB' BIND 0 O1A.BB LENGTH 1 SUB RANGE 0 O1A.BB SELECT 0 [ MAX ] FOLD",
+      "note": "bracket String -> length of its longest balanced prefix"
+    },
+    {
+      "name": "O1A.PRESENT",
+      "body": "[ NIL? NOT ] FILTER",
+      "note": "V with NILs -> the present elements, in order"
+    },
+    {
+      "name": "O1A.PMEAN",
+      "body": "O1A.PRESENT 'O1A.PM' BIND O1A.PM 0 [ ADD ] FOLD O1A.PM LENGTH DIV",
+      "note": "V with NILs -> exact mean of the present elements"
+    },
+    {
+      "name": "O1A.FFILL",
+      "body": "'O1A.FV' BIND O1A.FV O1A.FV O1A.PRESENT 0 GET [ G0B.FILLSTEP ] SCAN",
+      "note": "V with NILs -> forward-filled V, leading NILs take the first present value"
+    },
+    {
+      "name": "O1A.IDX",
+      "body": "-1 [ 'O1A.IE' BIND 1 ADD ] SCAN",
+      "note": "V -> Vector of its indices 0..n-1 (empty for empty)"
+    },
+    {
+      "name": "O1A.RATIOS",
+      "body": "'O1A.RV' BIND O1A.RV 1 DROP O1A.IDX [ 'O1A.RI' BIND O1A.RV O1A.RI 1 ADD GET 'O1A.RB' BIND O1A.RV O1A.RI GET 'O1A.RA' BIND NIL 1 O1A.RB O1A.RB NIL? SELECT 1 O1A.RA O1A.RA NIL? SELECT DIV O1A.RA NIL? NOT O1A.RB NIL? NOT AND NOT SELECT ] MAP",
+      "note": "V with NILs -> Vector of V[i+1]/V[i], NIL where either is missing"
+    },
+    {
+      "name": "O1A.SCALED",
+      "body": "'O1A.SV' BIND O1A.SV O1A.PRESENT 'O1A.SP' BIND O1A.SP O1A.SP 0 GET [ MAX ] FOLD 'O1A.SM' BIND O1A.SV [ 'O1A.SE' BIND NIL 1 O1A.SE O1A.SE NIL? SELECT O1A.SM DIV O1A.SE NIL? SELECT ] MAP",
+      "note": "V with NILs -> each present value divided by the largest present value, NILs kept"
+    },
+    {
+      "name": "O1A.QTYBY",
+      "body": "G0C.ORDERS 'O1A.OR' BIND O1A.OR [ 'sku' GET ] MAP O1A.OR [ 'qty' GET ] MAP GROUP 'O1A.OG' BIND O1A.OG KEYS O1A.OG VALUES [ 0 [ ADD ] FOLD ] MAP RECORD",
+      "note": "orders JSON String -> Record sku -> total qty, first-appearance order"
+    },
+    {
+      "name": "O1A.TOPKEY",
+      "body": "'O1A.KR' BIND O1A.KR KEYS O1A.KR VALUES -1 MUL ORDER 0 GET GET",
+      "note": "Record with numeric values -> first key holding the largest value"
+    },
+    {
+      "name": "O1A.TAGCOUNTS",
+      "body": "G0C.ORDERS [ 'tags' HAS? ] FILTER [ 'tags' GET UNIQUE ] MAP [ ] [ CONCAT ] FOLD TALLY",
+      "note": "orders JSON String -> Record tag -> number of orders carrying it"
+    }
+  ],
+  "solutions": {
+    "runs.rle": "O1A.RLE",
+    "runs.upruns": "O1A.UPRUNS",
+    "runs.dedupe": "O1A.DEDUPE",
+    "runs.second_largest": "O1A.SECOND-MAX",
+    "runs.majority": "O1A.MAJORITY",
+    "number.primes": "G0C.PRIMES",
+    "number.divisors": "G0D.DIVISORS",
+    "number.binary": "G0A.BINARY",
+    "number.collatz": "O1A.COLLATZ",
+    "number.digital_root": "O1A.DIGROOT",
+    "number.fib_index": "O1A.FIBIDX",
+    "brackets.depth": "O1A.BDEPTH",
+    "brackets.balanced": "G0D.BALANCED",
+    "brackets.balanced_prefix": "O1A.BPREFIX",
+    "brackets.unmatched": "G0D.BRACKET-STACK LENGTH 1 SUB",
+    "sensor.present_mean": "O1A.PMEAN",
+    "sensor.filled": "O1A.FFILL",
+    "sensor.gap_count": "G0D.GAPS LENGTH",
+    "sensor.longest_gap": "G0D.GAPS [ LENGTH ] MAP 0 [ MAX ] FOLD",
+    "sensor.ratios": "O1A.RATIOS",
+    "sensor.scaled": "O1A.SCALED",
+    "orders.revenue": "G0C.ORDERS G0C.REV",
+    "orders.report": "G0C.ORDERS G0C.REV 2 FORMAT",
+    "orders.unpriced": "G0C.ORDERS [ 'price' HAS? NOT ] FILTER [ 'sku' GET ] MAP UNIQUE",
+    "orders.qty_by_sku": "O1A.QTYBY",
+    "orders.top_sku": "O1A.QTYBY O1A.TOPKEY",
+    "orders.tag_counts": "O1A.TAGCOUNTS",
+    "messy.count": "G0D.WORDS LENGTH",
+    "messy.normalize": "LOWER G0D.WORDS G0A.UNWORDS",
+    "messy.distinct": "LOWER G0D.WORDS UNIQUE LENGTH",
+    "messy.top_word": "LOWER G0D.WORDS TALLY O1A.TOPKEY",
+    "messy.title": "G0D.WORDS [ LOWER G0B.TITLECASE ] MAP G0A.UNWORDS",
+    "messy.sorted_unique": "LOWER G0D.WORDS UNIQUE SORT G0A.UNWORDS"
+  }
+}

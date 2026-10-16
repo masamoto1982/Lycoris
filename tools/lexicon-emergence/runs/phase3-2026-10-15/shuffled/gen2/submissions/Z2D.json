@@ -1,0 +1,87 @@
+{
+  "agent": "Z2D",
+  "generation": 2,
+  "condition": "shuffled",
+  "definitions": [
+    {
+      "name": "Z2D.NILMASK",
+      "body": "[ 1 COLLECT [ NIL? ] FILTER LENGTH ] MAP",
+      "note": "Vector -> Vector of 1 where the element is NIL and 0 where it is present"
+    },
+    {
+      "name": "Z2D.ARGMAX",
+      "body": "-1 MUL ORDER 0 GET",
+      "note": "Vector of numbers -> index of its largest value, the first one on ties"
+    },
+    {
+      "name": "Z2D.KEYOFMAX",
+      "body": "'ZKR' BIND ZKR KEYS ZKR VALUES Z2D.ARGMAX GET",
+      "note": "Record with numeric values -> the key holding the largest value, first key on ties"
+    },
+    {
+      "name": "Z2D.WORDS",
+      "body": "LOWER X2.ZAPEZO",
+      "note": "String -> Vector of its lower-cased space-separated words, empties dropped"
+    },
+    {
+      "name": "Z2D.RLE",
+      "body": "X2.NEPEBE [ 'ZR' BIND ZR 0 GET ZR LENGTH 2 COLLECT ] MAP",
+      "note": "Vector of numbers -> run-length encoding as [ value count ] pairs in order"
+    },
+    {
+      "name": "Z2D.ISPRIME",
+      "body": "X2.TIGOLI LENGTH 2 EQ",
+      "note": "positive integer -> TRUE when it has exactly two divisors"
+    },
+    {
+      "name": "Z2D.BALANCED",
+      "body": "X2.SITUBO '' EQ",
+      "note": "bracket String -> TRUE when it reduces to nothing by deleting adjacent () and [] pairs"
+    },
+    {
+      "name": "Z2D.REVENUE",
+      "body": "X2.FIZIPO [ 'price' HAS? ] FILTER [ 'ZO' BIND ZO 'qty' GET ZO 'price' GET MUL ] MAP 0 [ ADD ] FOLD",
+      "note": "orders JSON String -> total of qty times price over the orders that have a price"
+    },
+    {
+      "name": "Z2D.QTYBYSKU",
+      "body": "X2.FIZIPO 'ZO' BIND ZO [ 'sku' GET ] MAP ZO [ 'qty' GET ] MAP GROUP 'ZG' BIND ZG KEYS ZG VALUES [ 0 [ ADD ] FOLD ] MAP RECORD",
+      "note": "orders JSON String -> Record from sku (first-appearance order) to the sum of its qty"
+    }
+  ],
+  "solutions": {
+    "runs.rle": "Z2D.RLE",
+    "runs.upruns": "'ZU' BIND ZU 1 DROP ZU -1 DROP SUB 0 GT 0 [ 'ZB' BIND 'ZA' BIND ZA 1 ADD 0 ZB SELECT ] SCAN 0 [ MAX ] FOLD 1 ADD",
+    "runs.dedupe": "X2.NEPEBE [ 0 GET ] MAP",
+    "runs.second_largest": "UNIQUE SORT -2 GET",
+    "runs.majority": "'ZM' BIND ZM TALLY 'ZT' BIND ZM SORT ZM LENGTH 2 DIV FLOOR GET 1 COLLECT [ 'ZE' BIND ZT ZE GET 2 MUL ZM LENGTH GT ] FILTER 0 GET",
+    "number.primes": "'ZN' BIND 1 ZN RANGE [ Z2D.ISPRIME ] FILTER",
+    "number.divisors": "X2.TIGOLI",
+    "number.binary": "'ZN' BIND ZN [ 32 16 8 4 2 1 ] DIV FLOOR 'ZQ' BIND ZQ ZQ 2 DIV FLOOR 2 MUL SUB STR JOIN 'ZS' BIND ZS CHARS ZS '1' SEARCH DROP JOIN",
+    "number.collatz": "'ZN' BIND ZN 1 COLLECT 1 120 RANGE ZN [ 'ZI' BIND 'ZX' BIND ZX 2 DIV 1 ZX 3 MUL 1 ADD ZX 1 EQ SELECT ZX 2 X2.LELIDA 0 EQ SELECT ] SCAN CONCAT [ 1 EQ NOT ] FILTER LENGTH",
+    "number.digital_root": "1 SUB 9 X2.LELIDA 1 ADD",
+    "number.fib_index": "'ZN' BIND [ 1 1 2 3 5 8 13 21 34 55 89 ] [ ZN LT ] FILTER LENGTH 1 ADD",
+    "brackets.depth": "'[' '(' REPLACE ']' ')' REPLACE CHARS [ 'ZC' BIND 1 -1 ZC '(' EQ SELECT ] MAP 0 [ ADD ] SCAN 0 [ MAX ] FOLD",
+    "brackets.balanced": "Z2D.BALANCED",
+    "brackets.balanced_prefix": "'ZS' BIND 0 ZS CHARS LENGTH RANGE [ 'ZK' BIND ZS CHARS ZK TAKE JOIN Z2D.BALANCED ] FILTER 0 [ MAX ] FOLD",
+    "brackets.unmatched": "X2.SITUBO CHARS LENGTH",
+    "sensor.present_mean": "[ NIL? NOT ] FILTER 'ZP' BIND ZP 0 [ ADD ] FOLD ZP LENGTH DIV",
+    "sensor.filled": "'ZV' BIND ZV ZV [ NIL? NOT ] FILTER 0 GET [ 1 COLLECT [ NIL? NOT ] FILTER 'ZF' BIND 'ZA' BIND ZF ZA 1 COLLECT CONCAT 0 GET ] SCAN",
+    "sensor.gap_count": "Z2D.NILMASK 'ZI' BIND ZI 0 1 COLLECT CONCAT 0 1 COLLECT ZI CONCAT SUB [ 1 EQ ] FILTER LENGTH",
+    "sensor.longest_gap": "Z2D.NILMASK 0 [ 'ZE' BIND ZE ADD ZE MUL ] SCAN 0 [ MAX ] FOLD",
+    "sensor.ratios": "'ZV' BIND ZV 1 DROP ZV -1 DROP DIV",
+    "sensor.scaled": "'ZV' BIND ZV ZV [ NIL? NOT ] FILTER 'ZP' BIND ZP 0 GET [ MAX ] FOLD DIV",
+    "orders.revenue": "Z2D.REVENUE",
+    "orders.report": "Z2D.REVENUE 2 FORMAT",
+    "orders.unpriced": "X2.FIZIPO [ 'price' HAS? NOT ] FILTER [ 'sku' GET ] MAP UNIQUE",
+    "orders.qty_by_sku": "Z2D.QTYBYSKU",
+    "orders.top_sku": "Z2D.QTYBYSKU Z2D.KEYOFMAX",
+    "orders.tag_counts": "X2.FIZIPO [ 'tags' HAS? ] FILTER [ 'tags' GET UNIQUE ] MAP FLATTEN TALLY",
+    "messy.count": "X2.ZAPEZO LENGTH",
+    "messy.normalize": "Z2D.WORDS X2.GUPOSO",
+    "messy.distinct": "Z2D.WORDS UNIQUE LENGTH",
+    "messy.top_word": "Z2D.WORDS TALLY Z2D.KEYOFMAX",
+    "messy.title": "Z2D.WORDS [ 'ZW' BIND ZW CHARS 0 GET UPPER ZW CHARS 1 DROP JOIN 2 COLLECT JOIN ] MAP X2.GUPOSO",
+    "messy.sorted_unique": "Z2D.WORDS UNIQUE SORT X2.GUPOSO"
+  }
+}

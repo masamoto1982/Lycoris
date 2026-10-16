@@ -1,0 +1,77 @@
+{
+ "agent": "E2B",
+ "generation": 2,
+ "condition": "runs",
+ "definitions": [
+  {
+   "name": "E2B.DELTA",
+   "body": "'DC' BIND 1 -1 DC '(' EQ NOT DC '[' EQ NOT AND NOT SELECT",
+   "note": "char -> 1 for an opening bracket, -1 for a closing one"
+  },
+  {
+   "name": "E2B.REDUCE",
+   "body": "'()' '' REPLACE '[]' '' REPLACE",
+   "note": "String -> String with every adjacent () and [] pair deleted once"
+  },
+  {
+   "name": "E2B.REDUCE6",
+   "body": "E2B.REDUCE E2B.REDUCE E2B.REDUCE E2B.REDUCE E2B.REDUCE E2B.REDUCE",
+   "note": "bracket String (<=12 chars) -> what remains after deleting matched pairs until none is left"
+  },
+  {
+   "name": "E2B.BAL",
+   "body": "E2B.REDUCE6 '' EQ",
+   "note": "bracket String (<=12 chars) -> TRUE when properly nested and balanced"
+  },
+  {
+   "name": "E2B.LWORDS",
+   "body": "LOWER G0D.WORDS",
+   "note": "String -> Vector of its words in lower case"
+  },
+  {
+   "name": "E2B.QTYSKU",
+   "body": "G0C.ORDERS 'OS' BIND OS [ 'sku' GET ] MAP OS [ 'qty' GET ] MAP GROUP 'GG' BIND GG KEYS GG VALUES [ 0 [ ADD ] FOLD ] MAP RECORD",
+   "note": "orders JSON String -> Record sku -> summed qty, skus in first-appearance order"
+  },
+  {
+   "name": "E2B.REVENUE",
+   "body": "G0C.ORDERS [ 'price' GET NIL? NOT ] FILTER [ 'O' BIND O 'qty' GET O 'price' GET MUL ] MAP 0 [ ADD ] FOLD",
+   "note": "orders JSON String -> total of qty times price over the priced orders"
+  }
+ ],
+ "solutions": {
+  "runs.rle": "G0D.RUNS [ 'R' BIND R 0 GET R LENGTH 2 COLLECT ] MAP",
+  "runs.upruns": "'UV' BIND UV UV G0D.SHIFT SUB 0 GT 0 [ 'E' BIND 1 ADD 1 E SELECT ] SCAN 0 [ MAX ] FOLD",
+  "runs.dedupe": "G0D.RUNS [ 0 GET ] MAP",
+  "runs.second_largest": "UNIQUE SORT -2 GET",
+  "runs.majority": "'MV' BIND MV LENGTH 'MN' BIND MV TALLY 'MT' BIND MT U1D.TOPKEY 'MK' BIND MK NIL MT MK GET 2 MUL MN GT SELECT",
+  "number.primes": "'NN' BIND 1 NN RANGE [ G0D.DIVISORS LENGTH 2 EQ ] FILTER",
+  "number.divisors": "G0D.DIVISORS",
+  "number.binary": "'BN' BIND 2 0 5 RANGE POW 'PP' BIND BN PP DIV FLOOR [ 0 GT ] FILTER [ 'X' BIND X X 2 DIV FLOOR 2 MUL SUB ] MAP REVERSE STR JOIN",
+  "number.collatz": "'CN' BIND CN 1 COLLECT 1 130 RANGE CN [ 'J' BIND 'CX' BIND 1 CX 2 DIV CX 3 MUL 1 ADD CX CX 2 DIV FLOOR 2 MUL SUB 0 EQ SELECT CX 1 EQ SELECT ] SCAN CONCAT [ 1 GT ] FILTER LENGTH",
+  "number.digital_root": "1 SUB 'DA' BIND DA DA 9 DIV FLOOR 9 MUL SUB 1 ADD",
+  "number.fib_index": "'FN' BIND [ 1 1 2 3 5 8 13 21 34 55 89 ] [ 'FF' BIND FF FN LT ] FILTER LENGTH 1 ADD",
+  "brackets.depth": "CHARS 0 [ E2B.DELTA ADD 0 MAX ] SCAN 0 [ MAX ] FOLD",
+  "brackets.balanced": "E2B.BAL",
+  "brackets.balanced_prefix": "CHARS 'CS' BIND 0 CS LENGTH RANGE [ 'K' BIND K 0 CS K TAKE JOIN E2B.BAL SELECT ] MAP 0 [ MAX ] FOLD",
+  "brackets.unmatched": "E2B.REDUCE6 CHARS LENGTH",
+  "sensor.present_mean": "[ NIL? NOT ] FILTER 'P' BIND P 0 [ ADD ] FOLD P LENGTH DIV",
+  "sensor.filled": "'FV' BIND FV FV [ NIL? NOT ] FILTER 0 GET [ 'E' BIND E E NIL? SELECT ] SCAN",
+  "sensor.gap_count": "0 [ 'E' BIND 1 ADD 0 E NIL? SELECT ] SCAN [ 1 EQ ] FILTER LENGTH",
+  "sensor.longest_gap": "0 [ 'E' BIND 1 ADD 0 E NIL? SELECT ] SCAN 0 [ MAX ] FOLD",
+  "sensor.ratios": "'RV' BIND RV 1 DROP RV -1 DROP DIV",
+  "sensor.scaled": "'SV' BIND SV [ NIL? NOT ] FILTER 'SP' BIND SP SP 0 GET [ MAX ] FOLD 'SM' BIND SV SM DIV",
+  "orders.revenue": "E2B.REVENUE",
+  "orders.report": "E2B.REVENUE 2 FORMAT",
+  "orders.unpriced": "G0C.ORDERS [ 'price' GET NIL? ] FILTER [ 'sku' GET ] MAP UNIQUE",
+  "orders.qty_by_sku": "E2B.QTYSKU",
+  "orders.top_sku": "E2B.QTYSKU U1D.TOPKEY",
+  "orders.tag_counts": "G0C.ORDERS [ 'tags' GET NIL? NOT ] FILTER [ 'tags' GET UNIQUE ] MAP FLATTEN TALLY",
+  "messy.count": "G0D.WORDS LENGTH",
+  "messy.normalize": "LOWER G0D.WORDS G0A.UNWORDS",
+  "messy.distinct": "E2B.LWORDS UNIQUE LENGTH",
+  "messy.top_word": "E2B.LWORDS TALLY U1D.TOPKEY",
+  "messy.title": "LOWER G0D.WORDS [ CHARS 'CC' BIND CC 0 GET UPPER CC 1 DROP JOIN 2 COLLECT JOIN ] MAP G0A.UNWORDS",
+  "messy.sorted_unique": "E2B.LWORDS UNIQUE SORT G0A.UNWORDS"
+ }
+}

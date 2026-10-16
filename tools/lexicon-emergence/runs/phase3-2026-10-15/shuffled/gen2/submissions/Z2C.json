@@ -1,0 +1,65 @@
+{
+  "agent": "Z2C", "generation": 2, "condition": "shuffled",
+  "definitions": [
+    {
+      "name": "Z2C.RUNS",
+      "body": "'V' BIND V V 0 GET 1 COLLECT V -1 DROP CONCAT SUB [ 'X' BIND 0 1 X 0 EQ SELECT ] MAP 0 [ ADD ] SCAN V GROUP VALUES",
+      "note": "Input a Vector; leaves the Vector of maximal equal-value runs, each a Vector, in order (run ids from a cumulative count of value changes)."
+    },
+    {
+      "name": "Z2C.REDUCE",
+      "body": "'()' '' REPLACE '[]' '' REPLACE '()' '' REPLACE '[]' '' REPLACE '()' '' REPLACE '[]' '' REPLACE '()' '' REPLACE '[]' '' REPLACE '()' '' REPLACE '[]' '' REPLACE '()' '' REPLACE '[]' '' REPLACE '()' '' REPLACE '[]' '' REPLACE '()' '' REPLACE '[]' '' REPLACE",
+      "note": "Input a String of brackets; deletes adjacent () and [] pairs in six rounds (enough for twelve characters) and leaves the irreducible residue."
+    },
+    {
+      "name": "Z2C.RUNLEN",
+      "body": "0 [ 'LANE' BIND 'A' BIND A 1 ADD 0 LANE NIL? SELECT ] SCAN",
+      "note": "Input a Vector of readings; leaves, per reading, the length of the NIL run ending there (0 for a present reading)."
+    },
+    {
+      "name": "Z2C.REVENUE",
+      "body": "[ 'price' HAS? ] FILTER [ 'OV' BIND OV 'qty' GET OV 'price' GET MUL ] MAP 0 [ ADD ] FOLD",
+      "note": "Input the orders Vector; leaves the sum of qty times price over the orders that carry a price."
+    },
+    {
+      "name": "Z2C.QTYBYSKU",
+      "body": "'OS' BIND OS [ 'sku' GET ] MAP UNIQUE 'K' BIND K K [ 'SK' BIND OS [ 'sku' GET SK EQ ] FILTER [ 'qty' GET ] MAP 0 [ ADD ] FOLD ] MAP RECORD",
+      "note": "Input the orders Vector; leaves a Record from each sku to its summed qty, skus in order of first appearance."
+    }
+  ],
+  "solutions": {
+    "runs.rle": "Z2C.RUNS [ 'RU' BIND RU 0 GET RU LENGTH 2 COLLECT ] MAP",
+    "runs.upruns": "'V' BIND V V 0 GET 1 COLLECT V -1 DROP CONCAT GT [ 'X' BIND 0 1 X SELECT ] MAP 0 [ ADD ] SCAN V GROUP VALUES [ LENGTH ] MAP 0 [ MAX ] FOLD",
+    "runs.dedupe": "Z2C.RUNS [ 0 GET ] MAP",
+    "runs.second_largest": "UNIQUE SORT -2 GET",
+    "runs.majority": "'V' BIND V TALLY 'T' BIND T KEYS [ 'KY' BIND V LENGTH T KY GET 2 MUL LT ] FILTER 0 GET",
+    "number.primes": "'N' BIND 1 N RANGE [ X2.TIGOLI LENGTH 2 EQ ] FILTER",
+    "number.divisors": "X2.TIGOLI",
+    "number.binary": "'N' BIND 5 0 RANGE [ 'K' BIND N 2 K POW LT NOT ] FILTER [ 'K' BIND '1' '0' N 2 K POW DIV FLOOR 'Q' BIND Q 2 DIV FLOOR 2 MUL Q EQ NOT SELECT ] MAP JOIN",
+    "number.collatz": "'N' BIND N 1 COLLECT 1 200 RANGE N [ 'LANE' BIND 'A' BIND 1 3 A MUL 1 ADD A 2 DIV A 2 DIV FLOOR 2 MUL A EQ NOT SELECT A 1 EQ SELECT ] SCAN CONCAT [ 1 EQ NOT ] FILTER LENGTH",
+    "number.digital_root": "'N' BIND N N 1 SUB 9 DIV FLOOR 9 MUL SUB",
+    "number.fib_index": "'N' BIND [ 1 1 2 3 5 8 13 21 34 55 89 144 ] [ N LT ] FILTER LENGTH 1 ADD",
+    "brackets.depth": "'[' '(' REPLACE ']' ')' REPLACE CHARS [ 'C' BIND -1 1 C ')' EQ SELECT ] MAP 0 [ ADD 0 MAX ] SCAN 0 [ MAX ] FOLD",
+    "brackets.balanced": "Z2C.REDUCE '' EQ",
+    "brackets.balanced_prefix": "CHARS 'C' BIND 0 C LENGTH RANGE [ 'K' BIND K 0 C K TAKE JOIN Z2C.REDUCE '' EQ SELECT ] MAP 0 [ MAX ] FOLD",
+    "brackets.unmatched": "Z2C.REDUCE CHARS LENGTH",
+    "sensor.present_mean": "[ NIL? NOT ] FILTER 'P' BIND P 0 [ ADD ] FOLD P LENGTH DIV",
+    "sensor.filled": "'V' BIND V [ NIL? NOT ] FILTER 0 GET 'F' BIND V F [ 'E' BIND 'A' BIND A E E NIL? SELECT ] SCAN",
+    "sensor.gap_count": "Z2C.RUNLEN [ 1 EQ ] FILTER LENGTH",
+    "sensor.longest_gap": "Z2C.RUNLEN 0 [ MAX ] FOLD",
+    "sensor.ratios": "'V' BIND V 1 DROP V -1 DROP DIV",
+    "sensor.scaled": "'V' BIND V [ NIL? NOT ] FILTER SORT -1 GET 'M' BIND V M DIV",
+    "orders.revenue": "X2.FIZIPO Z2C.REVENUE",
+    "orders.report": "X2.FIZIPO Z2C.REVENUE 2 FORMAT",
+    "orders.unpriced": "X2.FIZIPO [ 'price' HAS? NOT ] FILTER [ 'sku' GET ] MAP UNIQUE",
+    "orders.qty_by_sku": "X2.FIZIPO Z2C.QTYBYSKU",
+    "orders.top_sku": "X2.FIZIPO Z2C.QTYBYSKU 'R' BIND R VALUES SORT -1 GET 'M' BIND R KEYS [ 'K' BIND R K GET M EQ ] FILTER 0 GET",
+    "orders.tag_counts": "X2.FIZIPO [ 'tags' HAS? ] FILTER [ 'tags' GET UNIQUE ] MAP FLATTEN TALLY",
+    "messy.count": "X2.ZAPEZO LENGTH",
+    "messy.normalize": "X2.ZAPEZO [ LOWER ] MAP X2.GUPOSO",
+    "messy.distinct": "X2.ZAPEZO [ LOWER ] MAP UNIQUE LENGTH",
+    "messy.top_word": "X2.ZAPEZO [ LOWER ] MAP TALLY 'R' BIND R VALUES SORT -1 GET 'M' BIND R KEYS [ 'K' BIND R K GET M EQ ] FILTER 0 GET",
+    "messy.title": "X2.ZAPEZO [ LOWER CHARS 'C' BIND C 0 GET UPPER C 1 DROP JOIN 2 COLLECT JOIN ] MAP X2.GUPOSO",
+    "messy.sorted_unique": "X2.ZAPEZO [ LOWER ] MAP UNIQUE SORT X2.GUPOSO"
+  }
+}

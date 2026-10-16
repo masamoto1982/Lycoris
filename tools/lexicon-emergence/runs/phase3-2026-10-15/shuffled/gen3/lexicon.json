@@ -1,0 +1,114 @@
+{
+  "generation": 3,
+  "capacity": 8,
+  "rule": "uses",
+  "entries": [
+    {
+      "name": "X3.KEGAFE",
+      "body": "' ' TOKENIZE [ '' EQ NOT ] FILTER",
+      "note": "",
+      "classId": "X2.ZAPEZO",
+      "uses": 24,
+      "agents": [
+        "Z2A",
+        "Z2B",
+        "Z2C",
+        "Z2D"
+      ],
+      "shuffledFrom": "X2.ZAPEZO"
+    },
+    {
+      "name": "X3.SIBIGE",
+      "body": "JSON-DECODE 'orders' GET",
+      "note": "",
+      "classId": "X2.FIZIPO",
+      "uses": 22,
+      "agents": [
+        "Z2A",
+        "Z2B",
+        "Z2C",
+        "Z2D"
+      ],
+      "shuffledFrom": "X2.FIZIPO"
+    },
+    {
+      "name": "X3.ZOSEBI",
+      "body": "'()' '' REPLACE '[]' '' REPLACE '()' '' REPLACE '[]' '' REPLACE '()' '' REPLACE '[]' '' REPLACE '()' '' REPLACE '[]' '' REPLACE '()' '' REPLACE '[]' '' REPLACE '()' '' REPLACE '[]' '' REPLACE",
+      "note": "",
+      "classId": "X2.SITUBO",
+      "uses": 12,
+      "agents": [
+        "Z2A",
+        "Z2B",
+        "Z2C",
+        "Z2D"
+      ],
+      "shuffledFrom": "X2.SITUBO"
+    },
+    {
+      "name": "X3.FOZABA",
+      "body": "[ ' ' 2 COLLECT JOIN ] MAP JOIN TRIM",
+      "note": "",
+      "classId": "X2.GUPOSO",
+      "uses": 12,
+      "agents": [
+        "Z2A",
+        "Z2B",
+        "Z2C",
+        "Z2D"
+      ],
+      "shuffledFrom": "X2.GUPOSO"
+    },
+    {
+      "name": "X3.LUDAFU",
+      "body": "'Z2A.SV' BIND Z2A.SV 0 GET 1 COLLECT Z2A.SV -1 DROP CONCAT",
+      "note": "",
+      "classId": "X2.LUSORE",
+      "uses": 5,
+      "agents": [
+        "Z2A",
+        "Z2D"
+      ],
+      "shuffledFrom": "Z2A.SHIFT"
+    },
+    {
+      "name": "X3.FASENO",
+      "body": "'Z2A.RV' BIND Z2A.RV Z2A.RV X3.LUDAFU SUB 'Z2A.RD' BIND Z2A.RD Z2A.RD MUL 1 MIN 0 [ ADD ] SCAN Z2A.RV GROUP VALUES",
+      "note": "",
+      "classId": "X2.NEPEBE",
+      "uses": 6,
+      "agents": [
+        "Z2A",
+        "Z2C",
+        "Z2D"
+      ],
+      "shuffledFrom": "Z2A.RUNS"
+    },
+    {
+      "name": "X3.VEFAZE",
+      "body": "'DK' BIND 1 DK RANGE [ 'DD' BIND DK DD DIV FLOOR DD MUL DK EQ ] FILTER",
+      "note": "",
+      "classId": "X2.TIGOLI",
+      "uses": 6,
+      "agents": [
+        "Z2B",
+        "Z2C",
+        "Z2D"
+      ],
+      "shuffledFrom": "X2.TIGOLI"
+    },
+    {
+      "name": "X3.NIFULO",
+      "body": "[ 1 COLLECT [ NIL? ] FILTER LENGTH ] MAP",
+      "note": "",
+      "classId": "Z2B.MISS",
+      "uses": 6,
+      "agents": [
+        "Z2B",
+        "Z2C",
+        "Z2D"
+      ],
+      "shuffledFrom": "Z2D.NILMASK"
+    }
+  ]
+}

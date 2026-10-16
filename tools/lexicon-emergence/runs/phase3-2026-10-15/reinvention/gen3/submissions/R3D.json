@@ -1,0 +1,92 @@
+{
+  "agent": "R3D",
+  "generation": 3,
+  "condition": "reinvention",
+  "definitions": [
+    {
+      "name": "R3D.MOD",
+      "body": "'R3D.MB' BIND 'R3D.MA' BIND R3D.MA R3D.MA R3D.MB DIV FLOOR R3D.MB MUL SUB",
+      "note": "a b -> a modulo b (a minus b times floor of a over b)"
+    },
+    {
+      "name": "R3D.DIFFS",
+      "body": "'R3D.DV' BIND R3D.DV 1 DROP R3D.DV -1 DROP SUB",
+      "note": "numeric Vector -> Vector one shorter of each element minus the one before it"
+    },
+    {
+      "name": "R3D.STARTS",
+      "body": "'R3D.SV' BIND [ TRUE ] R3D.SV R3D.DIFFS [ 0 EQ NOT ] MAP CONCAT",
+      "note": "numeric Vector -> same-length Boolean Vector, TRUE where a run of equal adjacent values starts"
+    },
+    {
+      "name": "R3D.MASK",
+      "body": "2 COLLECT ZIP [ 1 GET ] FILTER [ 0 GET ] MAP",
+      "note": "Vector, same-length Boolean Vector -> the elements at the TRUE positions, in order"
+    },
+    {
+      "name": "R3D.PAIRS",
+      "body": "'R3D.PV' BIND R3D.PV -1 DROP R3D.PV 1 DROP 2 COLLECT ZIP",
+      "note": "Vector -> Vector one shorter of adjacent pairs [ previous current ]"
+    },
+    {
+      "name": "R3D.DIVISORS",
+      "body": "'R3D.DN' BIND 1 R3D.DN RANGE [ R3D.DN DIV RATIO 0 GET 1 EQ ] FILTER",
+      "note": "positive integer -> ascending Vector of its positive divisors"
+    },
+    {
+      "name": "R3D.ISPRIME",
+      "body": "R3D.DIVISORS LENGTH 2 EQ",
+      "note": "positive integer -> TRUE when it is prime"
+    },
+    {
+      "name": "R3D.REDUCE",
+      "body": "'R3D.RS' BIND 1 6 RANGE R3D.RS [ 'R3D.RX' BIND '()' '' REPLACE '[]' '' REPLACE ] FOLD",
+      "note": "bracket String of at most 12 chars -> the String after repeatedly deleting adjacent () and [] pairs"
+    },
+    {
+      "name": "R3D.TOPKEY",
+      "body": "'R3D.TR' BIND R3D.TR KEYS R3D.TR VALUES -1 MUL ORDER 0 GET GET",
+      "note": "Record with numeric values -> the key holding the largest value, the earliest key among ties"
+    },
+    {
+      "name": "R3D.SKUQTY",
+      "body": "'R3D.SO' BIND R3D.SO [ 'sku' GET ] MAP R3D.SO [ 'qty' GET ] MAP GROUP 'R3D.SG' BIND R3D.SG KEYS R3D.SG VALUES [ 0 [ ADD ] FOLD ] MAP RECORD",
+      "note": "orders Vector -> Record from each sku to the sum of its qty, skus in order of first appearance"
+    }
+  ],
+  "solutions": {
+    "runs.rle": "'R3D.V' BIND R3D.V R3D.STARTS 'R3D.S' BIND R3D.V R3D.S R3D.MASK 0 R3D.V LENGTH 1 SUB RANGE R3D.S R3D.MASK 'R3D.I' BIND R3D.I 1 DROP R3D.V LENGTH 1 COLLECT CONCAT R3D.I SUB 2 COLLECT ZIP",
+    "runs.upruns": "R3D.DIFFS [ 0 GT ] MAP R2D.STREAKS 0 [ MAX ] FOLD 1 ADD",
+    "runs.dedupe": "'R3D.V' BIND R3D.V R3D.V R3D.STARTS R3D.MASK",
+    "runs.second_largest": "SORT UNIQUE -2 GET",
+    "runs.majority": "'R3D.V' BIND R3D.V SORT R3D.V LENGTH 2 DIV FLOOR GET 'R3D.M' BIND R3D.M NIL R3D.V [ R3D.M EQ ] FILTER LENGTH 2 MUL R3D.V LENGTH GT SELECT",
+    "number.primes": "'R3D.N' BIND 1 R3D.N RANGE [ R3D.ISPRIME ] FILTER",
+    "number.divisors": "R3D.DIVISORS",
+    "number.binary": "'R3D.N' BIND R3D.N [ 32 16 8 4 2 1 ] DIV FLOOR 'R3D.Q' BIND R3D.Q R3D.Q 2 DIV FLOOR 2 MUL SUB STR JOIN 'R3D.B' BIND R3D.B CHARS R3D.B '1' SEARCH 6 SUB TAKE JOIN",
+    "number.collatz": "'R3D.N' BIND 1 120 RANGE R3D.N 0 2 COLLECT [ 'R3D.X' BIND [ 'R3D.C' 'R3D.S' ] BIND R3D.C 2 DIV 'R3D.H' BIND R3D.H R3D.C 3 MUL 1 ADD R3D.H FLOOR R3D.H EQ SELECT 'R3D.NX' BIND 1 R3D.NX R3D.C 1 EQ SELECT R3D.S R3D.S 1 ADD R3D.C 1 EQ SELECT 2 COLLECT ] FOLD 1 GET",
+    "number.digital_root": "1 SUB 9 R3D.MOD 1 ADD",
+    "number.fib_index": "'R3D.N' BIND [ 1 1 2 3 5 8 13 21 34 55 89 ] [ R3D.N LT ] FILTER LENGTH 1 ADD",
+    "brackets.depth": "R2B.BDEPTH",
+    "brackets.balanced": "R3D.REDUCE '' EQ",
+    "brackets.balanced_prefix": "'R3D.S' BIND [ 0 ] 0 R3D.S CHARS LENGTH RANGE 1 DROP [ 'R3D.L' BIND R3D.S CHARS R3D.L TAKE JOIN R3D.REDUCE '' EQ ] FILTER CONCAT -1 GET",
+    "brackets.unmatched": "R3D.REDUCE CHARS LENGTH",
+    "sensor.present_mean": "R2D.PRESENT 'R3D.P' BIND R3D.P 0 [ ADD ] FOLD R3D.P LENGTH DIV",
+    "sensor.filled": "'R3D.V' BIND R3D.V R3D.V R2D.PRESENT 0 GET [ 'R3D.E' BIND R3D.E R3D.E NIL? SELECT ] SCAN",
+    "sensor.gap_count": "[ NIL? ] MAP R2D.STREAKS [ 1 EQ ] FILTER LENGTH",
+    "sensor.longest_gap": "R2D.LONGEST-GAP",
+    "sensor.ratios": "R3D.PAIRS [ [ 'R3D.A' 'R3D.B' ] BIND 1 R3D.A R3D.A NIL? SELECT 'R3D.AA' BIND 1 R3D.B R3D.B NIL? SELECT 'R3D.BB' BIND NIL R3D.BB R3D.AA DIV R3D.A NIL? NOT R3D.B NIL? NOT AND NOT SELECT ] MAP",
+    "sensor.scaled": "'R3D.V' BIND R3D.V R2D.PRESENT SORT -1 GET 'R3D.MX' BIND R3D.V [ 'R3D.E' BIND NIL 1 R3D.E R3D.E NIL? SELECT R3D.MX DIV R3D.E NIL? SELECT ] MAP",
+    "orders.revenue": "JSON-DECODE 'orders' GET R1C.REVENUE",
+    "orders.report": "JSON-DECODE 'orders' GET R1C.REVENUE 2 FORMAT",
+    "orders.unpriced": "JSON-DECODE 'orders' GET [ 'price' GET NIL? ] FILTER [ 'sku' GET ] MAP UNIQUE",
+    "orders.qty_by_sku": "JSON-DECODE 'orders' GET R3D.SKUQTY",
+    "orders.top_sku": "JSON-DECODE 'orders' GET R3D.SKUQTY R3D.TOPKEY",
+    "orders.tag_counts": "JSON-DECODE 'orders' GET [ 'tags' GET ] MAP R2D.PRESENT [ UNIQUE ] MAP FLATTEN TALLY",
+    "messy.count": "R2A.WORDS LENGTH",
+    "messy.normalize": "LOWER R2A.WORDS R2B.SPACEJOIN",
+    "messy.distinct": "LOWER R2A.WORDS UNIQUE LENGTH",
+    "messy.top_word": "LOWER R2A.WORDS TALLY R3D.TOPKEY",
+    "messy.title": "R2A.WORDS [ LOWER CHARS 'R3D.C' BIND R3D.C 0 R3D.C 0 GET UPPER PUT JOIN ] MAP R2B.SPACEJOIN",
+    "messy.sorted_unique": "LOWER R2A.WORDS UNIQUE SORT R2B.SPACEJOIN"
+  }
+}

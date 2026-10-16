@@ -1,0 +1,67 @@
+{
+  "agent": "R2C",
+  "generation": 2,
+  "condition": "reinvention",
+  "definitions": [
+    {
+      "name": "R2C.RUNSTARTS",
+      "body": "'RV' BIND RV 1 DROP 'RC' BIND RV -1 DROP 'RP' BIND [ TRUE ] RC RP LT NOT RP RC LT NOT AND NOT CONCAT 'RS' BIND 0 RV LENGTH 1 SUB RANGE [ 'XI' BIND RS XI GET ] FILTER",
+      "note": "Vector -> indices where a new run of equal adjacent values starts (index 0 always starts a run)"
+    },
+    {
+      "name": "R2C.JOINSP",
+      "body": "[ ' ' 2 COLLECT ] MAP FLATTEN JOIN TRIM",
+      "note": "Vector of texts -> one text with the texts joined by single spaces"
+    },
+    {
+      "name": "R2C.WORDS",
+      "body": "' ' TOKENIZE [ '' EQ NOT ] FILTER",
+      "note": "Text -> Vector of its non-empty space-separated words, in order, case kept"
+    },
+    {
+      "name": "R2C.QTYSKU",
+      "body": "'OS' BIND OS [ 'XR' BIND XR 'sku' GET ] MAP 'SK' BIND OS [ 'XR' BIND XR 'qty' GET ] MAP 'QT' BIND SK QT GROUP 'GR' BIND GR KEYS GR VALUES [ 0 [ ADD ] FOLD ] MAP RECORD",
+      "note": "Orders Vector -> Record from sku to total qty, skus in first-appearance order"
+    },
+    {
+      "name": "R2C.TAGCOUNTS",
+      "body": "[ 'XR' BIND XR 'tags' HAS? ] FILTER [ 'XR' BIND XR 'tags' GET UNIQUE ] MAP FLATTEN TALLY",
+      "note": "Orders Vector -> Record from tag to the number of orders carrying it, first-appearance order"
+    }
+  ],
+  "solutions": {
+    "runs.rle": "'DV' BIND DV DV R2C.RUNSTARTS 'ST' BIND DV ST GET ST 1 DROP DV LENGTH 1 COLLECT CONCAT ST SUB 2 COLLECT ZIP",
+    "runs.upruns": "'RV' BIND RV 1 DROP 'RC' BIND RV -1 DROP 'RP' BIND RP RC LT 1 [ 'E' BIND 'A' BIND A 1 ADD 1 E SELECT ] SCAN 1 [ MAX ] FOLD",
+    "runs.dedupe": "'DV' BIND DV DV R2C.RUNSTARTS GET",
+    "runs.second_largest": "UNIQUE SORT REVERSE 1 GET",
+    "runs.majority": "'MV' BIND MV TALLY 'MR' BIND MR R1A.ARGMAX 'MK' BIND MK NIL MR MK GET 2 MUL MV LENGTH GT SELECT",
+    "number.primes": "'NN' BIND 1 NN RANGE [ 'K' BIND K 1 K RANGE DIV 'Q' BIND 1 0 Q FLOOR Q LT NOT SELECT 0 [ ADD ] FOLD 2 EQ ] FILTER",
+    "number.divisors": "'NN' BIND 1 NN RANGE [ 'D' BIND NN D DIV 'Q' BIND Q FLOOR Q EQ ] FILTER",
+    "number.binary": "'NN' BIND 0 5 RANGE [ 'J' BIND NN 2 J POW DIV FLOOR 'X' BIND X X 2 DIV FLOOR 2 MUL SUB 10 J POW MUL ] MAP 0 [ ADD ] FOLD STR",
+    "number.collatz": "'NN' BIND 1 200 RANGE NN 0 2 COLLECT [ 'CE' BIND 'CA' BIND CA 0 GET 'CX' BIND CA 1 GET 'CS' BIND CX 2 DIV 'CH' BIND CH CX 3 MUL 1 ADD CH FLOOR CH EQ SELECT 'CY' BIND 1 CY CX 1 EQ SELECT CS CS 1 ADD CX 1 EQ SELECT 2 COLLECT ] FOLD 1 GET",
+    "number.digital_root": "'NN' BIND NN 1 SUB 'M' BIND 1 M M 9 DIV FLOOR 9 MUL SUB ADD",
+    "number.fib_index": "'NN' BIND [ 1 1 2 3 5 8 13 21 34 55 89 ] [ 'XF' BIND XF NN LT ] FILTER LENGTH 1 ADD",
+    "brackets.depth": "CHARS 0 [ 'C' BIND 'A' BIND A 1 ADD A 1 SUB 0 MAX C '(' EQ NOT C '[' EQ NOT AND NOT SELECT ] SCAN 0 [ MAX ] FOLD",
+    "brackets.balanced": "'BS' BIND BS R1D.USTACKS -1 GET '#' EQ",
+    "brackets.balanced_prefix": "'BS' BIND BS R1D.USTACKS 'SK' BIND SK LENGTH 1 SUB 'LM' BIND 0 LM RANGE [ 'I' BIND SK I GET '#' EQ ] FILTER 0 [ MAX ] FOLD",
+    "brackets.unmatched": "'BS' BIND BS R1D.USTACKS -1 GET CHARS LENGTH 1 SUB",
+    "sensor.present_mean": "[ NIL? NOT ] FILTER 'SP' BIND SP 0 [ ADD ] FOLD SP LENGTH DIV",
+    "sensor.filled": "'SV' BIND SV [ NIL? NOT ] FILTER 0 GET 'F0' BIND SV F0 [ 'E' BIND 'A' BIND A E E NIL? SELECT ] SCAN",
+    "sensor.gap_count": "[ NIL? ] MAP 'SM' BIND [ FALSE ] SM -1 DROP CONCAT 'SP' BIND SM SP NOT AND [ 'XS' BIND XS ] FILTER LENGTH",
+    "sensor.longest_gap": "[ NIL? ] MAP 0 [ 'E' BIND 'A' BIND A 1 ADD 0 E SELECT ] SCAN 0 [ MAX ] FOLD",
+    "sensor.ratios": "'SV' BIND SV 1 DROP SV -1 DROP DIV",
+    "sensor.scaled": "'SV' BIND SV [ NIL? NOT ] FILTER 'PP' BIND PP 1 DROP PP 0 GET [ MAX ] FOLD 'MX' BIND SV [ MX DIV ] MAP",
+    "orders.revenue": "G0C.ORDERS R1C.REVENUE",
+    "orders.report": "G0C.ORDERS R1C.REVENUE 2 FORMAT",
+    "orders.unpriced": "G0C.ORDERS [ 'XR' BIND XR 'price' GET NIL? ] FILTER [ 'XR' BIND XR 'sku' GET ] MAP UNIQUE",
+    "orders.qty_by_sku": "G0C.ORDERS R2C.QTYSKU",
+    "orders.top_sku": "G0C.ORDERS R2C.QTYSKU R1A.ARGMAX",
+    "orders.tag_counts": "G0C.ORDERS R2C.TAGCOUNTS",
+    "messy.count": "R2C.WORDS LENGTH",
+    "messy.normalize": "R2C.WORDS [ LOWER ] MAP R2C.JOINSP",
+    "messy.distinct": "R2C.WORDS [ LOWER ] MAP UNIQUE LENGTH",
+    "messy.top_word": "R2C.WORDS [ LOWER ] MAP TALLY R1A.ARGMAX",
+    "messy.title": "R2C.WORDS [ R1D.CAPITALIZE ] MAP R2C.JOINSP",
+    "messy.sorted_unique": "R2C.WORDS [ LOWER ] MAP UNIQUE SORT R2C.JOINSP"
+  }
+}

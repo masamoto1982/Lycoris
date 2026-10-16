@@ -1,0 +1,1 @@
+'([]())' CHARS [ 'C' BIND 1 -1 C '(' EQ C '[' EQ NOT AND NOT SELECT ] MAP
