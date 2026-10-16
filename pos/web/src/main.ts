@@ -137,7 +137,7 @@ function buildSkeleton(): void {
     </footer>
     <dialog class="rules-dlg" id="rules-dlg" aria-labelledby="rules-title">
       <div class="dlg-head"><h2 id="rules-title">年確ルール設定</h2><button class="small ghost" data-close-rules>閉じる</button></div>
-      <p class="muted">変えられるのはオーナーだけです。変更のたびにここのパスワードで認証し、閉じるとパスワードは消えます。法令の年齢（酒・たばこ 20歳）は外せず、それより厳しくだけできます。年確は会計ボタンを押した時点で、カゴの中で最も厳しい年齢で1回だけ行います。</p>
+      <p class="muted">変えられるのはオーナーだけです。変更のたびにここのパスワードで認証し、閉じるとパスワードは消えます。酒・たばこは法令どおり 20歳以上で固定され、変更できません。年確は会計ボタンを押した時点で、カゴの中で最も厳しい年齢で1回だけ行います。</p>
       <div class="row wrap">
         <input data-owner="id" placeholder="オーナーの従業員番号" value="9001" aria-label="オーナーの従業員番号" />
         <input data-owner="pw" type="password" placeholder="パスワード" autocomplete="off" aria-label="オーナーのパスワード" />

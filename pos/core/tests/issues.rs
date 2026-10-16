@@ -9,6 +9,7 @@ const ONIGIRI: &str = "4900000000011";
 const BEER: &str = "4900000000103";
 const LIGHTER: &str = "4900000000134";
 const LOTTERY: &str = "4900000000158";
+const FIREWORKS: &str = "4900000000165";
 const PARCEL: &str = "2100000000014";
 
 fn run(s: &mut Store, v: Value) -> Result<Option<String>, String> {
@@ -409,11 +410,15 @@ fn owner_sets_age_rule_per_product() {
     assert!(run(&mut s, set("1001", "1111", LOTTERY, Some(20))).is_err());
     ok(&mut s, set("9001", "9999", LOTTERY, Some(20)));
     ok(&mut s, set("9001", "9999", LIGHTER, None));
-    assert!(run(&mut s, set("9001", "9999", BEER, None)).is_ok());
-    assert!(run(&mut s, set("9001", "9999", BEER, Some(18))).is_err());
+    // 酒・たばこは法令どおりで変更不可
+    assert!(run(&mut s, set("9001", "9999", BEER, None)).is_err());
+    assert!(run(&mut s, set("9001", "9999", BEER, Some(25))).is_err());
+    // 花火も売り場の商品として個別に設定できる
+    ok(&mut s, set("9001", "9999", FIREWORKS, Some(18)));
     let cat = s.snapshot().catalog;
     let age = |c: &str| cat.iter().find(|p| p.code == c).unwrap().age;
     assert_eq!(age(LOTTERY), Some(20));
     assert_eq!(age(LIGHTER), None);
     assert_eq!(age(BEER), Some(20));
+    assert_eq!(age(FIREWORKS), Some(18));
 }

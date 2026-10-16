@@ -140,7 +140,7 @@ impl AgeRules {
             .map(|r| r.min_age)
     }
 
-    /// 商品ごとの店舗ルールを設定する（None で外す）。法令より緩くはできない。
+    /// 商品ごとの店舗ルールを設定する（None で外す）。法令の対象品（酒・たばこ）は変更できない。
     pub fn set_product(
         &mut self,
         code: &str,
@@ -149,14 +149,12 @@ impl AgeRules {
         now: u64,
     ) -> Result<(), String> {
         let p = catalog::find(code).ok_or("商品が見つかりません")?;
+        if let Some(l) = self.legal_age_for(code, p.category) {
+            return Err(format!("{}は法令どおり{l}歳以上で固定です（変更できません）", p.name));
+        }
         if let Some(a) = min_age {
             if !(1..=99).contains(&a) {
                 return Err("年齢は 1〜99 で指定してください".into());
-            }
-            if let Some(l) = self.legal_age_for(code, p.category) {
-                if a <= l {
-                    return Err(format!("{}は法令で{l}歳以上です。それ以下にはできません", p.name));
-                }
             }
         }
         let before = self.store_age_for(code);
@@ -188,8 +186,9 @@ impl AgeRules {
             return Err("年齢は 1〜99 で指定してください".into());
         }
         if let RuleTarget::Product { code } = &target {
-            if catalog::find(code).is_none() {
-                return Err("商品が見つかりません".into());
+            let p = catalog::find(code).ok_or("商品が見つかりません")?;
+            if self.legal_age_for(code, p.category).is_some() {
+                return Err(format!("{}は法令どおりで固定です（変更できません）", p.name));
             }
         }
         if self.rules.iter().any(|r| r.target == target) {
@@ -271,13 +270,12 @@ mod tests {
         assert_eq!(r.age_for(lighter, Category::SmokingGoods), Some(18));
         r.set_product(lighter, None, "オーナー", 0).unwrap();
         assert_eq!(r.age_for(lighter, Category::SmokingGoods), None);
-        // 法令の対象は外せず、法令より緩くもできない
+        // 法令の対象（酒・たばこ）は法令どおりで、緩くも厳しくもできない
         let beer = "4900000000103";
-        assert!(r.set_product(beer, Some(18), "オーナー", 0).is_err());
-        r.set_product(beer, Some(25), "オーナー", 0).unwrap();
-        assert_eq!(r.age_for(beer, Category::Alcohol), Some(25));
-        r.set_product(beer, None, "オーナー", 0).unwrap();
+        for age in [None, Some(18), Some(25)] {
+            assert!(r.set_product(beer, age, "オーナー", 0).is_err());
+        }
         assert_eq!(r.age_for(beer, Category::Alcohol), Some(20));
-        assert_eq!(r.history.len(), 4);
+        assert_eq!(r.history.len(), 2);
     }
 }

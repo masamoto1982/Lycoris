@@ -314,7 +314,7 @@ export function simPanel(s: Snapshot): string {
     <h4>開いている呼び出し（シミュレーター表示）</h4><ul>${calls}</ul>`;
 }
 
-const AGE_CHOICES = [15, 18, 20, 21, 25];
+const AGE_CHOICES = [15, 18, 20];
 
 /** 年確ルール：売り場のすべての商品に、商品ごとの店舗ルールを付けられる */
 export function ownerPanel(s: Snapshot): string {
@@ -323,15 +323,19 @@ export function ownerPanel(s: Snapshot): string {
     if (!items.length) return "";
     const body = items
       .map((p) => {
-        const legal = p.legal_age ?? 0;
-        const ages = AGE_CHOICES.filter((a) => a > legal);
+        // 酒・たばこは法令どおりで固定。店舗ルールは付けられない
+        if (p.legal_age)
+          return `<tr><td>${esc(p.name)}</td><td><span class="tag">法令 ${p.legal_age}歳</span></td>
+          <td><span class="muted">変更できません</span></td>
+          <td class="num"><b>${p.legal_age}歳以上</b></td></tr>`;
+        const ages = AGE_CHOICES.slice();
         if (p.store_age && !ages.includes(p.store_age)) ages.push(p.store_age);
         ages.sort((x, y) => x - y);
-        const opts = [`<option value="" ${p.store_age ? "" : "selected"}>${legal ? "法令のみ" : "なし"}</option>`]
+        const opts = [`<option value="" ${p.store_age ? "" : "selected"}>なし</option>`]
           .concat(ages.map((a) => `<option value="${a}" ${p.store_age === a ? "selected" : ""}>${a}歳以上</option>`))
           .join("");
         return `<tr><td>${esc(p.name)}</td>
-          <td>${p.legal_age ? `<span class="tag">法令 ${p.legal_age}歳</span>` : `<span class="muted">—</span>`}</td>
+          <td><span class="muted">—</span></td>
           <td><select data-age="${esc(p.code)}" aria-label="${esc(p.name)}の店舗ルール">${opts}</select></td>
           <td class="num">${p.age ? `<b>${p.age}歳以上</b>` : `<span class="muted">年確なし</span>`}</td></tr>`;
       })
@@ -372,6 +376,7 @@ const SHELVES: Shelf[] = [
   { label: "宅急便", match: (p) => p.category === "service" && p.name.includes("宅急便") },
   { label: "酒", match: (p) => p.category === "alcohol" },
   { label: "ライター・たばこ", match: (p) => p.category === "smoking_goods" || p.category === "tobacco" },
+  { label: "花火", match: (p) => p.category === "fireworks" },
   { label: "そのほか", match: (p) => ["daily", "lottery", "adult_goods", "bag"].includes(p.category) },
 ];
 
