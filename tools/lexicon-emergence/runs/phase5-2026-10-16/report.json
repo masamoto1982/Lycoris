@@ -1,0 +1,4105 @@
+{
+  "perGeneration": [
+    {
+      "condition": "bare",
+      "generation": 1,
+      "agents": 4,
+      "lexiconSize": 0,
+      "accuracy": "156/156",
+      "meanTokens": 26.3,
+      "compression": 1,
+      "coreEquivalent": "156/156",
+      "meanRuns": null,
+      "ownWords": 0,
+      "split": {
+        "train": {
+          "correct": "84/84",
+          "compression": 1,
+          "reaching": null,
+          "tasksReaching": null
+        },
+        "heldOut": {
+          "correct": "72/72",
+          "compression": 1,
+          "reaching": null,
+          "tasksReaching": null
+        }
+      },
+      "heldOutFamilies": [
+        {
+          "family": "ledger",
+          "correct": 24,
+          "attempted": 24,
+          "shared": 0,
+          "inherited": 0
+        },
+        {
+          "family": "messy",
+          "correct": 24,
+          "attempted": 24,
+          "shared": 0,
+          "inherited": 0
+        },
+        {
+          "family": "series",
+          "correct": 24,
+          "attempted": 24,
+          "shared": 0,
+          "inherited": 0
+        }
+      ],
+      "byModel": {
+        "opus": "39/39",
+        "sonnet": "39/39",
+        "haiku": "39/39",
+        "fable": "39/39"
+      }
+    },
+    {
+      "condition": "bare",
+      "generation": 2,
+      "agents": 4,
+      "lexiconSize": 0,
+      "accuracy": "176/176",
+      "meanTokens": 22.4,
+      "compression": 1,
+      "coreEquivalent": "176/176",
+      "meanRuns": null,
+      "ownWords": 0,
+      "split": {
+        "train": {
+          "correct": "104/104",
+          "compression": 1,
+          "reaching": null,
+          "tasksReaching": null
+        },
+        "heldOut": {
+          "correct": "72/72",
+          "compression": 1,
+          "reaching": null,
+          "tasksReaching": null
+        }
+      },
+      "heldOutFamilies": [
+        {
+          "family": "ledger",
+          "correct": 24,
+          "attempted": 24,
+          "shared": 0,
+          "inherited": 0
+        },
+        {
+          "family": "messy",
+          "correct": 24,
+          "attempted": 24,
+          "shared": 0,
+          "inherited": 0
+        },
+        {
+          "family": "series",
+          "correct": 24,
+          "attempted": 24,
+          "shared": 0,
+          "inherited": 0
+        }
+      ],
+      "byModel": {
+        "opus": "44/44",
+        "sonnet": "44/44",
+        "haiku": "44/44",
+        "fable": "44/44"
+      }
+    },
+    {
+      "condition": "base",
+      "generation": 0,
+      "agents": 4,
+      "lexiconSize": 0,
+      "accuracy": "175/176",
+      "meanTokens": 6.5,
+      "compression": 0.21,
+      "coreEquivalent": "175/175",
+      "meanRuns": null,
+      "ownWords": 24.3,
+      "split": {
+        "train": {
+          "correct": "103/104",
+          "compression": 0.218,
+          "reaching": null,
+          "tasksReaching": null
+        },
+        "heldOut": {
+          "correct": "72/72",
+          "compression": 0.199,
+          "reaching": null,
+          "tasksReaching": null
+        }
+      },
+      "heldOutFamilies": [
+        {
+          "family": "ledger",
+          "correct": 24,
+          "attempted": 24,
+          "shared": 21,
+          "inherited": 0
+        },
+        {
+          "family": "messy",
+          "correct": 24,
+          "attempted": 24,
+          "shared": 22,
+          "inherited": 0
+        },
+        {
+          "family": "series",
+          "correct": 24,
+          "attempted": 24,
+          "shared": 11,
+          "inherited": 0
+        }
+      ],
+      "byModel": {
+        "opus": "44/44",
+        "sonnet": "44/44",
+        "haiku": "43/44",
+        "fable": "44/44"
+      }
+    },
+    {
+      "condition": "families",
+      "generation": 1,
+      "agents": 4,
+      "lexiconSize": 8,
+      "accuracy": "155/156",
+      "meanTokens": 7.9,
+      "compression": 0.245,
+      "coreEquivalent": "155/155",
+      "meanRuns": null,
+      "ownWords": 18,
+      "split": {
+        "train": {
+          "correct": "84/84",
+          "compression": 0.245,
+          "reaching": "39/84",
+          "tasksReaching": 13
+        },
+        "heldOut": {
+          "correct": "71/72",
+          "compression": 0.245,
+          "reaching": "45/71",
+          "tasksReaching": 12
+        }
+      },
+      "heldOutFamilies": [
+        {
+          "family": "ledger",
+          "correct": 24,
+          "attempted": 24,
+          "shared": 19,
+          "inherited": 17
+        },
+        {
+          "family": "messy",
+          "correct": 24,
+          "attempted": 24,
+          "shared": 24,
+          "inherited": 24
+        },
+        {
+          "family": "series",
+          "correct": 23,
+          "attempted": 24,
+          "shared": 7,
+          "inherited": 4
+        }
+      ],
+      "byModel": {
+        "opus": "39/39",
+        "sonnet": "39/39",
+        "haiku": "38/39",
+        "fable": "39/39"
+      }
+    },
+    {
+      "condition": "families",
+      "generation": 2,
+      "agents": 4,
+      "lexiconSize": 8,
+      "accuracy": "175/176",
+      "meanTokens": 7.3,
+      "compression": 0.243,
+      "coreEquivalent": "175/175",
+      "meanRuns": null,
+      "ownWords": 18.3,
+      "split": {
+        "train": {
+          "correct": "103/104",
+          "compression": 0.258,
+          "reaching": "39/103",
+          "tasksReaching": 13
+        },
+        "heldOut": {
+          "correct": "72/72",
+          "compression": 0.221,
+          "reaching": "36/72",
+          "tasksReaching": 9
+        }
+      },
+      "heldOutFamilies": [
+        {
+          "family": "ledger",
+          "correct": 24,
+          "attempted": 24,
+          "shared": 19,
+          "inherited": 8
+        },
+        {
+          "family": "messy",
+          "correct": 24,
+          "attempted": 24,
+          "shared": 24,
+          "inherited": 24
+        },
+        {
+          "family": "series",
+          "correct": 24,
+          "attempted": 24,
+          "shared": 9,
+          "inherited": 4
+        }
+      ],
+      "byModel": {
+        "opus": "44/44",
+        "sonnet": "44/44",
+        "haiku": "44/44",
+        "fable": "43/44"
+      }
+    },
+    {
+      "condition": "families",
+      "generation": 3,
+      "agents": 4,
+      "lexiconSize": 8,
+      "accuracy": "155/156",
+      "meanTokens": 8.9,
+      "compression": 0.233,
+      "coreEquivalent": "155/155",
+      "meanRuns": null,
+      "ownWords": 15.5,
+      "split": {
+        "train": {
+          "correct": "83/84",
+          "compression": 0.255,
+          "reaching": "49/83",
+          "tasksReaching": 15
+        },
+        "heldOut": {
+          "correct": "72/72",
+          "compression": 0.198,
+          "reaching": "50/72",
+          "tasksReaching": 15
+        }
+      },
+      "heldOutFamilies": [
+        {
+          "family": "ledger",
+          "correct": 24,
+          "attempted": 24,
+          "shared": 20,
+          "inherited": 18
+        },
+        {
+          "family": "messy",
+          "correct": 24,
+          "attempted": 24,
+          "shared": 24,
+          "inherited": 24
+        },
+        {
+          "family": "series",
+          "correct": 24,
+          "attempted": 24,
+          "shared": 10,
+          "inherited": 8
+        }
+      ],
+      "byModel": {
+        "opus": "39/39",
+        "sonnet": "39/39",
+        "haiku": "39/39",
+        "fable": "38/39"
+      }
+    },
+    {
+      "condition": "probe",
+      "generation": 1,
+      "agents": 4,
+      "lexiconSize": 8,
+      "accuracy": "155/156",
+      "meanTokens": 24.8,
+      "compression": 0.905,
+      "coreEquivalent": "155/155",
+      "meanRuns": null,
+      "ownWords": 0,
+      "split": {
+        "train": {
+          "correct": "83/84",
+          "compression": 0.948,
+          "reaching": "12/83",
+          "tasksReaching": 11
+        },
+        "heldOut": {
+          "correct": "72/72",
+          "compression": 0.847,
+          "reaching": "26/72",
+          "tasksReaching": 15
+        }
+      },
+      "heldOutFamilies": [
+        {
+          "family": "ledger",
+          "correct": 24,
+          "attempted": 24,
+          "shared": 9,
+          "inherited": 9
+        },
+        {
+          "family": "messy",
+          "correct": 24,
+          "attempted": 24,
+          "shared": 6,
+          "inherited": 12
+        },
+        {
+          "family": "series",
+          "correct": 24,
+          "attempted": 24,
+          "shared": 5,
+          "inherited": 5
+        }
+      ],
+      "byModel": {
+        "opus": "39/39",
+        "sonnet": "39/39",
+        "haiku": "39/39",
+        "fable": "38/39"
+      }
+    },
+    {
+      "condition": "probe",
+      "generation": 2,
+      "agents": 4,
+      "lexiconSize": 8,
+      "accuracy": "176/176",
+      "meanTokens": 19.8,
+      "compression": 0.814,
+      "coreEquivalent": "176/176",
+      "meanRuns": null,
+      "ownWords": 0,
+      "split": {
+        "train": {
+          "correct": "104/104",
+          "compression": 0.869,
+          "reaching": "27/104",
+          "tasksReaching": 10
+        },
+        "heldOut": {
+          "correct": "72/72",
+          "compression": 0.738,
+          "reaching": "36/72",
+          "tasksReaching": 9
+        }
+      },
+      "heldOutFamilies": [
+        {
+          "family": "ledger",
+          "correct": 24,
+          "attempted": 24,
+          "shared": 8,
+          "inherited": 8
+        },
+        {
+          "family": "messy",
+          "correct": 24,
+          "attempted": 24,
+          "shared": 19,
+          "inherited": 24
+        },
+        {
+          "family": "series",
+          "correct": 24,
+          "attempted": 24,
+          "shared": 4,
+          "inherited": 4
+        }
+      ],
+      "byModel": {
+        "opus": "44/44",
+        "sonnet": "44/44",
+        "haiku": "44/44",
+        "fable": "44/44"
+      }
+    },
+    {
+      "condition": "probe",
+      "generation": 3,
+      "agents": 4,
+      "lexiconSize": 8,
+      "accuracy": "154/156",
+      "meanTokens": 23.4,
+      "compression": 0.732,
+      "coreEquivalent": "154/154",
+      "meanRuns": null,
+      "ownWords": 0,
+      "split": {
+        "train": {
+          "correct": "82/84",
+          "compression": 0.774,
+          "reaching": "40/82",
+          "tasksReaching": 16
+        },
+        "heldOut": {
+          "correct": "72/72",
+          "compression": 0.675,
+          "reaching": "46/72",
+          "tasksReaching": 15
+        }
+      },
+      "heldOutFamilies": [
+        {
+          "family": "ledger",
+          "correct": 24,
+          "attempted": 24,
+          "shared": 14,
+          "inherited": 14
+        },
+        {
+          "family": "messy",
+          "correct": 24,
+          "attempted": 24,
+          "shared": 19,
+          "inherited": 24
+        },
+        {
+          "family": "series",
+          "correct": 24,
+          "attempted": 24,
+          "shared": 8,
+          "inherited": 8
+        }
+      ],
+      "byModel": {
+        "opus": "39/39",
+        "sonnet": "39/39",
+        "haiku": "39/39",
+        "fable": "37/39"
+      }
+    }
+  ],
+  "perModel": [
+    {
+      "model": "opus",
+      "agents": 9,
+      "accuracy": "371/371"
+    },
+    {
+      "model": "sonnet",
+      "agents": 9,
+      "accuracy": "371/371"
+    },
+    {
+      "model": "haiku",
+      "agents": 9,
+      "accuracy": "369/371"
+    },
+    {
+      "model": "fable",
+      "agents": 9,
+      "accuracy": "366/371"
+    }
+  ],
+  "baseline": {
+    "sameModel": 0,
+    "crossModel": 0.042,
+    "pairs": [
+      {
+        "a": "N1A",
+        "b": "N1B",
+        "models": [
+          "opus",
+          "sonnet"
+        ],
+        "same": false,
+        "jaccard": 0
+      },
+      {
+        "a": "N1A",
+        "b": "N1C",
+        "models": [
+          "opus",
+          "haiku"
+        ],
+        "same": false,
+        "jaccard": 0
+      },
+      {
+        "a": "N1A",
+        "b": "N1D",
+        "models": [
+          "opus",
+          "fable"
+        ],
+        "same": false,
+        "jaccard": 0
+      },
+      {
+        "a": "N1A",
+        "b": "N2A",
+        "models": [
+          "opus",
+          "opus"
+        ],
+        "same": true,
+        "jaccard": 0
+      },
+      {
+        "a": "N1A",
+        "b": "N2B",
+        "models": [
+          "opus",
+          "sonnet"
+        ],
+        "same": false,
+        "jaccard": 0
+      },
+      {
+        "a": "N1A",
+        "b": "N2C",
+        "models": [
+          "opus",
+          "haiku"
+        ],
+        "same": false,
+        "jaccard": 0
+      },
+      {
+        "a": "N1A",
+        "b": "N2D",
+        "models": [
+          "opus",
+          "fable"
+        ],
+        "same": false,
+        "jaccard": 0
+      },
+      {
+        "a": "N1A",
+        "b": "G0A",
+        "models": [
+          "opus",
+          "opus"
+        ],
+        "same": true,
+        "jaccard": 0
+      },
+      {
+        "a": "N1A",
+        "b": "G0B",
+        "models": [
+          "opus",
+          "sonnet"
+        ],
+        "same": false,
+        "jaccard": 0
+      },
+      {
+        "a": "N1A",
+        "b": "G0C",
+        "models": [
+          "opus",
+          "haiku"
+        ],
+        "same": false,
+        "jaccard": 0
+      },
+      {
+        "a": "N1A",
+        "b": "G0D",
+        "models": [
+          "opus",
+          "fable"
+        ],
+        "same": false,
+        "jaccard": 0
+      },
+      {
+        "a": "N1B",
+        "b": "N1C",
+        "models": [
+          "sonnet",
+          "haiku"
+        ],
+        "same": false,
+        "jaccard": 0
+      },
+      {
+        "a": "N1B",
+        "b": "N1D",
+        "models": [
+          "sonnet",
+          "fable"
+        ],
+        "same": false,
+        "jaccard": 0
+      },
+      {
+        "a": "N1B",
+        "b": "N2A",
+        "models": [
+          "sonnet",
+          "opus"
+        ],
+        "same": false,
+        "jaccard": 0
+      },
+      {
+        "a": "N1B",
+        "b": "N2B",
+        "models": [
+          "sonnet",
+          "sonnet"
+        ],
+        "same": true,
+        "jaccard": 0
+      },
+      {
+        "a": "N1B",
+        "b": "N2C",
+        "models": [
+          "sonnet",
+          "haiku"
+        ],
+        "same": false,
+        "jaccard": 0
+      },
+      {
+        "a": "N1B",
+        "b": "N2D",
+        "models": [
+          "sonnet",
+          "fable"
+        ],
+        "same": false,
+        "jaccard": 0
+      },
+      {
+        "a": "N1B",
+        "b": "G0A",
+        "models": [
+          "sonnet",
+          "opus"
+        ],
+        "same": false,
+        "jaccard": 0
+      },
+      {
+        "a": "N1B",
+        "b": "G0B",
+        "models": [
+          "sonnet",
+          "sonnet"
+        ],
+        "same": true,
+        "jaccard": 0
+      },
+      {
+        "a": "N1B",
+        "b": "G0C",
+        "models": [
+          "sonnet",
+          "haiku"
+        ],
+        "same": false,
+        "jaccard": 0
+      },
+      {
+        "a": "N1B",
+        "b": "G0D",
+        "models": [
+          "sonnet",
+          "fable"
+        ],
+        "same": false,
+        "jaccard": 0
+      },
+      {
+        "a": "N1C",
+        "b": "N1D",
+        "models": [
+          "haiku",
+          "fable"
+        ],
+        "same": false,
+        "jaccard": 0
+      },
+      {
+        "a": "N1C",
+        "b": "N2A",
+        "models": [
+          "haiku",
+          "opus"
+        ],
+        "same": false,
+        "jaccard": 0
+      },
+      {
+        "a": "N1C",
+        "b": "N2B",
+        "models": [
+          "haiku",
+          "sonnet"
+        ],
+        "same": false,
+        "jaccard": 0
+      },
+      {
+        "a": "N1C",
+        "b": "N2C",
+        "models": [
+          "haiku",
+          "haiku"
+        ],
+        "same": true,
+        "jaccard": 0
+      },
+      {
+        "a": "N1C",
+        "b": "N2D",
+        "models": [
+          "haiku",
+          "fable"
+        ],
+        "same": false,
+        "jaccard": 0
+      },
+      {
+        "a": "N1C",
+        "b": "G0A",
+        "models": [
+          "haiku",
+          "opus"
+        ],
+        "same": false,
+        "jaccard": 0
+      },
+      {
+        "a": "N1C",
+        "b": "G0B",
+        "models": [
+          "haiku",
+          "sonnet"
+        ],
+        "same": false,
+        "jaccard": 0
+      },
+      {
+        "a": "N1C",
+        "b": "G0C",
+        "models": [
+          "haiku",
+          "haiku"
+        ],
+        "same": true,
+        "jaccard": 0
+      },
+      {
+        "a": "N1C",
+        "b": "G0D",
+        "models": [
+          "haiku",
+          "fable"
+        ],
+        "same": false,
+        "jaccard": 0
+      },
+      {
+        "a": "N1D",
+        "b": "N2A",
+        "models": [
+          "fable",
+          "opus"
+        ],
+        "same": false,
+        "jaccard": 0
+      },
+      {
+        "a": "N1D",
+        "b": "N2B",
+        "models": [
+          "fable",
+          "sonnet"
+        ],
+        "same": false,
+        "jaccard": 0
+      },
+      {
+        "a": "N1D",
+        "b": "N2C",
+        "models": [
+          "fable",
+          "haiku"
+        ],
+        "same": false,
+        "jaccard": 0
+      },
+      {
+        "a": "N1D",
+        "b": "N2D",
+        "models": [
+          "fable",
+          "fable"
+        ],
+        "same": true,
+        "jaccard": 0
+      },
+      {
+        "a": "N1D",
+        "b": "G0A",
+        "models": [
+          "fable",
+          "opus"
+        ],
+        "same": false,
+        "jaccard": 0
+      },
+      {
+        "a": "N1D",
+        "b": "G0B",
+        "models": [
+          "fable",
+          "sonnet"
+        ],
+        "same": false,
+        "jaccard": 0
+      },
+      {
+        "a": "N1D",
+        "b": "G0C",
+        "models": [
+          "fable",
+          "haiku"
+        ],
+        "same": false,
+        "jaccard": 0
+      },
+      {
+        "a": "N1D",
+        "b": "G0D",
+        "models": [
+          "fable",
+          "fable"
+        ],
+        "same": true,
+        "jaccard": 0
+      },
+      {
+        "a": "N2A",
+        "b": "N2B",
+        "models": [
+          "opus",
+          "sonnet"
+        ],
+        "same": false,
+        "jaccard": 0
+      },
+      {
+        "a": "N2A",
+        "b": "N2C",
+        "models": [
+          "opus",
+          "haiku"
+        ],
+        "same": false,
+        "jaccard": 0
+      },
+      {
+        "a": "N2A",
+        "b": "N2D",
+        "models": [
+          "opus",
+          "fable"
+        ],
+        "same": false,
+        "jaccard": 0
+      },
+      {
+        "a": "N2A",
+        "b": "G0A",
+        "models": [
+          "opus",
+          "opus"
+        ],
+        "same": true,
+        "jaccard": 0
+      },
+      {
+        "a": "N2A",
+        "b": "G0B",
+        "models": [
+          "opus",
+          "sonnet"
+        ],
+        "same": false,
+        "jaccard": 0
+      },
+      {
+        "a": "N2A",
+        "b": "G0C",
+        "models": [
+          "opus",
+          "haiku"
+        ],
+        "same": false,
+        "jaccard": 0
+      },
+      {
+        "a": "N2A",
+        "b": "G0D",
+        "models": [
+          "opus",
+          "fable"
+        ],
+        "same": false,
+        "jaccard": 0
+      },
+      {
+        "a": "N2B",
+        "b": "N2C",
+        "models": [
+          "sonnet",
+          "haiku"
+        ],
+        "same": false,
+        "jaccard": 0
+      },
+      {
+        "a": "N2B",
+        "b": "N2D",
+        "models": [
+          "sonnet",
+          "fable"
+        ],
+        "same": false,
+        "jaccard": 0
+      },
+      {
+        "a": "N2B",
+        "b": "G0A",
+        "models": [
+          "sonnet",
+          "opus"
+        ],
+        "same": false,
+        "jaccard": 0
+      },
+      {
+        "a": "N2B",
+        "b": "G0B",
+        "models": [
+          "sonnet",
+          "sonnet"
+        ],
+        "same": true,
+        "jaccard": 0
+      },
+      {
+        "a": "N2B",
+        "b": "G0C",
+        "models": [
+          "sonnet",
+          "haiku"
+        ],
+        "same": false,
+        "jaccard": 0
+      },
+      {
+        "a": "N2B",
+        "b": "G0D",
+        "models": [
+          "sonnet",
+          "fable"
+        ],
+        "same": false,
+        "jaccard": 0
+      },
+      {
+        "a": "N2C",
+        "b": "N2D",
+        "models": [
+          "haiku",
+          "fable"
+        ],
+        "same": false,
+        "jaccard": 0
+      },
+      {
+        "a": "N2C",
+        "b": "G0A",
+        "models": [
+          "haiku",
+          "opus"
+        ],
+        "same": false,
+        "jaccard": 0
+      },
+      {
+        "a": "N2C",
+        "b": "G0B",
+        "models": [
+          "haiku",
+          "sonnet"
+        ],
+        "same": false,
+        "jaccard": 0
+      },
+      {
+        "a": "N2C",
+        "b": "G0C",
+        "models": [
+          "haiku",
+          "haiku"
+        ],
+        "same": true,
+        "jaccard": 0
+      },
+      {
+        "a": "N2C",
+        "b": "G0D",
+        "models": [
+          "haiku",
+          "fable"
+        ],
+        "same": false,
+        "jaccard": 0
+      },
+      {
+        "a": "N2D",
+        "b": "G0A",
+        "models": [
+          "fable",
+          "opus"
+        ],
+        "same": false,
+        "jaccard": 0
+      },
+      {
+        "a": "N2D",
+        "b": "G0B",
+        "models": [
+          "fable",
+          "sonnet"
+        ],
+        "same": false,
+        "jaccard": 0
+      },
+      {
+        "a": "N2D",
+        "b": "G0C",
+        "models": [
+          "fable",
+          "haiku"
+        ],
+        "same": false,
+        "jaccard": 0
+      },
+      {
+        "a": "N2D",
+        "b": "G0D",
+        "models": [
+          "fable",
+          "fable"
+        ],
+        "same": true,
+        "jaccard": 0
+      },
+      {
+        "a": "G0A",
+        "b": "G0B",
+        "models": [
+          "opus",
+          "sonnet"
+        ],
+        "same": false,
+        "jaccard": 0.483
+      },
+      {
+        "a": "G0A",
+        "b": "G0C",
+        "models": [
+          "opus",
+          "haiku"
+        ],
+        "same": false,
+        "jaccard": 0.355
+      },
+      {
+        "a": "G0A",
+        "b": "G0D",
+        "models": [
+          "opus",
+          "fable"
+        ],
+        "same": false,
+        "jaccard": 0.375
+      },
+      {
+        "a": "G0B",
+        "b": "G0C",
+        "models": [
+          "sonnet",
+          "haiku"
+        ],
+        "same": false,
+        "jaccard": 0.424
+      },
+      {
+        "a": "G0B",
+        "b": "G0D",
+        "models": [
+          "sonnet",
+          "fable"
+        ],
+        "same": false,
+        "jaccard": 0.361
+      },
+      {
+        "a": "G0C",
+        "b": "G0D",
+        "models": [
+          "haiku",
+          "fable"
+        ],
+        "same": false,
+        "jaccard": 0.297
+      }
+    ]
+  },
+  "reuse": [
+    {
+      "condition": "families",
+      "generation": 1,
+      "solutionsReaching": "84/155",
+      "perAgent": [
+        {
+          "agent": "L1A",
+          "inheritedUsed": 4
+        },
+        {
+          "agent": "L1B",
+          "inheritedUsed": 4
+        },
+        {
+          "agent": "L1C",
+          "inheritedUsed": 4
+        },
+        {
+          "agent": "L1D",
+          "inheritedUsed": 4
+        }
+      ]
+    },
+    {
+      "condition": "families",
+      "generation": 2,
+      "solutionsReaching": "75/175",
+      "perAgent": [
+        {
+          "agent": "L2A",
+          "inheritedUsed": 4
+        },
+        {
+          "agent": "L2B",
+          "inheritedUsed": 4
+        },
+        {
+          "agent": "L2C",
+          "inheritedUsed": 5
+        },
+        {
+          "agent": "L2D",
+          "inheritedUsed": 5
+        }
+      ]
+    },
+    {
+      "condition": "families",
+      "generation": 3,
+      "solutionsReaching": "99/155",
+      "perAgent": [
+        {
+          "agent": "L3A",
+          "inheritedUsed": 4
+        },
+        {
+          "agent": "L3B",
+          "inheritedUsed": 5
+        },
+        {
+          "agent": "L3C",
+          "inheritedUsed": 5
+        },
+        {
+          "agent": "L3D",
+          "inheritedUsed": 5
+        }
+      ]
+    },
+    {
+      "condition": "probe",
+      "generation": 1,
+      "solutionsReaching": "38/155",
+      "perAgent": [
+        {
+          "agent": "P1A",
+          "inheritedUsed": 0
+        },
+        {
+          "agent": "P1B",
+          "inheritedUsed": 0
+        },
+        {
+          "agent": "P1C",
+          "inheritedUsed": 4
+        },
+        {
+          "agent": "P1D",
+          "inheritedUsed": 3
+        }
+      ]
+    },
+    {
+      "condition": "probe",
+      "generation": 2,
+      "solutionsReaching": "63/176",
+      "perAgent": [
+        {
+          "agent": "P2A",
+          "inheritedUsed": 4
+        },
+        {
+          "agent": "P2B",
+          "inheritedUsed": 3
+        },
+        {
+          "agent": "P2C",
+          "inheritedUsed": 4
+        },
+        {
+          "agent": "P2D",
+          "inheritedUsed": 3
+        }
+      ]
+    },
+    {
+      "condition": "probe",
+      "generation": 3,
+      "solutionsReaching": "86/154",
+      "perAgent": [
+        {
+          "agent": "P3A",
+          "inheritedUsed": 4
+        },
+        {
+          "agent": "P3B",
+          "inheritedUsed": 5
+        },
+        {
+          "agent": "P3C",
+          "inheritedUsed": 5
+        },
+        {
+          "agent": "P3D",
+          "inheritedUsed": 3
+        }
+      ]
+    }
+  ],
+  "calls": [],
+  "referenceMatches": [
+    {
+      "agent": "N1A",
+      "matches": [
+        "messy.count",
+        "messy.distinct",
+        "messy.top_word",
+        "prose.longest",
+        "prose.freq_top",
+        "sensor.present_mean",
+        "sensor.ratios",
+        "sensor.scaled",
+        "series.moving3",
+        "series.runmax"
+      ]
+    },
+    {
+      "agent": "N1B",
+      "matches": [
+        "messy.distinct",
+        "messy.top_word",
+        "prose.longest",
+        "prose.freq_top",
+        "sensor.present_mean"
+      ]
+    },
+    {
+      "agent": "N1C",
+      "matches": [
+        "series.moving3",
+        "series.runmax"
+      ]
+    },
+    {
+      "agent": "N1D",
+      "matches": [
+        "ledger.total",
+        "ledger.count_names",
+        "messy.count",
+        "messy.distinct",
+        "sensor.present_mean",
+        "sensor.filled",
+        "series.median",
+        "series.moving3",
+        "series.runmax"
+      ]
+    },
+    {
+      "agent": "N2A",
+      "matches": [
+        "messy.count",
+        "messy.distinct",
+        "messy.top_word",
+        "orders.qty_by_sku",
+        "orders.top_sku",
+        "series.moving3",
+        "series.runmax",
+        "stats.sum",
+        "stats.mean",
+        "stats.deviations",
+        "stats.variance",
+        "stats.stddev",
+        "text.count",
+        "text.frequency",
+        "text.distinct",
+        "text.long-words"
+      ]
+    },
+    {
+      "agent": "N2B",
+      "matches": [
+        "orders.qty_by_sku",
+        "stats.sum",
+        "text.count",
+        "text.frequency",
+        "text.distinct",
+        "text.long-words",
+        "text.acronym"
+      ]
+    },
+    {
+      "agent": "N2C",
+      "matches": [
+        "messy.count",
+        "orders.unpriced",
+        "orders.qty_by_sku",
+        "orders.top_sku",
+        "series.runmax",
+        "stats.sum",
+        "stats.mean",
+        "text.count",
+        "text.frequency",
+        "text.distinct",
+        "text.long-words",
+        "text.acronym"
+      ]
+    },
+    {
+      "agent": "N2D",
+      "matches": [
+        "messy.count",
+        "messy.distinct",
+        "messy.top_word",
+        "orders.qty_by_sku",
+        "orders.top_sku",
+        "series.runmax",
+        "stats.sum",
+        "stats.mean",
+        "stats.deviations",
+        "stats.variance",
+        "stats.stddev",
+        "stats.range",
+        "text.count",
+        "text.frequency",
+        "text.distinct",
+        "text.longest",
+        "text.long-words"
+      ]
+    },
+    {
+      "agent": "G0A",
+      "matches": [
+        "orders.unpriced"
+      ]
+    },
+    {
+      "agent": "G0B",
+      "matches": [
+        "orders.unpriced",
+        "text.count",
+        "text.frequency",
+        "text.distinct",
+        "text.long-words",
+        "text.acronym"
+      ]
+    },
+    {
+      "agent": "G0C",
+      "matches": []
+    },
+    {
+      "agent": "G0D",
+      "matches": [
+        "series.runmax"
+      ]
+    },
+    {
+      "agent": "L1A",
+      "matches": [
+        "ledger.count_names"
+      ]
+    },
+    {
+      "agent": "L1B",
+      "matches": []
+    },
+    {
+      "agent": "L1C",
+      "matches": []
+    },
+    {
+      "agent": "L1D",
+      "matches": []
+    },
+    {
+      "agent": "L2A",
+      "matches": [
+        "stats.sum"
+      ]
+    },
+    {
+      "agent": "L2B",
+      "matches": []
+    },
+    {
+      "agent": "L2C",
+      "matches": [
+        "series.runmax"
+      ]
+    },
+    {
+      "agent": "L2D",
+      "matches": []
+    },
+    {
+      "agent": "L3A",
+      "matches": []
+    },
+    {
+      "agent": "L3B",
+      "matches": [
+        "ledger.count_names"
+      ]
+    },
+    {
+      "agent": "L3C",
+      "matches": []
+    },
+    {
+      "agent": "L3D",
+      "matches": [
+        "ledger.count_names"
+      ]
+    },
+    {
+      "agent": "P1A",
+      "matches": [
+        "messy.count",
+        "messy.distinct",
+        "messy.top_word",
+        "prose.freq_top"
+      ]
+    },
+    {
+      "agent": "P1B",
+      "matches": [
+        "ledger.total",
+        "ledger.count_names",
+        "messy.count",
+        "messy.distinct"
+      ]
+    },
+    {
+      "agent": "P1C",
+      "matches": [
+        "sensor.filled",
+        "sensor.ratios",
+        "series.moving3",
+        "series.runmax"
+      ]
+    },
+    {
+      "agent": "P1D",
+      "matches": [
+        "ledger.count_names",
+        "prose.freq_top",
+        "prose.initials_of_long",
+        "series.median",
+        "series.runmax"
+      ]
+    },
+    {
+      "agent": "P2A",
+      "matches": [
+        "series.moving3",
+        "series.runmax",
+        "stats.sum",
+        "stats.mean",
+        "stats.deviations",
+        "stats.variance",
+        "stats.stddev",
+        "stats.range"
+      ]
+    },
+    {
+      "agent": "P2B",
+      "matches": [
+        "stats.sum"
+      ]
+    },
+    {
+      "agent": "P2C",
+      "matches": [
+        "number.divisors",
+        "series.moving3",
+        "series.runmax",
+        "stats.sum",
+        "stats.mean"
+      ]
+    },
+    {
+      "agent": "P2D",
+      "matches": [
+        "series.runmax",
+        "stats.sum",
+        "stats.mean",
+        "stats.deviations",
+        "stats.variance",
+        "stats.stddev",
+        "stats.range",
+        "text.count",
+        "text.frequency",
+        "text.distinct",
+        "text.longest",
+        "text.long-words"
+      ]
+    },
+    {
+      "agent": "P3A",
+      "matches": []
+    },
+    {
+      "agent": "P3B",
+      "matches": []
+    },
+    {
+      "agent": "P3C",
+      "matches": []
+    },
+    {
+      "agent": "P3D",
+      "matches": [
+        "ledger.total",
+        "ledger.by_name",
+        "ledger.top_name",
+        "ledger.count_names",
+        "series.median",
+        "series.moving3",
+        "series.runmax"
+      ]
+    }
+  ],
+  "convergent": [
+    {
+      "classId": "G0A.CAP",
+      "definers": [
+        "G0A",
+        "G0B",
+        "G0C",
+        "G0D",
+        "L1A",
+        "L1B",
+        "L1C",
+        "L1D",
+        "L2A",
+        "L2B",
+        "L2C",
+        "L2D",
+        "L3A",
+        "L3B",
+        "L3C",
+        "L3D"
+      ],
+      "links": [
+        "d1",
+        "d0a",
+        "d0"
+      ],
+      "members": [
+        {
+          "name": "G0A.CAP",
+          "body": "CHARS 'CC' BIND CC 0 GET UPPER CC 1 DROP JOIN LOWER 2 COLLECT JOIN",
+          "note": "first letter upper case, rest lower case",
+          "definedBy": "G0A"
+        },
+        {
+          "name": "G0B.CAP",
+          "body": "CHARS 'CC' BIND CC 0 GET UPPER CC 1 DROP JOIN 2 COLLECT JOIN",
+          "note": "upper-case the first letter of a String",
+          "definedBy": "G0B"
+        },
+        {
+          "name": "G0C.CAP",
+          "body": "LOWER CHARS 'LC' BIND LC 0 GET UPPER LC 1 DROP JOIN 2 COLLECT JOIN",
+          "note": "Word to its first letter upper-cased and the rest lower-cased.",
+          "definedBy": "G0C"
+        },
+        {
+          "name": "G0D.CAP",
+          "body": "'W' BIND W CHARS 1 TAKE JOIN UPPER W CHARS 1 DROP JOIN LOWER 2 COLLECT JOIN",
+          "note": "A word with its first letter upper-cased and the rest lower-cased.",
+          "definedBy": "G0D"
+        },
+        {
+          "name": "L1A.CAP",
+          "body": "LOWER CHARS 'CW' BIND CW 0 GET UPPER CW 1 DROP JOIN 2 COLLECT JOIN",
+          "note": "non-empty word with first letter upper, rest lower",
+          "definedBy": "L1A"
+        },
+        {
+          "name": "L1B.CAP",
+          "body": "LOWER CHARS 'CC' BIND CC 0 GET UPPER CC 1 DROP JOIN 2 COLLECT JOIN",
+          "note": "non-empty word to first letter upper, rest lower",
+          "definedBy": "L1B"
+        },
+        {
+          "name": "L1C.UP1",
+          "body": "CHARS 'C' BIND C 0 GET UPPER C 1 DROP JOIN 2 COLLECT JOIN",
+          "note": "Upper-case the first letter of a String, leave the rest as it is.",
+          "definedBy": "L1C"
+        },
+        {
+          "name": "L1C.CAP",
+          "body": "LOWER L1C.UP1",
+          "note": "Title-case one word: lower-case it, then upper-case its first letter.",
+          "definedBy": "L1C"
+        },
+        {
+          "name": "L1D.CAP",
+          "body": "LOWER CHARS 'CC' BIND CC 0 GET UPPER CC 1 DROP JOIN 2 COLLECT JOIN",
+          "note": "one word -> first letter upper case, the rest lower case",
+          "definedBy": "L1D"
+        },
+        {
+          "name": "L2A.CAP",
+          "body": "CHARS 'CC' BIND CC 0 GET UPPER CC 1 DROP JOIN LOWER 2 COLLECT JOIN",
+          "note": "non-empty String -> first character upper case, the rest lower case",
+          "definedBy": "L2A"
+        },
+        {
+          "name": "L2B.CAP",
+          "body": "LOWER CHARS 'ZC' BIND ZC 0 GET UPPER 1 COLLECT ZC 1 DROP CONCAT JOIN",
+          "note": "A word to first letter upper case, rest lower case.",
+          "definedBy": "L2B"
+        },
+        {
+          "name": "L2C.CAP",
+          "body": "'ZW' BIND ZW CHARS 0 GET UPPER ZW CHARS 1 DROP JOIN 2 COLLECT JOIN",
+          "note": "Upper-cases the first character of a text and leaves the rest unchanged.",
+          "definedBy": "L2C"
+        },
+        {
+          "name": "L2D.CAP",
+          "body": "LOWER CHARS 'CS' BIND CS 0 CS 0 GET UPPER PUT JOIN",
+          "note": "Non-empty String -> first letter upper case, the rest lower case.",
+          "definedBy": "L2D"
+        },
+        {
+          "name": "L3A.CAP",
+          "body": "LOWER CHARS 'KC' BIND KC 1 TAKE JOIN UPPER KC 1 DROP JOIN 2 COLLECT JOIN",
+          "note": "non-empty word -> first letter upper case, rest lower case",
+          "definedBy": "L3A"
+        },
+        {
+          "name": "L3B.CAP",
+          "body": "LOWER CHARS 'CC' BIND CC 0 GET UPPER CC 1 DROP JOIN 2 COLLECT JOIN",
+          "note": "Word to first letter upper case, rest lower case.",
+          "definedBy": "L3B"
+        },
+        {
+          "name": "L3C.CAP",
+          "body": "'CW' BIND CW CHARS 1 TAKE JOIN UPPER CW CHARS 1 DROP JOIN 2 COLLECT JOIN",
+          "note": "Non-empty word -> first letter upper case, the rest kept as they are.",
+          "definedBy": "L3C"
+        },
+        {
+          "name": "L3D.CAP",
+          "body": "LOWER CHARS 'XC' BIND XC 0 GET UPPER XC 1 DROP JOIN 2 COLLECT JOIN",
+          "note": "Non-empty word -> first letter upper case, the rest lower case.",
+          "definedBy": "L3D"
+        }
+      ],
+      "models": [
+        "opus",
+        "sonnet",
+        "haiku",
+        "fable"
+      ]
+    },
+    {
+      "classId": "G0A.MEDIAN",
+      "definers": [
+        "G0A",
+        "G0B",
+        "G0C",
+        "G0D",
+        "L1A",
+        "L1B",
+        "L1C",
+        "L1D",
+        "L2A",
+        "L2B",
+        "L2C",
+        "L2D",
+        "L3A",
+        "L3B",
+        "L3C",
+        "L3D"
+      ],
+      "links": [
+        "d0a",
+        "d1",
+        "d0"
+      ],
+      "members": [
+        {
+          "name": "G0A.MEDIAN",
+          "body": "SORT 'MS' BIND MS LENGTH 'ML' BIND MS ML 1 SUB 2 DIV FLOOR GET MS ML 2 DIV FLOOR GET ADD 2 DIV",
+          "note": "median of a non-empty Vector of numbers",
+          "definedBy": "G0A"
+        },
+        {
+          "name": "G0B.MEDIAN",
+          "body": "SORT 'MS' BIND MS LENGTH 'MN' BIND MS MN 1 SUB 2 DIV FLOOR GET MS MN 2 DIV FLOOR GET ADD 2 DIV",
+          "note": "median of a Vector of numbers",
+          "definedBy": "G0B"
+        },
+        {
+          "name": "G0C.MEDIAN",
+          "body": "SORT 'LS' BIND LS LENGTH 'LN' BIND LS LN 1 SUB 2 DIV FLOOR LN 2 DIV FLOOR 2 COLLECT GET G0C.SUM 2 DIV",
+          "note": "Median of a numeric Vector (mean of the two middle values when the count is even).",
+          "definedBy": "G0C"
+        },
+        {
+          "name": "G0D.MEDIAN",
+          "body": "SORT 'S' BIND S LENGTH 'N' BIND S N 1 SUB 2 DIV FLOOR GET S N 2 DIV FLOOR GET ADD 2 DIV",
+          "note": "Median of a non-empty Vector of numbers (mean of the two middle values when even).",
+          "definedBy": "G0D"
+        },
+        {
+          "name": "L1A.MEDIAN",
+          "body": "SORT 'QT' BIND QT LENGTH 'QN' BIND QT QN 1 SUB 2 DIV FLOOR GET QT QN 2 DIV FLOOR GET ADD 2 DIV",
+          "note": "median of a non-empty numeric Vector",
+          "definedBy": "L1A"
+        },
+        {
+          "name": "L1B.MEDIAN",
+          "body": "SORT 'MDV' BIND MDV LENGTH 'MLN' BIND MDV MLN 1 SUB 2 DIV FLOOR GET MDV MLN 2 DIV FLOOR GET ADD 2 DIV",
+          "note": "median of a non-empty Vector of numbers",
+          "definedBy": "L1B"
+        },
+        {
+          "name": "L1C.MED",
+          "body": "SORT 'S' BIND S LENGTH 'N' BIND S N 1 SUB 2 DIV FLOOR GET S N 2 DIV FLOOR GET ADD 2 DIV",
+          "note": "Median of a non-empty Vector of exact numbers (mean of the two middle values when the count is even).",
+          "definedBy": "L1C"
+        },
+        {
+          "name": "L1D.MEDIAN",
+          "body": "SORT 'SS' BIND SS LENGTH 'SN' BIND SS SN 1 SUB 2 DIV FLOOR GET SS SN 2 DIV FLOOR GET ADD 2 DIV",
+          "note": "median of a non-empty numeric Vector (mean of the two middle values when the count is even)",
+          "definedBy": "L1D"
+        },
+        {
+          "name": "L2A.MEDIAN",
+          "body": "SORT 'MS' BIND MS LENGTH 'ML' BIND MS ML 1 SUB 2 DIV FLOOR GET MS ML 2 DIV FLOOR GET ADD 2 DIV",
+          "note": "non-empty numeric Vector -> median (mean of the two middle values when even)",
+          "definedBy": "L2A"
+        },
+        {
+          "name": "L2B.MEDIAN",
+          "body": "SORT 'ZS' BIND ZS LENGTH 'ZL' BIND ZS ZL 1 SUB 2 DIV FLOOR GET ZS ZL 2 DIV FLOOR GET ADD 2 DIV",
+          "note": "Median of a non-empty numeric Vector.",
+          "definedBy": "L2B"
+        },
+        {
+          "name": "L2C.MED",
+          "body": "'ZV' BIND ZV SORT 'ZS' BIND ZV LENGTH 'ZN' BIND ZS ZN 1 SUB 2 DIV FLOOR GET ZS ZN 2 DIV FLOOR GET ADD 2 DIV",
+          "note": "Median of a non-empty Vector of numbers (mean of the two middle values when even).",
+          "definedBy": "L2C"
+        },
+        {
+          "name": "L2D.MEDIAN",
+          "body": "SORT 'SV' BIND SV LENGTH 'LN' BIND SV LN 1 SUB 2 DIV FLOOR GET SV LN 2 DIV FLOOR GET ADD 2 DIV",
+          "note": "Median of a non-empty numeric Vector (mean of the two middle values when the count is even).",
+          "definedBy": "L2D"
+        },
+        {
+          "name": "L3A.MEDIAN",
+          "body": "'MS' BIND MS SORT 'MZ' BIND MZ MS LENGTH 1 SUB 2 DIV FLOOR GET MZ MS LENGTH 2 DIV FLOOR GET ADD 2 DIV",
+          "note": "non-empty numeric Vector -> median",
+          "definedBy": "L3A"
+        },
+        {
+          "name": "L3B.MEDIAN",
+          "body": "SORT 'MS' BIND MS LENGTH 'MN' BIND MS MN 1 SUB 2 DIV FLOOR GET MS MN 2 DIV FLOOR GET ADD 2 DIV",
+          "note": "Median of a non-empty numeric Vector.",
+          "definedBy": "L3B"
+        },
+        {
+          "name": "L3C.MED",
+          "body": "'MX' BIND MX SORT 'MS' BIND MS MX LENGTH 1 SUB 2 DIV FLOOR MX LENGTH 2 DIV FLOOR 2 COLLECT GET L2B.MEAN",
+          "note": "Non-empty numeric Vector -> median (mean of the two middle values when even).",
+          "definedBy": "L3C"
+        },
+        {
+          "name": "L3D.MEDIAN",
+          "body": "SORT 'XS' BIND XS LENGTH 'XN' BIND XS XN 1 SUB 2 DIV FLOOR GET XS XN 2 DIV FLOOR GET ADD 2 DIV",
+          "note": "Median of a non-empty numeric Vector (mean of the two middle values when the count is even).",
+          "definedBy": "L3D"
+        }
+      ],
+      "models": [
+        "opus",
+        "sonnet",
+        "haiku",
+        "fable"
+      ]
+    },
+    {
+      "classId": "G0A.UNWORDS",
+      "definers": [
+        "G0A",
+        "G0B",
+        "G0C",
+        "L1A",
+        "L1B",
+        "L1C",
+        "L1D",
+        "L2B",
+        "L2C",
+        "L2D",
+        "L3A",
+        "L3B",
+        "L3C",
+        "L3D"
+      ],
+      "links": [
+        "d1",
+        "d0"
+      ],
+      "members": [
+        {
+          "name": "G0A.UNWORDS",
+          "body": "[ ' ' 2 COLLECT ] MAP FLATTEN -1 DROP JOIN",
+          "note": "join a non-empty Vector of Strings with single spaces",
+          "definedBy": "G0A"
+        },
+        {
+          "name": "G0B.SPACED",
+          "body": "[ ' ' 2 COLLECT JOIN ] MAP JOIN TRIM",
+          "note": "Vector of Strings joined with single spaces",
+          "definedBy": "G0B"
+        },
+        {
+          "name": "G0C.SPJOIN",
+          "body": "[ ' ' 2 COLLECT JOIN ] MAP JOIN TRIM",
+          "note": "Vector of texts joined by single spaces, no leading or trailing space.",
+          "definedBy": "G0C"
+        },
+        {
+          "name": "L1A.JOINSP",
+          "body": "[ ' ' 2 COLLECT JOIN ] MAP JOIN TRIM",
+          "note": "join a Vector of space-free Strings with single spaces ('' for empty)",
+          "definedBy": "L1A"
+        },
+        {
+          "name": "L1B.SJOIN",
+          "body": "[ ' ' 2 COLLECT JOIN ] MAP JOIN TRIM",
+          "note": "Vector of Strings joined with single spaces",
+          "definedBy": "L1B"
+        },
+        {
+          "name": "L1C.SPJOIN",
+          "body": "[ ' ' 2 COLLECT JOIN ] MAP JOIN TRIM",
+          "note": "Join a Vector of Strings with single spaces, no space at either end.",
+          "definedBy": "L1C"
+        },
+        {
+          "name": "L1D.UNWORDS",
+          "body": "[ ' ' 2 COLLECT JOIN ] MAP JOIN TRIM",
+          "note": "Vector of words -> one String joined by single spaces",
+          "definedBy": "L1D"
+        },
+        {
+          "name": "L2B.JOINSP",
+          "body": "[ ' ' 2 COLLECT ] MAP FLATTEN JOIN TRIM",
+          "note": "Vector of Strings joined with single spaces.",
+          "definedBy": "L2B"
+        },
+        {
+          "name": "L2C.JOINSP",
+          "body": "[ ' ' 2 COLLECT JOIN ] MAP JOIN TRIM",
+          "note": "Joins a Vector of texts with single spaces.",
+          "definedBy": "L2C"
+        },
+        {
+          "name": "L2D.SPJOIN",
+          "body": "'' [ 'W' BIND ' ' W 3 COLLECT JOIN ] FOLD TRIM",
+          "note": "Vector of words -> one String joined by single spaces, no space at either end.",
+          "definedBy": "L2D"
+        },
+        {
+          "name": "L3A.UNWORDS",
+          "body": "[ 'UW' BIND ' ' UW 2 COLLECT JOIN ] MAP JOIN TRIM",
+          "note": "Vector of space-free words -> one String joined by single spaces",
+          "definedBy": "L3A"
+        },
+        {
+          "name": "L3B.SPJOIN",
+          "body": "[ 1 COLLECT ' ' 1 COLLECT CONCAT JOIN ] MAP JOIN TRIM",
+          "note": "Vector of Strings joined with single spaces.",
+          "definedBy": "L3B"
+        },
+        {
+          "name": "L3C.SJ",
+          "body": "[ ' ' 2 COLLECT JOIN ] MAP JOIN CHARS -1 DROP JOIN",
+          "note": "Non-empty Vector of texts -> one text with single spaces between them.",
+          "definedBy": "L3C"
+        },
+        {
+          "name": "L3D.UNWORDS",
+          "body": "[ ' ' 2 COLLECT JOIN ] MAP JOIN TRIM",
+          "note": "Vector of Strings -> one String joined by single spaces ('' for an empty Vector).",
+          "definedBy": "L3D"
+        }
+      ],
+      "models": [
+        "opus",
+        "sonnet",
+        "haiku",
+        "fable"
+      ]
+    },
+    {
+      "classId": "G0A.ABS",
+      "definers": [
+        "G0A",
+        "G0B",
+        "G0C",
+        "G0D",
+        "L1A",
+        "L1D",
+        "L2A",
+        "L2B",
+        "L2D",
+        "L3A",
+        "L3C",
+        "L3D"
+      ],
+      "links": [
+        "d0a",
+        "d1",
+        "d0"
+      ],
+      "members": [
+        {
+          "name": "G0A.ABS",
+          "body": "'AV' BIND AV AV -1 MUL MAX",
+          "note": "absolute value, lifts over Vectors",
+          "definedBy": "G0A"
+        },
+        {
+          "name": "G0B.ABS",
+          "body": "'AD' BIND AD AD -1 MUL MAX",
+          "note": "absolute value of a scalar or element-wise of a Vector",
+          "definedBy": "G0B"
+        },
+        {
+          "name": "G0C.ABS",
+          "body": "'LD' BIND LD 0 LD SUB MAX",
+          "note": "Absolute value of an exact number.",
+          "definedBy": "G0C"
+        },
+        {
+          "name": "G0D.ABS",
+          "body": "'X' BIND X -1 MUL X X 0 LT SELECT",
+          "note": "Absolute value of a scalar, or lane by lane over a Vector.",
+          "definedBy": "G0D"
+        },
+        {
+          "name": "L1A.ABS",
+          "body": "'AB' BIND AB AB -1 MUL MAX",
+          "note": "absolute value, lifts over Vectors",
+          "definedBy": "L1A"
+        },
+        {
+          "name": "L1D.ABS",
+          "body": "'AX' BIND AX AX -1 MUL MAX",
+          "note": "absolute value of a number, lifts over Vectors",
+          "definedBy": "L1D"
+        },
+        {
+          "name": "L2A.ABS",
+          "body": "'AB' BIND AB AB -1 MUL MAX",
+          "note": "number or numeric Vector -> absolute value, lane by lane",
+          "definedBy": "L2A"
+        },
+        {
+          "name": "L2B.ABS",
+          "body": "'ZA' BIND ZA ZA -1 MUL MAX",
+          "note": "Absolute value of a number or Vector (lane-wise).",
+          "definedBy": "L2B"
+        },
+        {
+          "name": "L2D.ABS",
+          "body": "'AV' BIND AV -1 MUL AV MAX",
+          "note": "Absolute value of a number or of each element of a Vector.",
+          "definedBy": "L2D"
+        },
+        {
+          "name": "L3A.ABS",
+          "body": "'AB' BIND AB AB -1 MUL MAX",
+          "note": "absolute value; lifts over a Vector",
+          "definedBy": "L3A"
+        },
+        {
+          "name": "L3C.ABS",
+          "body": "'AB' BIND AB 0 AB SUB MAX",
+          "note": "Number or Vector -> absolute value, as max of x and minus x.",
+          "definedBy": "L3C"
+        },
+        {
+          "name": "L3D.ABS",
+          "body": "'XA' BIND XA XA -1 MUL MAX",
+          "note": "Absolute value of a number, lifting over a Vector lane by lane.",
+          "definedBy": "L3D"
+        }
+      ],
+      "models": [
+        "opus",
+        "sonnet",
+        "haiku",
+        "fable"
+      ]
+    },
+    {
+      "classId": "G0B.BYNAME",
+      "definers": [
+        "G0B",
+        "G0C",
+        "G0D",
+        "L1B",
+        "L1C",
+        "L2A",
+        "L2B",
+        "L2C",
+        "L3A",
+        "L3C"
+      ],
+      "links": [
+        "d1",
+        "d0a"
+      ],
+      "members": [
+        {
+          "name": "G0B.BYNAME",
+          "body": "'BL' BIND BL G0B.FIRSTS BL G0B.SECONDS G0B.GROUPSUM",
+          "note": "Vector of [key amount] rows -> Record key -> summed amount",
+          "definedBy": "G0B"
+        },
+        {
+          "name": "G0C.BYNAME",
+          "body": "'LV' BIND LV [ 0 GET ] MAP LV [ 1 GET ] MAP G0C.GROUPSUM",
+          "note": "Entries [name amount] to a Record from each name to its total amount.",
+          "definedBy": "G0C"
+        },
+        {
+          "name": "G0D.LEDGER-SUMS",
+          "body": "'L' BIND L [ 0 GET ] MAP L [ 1 GET ] MAP G0D.SUMS-BY",
+          "note": "Vector of [ name amount ] entries to a Record name -> summed amount.",
+          "definedBy": "G0D"
+        },
+        {
+          "name": "L1B.NAMESUMS",
+          "body": "'EN' BIND EN [ 0 GET ] MAP EN [ 1 GET ] MAP GROUP 'GR' BIND GR KEYS GR VALUES [ G0A.SUM ] MAP RECORD",
+          "note": "Vector of [name amount] to Record name -> sum, first-appearance order",
+          "definedBy": "L1B"
+        },
+        {
+          "name": "L1C.BYNAME",
+          "body": "'ENTS' BIND ENTS [ 0 GET ] MAP ENTS [ 1 GET ] MAP GROUP 'G' BIND G KEYS G VALUES [ G0A.SUM ] MAP RECORD",
+          "note": "Ledger entries to a Record from each name to the sum of its amounts, names in first-appearance order.",
+          "definedBy": "L1C"
+        },
+        {
+          "name": "L2A.BYNAME",
+          "body": "'LBV' BIND LBV [ 0 GET ] MAP LBV [ 1 GET ] MAP L2A.SUMBY",
+          "note": "Vector of [ name amount ] pairs -> Record from name to summed amount, first-appearance order",
+          "definedBy": "L2A"
+        },
+        {
+          "name": "L2B.LEDGER",
+          "body": "'ZE' BIND ZE [ 0 GET ] MAP ZE [ 1 GET ] MAP L2B.GSUM",
+          "note": "Vector of [name amount] entries to a Record name -> sum of amounts.",
+          "definedBy": "L2B"
+        },
+        {
+          "name": "L2C.BYNAME",
+          "body": "'ZL' BIND ZL [ 0 GET ] MAP ZL [ 1 GET ] MAP L2C.SUMBY",
+          "note": "Ledger entries to a Record from each name to the sum of its amounts.",
+          "definedBy": "L2C"
+        },
+        {
+          "name": "L3A.BYNAME",
+          "body": "'LE' BIND LE [ 0 GET ] MAP LE [ 1 GET ] MAP GROUP 'LG' BIND LG KEYS LG VALUES [ L2B.SUM ] MAP RECORD",
+          "note": "Vector of [ key amount ] pairs -> Record key to summed amount, first-appearance order",
+          "definedBy": "L3A"
+        },
+        {
+          "name": "L3C.BYNAME",
+          "body": "'BN' BIND BN [ 0 GET ] MAP BN [ 1 GET ] MAP GROUP 'BG' BIND BG KEYS BG VALUES [ L2B.SUM ] MAP RECORD",
+          "note": "Vector of [ name amount ] entries -> Record from name to summed amount, names in first-appearance order.",
+          "definedBy": "L3C"
+        }
+      ],
+      "models": [
+        "sonnet",
+        "haiku",
+        "fable",
+        "opus"
+      ]
+    },
+    {
+      "classId": "L1A.TOPKEY",
+      "definers": [
+        "L1A",
+        "G0A",
+        "G0B",
+        "G0D",
+        "L1D",
+        "L3A",
+        "L3B",
+        "L3C",
+        "L3D"
+      ],
+      "links": [
+        "d0a",
+        "d0",
+        "d1"
+      ],
+      "members": [
+        {
+          "name": "L1A.TOPKEY",
+          "body": "'TR' BIND TR KEYS TR VALUES L1A.ARGMAX GET",
+          "note": "key of a Record whose (numeric) value is largest, first key on ties",
+          "definedBy": "L1A"
+        },
+        {
+          "name": "G0A.TOPKEY",
+          "body": "'TK' BIND TK KEYS TK VALUES G0A.ARGMAX GET",
+          "note": "key of a Record whose numeric value is largest, first on ties",
+          "definedBy": "G0A"
+        },
+        {
+          "name": "G0B.TOPKEY",
+          "body": "'TR' BIND TR KEYS TR VALUES G0B.ARGMAX GET",
+          "note": "Record of key->number: the key with the largest value, first on ties",
+          "definedBy": "G0B"
+        },
+        {
+          "name": "G0D.TOP-KEY",
+          "body": "'T' BIND T KEYS T VALUES G0D.ARGMAX GET",
+          "note": "Key of a Record whose numeric value is largest; the first key on ties.",
+          "definedBy": "G0D"
+        },
+        {
+          "name": "L1D.TOPKEY",
+          "body": "'TR' BIND TR KEYS TR VALUES L1D.ARGMAX GET",
+          "note": "Record with numeric values -> the key with the largest value, the earliest key when tied",
+          "definedBy": "L1D"
+        },
+        {
+          "name": "L3A.ARGMAXKEY",
+          "body": "'AK' BIND AK KEYS AK VALUES L3A.ARGMAX GET",
+          "note": "Record of numbers -> key holding the largest value, first on ties",
+          "definedBy": "L3A"
+        },
+        {
+          "name": "L3B.TOPKEY",
+          "body": "'TR' BIND TR KEYS TR VALUES 'TV' BIND TV TV G0C.MAXV LT NOT L1D.WHERE 0 GET GET",
+          "note": "Record of key -> number to the first key holding the largest value.",
+          "definedBy": "L3B"
+        },
+        {
+          "name": "L3C.ARGMAX",
+          "body": "'AR' BIND AR KEYS 'AK' BIND AR VALUES 'AS' BIND AS G0C.MAXV 'AM' BIND AK AS [ AM EQ ] MAP L1D.WHERE 0 GET GET",
+          "note": "Record of numbers -> the key with the largest value, the first such key on ties.",
+          "definedBy": "L3C"
+        },
+        {
+          "name": "L3D.TOPKEY",
+          "body": "'XR' BIND XR KEYS XR VALUES L3D.ARGMAX GET",
+          "note": "Record with numeric values -> the key holding the largest value, the first such key on a tie.",
+          "definedBy": "L3D"
+        }
+      ],
+      "models": [
+        "opus",
+        "sonnet",
+        "fable",
+        "haiku"
+      ]
+    },
+    {
+      "classId": "G0C.ORDERS",
+      "definers": [
+        "G0C",
+        "L2A",
+        "G0A",
+        "G0B",
+        "G0D",
+        "L2B",
+        "L2C",
+        "L2D"
+      ],
+      "links": [
+        "d0",
+        "d1",
+        "d0a"
+      ],
+      "members": [
+        {
+          "name": "G0C.ORDERS",
+          "body": "JSON-DECODE 'orders' GET",
+          "note": "JSON text to the Vector of its order Records.",
+          "definedBy": "G0C"
+        },
+        {
+          "name": "L2A.ORDERS",
+          "body": "JSON-DECODE 'orders' GET",
+          "note": "JSON String with an orders array -> Vector of order Records",
+          "definedBy": "L2A"
+        },
+        {
+          "name": "G0A.REVENUE",
+          "body": "JSON-DECODE 'orders' GET [ 'RO' BIND RO 'price' GET 'RP' BIND 0 RP RP NIL? SELECT RO 'qty' GET MUL ] MAP G0A.SUM",
+          "note": "orders JSON text -> total qty*price over priced orders",
+          "definedBy": "G0A"
+        },
+        {
+          "name": "G0A.QTYBY",
+          "body": "JSON-DECODE 'orders' GET 'QO' BIND QO [ 'sku' GET ] MAP QO [ 'qty' GET ] MAP G0A.SUMBY",
+          "note": "orders JSON text -> Record sku to total qty",
+          "definedBy": "G0A"
+        },
+        {
+          "name": "G0B.REVENUE",
+          "body": "JSON-DECODE 'orders' GET [ G0B.ORDVAL ] MAP G0B.SUM",
+          "note": "orders JSON String -> total qty*price over priced orders",
+          "definedBy": "G0B"
+        },
+        {
+          "name": "G0B.QTYBYSKU",
+          "body": "JSON-DECODE 'orders' GET 'OL' BIND OL [ 'sku' GET ] MAP OL [ 'qty' GET ] MAP G0B.GROUPSUM",
+          "note": "orders JSON String -> Record sku -> summed qty",
+          "definedBy": "G0B"
+        },
+        {
+          "name": "G0C.REVENUE",
+          "body": "G0C.ORDERS [ 'price' HAS? ] FILTER [ G0C.LINE ] MAP G0C.SUM",
+          "note": "Total of qty times price over the priced orders, from the JSON text.",
+          "definedBy": "G0C"
+        },
+        {
+          "name": "G0C.SKUQTY",
+          "body": "G0C.ORDERS 'LO' BIND LO [ 'sku' GET ] MAP LO [ 'qty' GET ] MAP G0C.GROUPSUM",
+          "note": "From the JSON text, a Record from each sku to its total qty.",
+          "definedBy": "G0C"
+        },
+        {
+          "name": "G0C.TAGCOUNTS",
+          "body": "G0C.ORDERS [ 'tags' HAS? ] FILTER [ 'tags' GET UNIQUE ] MAP FLATTEN TALLY",
+          "note": "From the JSON text, a Record from each tag to the number of orders carrying it.",
+          "definedBy": "G0C"
+        },
+        {
+          "name": "G0D.ORDERS",
+          "body": "JSON-DECODE 'orders' GET",
+          "note": "The orders array of a JSON order document, as a Vector of Records.",
+          "definedBy": "G0D"
+        },
+        {
+          "name": "G0D.REVENUE",
+          "body": "G0D.ORDERS [ 'price' HAS? ] FILTER [ 'O' BIND O 'qty' GET O 'price' GET MUL ] MAP 0 [ ADD ] FOLD",
+          "note": "Sum of qty*price over the priced orders of a JSON order document.",
+          "definedBy": "G0D"
+        },
+        {
+          "name": "L2A.REVENUE",
+          "body": "L2A.ORDERS [ 'price' GET NIL? NOT ] FILTER [ 'OQ' BIND OQ 'qty' GET OQ 'price' GET MUL ] MAP 0 [ ADD ] FOLD",
+          "note": "orders JSON String -> total qty*price over orders that have a price",
+          "definedBy": "L2A"
+        },
+        {
+          "name": "L2A.QTYBYSKU",
+          "body": "L2A.ORDERS 'OO' BIND OO [ 'sku' GET ] MAP OO [ 'qty' GET ] MAP L2A.SUMBY",
+          "note": "orders JSON String -> Record from sku to summed qty, first-appearance order",
+          "definedBy": "L2A"
+        },
+        {
+          "name": "L2A.TAGCOUNTS",
+          "body": "L2A.ORDERS [ 'tags' HAS? ] FILTER [ 'tags' GET UNIQUE ] MAP [ ] [ CONCAT ] FOLD TALLY",
+          "note": "orders JSON String -> Record from tag to number of orders carrying it",
+          "definedBy": "L2A"
+        },
+        {
+          "name": "L2B.ORDERS",
+          "body": "JSON-DECODE 'orders' GET",
+          "note": "JSON String to the Vector of order Records.",
+          "definedBy": "L2B"
+        },
+        {
+          "name": "L2B.REVENUE",
+          "body": "L2B.ORDERS [ L2B.LINE ] MAP L2B.SUM",
+          "note": "JSON orders String to total revenue.",
+          "definedBy": "L2B"
+        },
+        {
+          "name": "L2C.ORDERS",
+          "body": "JSON-DECODE 'orders' GET",
+          "note": "JSON text with an orders key to the Vector of order Records.",
+          "definedBy": "L2C"
+        },
+        {
+          "name": "L2D.ORDERS",
+          "body": "JSON-DECODE 'orders' GET",
+          "note": "JSON String with an \"orders\" array -> Vector of the order Records.",
+          "definedBy": "L2D"
+        }
+      ],
+      "models": [
+        "haiku",
+        "opus",
+        "sonnet",
+        "fable"
+      ]
+    },
+    {
+      "classId": "G0A.MEAN",
+      "definers": [
+        "G0A",
+        "L2B",
+        "G0B",
+        "G0C",
+        "G0D",
+        "L2A",
+        "L2C",
+        "L2D"
+      ],
+      "links": [
+        "d0a",
+        "d0",
+        "d1"
+      ],
+      "members": [
+        {
+          "name": "G0A.MEAN",
+          "body": "'MV' BIND MV G0A.SUM MV LENGTH DIV",
+          "note": "arithmetic mean of a Vector",
+          "definedBy": "G0A"
+        },
+        {
+          "name": "L2B.MEAN",
+          "body": "'ZV' BIND ZV L2B.SUM ZV LENGTH DIV",
+          "note": "Arithmetic mean of a non-empty numeric Vector, a bare scalar.",
+          "definedBy": "L2B"
+        },
+        {
+          "name": "G0B.MEAN",
+          "body": "'MV' BIND MV G0B.SUM MV LENGTH DIV",
+          "note": "arithmetic mean of a Vector",
+          "definedBy": "G0B"
+        },
+        {
+          "name": "G0C.MEAN",
+          "body": "'LV' BIND LV G0C.SUM LV LENGTH DIV",
+          "note": "Arithmetic mean of a non-empty numeric Vector.",
+          "definedBy": "G0C"
+        },
+        {
+          "name": "G0D.MEAN",
+          "body": "'V' BIND V G0D.SUM V LENGTH DIV",
+          "note": "Arithmetic mean of a non-empty Vector of numbers.",
+          "definedBy": "G0D"
+        },
+        {
+          "name": "L2A.MEAN",
+          "body": "'AV' BIND AV 0 [ ADD ] FOLD AV LENGTH DIV",
+          "note": "non-empty numeric Vector -> arithmetic mean",
+          "definedBy": "L2A"
+        },
+        {
+          "name": "L2C.MEAN",
+          "body": "'ZV' BIND ZV L2C.SUM ZV LENGTH DIV",
+          "note": "Arithmetic mean of a non-empty Vector of numbers.",
+          "definedBy": "L2C"
+        },
+        {
+          "name": "L2D.MEAN",
+          "body": "'MV' BIND MV 0 [ ADD ] FOLD MV LENGTH DIV",
+          "note": "Arithmetic mean of a non-empty numeric Vector.",
+          "definedBy": "L2D"
+        }
+      ],
+      "models": [
+        "opus",
+        "sonnet",
+        "haiku",
+        "fable"
+      ]
+    },
+    {
+      "classId": "G0A.SUMBY",
+      "definers": [
+        "G0A",
+        "G0B",
+        "G0C",
+        "G0D",
+        "L2A",
+        "L2B",
+        "L2C",
+        "L2D"
+      ],
+      "links": [
+        "d0a",
+        "d1"
+      ],
+      "members": [
+        {
+          "name": "G0A.SUMBY",
+          "body": "GROUP 'GR' BIND GR KEYS GR VALUES [ G0A.SUM ] MAP RECORD",
+          "note": "keys values -> Record key to sum of its values, first-appearance order",
+          "definedBy": "G0A"
+        },
+        {
+          "name": "G0B.GROUPSUM",
+          "body": "GROUP 'GG' BIND GG KEYS GG VALUES [ G0B.SUM ] MAP RECORD",
+          "note": "keys-vector values-vector -> Record key -> sum of its values, first-appearance order",
+          "definedBy": "G0B"
+        },
+        {
+          "name": "G0C.GROUPSUM",
+          "body": "GROUP 'LG' BIND LG KEYS LG VALUES [ G0C.SUM ] MAP RECORD",
+          "note": "Keys Vector and values Vector to a Record from each key to the sum of its values, keys in first-appearance order.",
+          "definedBy": "G0C"
+        },
+        {
+          "name": "G0D.SUMS-BY",
+          "body": "GROUP 'G' BIND G KEYS G VALUES [ 0 [ ADD ] FOLD ] MAP RECORD",
+          "note": "keys values G0D.SUMS-BY leaves a Record from each key to the sum of its values, keys in first-appearance order.",
+          "definedBy": "G0D"
+        },
+        {
+          "name": "L2A.SUMBY",
+          "body": "'SBV' BIND 'SBK' BIND SBK SBV GROUP 'SBG' BIND SBG KEYS SBG VALUES [ 0 [ ADD ] FOLD ] MAP RECORD",
+          "note": "keys Vector, numbers Vector -> Record from each key to the sum of its numbers, keys in first-appearance order",
+          "definedBy": "L2A"
+        },
+        {
+          "name": "L2B.GSUM",
+          "body": "GROUP 'ZG' BIND ZG KEYS ZG VALUES [ L2B.SUM ] MAP RECORD",
+          "note": "keys-Vector values-Vector to a Record from each key to the sum of its values, keys in first-appearance order.",
+          "definedBy": "L2B"
+        },
+        {
+          "name": "L2C.SUMBY",
+          "body": "GROUP 'ZR' BIND ZR KEYS ZR VALUES [ L2C.SUM ] MAP RECORD",
+          "note": "Keys Vector and values Vector to a Record from each key to the sum of its values, keys in first-appearance order.",
+          "definedBy": "L2C"
+        },
+        {
+          "name": "L2D.SUMBY",
+          "body": "GROUP 'G' BIND G KEYS G VALUES [ L2D.SUM ] MAP RECORD",
+          "note": "keys Vector, values Vector -> Record from each key to the sum of its values, keys in order of first appearance.",
+          "definedBy": "L2D"
+        }
+      ],
+      "models": [
+        "opus",
+        "sonnet",
+        "haiku",
+        "fable"
+      ]
+    },
+    {
+      "classId": "G0A.VAR",
+      "definers": [
+        "G0A",
+        "G0B",
+        "G0C",
+        "G0D",
+        "L2A",
+        "L2B",
+        "L2C",
+        "L2D"
+      ],
+      "links": [
+        "d0a",
+        "d1"
+      ],
+      "members": [
+        {
+          "name": "G0A.VAR",
+          "body": "G0A.DEVS 'VD' BIND VD VD MUL G0A.MEAN",
+          "note": "population variance",
+          "definedBy": "G0A"
+        },
+        {
+          "name": "G0B.VAR",
+          "body": "G0B.DEV 'DD' BIND DD DD MUL G0B.MEAN",
+          "note": "population variance",
+          "definedBy": "G0B"
+        },
+        {
+          "name": "G0C.VAR",
+          "body": "'LV' BIND LV G0C.MEAN 'LM' BIND LV [ LM SUB G0C.SQ ] MAP G0C.MEAN",
+          "note": "Population variance of a numeric Vector.",
+          "definedBy": "G0C"
+        },
+        {
+          "name": "G0D.VARIANCE",
+          "body": "'V' BIND V V G0D.MEAN SUB 'D' BIND D D MUL G0D.MEAN",
+          "note": "Population variance of a Vector of numbers.",
+          "definedBy": "G0D"
+        },
+        {
+          "name": "L2A.VAR",
+          "body": "'VV' BIND VV VV L2A.MEAN SUB 'VD' BIND VD VD MUL L2A.MEAN",
+          "note": "non-empty numeric Vector -> population variance",
+          "definedBy": "L2A"
+        },
+        {
+          "name": "L2B.VAR",
+          "body": "L2B.DEV 'ZD' BIND ZD ZD MUL L2B.MEAN",
+          "note": "Population variance of a numeric Vector.",
+          "definedBy": "L2B"
+        },
+        {
+          "name": "L2C.VAR",
+          "body": "'ZS' BIND ZS L2C.MEAN 'ZM' BIND ZS ZM SUB 'ZD' BIND ZD ZD MUL L2C.MEAN",
+          "note": "Population variance of a non-empty Vector of numbers.",
+          "definedBy": "L2C"
+        },
+        {
+          "name": "L2D.VAR",
+          "body": "'VX' BIND VX VX L2D.MEAN SUB 'VD' BIND VD VD MUL L2D.MEAN",
+          "note": "Population variance of a numeric Vector (mean of squared deviations).",
+          "definedBy": "L2D"
+        }
+      ],
+      "models": [
+        "opus",
+        "sonnet",
+        "haiku",
+        "fable"
+      ]
+    },
+    {
+      "classId": "G0A.SUM",
+      "definers": [
+        "G0A",
+        "L2B",
+        "G0B",
+        "G0C",
+        "G0D",
+        "L2C",
+        "L2D"
+      ],
+      "links": [
+        "d0"
+      ],
+      "members": [
+        {
+          "name": "G0A.SUM",
+          "body": "0 [ ADD ] FOLD",
+          "note": "sum of a Vector of numbers (0 for empty)",
+          "definedBy": "G0A"
+        },
+        {
+          "name": "L2B.SUM",
+          "body": "0 [ ADD ] FOLD",
+          "note": "Vector of numbers to its sum (0 for empty).",
+          "definedBy": "L2B"
+        },
+        {
+          "name": "G0B.SUM",
+          "body": "0 [ ADD ] FOLD",
+          "note": "sum of a Vector of numbers (0 when empty)",
+          "definedBy": "G0B"
+        },
+        {
+          "name": "G0C.SUM",
+          "body": "0 [ ADD ] FOLD",
+          "note": "Sum of a numeric Vector; 0 for an empty one.",
+          "definedBy": "G0C"
+        },
+        {
+          "name": "G0D.SUM",
+          "body": "0 [ ADD ] FOLD",
+          "note": "Sum of a Vector of numbers (0 for an empty Vector).",
+          "definedBy": "G0D"
+        },
+        {
+          "name": "L2C.SUM",
+          "body": "0 [ ADD ] FOLD",
+          "note": "Sum of a Vector of numbers (0 for an empty Vector).",
+          "definedBy": "L2C"
+        },
+        {
+          "name": "L2D.SUM",
+          "body": "0 [ ADD ] FOLD",
+          "note": "Sum of a numeric Vector (0 for an empty one).",
+          "definedBy": "L2D"
+        }
+      ],
+      "models": [
+        "opus",
+        "sonnet",
+        "haiku",
+        "fable"
+      ]
+    },
+    {
+      "classId": "L1A.ARGMAX",
+      "definers": [
+        "L1A",
+        "G0A",
+        "G0B",
+        "G0D",
+        "L1D",
+        "L3A",
+        "L3D"
+      ],
+      "links": [
+        "d0"
+      ],
+      "members": [
+        {
+          "name": "L1A.ARGMAX",
+          "body": "-1 MUL ORDER 0 GET",
+          "note": "index of the largest number in a Vector, first on ties",
+          "definedBy": "L1A"
+        },
+        {
+          "name": "G0A.ARGMAX",
+          "body": "-1 MUL ORDER 0 GET",
+          "note": "index of the largest number in a Vector, first on ties",
+          "definedBy": "G0A"
+        },
+        {
+          "name": "G0B.ARGMAX",
+          "body": "-1 MUL ORDER 0 GET",
+          "note": "index of the first largest element of a Vector of numbers",
+          "definedBy": "G0B"
+        },
+        {
+          "name": "G0D.ARGMAX",
+          "body": "-1 MUL ORDER 0 GET",
+          "note": "Index of the largest number in a Vector; the first one on ties.",
+          "definedBy": "G0D"
+        },
+        {
+          "name": "L1D.ARGMAX",
+          "body": "-1 MUL ORDER 0 GET",
+          "note": "index of the largest number in a Vector, the first one when tied",
+          "definedBy": "L1D"
+        },
+        {
+          "name": "L3A.ARGMAX",
+          "body": "-1 MUL ORDER 0 GET",
+          "note": "non-empty numeric Vector -> index of its largest element, first on ties",
+          "definedBy": "L3A"
+        },
+        {
+          "name": "L3D.ARGMAX",
+          "body": "-1 MUL ORDER 0 GET",
+          "note": "Index of the first largest element of a non-empty numeric Vector (ties go to the earliest).",
+          "definedBy": "L3D"
+        }
+      ],
+      "models": [
+        "opus",
+        "sonnet",
+        "fable"
+      ]
+    },
+    {
+      "classId": "G0A.MOD",
+      "definers": [
+        "G0A",
+        "L2A",
+        "G0B",
+        "G0C",
+        "G0D",
+        "L2D"
+      ],
+      "links": [
+        "d0",
+        "d0a"
+      ],
+      "members": [
+        {
+          "name": "G0A.MOD",
+          "body": "'MB' BIND 'MA' BIND MA MA MB DIV FLOOR MB MUL SUB",
+          "note": "a b -> a mod b (floored), lifts over Vectors",
+          "definedBy": "G0A"
+        },
+        {
+          "name": "L2A.MOD",
+          "body": "'MB' BIND 'MA' BIND MA MA MB DIV FLOOR MB MUL SUB",
+          "note": "a b -> a - b * floor(a/b); lifts over a Vector in either operand",
+          "definedBy": "L2A"
+        },
+        {
+          "name": "G0B.MOD",
+          "body": "'MB' BIND 'MA' BIND MA MA MB DIV FLOOR MB MUL SUB",
+          "note": "a b -> a mod b (floor remainder)",
+          "definedBy": "G0B"
+        },
+        {
+          "name": "G0C.MOD",
+          "body": "'LB' BIND 'LA' BIND LA LA LB DIV FLOOR LB MUL SUB",
+          "note": "Remainder a mod b for a stack pair [a b] with a below b.",
+          "definedBy": "G0C"
+        },
+        {
+          "name": "G0D.MOD",
+          "body": "'B' BIND 'A' BIND A A B DIV FLOOR B MUL SUB",
+          "note": "a b G0D.MOD leaves a - b*floor(a/b), the remainder.",
+          "definedBy": "G0D"
+        },
+        {
+          "name": "L2D.MOD",
+          "body": "'MB' BIND 'MA' BIND MA MA MB DIV FLOOR MB MUL SUB",
+          "note": "a b -> a modulo b (a - b*floor(a/b)); lifts over Vectors in either operand.",
+          "definedBy": "L2D"
+        }
+      ],
+      "models": [
+        "opus",
+        "sonnet",
+        "haiku",
+        "fable"
+      ]
+    },
+    {
+      "classId": "G0A.LEDGER",
+      "definers": [
+        "G0A",
+        "L1A",
+        "L1D",
+        "L3B",
+        "L3D"
+      ],
+      "links": [
+        "d1",
+        "d0a"
+      ],
+      "members": [
+        {
+          "name": "G0A.LEDGER",
+          "body": "ZIP 'LZ' BIND LZ 0 GET LZ 1 GET G0A.SUMBY",
+          "note": "Vector of [name amount] pairs -> Record name to total",
+          "definedBy": "G0A"
+        },
+        {
+          "name": "L1A.BYNAME",
+          "body": "ZIP 'LZ' BIND LZ 0 GET LZ 1 GET GROUP 'LG' BIND LG KEYS LG VALUES [ G0A.SUM ] MAP RECORD",
+          "note": "Vector of [key amount] pairs to Record key -> summed amount, first-appearance order",
+          "definedBy": "L1A"
+        },
+        {
+          "name": "L1D.BY-NAME",
+          "body": "'LE' BIND LE L1D.NAMES LE L1D.AMOUNTS GROUP 'LG' BIND LG KEYS LG VALUES [ G0A.SUM ] MAP RECORD",
+          "note": "Vector of [ name amount ] pairs -> Record name -> sum of its amounts, names in first-appearance order",
+          "definedBy": "L1D"
+        },
+        {
+          "name": "L3B.BYNAME",
+          "body": "ZIP 'ZZ' BIND ZZ 0 GET ZZ 1 GET GROUP 'GG' BIND GG KEYS GG VALUES [ L2B.SUM ] MAP RECORD",
+          "note": "Vector of [name amount] entries to Record name -> sum of amounts, first-appearance order.",
+          "definedBy": "L3B"
+        },
+        {
+          "name": "L3D.SUMS",
+          "body": "ZIP 'XT' BIND XT 0 GET XT 1 GET GROUP 'XG' BIND XG KEYS XG VALUES [ L2B.SUM ] MAP RECORD",
+          "note": "Vector of [ name amount ] pairs -> Record name -> sum of its amounts, names in order of first appearance.",
+          "definedBy": "L3D"
+        }
+      ],
+      "models": [
+        "opus",
+        "fable",
+        "sonnet"
+      ]
+    },
+    {
+      "classId": "L1A.BRVAL",
+      "definers": [
+        "L1A",
+        "L1B",
+        "L1D",
+        "L3A",
+        "L3D"
+      ],
+      "links": [
+        "d1",
+        "d0a"
+      ],
+      "members": [
+        {
+          "name": "L1A.BRVAL",
+          "body": "CHARS [ 'BX' BIND 1 -1 BX '(' EQ NOT BX '[' EQ NOT AND NOT SELECT ] MAP",
+          "note": "bracket String to Vector of +1 (opener) / -1 (closer)",
+          "definedBy": "L1A"
+        },
+        {
+          "name": "L1B.DELTAS",
+          "body": "'[' '(' REPLACE ']' ')' REPLACE CHARS [ 'CH' BIND 1 -1 CH '(' EQ SELECT ] MAP",
+          "note": "bracket String to Vector of +1 (opener) / -1 (closer)",
+          "definedBy": "L1B"
+        },
+        {
+          "name": "L1D.BSIGNS",
+          "body": "CHARS [ 'C' BIND 1 -1 '([' C SEARCH NIL? NOT SELECT ] MAP",
+          "note": "bracket String -> Vector of +1 per opening bracket and -1 per closing bracket",
+          "definedBy": "L1D"
+        },
+        {
+          "name": "L3A.STEPS",
+          "body": "'[' '(' REPLACE ']' ')' REPLACE CHARS [ 'BC' BIND 1 -1 BC '(' EQ SELECT ] MAP",
+          "note": "bracket String -> Vector of +1 per opening and -1 per closing bracket",
+          "definedBy": "L3A"
+        },
+        {
+          "name": "L3D.DELTAS",
+          "body": "CHARS [ 'XC' BIND 1 -1 '([' XC SEARCH NIL? NOT SELECT ] MAP",
+          "note": "Bracket String -> Vector of +1 for each opener ( [ and -1 for each closer ) ].",
+          "definedBy": "L3D"
+        }
+      ],
+      "models": [
+        "opus",
+        "sonnet",
+        "fable"
+      ]
+    },
+    {
+      "classId": "L1B.REDUCE",
+      "definers": [
+        "L1B",
+        "L1D",
+        "L3A",
+        "L3B",
+        "L3D"
+      ],
+      "links": [
+        "d1",
+        "d0"
+      ],
+      "members": [
+        {
+          "name": "L1B.REDUCE",
+          "body": "'RS' BIND 1 6 RANGE RS [ 'IGN' BIND '()' '' REPLACE '[]' '' REPLACE ] FOLD",
+          "note": "delete adjacent () and [] pairs six times; leaves the reduced String",
+          "definedBy": "L1B"
+        },
+        {
+          "name": "L1D.BREDUCE",
+          "body": "'S' BIND [ '()' '()' '()' '()' '()' '()' ] S [ '' REPLACE '[]' '' REPLACE ] FOLD",
+          "note": "bracket String (up to 12 chars) with every adjacent matched pair () or [] repeatedly deleted",
+          "definedBy": "L1D"
+        },
+        {
+          "name": "L3A.RED1",
+          "body": "'()' '' REPLACE '[]' '' REPLACE",
+          "note": "one round of deleting adjacent matched pairs () and []",
+          "definedBy": "L3A"
+        },
+        {
+          "name": "L3A.REDUCE",
+          "body": "L3A.RED1 L3A.RED1 L3A.RED1 L3A.RED1 L3A.RED1 L3A.RED1",
+          "note": "bracket String (<=12 chars) -> what remains after deleting matched pairs until none is left",
+          "definedBy": "L3A"
+        },
+        {
+          "name": "L3B.RED1",
+          "body": "'()' '' REPLACE '[]' '' REPLACE",
+          "note": "String of brackets with every adjacent () and [] pair deleted once.",
+          "definedBy": "L3B"
+        },
+        {
+          "name": "L3B.RED6",
+          "body": "L3B.RED1 L3B.RED1 L3B.RED1 L3B.RED1 L3B.RED1 L3B.RED1",
+          "note": "Bracket String fully reduced by deleting matched pairs (enough rounds for up to 12 characters).",
+          "definedBy": "L3B"
+        },
+        {
+          "name": "L3D.RED1",
+          "body": "'()' '' REPLACE '[]' '' REPLACE",
+          "note": "One round of deleting every adjacent '()' and '[]' pair from a bracket String.",
+          "definedBy": "L3D"
+        },
+        {
+          "name": "L3D.REDUCE",
+          "body": "L3D.RED1 L3D.RED1 L3D.RED1 L3D.RED1 L3D.RED1 L3D.RED1",
+          "note": "Bracket String of at most 12 characters with every adjacent matched pair deleted repeatedly (6 rounds); '' when balanced.",
+          "definedBy": "L3D"
+        }
+      ],
+      "models": [
+        "sonnet",
+        "fable",
+        "opus"
+      ]
+    },
+    {
+      "classId": "G0A.WORDS",
+      "definers": [
+        "G0A",
+        "G0B",
+        "G0C",
+        "G0D"
+      ],
+      "links": [
+        "d1",
+        "d0"
+      ],
+      "members": [
+        {
+          "name": "G0A.WORDS",
+          "body": "' ' TOKENIZE [ '' EQ NOT ] FILTER",
+          "note": "split a String on spaces, dropping empty pieces",
+          "definedBy": "G0A"
+        },
+        {
+          "name": "G0B.WORDS",
+          "body": "LOWER ' ' TOKENIZE [ CHARS LENGTH 0 GT ] FILTER",
+          "note": "String -> lower-case words split on spaces, empty pieces dropped",
+          "definedBy": "G0B"
+        },
+        {
+          "name": "G0C.WORDS",
+          "body": "' ' TOKENIZE [ '' EQ NOT ] FILTER",
+          "note": "Text to the Vector of its non-empty space-separated words.",
+          "definedBy": "G0C"
+        },
+        {
+          "name": "G0D.WORDS",
+          "body": "' ' TOKENIZE [ '' EQ NOT ] FILTER",
+          "note": "Split a String on spaces into its non-empty words (any spacing, leading/trailing spaces allowed).",
+          "definedBy": "G0D"
+        }
+      ],
+      "models": [
+        "opus",
+        "sonnet",
+        "haiku",
+        "fable"
+      ]
+    },
+    {
+      "classId": "G0C.MAD",
+      "definers": [
+        "G0C",
+        "L1A",
+        "L2A",
+        "L3A"
+      ],
+      "links": [
+        "d1",
+        "d0a"
+      ],
+      "members": [
+        {
+          "name": "G0C.MAD",
+          "body": "'LV' BIND LV G0C.MEDIAN 'LM' BIND LV [ LM SUB G0C.ABS ] MAP G0C.MEDIAN",
+          "note": "Median absolute deviation of a numeric Vector.",
+          "definedBy": "G0C"
+        },
+        {
+          "name": "L1A.MAD",
+          "body": "'QV' BIND QV QV L1A.MEDIAN SUB L1A.ABS L1A.MEDIAN",
+          "note": "median absolute deviation of a numeric Vector",
+          "definedBy": "L1A"
+        },
+        {
+          "name": "L2A.MAD",
+          "body": "'MV' BIND MV MV L2A.MEDIAN SUB L2A.ABS L2A.MEDIAN",
+          "note": "numeric Vector -> median absolute deviation from the median",
+          "definedBy": "L2A"
+        },
+        {
+          "name": "L3A.MAD",
+          "body": "'DV' BIND DV DV L3A.MEDIAN SUB L3A.ABS L3A.MEDIAN",
+          "note": "non-empty numeric Vector -> median absolute deviation from the median",
+          "definedBy": "L3A"
+        }
+      ],
+      "models": [
+        "haiku",
+        "opus"
+      ]
+    },
+    {
+      "classId": "G0D.DIVISORS",
+      "definers": [
+        "G0D",
+        "L2A",
+        "L2C",
+        "L2D"
+      ],
+      "links": [
+        "d1",
+        "d0a"
+      ],
+      "members": [
+        {
+          "name": "G0D.DIVISORS",
+          "body": "'K' BIND 1 K RANGE [ 'D' BIND K K D DIV FLOOR D MUL SUB 0 EQ ] FILTER",
+          "note": "Ascending Vector of the positive divisors of a positive integer.",
+          "definedBy": "G0D"
+        },
+        {
+          "name": "L2A.DIVISORS",
+          "body": "'DN' BIND 1 DN RANGE [ 'DD' BIND DN DD L2A.MOD 0 EQ ] FILTER",
+          "note": "positive integer -> ascending Vector of its positive divisors",
+          "definedBy": "L2A"
+        },
+        {
+          "name": "L2C.DIVS",
+          "body": "'ZN' BIND 1 ZN RANGE [ 'ZD' BIND ZN ZD DIV FLOOR ZD MUL ZN EQ ] FILTER",
+          "note": "Ascending positive divisors of a positive integer N.",
+          "definedBy": "L2C"
+        },
+        {
+          "name": "L2D.DIVISORS",
+          "body": "'DN' BIND 1 DN RANGE [ 'D' BIND DN D L2D.MOD 0 EQ ] FILTER",
+          "note": "Positive integer -> Vector of its positive divisors, ascending.",
+          "definedBy": "L2D"
+        }
+      ],
+      "models": [
+        "fable",
+        "opus",
+        "haiku"
+      ]
+    },
+    {
+      "classId": "G0A.DEVS",
+      "definers": [
+        "G0A",
+        "G0B",
+        "L2B"
+      ],
+      "links": [
+        "d0",
+        "d0a"
+      ],
+      "members": [
+        {
+          "name": "G0A.DEVS",
+          "body": "'DV' BIND DV DV G0A.MEAN SUB",
+          "note": "each number minus the mean",
+          "definedBy": "G0A"
+        },
+        {
+          "name": "G0B.DEV",
+          "body": "'DV' BIND DV DV G0B.MEAN SUB",
+          "note": "each number minus the mean",
+          "definedBy": "G0B"
+        },
+        {
+          "name": "L2B.DEV",
+          "body": "'ZW' BIND ZW ZW L2B.MEAN SUB",
+          "note": "Vector of each number minus the mean.",
+          "definedBy": "L2B"
+        }
+      ],
+      "models": [
+        "opus",
+        "sonnet"
+      ]
+    },
+    {
+      "classId": "G0B.ORDVAL",
+      "definers": [
+        "G0B",
+        "G0C",
+        "L2B"
+      ],
+      "links": [
+        "d1"
+      ],
+      "members": [
+        {
+          "name": "G0B.ORDVAL",
+          "body": "'OO' BIND OO 'price' GET 'OP' BIND 0 OP OP NIL? SELECT OO 'qty' GET MUL",
+          "note": "order Record -> qty times price, 0 when it has no price",
+          "definedBy": "G0B"
+        },
+        {
+          "name": "G0C.LINE",
+          "body": "'LR' BIND LR 'qty' GET LR 'price' GET MUL",
+          "note": "qty times price of one order Record.",
+          "definedBy": "G0C"
+        },
+        {
+          "name": "L2B.LINE",
+          "body": "'ZO' BIND ZO 'qty' GET ZO L2B.PRICE MUL",
+          "note": "Order Record to qty times price (0 when unpriced).",
+          "definedBy": "L2B"
+        }
+      ],
+      "models": [
+        "sonnet",
+        "haiku"
+      ]
+    },
+    {
+      "classId": "L1A.BALPREFIX",
+      "definers": [
+        "L1A",
+        "L1B",
+        "L3A"
+      ],
+      "links": [
+        "d1"
+      ],
+      "members": [
+        {
+          "name": "L1A.BALPREFIX",
+          "body": "CHARS [ '#' ] [ L1A.BRSTEP ] SCAN 'BP' BIND BP [ LENGTH 0 MUL 1 ADD ] MAP 0 [ ADD ] SCAN [ 'BI' BIND BI 0 BP BI 1 SUB GET LENGTH 1 EQ SELECT ] MAP 0 [ MAX ] FOLD",
+          "note": "length of the longest balanced prefix of a bracket String",
+          "definedBy": "L1A"
+        },
+        {
+          "name": "L1B.BPREFIX",
+          "body": "CHARS 'CV' BIND 0 CV LENGTH RANGE [ 'KK' BIND KK 0 CV KK TAKE JOIN L1B.BALANCED SELECT ] MAP 0 [ MAX ] FOLD",
+          "note": "length of longest balanced prefix of a bracket String",
+          "definedBy": "L1B"
+        },
+        {
+          "name": "L3A.BPREFIX",
+          "body": "CHARS 'PC' BIND 0 PC LENGTH RANGE [ 'PK' BIND PC PK TAKE JOIN L3A.REDUCE '' EQ ] FILTER 0 [ MAX ] FOLD",
+          "note": "bracket String -> length of its longest balanced prefix",
+          "definedBy": "L3A"
+        }
+      ],
+      "models": [
+        "opus",
+        "sonnet"
+      ]
+    },
+    {
+      "classId": "L1A.PRESENT",
+      "definers": [
+        "L1A",
+        "L1D",
+        "L3A"
+      ],
+      "links": [
+        "d1",
+        "d0"
+      ],
+      "members": [
+        {
+          "name": "L1A.PRESENT",
+          "body": "[ NIL? NOT ] FILTER",
+          "note": "drop NIL elements of a Vector",
+          "definedBy": "L1A"
+        },
+        {
+          "name": "L1A.FFILL",
+          "body": "'FV' BIND FV FV L1A.PRESENT 0 GET [ 'FX' BIND 'FA' BIND FA FX FX NIL? SELECT ] SCAN",
+          "note": "forward-fill NILs; leading NILs take the first present value",
+          "definedBy": "L1A"
+        },
+        {
+          "name": "L1D.PRESENT",
+          "body": "[ NIL? NOT ] FILTER",
+          "note": "Vector -> the same Vector without its NIL elements",
+          "definedBy": "L1D"
+        },
+        {
+          "name": "L3A.PRESENT",
+          "body": "[ NIL? NOT ] FILTER",
+          "note": "Vector -> its non-NIL elements",
+          "definedBy": "L3A"
+        },
+        {
+          "name": "L3A.FILLED",
+          "body": "'FV' BIND FV FV L3A.PRESENT 0 GET [ 'FX' BIND 'FA' BIND FA FX FX NIL? SELECT ] SCAN",
+          "note": "readings with NILs -> forward-filled, leading NILs take the first present reading",
+          "definedBy": "L3A"
+        }
+      ],
+      "models": [
+        "opus",
+        "fable"
+      ]
+    },
+    {
+      "classId": "L1A.GAPS",
+      "definers": [
+        "L1A",
+        "L3A",
+        "L3D"
+      ],
+      "links": [
+        "d1"
+      ],
+      "members": [
+        {
+          "name": "L1A.GAPS",
+          "body": "[ NIL? ] MAP FALSE 0 2 COLLECT [ L1A.GAPSTEP ] FOLD 1 GET",
+          "note": "number of runs of consecutive NILs",
+          "definedBy": "L1A"
+        },
+        {
+          "name": "L1A.LONGGAP",
+          "body": "[ NIL? ] MAP 0 0 2 COLLECT [ L1A.LGSTEP ] FOLD 1 GET",
+          "note": "length of the longest run of consecutive NILs (0 if none)",
+          "definedBy": "L1A"
+        },
+        {
+          "name": "L3A.GAPS",
+          "body": "L3A.MISSMASK 'GK' BIND GK 1 [ 0 ] GK CONCAT -1 DROP SUB MUL L2B.SUM",
+          "note": "Vector with NILs -> number of runs of consecutive NILs",
+          "definedBy": "L3A"
+        },
+        {
+          "name": "L3D.COUNT",
+          "body": "[ TRUE EQ ] FILTER LENGTH",
+          "note": "Vector of truths -> how many are TRUE.",
+          "definedBy": "L3D"
+        }
+      ],
+      "models": [
+        "opus",
+        "fable"
+      ]
+    },
+    {
+      "classId": "L1B.MISS",
+      "definers": [
+        "L1B",
+        "L3A",
+        "L3B"
+      ],
+      "links": [
+        "d1",
+        "d0a"
+      ],
+      "members": [
+        {
+          "name": "L1B.MISS",
+          "body": "[ NIL? ] MAP 'MF' BIND 1 0 MF SELECT",
+          "note": "readings to 1 where missing (NIL), 0 where present",
+          "definedBy": "L1B"
+        },
+        {
+          "name": "L3A.MISSMASK",
+          "body": "[ NIL? 'GM' BIND 1 0 GM SELECT ] MAP",
+          "note": "Vector -> 1 where the element is NIL, 0 elsewhere",
+          "definedBy": "L3A"
+        },
+        {
+          "name": "L3B.MISS",
+          "body": "[ NIL? 'MQ' BIND 1 0 MQ SELECT ] MAP",
+          "note": "Vector with NILs to 1 where missing and 0 where present.",
+          "definedBy": "L3B"
+        }
+      ],
+      "models": [
+        "sonnet",
+        "opus"
+      ]
+    },
+    {
+      "classId": "G0C.MAXV",
+      "definers": [
+        "G0C",
+        "G0B"
+      ],
+      "links": [
+        "d0a"
+      ],
+      "members": [
+        {
+          "name": "G0C.MAXV",
+          "body": "'LX' BIND LX LX 0 GET [ MAX ] FOLD",
+          "note": "Largest element of a non-empty numeric Vector.",
+          "definedBy": "G0C"
+        },
+        {
+          "name": "G0B.MAXOF",
+          "body": "'XV' BIND XV XV 0 GET [ MAX ] FOLD",
+          "note": "largest element of a non-empty Vector",
+          "definedBy": "G0B"
+        }
+      ],
+      "models": [
+        "haiku",
+        "sonnet"
+      ]
+    },
+    {
+      "classId": "L2C.REV",
+      "definers": [
+        "L2C",
+        "L2D"
+      ],
+      "links": [
+        "d1"
+      ],
+      "members": [
+        {
+          "name": "L2C.REV",
+          "body": "[ 'price' HAS? ] FILTER [ 'ORD' BIND ORD 'qty' GET ORD 'price' GET MUL ] MAP L2C.SUM",
+          "note": "Total of qty times price over the orders that have a price.",
+          "definedBy": "L2C"
+        },
+        {
+          "name": "L2C.TAGS",
+          "body": "[ 'tags' HAS? ] FILTER [ 'tags' GET ] MAP [ UNIQUE ] MAP FLATTEN TALLY",
+          "note": "Orders Vector to a Record from each tag to the number of orders carrying it.",
+          "definedBy": "L2C"
+        },
+        {
+          "name": "L2D.REVENUE",
+          "body": "[ 'price' HAS? ] FILTER [ 'O' BIND O 'qty' GET O 'price' GET MUL ] MAP 0 [ ADD ] FOLD",
+          "note": "Vector of order Records -> sum of qty*price over the orders that have a price.",
+          "definedBy": "L2D"
+        }
+      ],
+      "models": [
+        "haiku",
+        "fable"
+      ]
+    },
+    {
+      "classId": "G0A.SPAN",
+      "definers": [
+        "G0A",
+        "L2A"
+      ],
+      "links": [
+        "d0a"
+      ],
+      "members": [
+        {
+          "name": "G0A.SPAN",
+          "body": "SORT 'SP' BIND SP -1 GET SP 0 GET SUB",
+          "note": "largest minus smallest",
+          "definedBy": "G0A"
+        },
+        {
+          "name": "L2A.RANGEV",
+          "body": "SORT 'RS' BIND RS -1 GET RS 0 GET SUB",
+          "note": "non-empty numeric Vector -> largest minus smallest",
+          "definedBy": "L2A"
+        }
+      ],
+      "models": [
+        "opus"
+      ]
+    },
+    {
+      "classId": "G0B.MODEOF",
+      "definers": [
+        "G0B",
+        "L1B"
+      ],
+      "links": [
+        "d1"
+      ],
+      "members": [
+        {
+          "name": "G0B.MODEOF",
+          "body": "TALLY G0B.TOPKEY",
+          "note": "most frequent element of a Vector, first-appearing on ties",
+          "definedBy": "G0B"
+        },
+        {
+          "name": "L1B.TOPW",
+          "body": "TALLY 'TR' BIND TR KEYS TR VALUES -1 MUL ORDER 0 GET GET",
+          "note": "most frequent element of a Vector; ties go to the earliest first occurrence",
+          "definedBy": "L1B"
+        }
+      ],
+      "models": [
+        "sonnet"
+      ]
+    },
+    {
+      "classId": "G0B.FIRSTS",
+      "definers": [
+        "G0B",
+        "L2D"
+      ],
+      "links": [
+        "d0"
+      ],
+      "members": [
+        {
+          "name": "G0B.FIRSTS",
+          "body": "[ 0 GET ] MAP",
+          "note": "first element of each row of a Vector of Vectors",
+          "definedBy": "G0B"
+        },
+        {
+          "name": "L2D.NAMES",
+          "body": "[ 0 GET ] MAP",
+          "note": "Vector of [name amount] entries -> Vector of the names (first elements).",
+          "definedBy": "L2D"
+        }
+      ],
+      "models": [
+        "sonnet",
+        "fable"
+      ]
+    },
+    {
+      "classId": "G0B.SECONDS",
+      "definers": [
+        "G0B",
+        "L2D"
+      ],
+      "links": [
+        "d0"
+      ],
+      "members": [
+        {
+          "name": "G0B.SECONDS",
+          "body": "[ 1 GET ] MAP",
+          "note": "second element of each row of a Vector of Vectors",
+          "definedBy": "G0B"
+        },
+        {
+          "name": "L2D.AMTS",
+          "body": "[ 1 GET ] MAP",
+          "note": "Vector of [name amount] entries -> Vector of the amounts (second elements).",
+          "definedBy": "L2D"
+        }
+      ],
+      "models": [
+        "sonnet",
+        "fable"
+      ]
+    },
+    {
+      "classId": "G0B.CSTEP",
+      "definers": [
+        "G0B",
+        "L2B"
+      ],
+      "links": [
+        "d1"
+      ],
+      "members": [
+        {
+          "name": "G0B.CSTEP",
+          "body": "'CX' BIND 3 CX MUL 1 ADD CX 2 DIV CX 2 G0B.MOD 0 GT SELECT 'CY' BIND 1 CY CX 1 EQ SELECT",
+          "note": "one Collatz step, with 1 staying at 1",
+          "definedBy": "G0B"
+        },
+        {
+          "name": "L2B.CSTEP",
+          "body": "'ZX' BIND 1 ZX 3 MUL 1 ADD ZX 2 DIV ZX ZX 2 DIV FLOOR 2 MUL SUB 0 GT SELECT ZX 1 EQ SELECT",
+          "note": "One Collatz step; 1 stays 1.",
+          "definedBy": "L2B"
+        }
+      ],
+      "models": [
+        "sonnet"
+      ]
+    },
+    {
+      "classId": "G0C.MINV",
+      "definers": [
+        "G0C",
+        "L2D"
+      ],
+      "links": [
+        "d0a"
+      ],
+      "members": [
+        {
+          "name": "G0C.MINV",
+          "body": "'LX' BIND LX LX 0 GET [ MIN ] FOLD",
+          "note": "Smallest element of a non-empty numeric Vector.",
+          "definedBy": "G0C"
+        },
+        {
+          "name": "L2D.MINV",
+          "body": "'MNV' BIND MNV MNV 0 GET [ MIN ] FOLD",
+          "note": "Smallest element of a non-empty numeric Vector.",
+          "definedBy": "L2D"
+        }
+      ],
+      "models": [
+        "haiku",
+        "fable"
+      ]
+    },
+    {
+      "classId": "G0D.FIB-INDEX",
+      "definers": [
+        "G0D",
+        "L2A"
+      ],
+      "links": [
+        "d1"
+      ],
+      "members": [
+        {
+          "name": "G0D.FIB-INDEX",
+          "body": "'N' BIND [ 1 1 2 3 5 8 13 21 34 55 89 144 233 377 610 987 ] [ N LT ] FILTER LENGTH 1 ADD",
+          "note": "Smallest k with F(k) >= n (F(1)=F(2)=1), for n up to 987.",
+          "definedBy": "G0D"
+        },
+        {
+          "name": "L2A.FIBINDEX",
+          "body": "'FN' BIND 30 L2A.FIBS [ FN LT ] FILTER LENGTH 1 ADD",
+          "note": "positive integer n (up to F(30)) -> smallest k with F(k) >= n",
+          "definedBy": "L2A"
+        }
+      ],
+      "models": [
+        "fable",
+        "opus"
+      ]
+    },
+    {
+      "classId": "L1A.RLE",
+      "definers": [
+        "L1A",
+        "L3A"
+      ],
+      "links": [
+        "d1"
+      ],
+      "members": [
+        {
+          "name": "L1A.RLE",
+          "body": "'RV' BIND RV RV 0 GET 0 2 COLLECT 1 COLLECT [ L1A.RLESTEP ] FOLD",
+          "note": "run-length encoding [ [ value count ] ... ] of a non-empty Vector",
+          "definedBy": "L1A"
+        },
+        {
+          "name": "L3A.RLE",
+          "body": "'RV' BIND RV RV 0 GET 0 2 COLLECT 1 COLLECT [ 'RX' BIND 'RA' BIND RA -1 GET 'RL' BIND RA -1 DROP RX RL 1 GET 1 ADD 2 COLLECT 1 COLLECT CONCAT RA RX 1 2 COLLECT 1 COLLECT CONCAT 2 COLLECT 0 1 RL 0 GET RX EQ SELECT GET ] FOLD",
+          "note": "non-empty Vector -> run-length encoding as [ value count ] pairs",
+          "definedBy": "L3A"
+        }
+      ],
+      "models": [
+        "opus"
+      ]
+    },
+    {
+      "classId": "L1A.UPRUNS",
+      "definers": [
+        "L1A",
+        "L3A"
+      ],
+      "links": [
+        "d1"
+      ],
+      "members": [
+        {
+          "name": "L1A.UPRUNS",
+          "body": "'UV' BIND UV UV 0 GET 0 0 3 COLLECT [ L1A.UPSTEP ] FOLD 2 GET",
+          "note": "length of the longest strictly increasing adjacent stretch",
+          "definedBy": "L1A"
+        },
+        {
+          "name": "L3A.UPRUNS",
+          "body": "'UV' BIND UV UV 0 GET 0 2 COLLECT [ 'UX' BIND 'UA' BIND UX UA 1 GET 1 ADD 1 UX UA 0 GET GT SELECT 2 COLLECT ] SCAN [ 1 GET ] MAP G0C.MAXV",
+          "note": "non-empty numeric Vector -> length of longest strictly increasing adjacent stretch",
+          "definedBy": "L3A"
+        }
+      ],
+      "models": [
+        "opus"
+      ]
+    },
+    {
+      "classId": "L1B.BALANCED",
+      "definers": [
+        "L1B",
+        "L3B"
+      ],
+      "links": [
+        "d1"
+      ],
+      "members": [
+        {
+          "name": "L1B.BALANCED",
+          "body": "L1B.REDUCE '' EQ",
+          "note": "bracket String to TRUE when fully balanced",
+          "definedBy": "L1B"
+        },
+        {
+          "name": "L3B.BAL",
+          "body": "L3B.RED6 '' EQ",
+          "note": "Bracket String to TRUE when properly nested and matched.",
+          "definedBy": "L3B"
+        }
+      ],
+      "models": [
+        "sonnet"
+      ]
+    },
+    {
+      "classId": "L1B.MAJ",
+      "definers": [
+        "L1B",
+        "L3A"
+      ],
+      "links": [
+        "d1"
+      ],
+      "members": [
+        {
+          "name": "L1B.MAJ",
+          "body": "'MJ' BIND MJ TALLY 'MT' BIND MT KEYS 'MK' BIND MT VALUES 'MC' BIND MC -1 MUL ORDER 0 GET 'MI' BIND MK MI MK LENGTH MC MI GET 2 MUL MJ LENGTH GT SELECT GET",
+          "note": "value in more than half the positions, else NIL",
+          "definedBy": "L1B"
+        },
+        {
+          "name": "L3A.MAJ",
+          "body": "'MV' BIND MV TALLY 'MT' BIND MT KEYS MT VALUES L3A.ARGMAX GET NIL 2 COLLECT 0 1 MT VALUES G0C.MAXV 2 MUL MV LENGTH GT SELECT GET",
+          "note": "non-empty Vector -> value filling more than half the positions, or NIL",
+          "definedBy": "L3A"
+        }
+      ],
+      "models": [
+        "sonnet",
+        "opus"
+      ]
+    },
+    {
+      "classId": "L2A.MOVING3",
+      "definers": [
+        "L2A",
+        "L3A"
+      ],
+      "links": [
+        "d0a"
+      ],
+      "members": [
+        {
+          "name": "L2A.MOVING3",
+          "body": "'MVT' BIND MVT -2 DROP MVT 1 DROP -1 DROP ADD MVT 2 DROP ADD 3 DIV",
+          "note": "numeric Vector (3+) -> means of every three consecutive numbers",
+          "definedBy": "L2A"
+        },
+        {
+          "name": "L3A.MOVING3",
+          "body": "'WV' BIND WV -2 DROP WV 1 DROP -1 DROP ADD WV 2 DROP ADD 3 DIV",
+          "note": "numeric Vector of length >= 3 -> means of each three consecutive numbers",
+          "definedBy": "L3A"
+        }
+      ],
+      "models": [
+        "opus"
+      ]
+    }
+  ],
+  "classCount": 118,
+  "wordCount": 304,
+  "compositional": [
+    {
+      "condition": "families",
+      "generation": 1,
+      "compositional": "2/8"
+    },
+    {
+      "condition": "families",
+      "generation": 2,
+      "compositional": "2/8"
+    },
+    {
+      "condition": "families",
+      "generation": 3,
+      "compositional": "2/8"
+    },
+    {
+      "condition": "probe",
+      "generation": 1,
+      "compositional": "2/8"
+    },
+    {
+      "condition": "probe",
+      "generation": 2,
+      "compositional": "2/8"
+    },
+    {
+      "condition": "probe",
+      "generation": 3,
+      "compositional": "2/8"
+    }
+  ],
+  "coreUse": [
+    [
+      "BIND",
+      1084
+    ],
+    [
+      "GET",
+      885
+    ],
+    [
+      "MAP",
+      715
+    ],
+    [
+      "FILTER",
+      646
+    ],
+    [
+      "ADD",
+      621
+    ],
+    [
+      "FOLD",
+      591
+    ],
+    [
+      "LENGTH",
+      569
+    ],
+    [
+      "EQ",
+      504
+    ],
+    [
+      "NOT",
+      491
+    ],
+    [
+      "TOKENIZE",
+      449
+    ],
+    [
+      "COLLECT",
+      361
+    ],
+    [
+      "DIV",
+      355
+    ],
+    [
+      "MUL",
+      352
+    ],
+    [
+      "SUB",
+      316
+    ],
+    [
+      "DROP",
+      265
+    ],
+    [
+      "VALUES",
+      262
+    ],
+    [
+      "SORT",
+      255
+    ],
+    [
+      "JOIN",
+      253
+    ],
+    [
+      "CHARS",
+      252
+    ],
+    [
+      "KEYS",
+      251
+    ],
+    [
+      "MAX",
+      232
+    ],
+    [
+      "SELECT",
+      200
+    ],
+    [
+      "UNIQUE",
+      197
+    ],
+    [
+      "LOWER",
+      195
+    ],
+    [
+      "ORDER",
+      171
+    ],
+    [
+      "TRIM",
+      160
+    ],
+    [
+      "GROUP",
+      153
+    ],
+    [
+      "TALLY",
+      146
+    ],
+    [
+      "SCAN",
+      146
+    ],
+    [
+      "FLOOR",
+      145
+    ],
+    [
+      "RECORD",
+      129
+    ],
+    [
+      "RANGE",
+      124
+    ],
+    [
+      "NIL?",
+      124
+    ],
+    [
+      "GT",
+      112
+    ],
+    [
+      "CONCAT",
+      109
+    ],
+    [
+      "ZIP",
+      109
+    ],
+    [
+      "UPPER",
+      108
+    ],
+    [
+      "JSON-DECODE",
+      96
+    ],
+    [
+      "LT",
+      90
+    ],
+    [
+      "REPLACE",
+      43
+    ],
+    [
+      "HAS?",
+      41
+    ],
+    [
+      "AND",
+      37
+    ],
+    [
+      "TAKE",
+      36
+    ],
+    [
+      "REVERSE",
+      30
+    ],
+    [
+      "FLATTEN",
+      27
+    ],
+    [
+      "MIN",
+      22
+    ],
+    [
+      "NIL",
+      22
+    ],
+    [
+      "SQRT",
+      16
+    ],
+    [
+      "FORMAT",
+      16
+    ],
+    [
+      "STR",
+      15
+    ],
+    [
+      "TRUE",
+      13
+    ],
+    [
+      "FALSE",
+      11
+    ],
+    [
+      "SEARCH",
+      11
+    ],
+    [
+      "POW",
+      7
+    ],
+    [
+      "PUT",
+      5
+    ],
+    [
+      "NUM",
+      5
+    ],
+    [
+      "MERGE",
+      4
+    ],
+    [
+      "RATIO",
+      3
+    ],
+    [
+      "GCD",
+      2
+    ],
+    [
+      "RECONCILE",
+      0
+    ],
+    [
+      "ROUND",
+      0
+    ],
+    [
+      "FILL",
+      0
+    ],
+    [
+      "SHAPE",
+      0
+    ],
+    [
+      "RESHAPE",
+      0
+    ],
+    [
+      "DEPTH",
+      0
+    ],
+    [
+      "BSEARCH",
+      0
+    ],
+    [
+      "WITHOUT",
+      0
+    ],
+    [
+      "JSON-ENCODE",
+      0
+    ],
+    [
+      "EXEC",
+      0
+    ],
+    [
+      "CONTRACT",
+      0
+    ],
+    [
+      "FAIL",
+      0
+    ],
+    [
+      "NIL-REASON",
+      0
+    ],
+    [
+      "ABSENT",
+      0
+    ],
+    [
+      "DEF",
+      0
+    ],
+    [
+      "DEL",
+      0
+    ],
+    [
+      "DIGEST",
+      0
+    ],
+    [
+      "PRINT",
+      0
+    ]
+  ],
+  "coreFailures": []
+}

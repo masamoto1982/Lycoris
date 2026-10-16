@@ -1,0 +1,71 @@
+{
+  "agent": "L1D",
+  "generation": 1,
+  "condition": "families",
+  "definitions": [
+    { "name": "L1D.BSIGNS", "body": "CHARS [ 'C' BIND 1 -1 '([' C SEARCH NIL? NOT SELECT ] MAP", "note": "bracket String -> Vector of +1 per opening bracket and -1 per closing bracket" },
+    { "name": "L1D.BREDUCE", "body": "'S' BIND [ '()' '()' '()' '()' '()' '()' ] S [ '' REPLACE '[]' '' REPLACE ] FOLD", "note": "bracket String (up to 12 chars) with every adjacent matched pair () or [] repeatedly deleted" },
+    { "name": "L1D.NAMES", "body": "ZIP 0 GET", "note": "Vector of [ name amount ] pairs -> Vector of the names (first column)" },
+    { "name": "L1D.AMOUNTS", "body": "ZIP 1 GET", "note": "Vector of [ name amount ] pairs -> Vector of the amounts (second column)" },
+    { "name": "L1D.ARGMAX", "body": "-1 MUL ORDER 0 GET", "note": "index of the largest number in a Vector, the first one when tied" },
+    { "name": "L1D.TOPKEY", "body": "'TR' BIND TR KEYS TR VALUES L1D.ARGMAX GET", "note": "Record with numeric values -> the key with the largest value, the earliest key when tied" },
+    { "name": "L1D.BY-NAME", "body": "'LE' BIND LE L1D.NAMES LE L1D.AMOUNTS GROUP 'LG' BIND LG KEYS LG VALUES [ G0A.SUM ] MAP RECORD", "note": "Vector of [ name amount ] pairs -> Record name -> sum of its amounts, names in first-appearance order" },
+    { "name": "L1D.UNWORDS", "body": "[ ' ' 2 COLLECT JOIN ] MAP JOIN TRIM", "note": "Vector of words -> one String joined by single spaces" },
+    { "name": "L1D.CAP", "body": "LOWER CHARS 'CC' BIND CC 0 GET UPPER CC 1 DROP JOIN 2 COLLECT JOIN", "note": "one word -> first letter upper case, the rest lower case" },
+    { "name": "L1D.WHERE", "body": "'WT' BIND 0 WT LENGTH 1 SUB RANGE [ 'WI' BIND WT WI GET ] FILTER", "note": "non-empty Vector of truths -> Vector of the indices holding TRUE" },
+    { "name": "L1D.STARTS", "body": "'SV' BIND [ TRUE ] SV 1 DROP SV -1 DROP SUB 'SD' BIND SD SD MUL 0 GT CONCAT L1D.WHERE", "note": "non-empty numeric Vector -> indices where a run of equal adjacent values starts" },
+    { "name": "L1D.RLE", "body": "'RV' BIND RV L1D.STARTS 'RS' BIND RV RS GET RS RV LENGTH 1 COLLECT CONCAT 'RE' BIND RE 1 DROP RE -1 DROP SUB 2 COLLECT ZIP", "note": "non-empty numeric Vector -> run-length encoding as Vector of [ value count ]" },
+    { "name": "L1D.LONGEST-TRUE", "body": "0 [ 'LU' BIND 'LA' BIND LA 1 ADD 0 LU SELECT ] SCAN 0 [ MAX ] FOLD", "note": "Vector of truths -> length of the longest run of adjacent TRUE (0 for none)" },
+    { "name": "L1D.COUNT-TRUE", "body": "[ TRUE AND ] FILTER LENGTH", "note": "Vector of truths -> how many are TRUE" },
+    { "name": "L1D.PRESENT", "body": "[ NIL? NOT ] FILTER", "note": "Vector -> the same Vector without its NIL elements" },
+    { "name": "L1D.MEDIAN", "body": "SORT 'SS' BIND SS LENGTH 'SN' BIND SS SN 1 SUB 2 DIV FLOOR GET SS SN 2 DIV FLOOR GET ADD 2 DIV", "note": "median of a non-empty numeric Vector (mean of the two middle values when the count is even)" },
+    { "name": "L1D.ABS", "body": "'AX' BIND AX AX -1 MUL MAX", "note": "absolute value of a number, lifts over Vectors" }
+  ],
+  "solutions": {
+    "brackets.depth": "L1D.BSIGNS 0 [ ADD ] SCAN 0 [ MAX ] FOLD",
+    "brackets.balanced": "L1D.BREDUCE '' EQ",
+    "brackets.balanced_prefix": "'BS' BIND [ '' ] BS CHARS '' [ 2 COLLECT JOIN ] SCAN CONCAT [ L1D.BREDUCE '' EQ ] FILTER -1 GET CHARS LENGTH",
+    "brackets.unmatched": "L1D.BREDUCE CHARS LENGTH",
+
+    "ledger.total": "L1D.AMOUNTS G0A.SUM",
+    "ledger.by_name": "L1D.BY-NAME",
+    "ledger.top_name": "L1D.BY-NAME L1D.TOPKEY",
+    "ledger.debtors": "L1D.BY-NAME 'LR' BIND LR KEYS [ 'LK' BIND LR LK GET 0 LT ] FILTER",
+    "ledger.count_names": "L1D.NAMES UNIQUE LENGTH",
+    "ledger.largest_entry": "'LE' BIND LE LE L1D.AMOUNTS L1D.ARGMAX GET",
+
+    "messy.count": "G0A.WORDS LENGTH",
+    "messy.normalize": "LOWER G0A.WORDS L1D.UNWORDS",
+    "messy.distinct": "LOWER G0A.WORDS UNIQUE LENGTH",
+    "messy.top_word": "LOWER G0A.WORDS TALLY L1D.TOPKEY",
+    "messy.title": "G0A.WORDS [ L1D.CAP ] MAP L1D.UNWORDS",
+    "messy.sorted_unique": "LOWER G0A.WORDS UNIQUE SORT L1D.UNWORDS",
+
+    "prose.longest": "G0A.WORDS 'PW' BIND PW PW [ CHARS LENGTH ] MAP L1D.ARGMAX GET",
+    "prose.freq_top": "G0A.WORDS TALLY L1D.TOPKEY",
+    "prose.distinct_sorted": "G0A.WORDS UNIQUE SORT L1D.UNWORDS",
+    "prose.reverse_words": "G0A.WORDS REVERSE L1D.UNWORDS",
+    "prose.capitalize": "G0A.WORDS [ L1D.CAP ] MAP L1D.UNWORDS",
+    "prose.initials_of_long": "G0A.WORDS [ CHARS LENGTH 3 GT ] FILTER [ CHARS 0 GET UPPER ] MAP JOIN",
+
+    "runs.rle": "L1D.RLE",
+    "runs.upruns": "'RV' BIND RV 1 DROP RV -1 DROP GT L1D.LONGEST-TRUE 1 ADD",
+    "runs.dedupe": "'RV' BIND RV RV L1D.STARTS GET",
+    "runs.second_largest": "UNIQUE SORT -2 GET",
+    "runs.majority": "'RV' BIND RV TALLY 'RT' BIND RT L1D.TOPKEY NIL 2 COLLECT 0 1 RT VALUES G0C.MAXV 2 MUL RV LENGTH GT SELECT GET",
+
+    "sensor.present_mean": "L1D.PRESENT G0A.MEAN",
+    "sensor.filled": "'SV' BIND SV SV L1D.PRESENT 0 GET [ 'FE' BIND 'FA' BIND FA FE FE NIL? SELECT ] SCAN",
+    "sensor.gap_count": "[ NIL? ] MAP 'SM' BIND SM [ FALSE ] SM -1 DROP CONCAT NOT AND L1D.COUNT-TRUE",
+    "sensor.longest_gap": "[ NIL? ] MAP L1D.LONGEST-TRUE",
+    "sensor.ratios": "'SV' BIND SV 1 DROP SV -1 DROP DIV",
+    "sensor.scaled": "'SV' BIND SV SV L1D.PRESENT G0C.MAXV DIV",
+
+    "series.median": "L1D.MEDIAN",
+    "series.mad": "'SV' BIND SV SV L1D.MEDIAN SUB L1D.ABS L1D.MEDIAN",
+    "series.moving3": "'SV' BIND SV -2 DROP SV 1 DROP -1 DROP ADD SV 2 DROP ADD 3 DIV",
+    "series.runmax": "'SV' BIND SV SV 0 GET [ MAX ] SCAN",
+    "series.mode": "SORT TALLY L1D.TOPKEY",
+    "series.trimmed": "SORT 1 DROP -1 DROP G0A.MEAN"
+  }
+}

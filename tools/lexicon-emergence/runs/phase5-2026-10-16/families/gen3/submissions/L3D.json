@@ -1,0 +1,67 @@
+{
+  "agent": "L3D",
+  "generation": 3,
+  "condition": "families",
+  "definitions": [
+    { "name": "L3D.ARGMAX", "body": "-1 MUL ORDER 0 GET", "note": "Index of the first largest element of a non-empty numeric Vector (ties go to the earliest)." },
+    { "name": "L3D.TOPKEY", "body": "'XR' BIND XR KEYS XR VALUES L3D.ARGMAX GET", "note": "Record with numeric values -> the key holding the largest value, the first such key on a tie." },
+    { "name": "L3D.ABS", "body": "'XA' BIND XA XA -1 MUL MAX", "note": "Absolute value of a number, lifting over a Vector lane by lane." },
+    { "name": "L3D.COUNT", "body": "[ TRUE EQ ] FILTER LENGTH", "note": "Vector of truths -> how many are TRUE." },
+    { "name": "L3D.RED1", "body": "'()' '' REPLACE '[]' '' REPLACE", "note": "One round of deleting every adjacent '()' and '[]' pair from a bracket String." },
+    { "name": "L3D.REDUCE", "body": "L3D.RED1 L3D.RED1 L3D.RED1 L3D.RED1 L3D.RED1 L3D.RED1", "note": "Bracket String of at most 12 characters with every adjacent matched pair deleted repeatedly (6 rounds); '' when balanced." },
+    { "name": "L3D.DELTAS", "body": "CHARS [ 'XC' BIND 1 -1 '([' XC SEARCH NIL? NOT SELECT ] MAP", "note": "Bracket String -> Vector of +1 for each opener ( [ and -1 for each closer ) ]." },
+    { "name": "L3D.SUMS", "body": "ZIP 'XT' BIND XT 0 GET XT 1 GET GROUP 'XG' BIND XG KEYS XG VALUES [ L2B.SUM ] MAP RECORD", "note": "Vector of [ name amount ] pairs -> Record name -> sum of its amounts, names in order of first appearance." },
+    { "name": "L3D.UNWORDS", "body": "[ ' ' 2 COLLECT JOIN ] MAP JOIN TRIM", "note": "Vector of Strings -> one String joined by single spaces ('' for an empty Vector)." },
+    { "name": "L3D.CAP", "body": "LOWER CHARS 'XC' BIND XC 0 GET UPPER XC 1 DROP JOIN 2 COLLECT JOIN", "note": "Non-empty word -> first letter upper case, the rest lower case." },
+    { "name": "L3D.CHANGES", "body": "'XV' BIND XV [ 'x' ] XV -1 DROP CONCAT 2 COLLECT ZIP [ [ 'XA' 'XB' ] BIND XA XB EQ NOT ] MAP", "note": "Non-empty Vector -> Vector of truths, TRUE at position 0 and wherever an element differs from the one before it (run starts)." },
+    { "name": "L3D.UPS", "body": "'XV' BIND XV XV 0 GET 1 COLLECT XV -1 DROP CONCAT GT", "note": "Non-empty numeric Vector -> Vector of truths, TRUE where an element is strictly greater than the one before it (FALSE at position 0)." },
+    { "name": "L3D.MEDIAN", "body": "SORT 'XS' BIND XS LENGTH 'XN' BIND XS XN 1 SUB 2 DIV FLOOR GET XS XN 2 DIV FLOOR GET ADD 2 DIV", "note": "Median of a non-empty numeric Vector (mean of the two middle values when the count is even)." }
+  ],
+  "solutions": {
+    "brackets.depth": "L3D.DELTAS 0 [ ADD ] SCAN 0 [ MAX ] FOLD",
+    "brackets.balanced": "L3D.REDUCE '' EQ",
+    "brackets.balanced_prefix": "'XS' BIND 0 XS CHARS LENGTH RANGE [ 'XK' BIND XS CHARS XK TAKE JOIN L3D.REDUCE '' EQ ] FILTER G0C.MAXV",
+    "brackets.unmatched": "L3D.REDUCE CHARS LENGTH",
+
+    "ledger.total": "ZIP 1 GET L2B.SUM",
+    "ledger.by_name": "L3D.SUMS",
+    "ledger.top_name": "L3D.SUMS L3D.TOPKEY",
+    "ledger.debtors": "L3D.SUMS 'XR' BIND XR KEYS [ 'XN' BIND XR XN GET 0 LT ] FILTER",
+    "ledger.count_names": "ZIP 0 GET UNIQUE LENGTH",
+    "ledger.largest_entry": "'XL' BIND XL XL ZIP 1 GET L3D.ARGMAX GET",
+
+    "messy.count": "G0A.WORDS LENGTH",
+    "messy.normalize": "LOWER G0A.WORDS L3D.UNWORDS",
+    "messy.distinct": "LOWER G0A.WORDS UNIQUE LENGTH",
+    "messy.top_word": "LOWER G0A.WORDS TALLY L3D.TOPKEY",
+    "messy.title": "G0A.WORDS [ L3D.CAP ] MAP L3D.UNWORDS",
+    "messy.sorted_unique": "LOWER G0A.WORDS UNIQUE SORT L3D.UNWORDS",
+
+    "prose.longest": "G0A.WORDS 'XW' BIND XW XW [ CHARS LENGTH ] MAP L3D.ARGMAX GET",
+    "prose.freq_top": "G0A.WORDS TALLY L3D.TOPKEY",
+    "prose.distinct_sorted": "G0A.WORDS UNIQUE SORT L3D.UNWORDS",
+    "prose.reverse_words": "G0A.WORDS REVERSE L3D.UNWORDS",
+    "prose.capitalize": "G0A.WORDS [ L3D.CAP ] MAP L3D.UNWORDS",
+    "prose.initials_of_long": "G0A.WORDS [ CHARS LENGTH 3 GT ] FILTER [ CHARS 0 GET UPPER ] MAP JOIN",
+
+    "runs.rle": "'XV' BIND XV L3D.CHANGES L1D.WHERE 'XS' BIND XV XS GET XS 1 DROP XV LENGTH 1 COLLECT CONCAT XS SUB 2 COLLECT ZIP",
+    "runs.upruns": "L3D.UPS 0 [ 'XU' BIND 1 ADD 1 XU SELECT ] SCAN 0 [ MAX ] FOLD",
+    "runs.dedupe": "'XV' BIND XV XV L3D.CHANGES L1D.WHERE GET",
+    "runs.second_largest": "UNIQUE SORT -2 GET",
+    "runs.majority": "'XV' BIND XV TALLY 'XT' BIND XT L3D.TOPKEY 'XK' BIND XK NIL XT XK GET 2 MUL XV LENGTH GT SELECT",
+
+    "sensor.present_mean": "[ NIL? NOT ] FILTER L2B.MEAN",
+    "sensor.filled": "'XV' BIND XV XV [ NIL? NOT ] FILTER 0 GET [ 'XX' BIND 'XA' BIND XA XX XX NIL? SELECT ] SCAN",
+    "sensor.gap_count": "[ NIL? ] MAP 'XM' BIND XM [ FALSE ] XM -1 DROP CONCAT NOT AND L3D.COUNT",
+    "sensor.longest_gap": "[ NIL? ] MAP 0 [ 'XU' BIND 1 ADD 0 XU SELECT ] SCAN 0 [ MAX ] FOLD",
+    "sensor.ratios": "'XV' BIND XV 1 DROP XV -1 DROP DIV",
+    "sensor.scaled": "'XV' BIND XV [ NIL? NOT ] FILTER G0C.MAXV 'XM' BIND XV [ 'XX' BIND NIL XX 1 XX NIL? SELECT XM DIV XX NIL? SELECT ] MAP",
+
+    "series.median": "L3D.MEDIAN",
+    "series.mad": "'XV' BIND XV XV L3D.MEDIAN SUB L3D.ABS L3D.MEDIAN",
+    "series.moving3": "'XV' BIND XV -2 DROP XV 1 DROP -1 DROP ADD XV 2 DROP ADD 3 DIV",
+    "series.runmax": "'XV' BIND XV XV 0 GET [ MAX ] SCAN",
+    "series.mode": "SORT TALLY L3D.TOPKEY",
+    "series.trimmed": "SORT 1 DROP -1 DROP L2B.MEAN"
+  }
+}

@@ -1,0 +1,120 @@
+{
+  "generation": 3,
+  "capacity": 8,
+  "rule": "families",
+  "entries": [
+    {
+      "name": "L2B.SUM",
+      "body": "0 [ ADD ] FOLD",
+      "note": "Vector of numbers to its sum (0 for empty).",
+      "classId": "L2B.SUM",
+      "uses": 21,
+      "tasks": 9,
+      "families": 2,
+      "agents": [
+        "L2B",
+        "L2C",
+        "L2D"
+      ]
+    },
+    {
+      "name": "G0C.MAXV",
+      "body": "'LX' BIND LX LX 0 GET [ MAX ] FOLD",
+      "note": "Largest element of a non-empty numeric Vector.",
+      "classId": "G0C.MAXV",
+      "uses": 8,
+      "tasks": 3,
+      "families": 2,
+      "agents": [
+        "L2A",
+        "L2B",
+        "L2C",
+        "L2D"
+      ]
+    },
+    {
+      "name": "G0A.WORDS",
+      "body": "' ' TOKENIZE [ '' EQ NOT ] FILTER",
+      "note": "split a String on spaces, dropping empty pieces",
+      "classId": "G0A.WORDS",
+      "uses": 28,
+      "tasks": 7,
+      "families": 1,
+      "agents": [
+        "L2A",
+        "L2B",
+        "L2C",
+        "L2D"
+      ]
+    },
+    {
+      "name": "L2A.ORDERS",
+      "body": "JSON-DECODE 'orders' GET",
+      "note": "JSON String with an orders array -> Vector of order Records",
+      "classId": "L2A.ORDERS",
+      "uses": 24,
+      "tasks": 6,
+      "families": 1,
+      "agents": [
+        "L2A",
+        "L2B",
+        "L2C",
+        "L2D"
+      ]
+    },
+    {
+      "name": "L2A.MOD",
+      "body": "'MB' BIND 'MA' BIND MA MA MB DIV FLOOR MB MUL SUB",
+      "note": "a b -> a - b * floor(a/b); lifts over a Vector in either operand",
+      "classId": "L2A.MOD",
+      "uses": 9,
+      "tasks": 5,
+      "families": 1,
+      "agents": [
+        "L2A",
+        "L2D"
+      ]
+    },
+    {
+      "name": "L2B.MEAN",
+      "body": "'ZV' BIND ZV L2B.SUM ZV LENGTH DIV",
+      "note": "Arithmetic mean of a non-empty numeric Vector, a bare scalar.",
+      "classId": "L2A.MEAN",
+      "uses": 16,
+      "tasks": 4,
+      "families": 1,
+      "agents": [
+        "L2A",
+        "L2B",
+        "L2C",
+        "L2D"
+      ]
+    },
+    {
+      "name": "L1D.WHERE",
+      "body": "'WT' BIND 0 WT LENGTH 1 SUB RANGE [ 'WI' BIND WT WI GET ] FILTER",
+      "note": "non-empty Vector of truths -> Vector of the indices holding TRUE",
+      "classId": "L1D.WHERE",
+      "uses": 4,
+      "tasks": 4,
+      "families": 1,
+      "agents": [
+        "L2C",
+        "L2D"
+      ]
+    },
+    {
+      "name": "L2C.REV",
+      "body": "[ 'price' HAS? ] FILTER [ 'ORD' BIND ORD 'qty' GET ORD 'price' GET MUL ] MAP L2B.SUM",
+      "note": "Total of qty times price over the orders that have a price.",
+      "classId": "L2C.REV",
+      "uses": 5,
+      "tasks": 3,
+      "families": 1,
+      "agents": [
+        "L2C",
+        "L2D"
+      ]
+    }
+  ]
+}

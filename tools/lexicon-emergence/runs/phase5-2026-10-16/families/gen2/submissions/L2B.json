@@ -1,0 +1,73 @@
+{
+  "agent": "L2B", "generation": 2, "condition": "families",
+  "definitions": [
+    { "name": "L2B.SUM", "body": "0 [ ADD ] FOLD", "note": "Vector of numbers to its sum (0 for empty)." },
+    { "name": "L2B.GSUM", "body": "GROUP 'ZG' BIND ZG KEYS ZG VALUES [ L2B.SUM ] MAP RECORD", "note": "keys-Vector values-Vector to a Record from each key to the sum of its values, keys in first-appearance order." },
+    { "name": "L2B.LEDGER", "body": "'ZE' BIND ZE [ 0 GET ] MAP ZE [ 1 GET ] MAP L2B.GSUM", "note": "Vector of [name amount] entries to a Record name -> sum of amounts." },
+    { "name": "L2B.JOINSP", "body": "[ ' ' 2 COLLECT ] MAP FLATTEN JOIN TRIM", "note": "Vector of Strings joined with single spaces." },
+    { "name": "L2B.CAP", "body": "LOWER CHARS 'ZC' BIND ZC 0 GET UPPER 1 COLLECT ZC 1 DROP CONCAT JOIN", "note": "A word to first letter upper case, rest lower case." },
+    { "name": "L2B.DIVS", "body": "'ZN' BIND 1 ZN RANGE [ 'ZJ' BIND ZN ZN ZJ DIV FLOOR ZJ MUL SUB 0 GT NOT ] FILTER", "note": "Positive integer to Vector of its positive divisors, ascending." },
+    { "name": "L2B.CSTEP", "body": "'ZX' BIND 1 ZX 3 MUL 1 ADD ZX 2 DIV ZX ZX 2 DIV FLOOR 2 MUL SUB 0 GT SELECT ZX 1 EQ SELECT", "note": "One Collatz step; 1 stays 1." },
+    { "name": "L2B.MEDIAN", "body": "SORT 'ZS' BIND ZS LENGTH 'ZL' BIND ZS ZL 1 SUB 2 DIV FLOOR GET ZS ZL 2 DIV FLOOR GET ADD 2 DIV", "note": "Median of a non-empty numeric Vector." },
+    { "name": "L2B.ABS", "body": "'ZA' BIND ZA ZA -1 MUL MAX", "note": "Absolute value of a number or Vector (lane-wise)." },
+    { "name": "L2B.MEAN", "body": "'ZV' BIND ZV L2B.SUM ZV LENGTH DIV", "note": "Arithmetic mean of a non-empty numeric Vector, a bare scalar." },
+    { "name": "L2B.DEV", "body": "'ZW' BIND ZW ZW L2B.MEAN SUB", "note": "Vector of each number minus the mean." },
+    { "name": "L2B.VAR", "body": "L2B.DEV 'ZD' BIND ZD ZD MUL L2B.MEAN", "note": "Population variance of a numeric Vector." },
+    { "name": "L2B.PRICE", "body": "'ZP' BIND ZP 'price' GET 'ZQ' BIND 0 ZQ ZQ NIL? SELECT", "note": "Order Record to its price, 0 when absent." },
+    { "name": "L2B.LINE", "body": "'ZO' BIND ZO 'qty' GET ZO L2B.PRICE MUL", "note": "Order Record to qty times price (0 when unpriced)." },
+    { "name": "L2B.ORDERS", "body": "JSON-DECODE 'orders' GET", "note": "JSON String to the Vector of order Records." },
+    { "name": "L2B.REVENUE", "body": "L2B.ORDERS [ L2B.LINE ] MAP L2B.SUM", "note": "JSON orders String to total revenue." }
+  ],
+  "solutions": {
+    "ledger.total": "[ 1 GET ] MAP L2B.SUM",
+    "ledger.by_name": "L2B.LEDGER",
+    "ledger.top_name": "L2B.LEDGER L1A.TOPKEY",
+    "ledger.debtors": "L2B.LEDGER 'QR' BIND QR KEYS [ 'QK' BIND QR QK GET 0 LT ] FILTER",
+    "ledger.count_names": "[ 0 GET ] MAP UNIQUE LENGTH",
+    "ledger.largest_entry": "'QE' BIND QE QE [ 1 GET ] MAP L1A.ARGMAX GET",
+
+    "messy.count": "G0A.WORDS LENGTH",
+    "messy.normalize": "LOWER G0A.WORDS L2B.JOINSP",
+    "messy.distinct": "LOWER G0A.WORDS UNIQUE LENGTH",
+    "messy.top_word": "LOWER G0A.WORDS TALLY L1A.TOPKEY",
+    "messy.title": "G0A.WORDS [ L2B.CAP ] MAP L2B.JOINSP",
+    "messy.sorted_unique": "LOWER G0A.WORDS UNIQUE SORT L2B.JOINSP",
+
+    "number.primes": "'QN' BIND 1 QN RANGE [ L2B.DIVS LENGTH 2 EQ ] FILTER",
+    "number.divisors": "L2B.DIVS",
+    "number.binary": "'QN' BIND [ 32 16 8 4 2 1 ] [ QN GT NOT ] FILTER [ 'QE' BIND QN QE DIV FLOOR 'QQ' BIND QQ QQ 2 DIV FLOOR 2 MUL SUB ] MAP STR JOIN",
+    "number.collatz": "'QN' BIND QN 1 COLLECT 1 150 RANGE QN [ 0 MUL ADD L2B.CSTEP ] SCAN CONCAT [ 1 GT ] FILTER LENGTH",
+    "number.digital_root": "1 SUB 'QA' BIND QA QA 9 DIV FLOOR 9 MUL SUB 1 ADD",
+    "number.fib_index": "'QN' BIND [ 1 1 2 3 5 8 13 21 34 55 89 ] [ QN LT ] FILTER LENGTH 1 ADD",
+
+    "orders.revenue": "L2B.REVENUE",
+    "orders.report": "L2B.REVENUE 2 FORMAT",
+    "orders.unpriced": "L2B.ORDERS [ 'price' GET NIL? ] FILTER [ 'sku' GET ] MAP UNIQUE",
+    "orders.qty_by_sku": "L2B.ORDERS 'QO' BIND QO [ 'sku' GET ] MAP QO [ 'qty' GET ] MAP L2B.GSUM",
+    "orders.top_sku": "L2B.ORDERS 'QO' BIND QO [ 'sku' GET ] MAP QO [ 'qty' GET ] MAP L2B.GSUM L1A.TOPKEY",
+    "orders.tag_counts": "L2B.ORDERS [ 'tags' GET NIL? NOT ] FILTER [ 'tags' GET UNIQUE ] MAP FLATTEN TALLY",
+
+    "series.median": "L2B.MEDIAN",
+    "series.mad": "'QX' BIND QX L2B.MEDIAN 'QM' BIND QX QM SUB L2B.ABS L2B.MEDIAN",
+    "series.moving3": "'QX' BIND QX -2 DROP QX 1 DROP -1 DROP ADD QX 2 DROP ADD 3 DIV",
+    "series.runmax": "'QX' BIND QX QX 0 GET [ MAX ] SCAN",
+    "series.mode": "SORT TALLY L1A.TOPKEY",
+    "series.trimmed": "SORT 1 DROP -1 DROP L2B.MEAN",
+
+    "stats.sum": "L2B.SUM",
+    "stats.mean": "L2B.MEAN",
+    "stats.deviations": "L2B.DEV",
+    "stats.variance": "L2B.VAR",
+    "stats.stddev": "L2B.VAR SQRT",
+    "stats.range": "SORT 'QS' BIND QS -1 GET QS 0 GET SUB",
+    "stats.normalize": "'QX' BIND QX SORT 'QS' BIND QS 0 GET 'QL' BIND QS -1 GET QL SUB 'QR' BIND QX QL SUB QR DIV",
+
+    "text.count": "G0A.WORDS LENGTH",
+    "text.frequency": "G0A.WORDS TALLY",
+    "text.distinct": "G0A.WORDS UNIQUE",
+    "text.titlecase": "G0A.WORDS [ L2B.CAP ] MAP L2B.JOINSP",
+    "text.longest": "G0A.WORDS [ CHARS LENGTH ] MAP G0C.MAXV",
+    "text.long-words": "G0A.WORDS [ CHARS LENGTH 3 GT ] FILTER",
+    "text.acronym": "G0A.WORDS [ CHARS 0 GET UPPER ] MAP JOIN"
+  }
+}

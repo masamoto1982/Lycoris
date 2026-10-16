@@ -1,0 +1,51 @@
+{
+  "agent": "N1B", "generation": 1, "condition": "bare",
+  "definitions": [],
+  "solutions": {
+    "brackets.depth": "'[' '(' REPLACE ']' ')' REPLACE CHARS [ 'C' BIND 1 -1 C ')' LT SELECT ] MAP 0 [ ADD ] SCAN 0 [ MAX ] FOLD",
+    "brackets.balanced": "'S' BIND 0 6 RANGE S [ 'K' BIND '()' '' REPLACE '[]' '' REPLACE ] FOLD '' EQ",
+    "brackets.balanced_prefix": "'S' BIND 0 S CHARS LENGTH RANGE [ 'I' BIND I 0 0 6 RANGE S CHARS I TAKE JOIN [ 'K' BIND '()' '' REPLACE '[]' '' REPLACE ] FOLD '' EQ SELECT ] MAP 0 [ MAX ] FOLD",
+    "brackets.unmatched": "'S' BIND 0 6 RANGE S [ 'K' BIND '()' '' REPLACE '[]' '' REPLACE ] FOLD CHARS LENGTH",
+
+    "ledger.total": "[ 1 GET ] MAP 0 [ ADD ] FOLD",
+    "ledger.by_name": "'E' BIND E [ 0 GET ] MAP E [ 1 GET ] MAP GROUP 'G' BIND G KEYS G VALUES [ 0 [ ADD ] FOLD ] MAP RECORD",
+    "ledger.top_name": "'E' BIND E [ 0 GET ] MAP E [ 1 GET ] MAP GROUP 'G' BIND G KEYS G VALUES [ 0 [ ADD ] FOLD ] MAP -1 MUL ORDER 0 GET GET",
+    "ledger.debtors": "'E' BIND E [ 0 GET ] MAP E [ 1 GET ] MAP GROUP 'G' BIND G KEYS G VALUES [ 0 [ ADD ] FOLD ] MAP RECORD 'R' BIND R KEYS [ 'N' BIND R N GET 0 LT ] FILTER",
+    "ledger.count_names": "[ 0 GET ] MAP UNIQUE LENGTH",
+    "ledger.largest_entry": "'E' BIND E E [ 1 GET ] MAP -1 MUL ORDER 0 GET GET",
+
+    "messy.count": "LOWER ' ' TOKENIZE [ '' EQ NOT ] FILTER LENGTH",
+    "messy.normalize": "LOWER ' ' TOKENIZE [ '' EQ NOT ] FILTER [ ' ' 2 COLLECT JOIN ] MAP JOIN TRIM",
+    "messy.distinct": "LOWER ' ' TOKENIZE [ '' EQ NOT ] FILTER UNIQUE LENGTH",
+    "messy.top_word": "LOWER ' ' TOKENIZE [ '' EQ NOT ] FILTER TALLY 'T' BIND T KEYS T VALUES -1 MUL ORDER 0 GET GET",
+    "messy.title": "LOWER ' ' TOKENIZE [ '' EQ NOT ] FILTER [ 'W' BIND W CHARS 0 GET UPPER W CHARS 1 DROP JOIN ' ' 3 COLLECT JOIN ] MAP JOIN TRIM",
+    "messy.sorted_unique": "LOWER ' ' TOKENIZE [ '' EQ NOT ] FILTER UNIQUE SORT [ ' ' 2 COLLECT JOIN ] MAP JOIN TRIM",
+
+    "prose.longest": "' ' TOKENIZE 'W' BIND W W [ CHARS LENGTH ] MAP -1 MUL ORDER 0 GET GET",
+    "prose.freq_top": "' ' TOKENIZE TALLY 'T' BIND T KEYS T VALUES -1 MUL ORDER 0 GET GET",
+    "prose.distinct_sorted": "' ' TOKENIZE UNIQUE SORT [ ' ' 2 COLLECT JOIN ] MAP JOIN TRIM",
+    "prose.reverse_words": "' ' TOKENIZE REVERSE [ ' ' 2 COLLECT JOIN ] MAP JOIN TRIM",
+    "prose.capitalize": "' ' TOKENIZE [ 'W' BIND W CHARS 0 GET UPPER W CHARS 1 DROP JOIN ' ' 3 COLLECT JOIN ] MAP JOIN TRIM",
+    "prose.initials_of_long": "' ' TOKENIZE [ CHARS LENGTH 3 GT ] FILTER [ CHARS 0 GET UPPER ] MAP JOIN",
+
+    "runs.rle": "'A' BIND A LENGTH 'N' BIND A 0 GET 1 SUB 1 COLLECT A CONCAT N TAKE 'P' BIND A P SUB 'D' BIND 0 N 1 SUB RANGE D 2 COLLECT ZIP [ 1 GET 0 EQ NOT ] FILTER [ 0 GET ] MAP 'S' BIND A S GET S 1 DROP N 1 COLLECT CONCAT S SUB 2 COLLECT ZIP",
+    "runs.upruns": "'A' BIND A A 0 GET 1 SUB 1 COLLECT A CONCAT A LENGTH TAKE SUB 0 [ 'U' BIND 'K' BIND K 1 ADD 1 U 0 GT SELECT ] SCAN 1 [ MAX ] FOLD",
+    "runs.dedupe": "'A' BIND A 0 GET 1 SUB 1 COLLECT A CONCAT A LENGTH TAKE 'P' BIND A A P SUB 2 COLLECT ZIP [ 1 GET 0 EQ NOT ] FILTER [ 0 GET ] MAP",
+    "runs.second_largest": "UNIQUE SORT REVERSE 1 GET",
+    "runs.majority": "'A' BIND A TALLY 'T' BIND T VALUES -1 MUL ORDER 0 GET 'I' BIND T KEYS I GET 1 COLLECT 0 1 T VALUES I GET 2 MUL A LENGTH GT SELECT GET",
+
+    "sensor.present_mean": "[ NIL? NOT ] FILTER 'P' BIND P 0 [ ADD ] FOLD P LENGTH DIV",
+    "sensor.filled": "'R' BIND R R [ NIL? NOT ] FILTER 0 GET [ 'X' BIND 'K' BIND K X X NIL? SELECT ] SCAN",
+    "sensor.gap_count": "'R' BIND R [ 'X' BIND 1 0 X NIL? SELECT ] MAP 'M' BIND M 0 1 COLLECT M CONCAT M LENGTH TAKE SUB 0 MAX 0 [ ADD ] FOLD",
+    "sensor.longest_gap": "0 [ 'X' BIND 'K' BIND K 1 ADD 0 X NIL? SELECT ] SCAN 0 [ MAX ] FOLD",
+    "sensor.ratios": "'R' BIND R 1 DROP R -1 DROP 2 COLLECT ZIP [ 'P' BIND P 0 GET P 1 GET DIV ] MAP",
+    "sensor.scaled": "'R' BIND R [ NIL? NOT ] FILTER 'P' BIND P P 0 GET [ MAX ] FOLD 'M' BIND R [ M DIV ] MAP",
+
+    "series.median": "SORT 'S' BIND S S LENGTH 1 SUB 2 DIV FLOOR GET S S LENGTH 2 DIV FLOOR GET ADD 2 DIV",
+    "series.mad": "'X' BIND X SORT 'S' BIND S S LENGTH 1 SUB 2 DIV FLOOR GET S S LENGTH 2 DIV FLOOR GET ADD 2 DIV 'M' BIND X M SUB 'D' BIND D D -1 MUL MAX SORT 'T' BIND T T LENGTH 1 SUB 2 DIV FLOOR GET T T LENGTH 2 DIV FLOOR GET ADD 2 DIV",
+    "series.moving3": "'X' BIND X -2 DROP X 1 DROP -1 DROP ADD X 2 DROP ADD 3 DIV",
+    "series.runmax": "'X' BIND X X 0 GET [ MAX ] SCAN",
+    "series.mode": "SORT TALLY 'T' BIND T KEYS T VALUES -1 MUL ORDER 0 GET GET",
+    "series.trimmed": "SORT 1 DROP -1 DROP 'P' BIND P 0 [ ADD ] FOLD P LENGTH DIV"
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "agent": "P2D", "generation": 2, "condition": "probe",
+  "definitions": [],
+  "solutions": {
+    "ledger.total": "[ 1 GET ] MAP 0 [ ADD ] FOLD",
+    "ledger.by_name": "'E' BIND E [ 0 GET ] MAP E [ 1 GET ] MAP GROUP 'G' BIND G KEYS G VALUES [ 0 [ ADD ] FOLD ] MAP RECORD",
+    "ledger.top_name": "'E' BIND E [ 0 GET ] MAP E [ 1 GET ] MAP GROUP 'G' BIND G KEYS G VALUES [ 0 [ ADD ] FOLD ] MAP RECORD L1A.TOPKEY",
+    "ledger.debtors": "'E' BIND E [ 0 GET ] MAP E [ 1 GET ] MAP GROUP 'G' BIND G KEYS G VALUES [ 0 [ ADD ] FOLD ] MAP RECORD 'R' BIND R KEYS [ 'K' BIND R K GET 0 LT ] FILTER",
+    "ledger.count_names": "[ 0 GET ] MAP UNIQUE LENGTH",
+    "ledger.largest_entry": "'E' BIND E E [ 1 GET ] MAP L1A.ARGMAX GET",
+
+    "messy.count": "G0A.WORDS LENGTH",
+    "messy.normalize": "LOWER G0A.WORDS [ ' ' 2 COLLECT JOIN ] MAP JOIN TRIM",
+    "messy.distinct": "LOWER G0A.WORDS UNIQUE LENGTH",
+    "messy.top_word": "LOWER G0A.WORDS TALLY L1A.TOPKEY",
+    "messy.title": "G0A.WORDS [ LOWER CHARS 'CS' BIND CS 0 GET UPPER CS 1 DROP JOIN ' ' 3 COLLECT JOIN ] MAP JOIN TRIM",
+    "messy.sorted_unique": "LOWER G0A.WORDS UNIQUE SORT [ ' ' 2 COLLECT JOIN ] MAP JOIN TRIM",
+
+    "number.primes": "'N' BIND 1 N RANGE [ 'P' BIND 1 P RANGE 'D' BIND P P D DIV FLOOR D MUL SUB [ 1 LT ] FILTER LENGTH 2 EQ ] FILTER",
+    "number.divisors": "'N' BIND 1 N RANGE [ 'D' BIND N N D DIV FLOOR D MUL SUB 1 LT ] FILTER",
+    "number.binary": "'N' BIND N [ 32 16 8 4 2 1 ] DIV FLOOR 'Q' BIND Q Q 2 DIV FLOOR 2 MUL SUB STR JOIN 'S' BIND S CHARS S '1' SEARCH DROP JOIN",
+    "number.collatz": "0 2 COLLECT 'A0' BIND 1 200 RANGE A0 [ 'E' BIND [ 'C' 'S' ] BIND C 1 EQ 'DONE' BIND C C 2 DIV C 3 MUL 1 ADD C 2 DIV FLOOR 2 MUL C EQ SELECT DONE SELECT S S 1 ADD DONE SELECT 2 COLLECT ] FOLD 1 GET",
+    "number.digital_root": "1 SUB 'M' BIND M M 9 DIV FLOOR 9 MUL SUB 1 ADD",
+    "number.fib_index": "'N' BIND [ 1 1 2 3 5 8 13 21 34 55 89 144 233 ] [ N LT ] FILTER LENGTH 1 ADD",
+
+    "orders.revenue": "JSON-DECODE 'orders' GET [ 'price' HAS? ] FILTER [ 'O' BIND O 'qty' GET O 'price' GET MUL ] MAP 0 [ ADD ] FOLD",
+    "orders.report": "JSON-DECODE 'orders' GET [ 'price' HAS? ] FILTER [ 'O' BIND O 'qty' GET O 'price' GET MUL ] MAP 0 [ ADD ] FOLD 2 FORMAT",
+    "orders.unpriced": "JSON-DECODE 'orders' GET [ 'price' HAS? NOT ] FILTER [ 'sku' GET ] MAP UNIQUE",
+    "orders.qty_by_sku": "JSON-DECODE 'orders' GET 'OS' BIND OS [ 'sku' GET ] MAP OS [ 'qty' GET ] MAP GROUP 'G' BIND G KEYS G VALUES [ 0 [ ADD ] FOLD ] MAP RECORD",
+    "orders.top_sku": "JSON-DECODE 'orders' GET 'OS' BIND OS [ 'sku' GET ] MAP OS [ 'qty' GET ] MAP GROUP 'G' BIND G KEYS G VALUES [ 0 [ ADD ] FOLD ] MAP RECORD L1A.TOPKEY",
+    "orders.tag_counts": "JSON-DECODE 'orders' GET [ 'tags' HAS? ] FILTER [ 'tags' GET UNIQUE ] MAP FLATTEN TALLY",
+
+    "series.median": "SORT 'S' BIND S LENGTH 'L' BIND S L 1 SUB 2 DIV FLOOR GET S L 2 DIV FLOOR GET ADD 2 DIV",
+    "series.mad": "'V' BIND V SORT 'S' BIND S LENGTH 'L' BIND S L 1 SUB 2 DIV FLOOR GET S L 2 DIV FLOOR GET ADD 2 DIV 'M' BIND V M SUB 'DV' BIND DV -1 MUL DV MAX SORT 'S2' BIND S2 L 1 SUB 2 DIV FLOOR GET S2 L 2 DIV FLOOR GET ADD 2 DIV",
+    "series.moving3": "'V' BIND V LENGTH 2 SUB 'K' BIND V K TAKE V 1 DROP K TAKE V 2 DROP ADD ADD 3 DIV",
+    "series.runmax": "'V' BIND V V 0 GET [ MAX ] SCAN",
+    "series.mode": "SORT TALLY L1A.TOPKEY",
+    "series.trimmed": "SORT 1 DROP -1 DROP 'R' BIND R 0 [ ADD ] FOLD R LENGTH DIV",
+
+    "stats.sum": "0 [ ADD ] FOLD",
+    "stats.mean": "'V' BIND V 0 [ ADD ] FOLD V LENGTH DIV",
+    "stats.deviations": "'V' BIND V V 0 [ ADD ] FOLD V LENGTH DIV SUB",
+    "stats.variance": "'V' BIND V V 0 [ ADD ] FOLD V LENGTH DIV SUB 'D' BIND D D MUL 0 [ ADD ] FOLD V LENGTH DIV",
+    "stats.stddev": "'V' BIND V V 0 [ ADD ] FOLD V LENGTH DIV SUB 'D' BIND D D MUL 0 [ ADD ] FOLD V LENGTH DIV SQRT",
+    "stats.range": "SORT 'S' BIND S -1 GET S 0 GET SUB",
+    "stats.normalize": "'V' BIND V SORT 'S' BIND S 0 GET 'MN' BIND V MN SUB S -1 GET MN SUB DIV",
+
+    "text.count": "' ' TOKENIZE LENGTH",
+    "text.frequency": "' ' TOKENIZE TALLY",
+    "text.distinct": "' ' TOKENIZE UNIQUE",
+    "text.titlecase": "' ' TOKENIZE [ CHARS 'CS' BIND CS 0 GET UPPER CS 1 DROP JOIN ' ' 3 COLLECT JOIN ] MAP JOIN TRIM",
+    "text.longest": "' ' TOKENIZE [ CHARS LENGTH ] MAP SORT -1 GET",
+    "text.long-words": "' ' TOKENIZE [ CHARS LENGTH 3 GT ] FILTER",
+    "text.acronym": "' ' TOKENIZE [ CHARS 0 GET ] MAP JOIN UPPER"
+  }
+}

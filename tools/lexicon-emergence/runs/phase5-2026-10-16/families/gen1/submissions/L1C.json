@@ -1,0 +1,69 @@
+{
+  "agent": "L1C",
+  "generation": 1,
+  "condition": "families",
+  "definitions": [
+    { "name": "L1C.CODE1", "body": "'C' BIND '([)]' C SEARCH 'P' BIND [ 1 2 -1 -2 ] P GET", "note": "One bracket character to its code: open paren 1, close paren -1, open square 2, close square -2." },
+    { "name": "L1C.BSTEP", "body": "'ELT' BIND 'STK' BIND STK -1 GET 'TOP' BIND TOP ELT ADD 0 EQ 'CAN' BIND STK -1 DROP STK ELT 1 COLLECT CONCAT 2 COLLECT 0 1 CAN SELECT GET", "note": "Bracket reduction step (stack, code): cancel top against code when they sum to 0, else push code; stack starts as [0]." },
+    { "name": "L1C.CSTEP", "body": "'V' BIND 'C' BIND C 1 -1 V 0 GT SELECT ADD 0 MAX", "note": "Open-bracket counter step (count, code): +1 for an opener, -1 for a closer, floored at 0." },
+    { "name": "L1C.PSTEP", "body": "'ELT' BIND 'ACC' BIND ACC 0 GET 'STK' BIND ACC 1 GET 'BST' BIND ACC 2 GET 'POS' BIND STK ELT L1C.BSTEP 'NXT' BIND POS 1 ADD 'NPS' BIND NPS BST NXT LENGTH 1 EQ SELECT 'NBS' BIND NXT NBS NPS 3 COLLECT", "note": "Balanced-prefix step over [stack, best, pos]: best becomes pos whenever the stack is back to its sentinel." },
+    { "name": "L1C.SPJOIN", "body": "[ ' ' 2 COLLECT JOIN ] MAP JOIN TRIM", "note": "Join a Vector of Strings with single spaces, no space at either end." },
+    { "name": "L1C.UP1", "body": "CHARS 'C' BIND C 0 GET UPPER C 1 DROP JOIN 2 COLLECT JOIN", "note": "Upper-case the first letter of a String, leave the rest as it is." },
+    { "name": "L1C.CAP", "body": "LOWER L1C.UP1", "note": "Title-case one word: lower-case it, then upper-case its first letter." },
+    { "name": "L1C.BYNAME", "body": "'ENTS' BIND ENTS [ 0 GET ] MAP ENTS [ 1 GET ] MAP GROUP 'G' BIND G KEYS G VALUES [ G0A.SUM ] MAP RECORD", "note": "Ledger entries to a Record from each name to the sum of its amounts, names in first-appearance order." },
+    { "name": "L1C.RSTEP", "body": "'V' BIND 'A' BIND A 0 GET 'P' BIND A 1 GET 'I' BIND I 0 1 P V EQ SELECT ADD 'NI' BIND V NI 2 COLLECT", "note": "Run-id step (previous, id) with element: id goes up by 1 when the element differs from the previous one." },
+    { "name": "L1C.RUNIDS", "body": "'XV' BIND XV XV 0 GET 0 2 COLLECT [ L1C.RSTEP ] SCAN [ 1 GET ] MAP", "note": "Vector to the run id of each element; equal adjacent values share an id, ids ascend from 0." },
+    { "name": "L1C.ASTEP", "body": "'V' BIND 'A' BIND A 0 GET 'P' BIND A 1 GET 'I' BIND I 0 1 P V LT SELECT ADD 'NI' BIND V NI 2 COLLECT", "note": "Ascent-id step (previous, id) with element: id goes up by 1 unless the element is strictly greater than the previous one." },
+    { "name": "L1C.UPIDS", "body": "'XV' BIND XV XV 0 GET 0 2 COLLECT [ L1C.ASTEP ] SCAN [ 1 GET ] MAP", "note": "Vector to the id of each strictly-increasing stretch, ids ascend from 1." },
+    { "name": "L1C.FLAG", "body": "'E' BIND 1 0 E NIL? SELECT", "note": "Reading to 1 when it is missing (NIL), else 0." },
+    { "name": "L1C.FILL", "body": "'E' BIND 'A' BIND A E E NIL? SELECT", "note": "Forward-fill step (last present, reading): a missing reading takes the last present one." },
+    { "name": "L1C.MED", "body": "SORT 'S' BIND S LENGTH 'N' BIND S N 1 SUB 2 DIV FLOOR GET S N 2 DIV FLOOR GET ADD 2 DIV", "note": "Median of a non-empty Vector of exact numbers (mean of the two middle values when the count is even)." }
+  ],
+  "solutions": {
+    "brackets.depth": "CHARS [ L1C.CODE1 ] MAP 'QV' BIND [ 0 ] QV 0 [ L1C.CSTEP ] SCAN CONCAT G0C.MAXV",
+    "brackets.balanced": "CHARS [ L1C.CODE1 ] MAP [ 0 ] [ L1C.BSTEP ] FOLD LENGTH 1 EQ",
+    "brackets.balanced_prefix": "CHARS [ L1C.CODE1 ] MAP [ 0 ] 0 0 3 COLLECT [ L1C.PSTEP ] FOLD 1 GET",
+    "brackets.unmatched": "CHARS [ L1C.CODE1 ] MAP [ 0 ] [ L1C.BSTEP ] FOLD LENGTH 1 SUB",
+
+    "ledger.total": "[ 1 GET ] MAP G0A.SUM",
+    "ledger.by_name": "L1C.BYNAME",
+    "ledger.top_name": "L1C.BYNAME 'R' BIND R KEYS R VALUES -1 MUL ORDER 0 GET GET",
+    "ledger.debtors": "L1C.BYNAME 'R' BIND R KEYS R VALUES 2 COLLECT ZIP [ 1 GET 0 LT ] FILTER [ 0 GET ] MAP",
+    "ledger.count_names": "[ 0 GET ] MAP UNIQUE LENGTH",
+    "ledger.largest_entry": "'E' BIND E E [ 1 GET ] MAP -1 MUL ORDER 0 GET GET",
+
+    "messy.count": "G0A.WORDS LENGTH",
+    "messy.normalize": "G0A.WORDS [ LOWER ] MAP L1C.SPJOIN",
+    "messy.distinct": "G0A.WORDS [ LOWER ] MAP UNIQUE LENGTH",
+    "messy.top_word": "G0A.WORDS [ LOWER ] MAP TALLY 'R' BIND R KEYS R VALUES -1 MUL ORDER 0 GET GET",
+    "messy.title": "G0A.WORDS [ L1C.CAP ] MAP L1C.SPJOIN",
+    "messy.sorted_unique": "G0A.WORDS [ LOWER ] MAP UNIQUE SORT L1C.SPJOIN",
+
+    "prose.longest": "G0A.WORDS 'W' BIND W W [ CHARS LENGTH ] MAP -1 MUL ORDER 0 GET GET",
+    "prose.freq_top": "G0A.WORDS TALLY 'R' BIND R KEYS R VALUES -1 MUL ORDER 0 GET GET",
+    "prose.distinct_sorted": "G0A.WORDS UNIQUE SORT L1C.SPJOIN",
+    "prose.reverse_words": "G0A.WORDS REVERSE L1C.SPJOIN",
+    "prose.capitalize": "G0A.WORDS [ L1C.UP1 ] MAP L1C.SPJOIN",
+    "prose.initials_of_long": "G0A.WORDS [ CHARS LENGTH 3 GT ] FILTER [ CHARS 0 GET UPPER ] MAP JOIN",
+
+    "runs.rle": "'V' BIND V L1C.RUNIDS V GROUP 'G' BIND G VALUES 'VS' BIND VS [ 0 GET ] MAP VS [ LENGTH ] MAP 2 COLLECT ZIP",
+    "runs.upruns": "L1C.UPIDS TALLY VALUES G0C.MAXV",
+    "runs.dedupe": "'V' BIND V L1C.RUNIDS V GROUP VALUES [ 0 GET ] MAP",
+    "runs.second_largest": "UNIQUE SORT -2 GET",
+    "runs.majority": "'V' BIND V TALLY 'R' BIND R KEYS R VALUES -1 MUL ORDER 0 GET GET 'M' BIND R VALUES G0C.MAXV 2 MUL 'MX2' BIND M NIL V LENGTH MX2 LT SELECT",
+
+    "sensor.present_mean": "[ NIL? NOT ] FILTER G0A.MEAN",
+    "sensor.filled": "'R' BIND R R [ NIL? NOT ] FILTER 0 GET [ L1C.FILL ] SCAN",
+    "sensor.gap_count": "[ L1C.FLAG ] MAP 'FL' BIND FL L1C.RUNIDS FL GROUP VALUES [ 0 GET ] MAP G0A.SUM",
+    "sensor.longest_gap": "[ L1C.FLAG ] MAP 'FL' BIND FL L1C.RUNIDS FL GROUP VALUES 'GV' BIND GV [ 0 GET ] MAP GV [ LENGTH ] MAP MUL G0C.MAXV",
+    "sensor.ratios": "'R' BIND R 1 DROP R -1 DROP DIV",
+    "sensor.scaled": "'R' BIND R [ NIL? NOT ] FILTER G0C.MAXV 'M' BIND R M DIV",
+
+    "series.median": "L1C.MED",
+    "series.mad": "'X' BIND X X L1C.MED 'M' BIND X M SUB M X SUB MAX L1C.MED",
+    "series.moving3": "'X' BIND X -2 DROP X 1 DROP -1 DROP ADD X 2 DROP ADD 3 DIV",
+    "series.runmax": "'X' BIND X X 0 GET [ MAX ] SCAN",
+    "series.mode": "SORT TALLY 'R' BIND R KEYS R VALUES -1 MUL ORDER 0 GET GET",
+    "series.trimmed": "SORT 1 DROP -1 DROP G0A.MEAN"
+  }
+}

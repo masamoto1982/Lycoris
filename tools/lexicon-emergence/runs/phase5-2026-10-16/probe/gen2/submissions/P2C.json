@@ -1,0 +1,58 @@
+{
+  "agent": "P2C",
+  "generation": 2,
+  "condition": "probe",
+  "definitions": [],
+  "solutions": {
+    "ledger.total": "'E' BIND E [ 1 GET ] MAP 0 [ ADD ] FOLD",
+    "ledger.by_name": "'E' BIND E [ 0 GET ] MAP 'N' BIND E [ 1 GET ] MAP 'A' BIND N A GROUP 'G' BIND G KEYS G VALUES [ 0 [ ADD ] FOLD ] MAP RECORD",
+    "ledger.top_name": "'E' BIND E [ 0 GET ] MAP 'N' BIND E [ 1 GET ] MAP 'A' BIND N A GROUP 'G' BIND G KEYS G VALUES [ 0 [ ADD ] FOLD ] MAP RECORD L1A.TOPKEY",
+    "ledger.debtors": "'E' BIND E [ 0 GET ] MAP 'N' BIND E [ 1 GET ] MAP 'A' BIND N A GROUP 'G' BIND G KEYS G VALUES [ 0 [ ADD ] FOLD ] MAP RECORD 'R' BIND R KEYS [ 'NM' BIND R NM GET 0 LT ] FILTER",
+    "ledger.count_names": "'E' BIND E [ 0 GET ] MAP UNIQUE LENGTH",
+    "ledger.largest_entry": "'E' BIND E [ 1 GET ] MAP L1A.ARGMAX 'I' BIND E I GET",
+
+    "messy.count": "G0A.WORDS LENGTH",
+    "messy.normalize": "G0A.WORDS [ LOWER ' ' 2 COLLECT JOIN ] MAP JOIN TRIM",
+    "messy.distinct": "G0A.WORDS [ LOWER ] MAP UNIQUE LENGTH",
+    "messy.top_word": "G0A.WORDS [ LOWER ] MAP TALLY L1A.TOPKEY",
+    "messy.title": "G0A.WORDS [ LOWER CHARS 'C' BIND C 0 GET UPPER 1 COLLECT C 1 DROP CONCAT JOIN ' ' 2 COLLECT JOIN ] MAP JOIN TRIM",
+    "messy.sorted_unique": "G0A.WORDS [ LOWER ] MAP UNIQUE SORT [ ' ' 2 COLLECT JOIN ] MAP JOIN TRIM",
+
+    "number.primes": "'N' BIND 1 N RANGE 'K' BIND K [ 'D' BIND K D DIV FLOOR K 1 SUB D DIV FLOOR SUB ] MAP 0 [ ADD ] FOLD [ 2 EQ ] MAP 'T' BIND K K 0 MUL T SELECT [ 0 EQ NOT ] FILTER",
+    "number.divisors": "'N' BIND 1 N RANGE [ 'D' BIND N D DIV FLOOR D MUL N EQ ] FILTER",
+    "number.binary": "'N' BIND 6 0 RANGE 'E' BIND 2 E POW 'P' BIND N P DIV FLOOR N P 2 MUL DIV FLOOR 2 MUL SUB STR JOIN 'S' BIND S CHARS S '1' SEARCH DROP JOIN",
+    "number.collatz": "'N' BIND 1 200 RANGE N 0 2 COLLECT [ 'E' BIND 'A' BIND A 0 GET 'X' BIND A 1 GET 'C' BIND X 1 EQ 'D' BIND X X 2 DIV FLOOR 2 MUL EQ 'EV' BIND X X 2 DIV X 3 MUL 1 ADD EV SELECT D SELECT C C 1 ADD D SELECT 2 COLLECT ] FOLD 1 GET",
+    "number.digital_root": "'N' BIND N N 1 SUB 9 DIV FLOOR 9 MUL SUB",
+    "number.fib_index": "'N' BIND 1 14 RANGE 0 1 2 COLLECT [ 'E' BIND 'A' BIND A 1 GET A 0 GET A 1 GET ADD 2 COLLECT ] SCAN [ 0 GET ] MAP [ N LT ] FILTER LENGTH 1 ADD",
+
+    "orders.revenue": "JSON-DECODE 'DOC' BIND DOC 'orders' GET [ 'O' BIND O 'qty' GET O 'price' GET MUL 0 O 'price' HAS? SELECT ] MAP 0 [ ADD ] FOLD",
+    "orders.report": "JSON-DECODE 'DOC' BIND DOC 'orders' GET [ 'O' BIND O 'qty' GET O 'price' GET MUL 0 O 'price' HAS? SELECT ] MAP 0 [ ADD ] FOLD 2 FORMAT",
+    "orders.unpriced": "JSON-DECODE 'DOC' BIND DOC 'orders' GET [ 'O' BIND O 'price' HAS? NOT ] FILTER [ 'sku' GET ] MAP UNIQUE",
+    "orders.qty_by_sku": "JSON-DECODE 'DOC' BIND DOC 'orders' GET 'OS' BIND OS [ 'sku' GET ] MAP 'S' BIND OS [ 'qty' GET ] MAP 'Q' BIND S Q GROUP 'G' BIND G KEYS G VALUES [ 0 [ ADD ] FOLD ] MAP RECORD",
+    "orders.top_sku": "JSON-DECODE 'DOC' BIND DOC 'orders' GET 'OS' BIND OS [ 'sku' GET ] MAP 'S' BIND OS [ 'qty' GET ] MAP 'Q' BIND S Q GROUP 'G' BIND G KEYS G VALUES [ 0 [ ADD ] FOLD ] MAP RECORD L1A.TOPKEY",
+    "orders.tag_counts": "JSON-DECODE 'DOC' BIND DOC 'orders' GET [ 'O' BIND O 'tags' HAS? ] FILTER [ 'tags' GET UNIQUE ] MAP FLATTEN TALLY",
+
+    "series.median": "'V' BIND V SORT 'S' BIND S LENGTH 'N' BIND S N 1 SUB 2 DIV FLOOR GET S N 2 DIV FLOOR GET ADD 2 DIV",
+    "series.mad": "'V' BIND V SORT 'S' BIND S LENGTH 'N' BIND S N 1 SUB 2 DIV FLOOR GET S N 2 DIV FLOOR GET ADD 2 DIV 'M' BIND V [ M SUB 'D' BIND D D -1 MUL MAX ] MAP SORT 'T' BIND T N 1 SUB 2 DIV FLOOR GET T N 2 DIV FLOOR GET ADD 2 DIV",
+    "series.moving3": "'V' BIND V -2 DROP V 1 DROP -1 DROP ADD V 2 DROP ADD 3 DIV",
+    "series.runmax": "'V' BIND V V 0 GET [ MAX ] SCAN",
+    "series.mode": "SORT TALLY L1A.TOPKEY",
+    "series.trimmed": "SORT 1 DROP -1 DROP 'T' BIND T 0 [ ADD ] FOLD T LENGTH DIV",
+
+    "stats.sum": "0 [ ADD ] FOLD",
+    "stats.mean": "'V' BIND V 0 [ ADD ] FOLD V LENGTH DIV",
+    "stats.deviations": "'V' BIND V 0 [ ADD ] FOLD V LENGTH DIV 'M' BIND V [ M SUB ] MAP",
+    "stats.variance": "'V' BIND V 0 [ ADD ] FOLD V LENGTH DIV 'M' BIND V [ M SUB 'D' BIND D D MUL ] MAP 0 [ ADD ] FOLD V LENGTH DIV",
+    "stats.stddev": "'V' BIND V 0 [ ADD ] FOLD V LENGTH DIV 'M' BIND V [ M SUB 'D' BIND D D MUL ] MAP 0 [ ADD ] FOLD V LENGTH DIV SQRT",
+    "stats.range": "'V' BIND V G0C.MAXV V SORT 0 GET SUB",
+    "stats.normalize": "'V' BIND V SORT 0 GET 'MN' BIND V G0C.MAXV 'MX' BIND V [ MN SUB ] MAP MX MN SUB DIV",
+
+    "text.count": "G0A.WORDS LENGTH",
+    "text.frequency": "G0A.WORDS TALLY",
+    "text.distinct": "G0A.WORDS UNIQUE",
+    "text.titlecase": "G0A.WORDS [ CHARS 'C' BIND C 0 GET UPPER 1 COLLECT C 1 DROP CONCAT JOIN ' ' 2 COLLECT JOIN ] MAP JOIN TRIM",
+    "text.longest": "G0A.WORDS [ CHARS LENGTH ] MAP G0C.MAXV",
+    "text.long-words": "G0A.WORDS [ CHARS LENGTH 3 GT ] FILTER",
+    "text.acronym": "G0A.WORDS [ CHARS 0 GET UPPER ] MAP JOIN"
+  }
+}
