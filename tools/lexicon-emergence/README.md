@@ -19,13 +19,14 @@ that may run code) is `docs/dev/lexicon-emergence-phase3-results-2026-10-15.md`,
 whose appendix keeps the design it ran under. Phase 4's (52 subjects; two
 training sets rotating by generation and three held-out families never
 selected from) is `docs/dev/lexicon-emergence-phase4-results-2026-10-16.md`,
-whose appendix likewise keeps its design. Phase 5's design (a lexicon chosen
-by the number of task families reaching each Word, and the same lexicon
-given to subjects who may not define Words of their own) is
-`docs/dev/lexicon-emergence-phase5-design-2026-10-16.md`.
+whose appendix likewise keeps its design. Phase 5's (32 new subjects; a
+lexicon chosen by the number of task families reaching each Word, and the
+same lexicon given to subjects who may not define Words of their own) is
+`docs/dev/lexicon-emergence-phase5-results-2026-10-16.md`, with its design in
+the appendix.
 No run is kept under `runs/` (each run's
 raw data was committed and then removed, and lives in git history);
-the experiment's original work order and the Phase 3 and Phase 4 designs were removed from
+the experiment's original work order and the Phase 3, Phase 4 and Phase 5 designs were removed from
 `docs/dev/` the same way, and the hypotheses H1–H5 the work order named are
 restated in the pilot results.
 

@@ -44,12 +44,14 @@ export function heldOutSplit(gen) {
 /**
  * Per held-out family of one generation: correct solutions, those calling a
  * Word the same subject also reached from a correct training solution (own or
- * inherited), and those calling an inherited Word. The first all but bounds
- * the second: in Phase 4, 1 of 858 correct held-out solutions with a lexicon
- * reached an inherited Word its subject had not also reached in training. A
- * family that shares little with the training tasks even inside one subject
- * (`series`) is out of reach of any lexicon chosen from them. Null when
- * nothing is held out.
+ * inherited), and those calling an inherited Word. Where subjects may define
+ * Words, the first all but bounds the second: in Phase 4, 1 of 858 correct
+ * held-out solutions with a lexicon reached an inherited Word its subject had
+ * not also reached in training, so a family that shares little with the
+ * training tasks even inside one subject (`series`) is out of reach of any
+ * lexicon chosen from them. Subjects who may not define Words (Phase 5's
+ * `probe`) call an inherited Word where it fits a held-out family alone, so
+ * there the bound does not hold. Null when nothing is held out.
  */
 export function heldOutFamilies(gen) {
   if (!gen.graded.some((x) => x.results.some((r) => r.heldOut))) return null;
@@ -273,7 +275,7 @@ export function renderReport(report) {
   }
   if (report.perGeneration.some((g) => g.heldOutFamilies)) {
     out.push('', '## Held-out families: shared with training, and inherited', '');
-    out.push('Of each family\'s correct held-out solutions: "shared" call a Word their own subject also reached from a correct training solution, "inherited" call an inherited Word. Shared bounds inherited from above.', '');
+    out.push('Of each family\'s correct held-out solutions: "shared" call a Word their own subject also reached from a correct training solution, "inherited" call an inherited Word. Where subjects may define Words, shared all but bounds inherited from above.', '');
     const familiesSeen = [...new Set(report.perGeneration.flatMap((g) => (g.heldOutFamilies ?? []).map((f) => f.family)))];
     out.push(`| condition | gen | ${familiesSeen.map((f) => `${f} correct · shared · inherited`).join(' | ')} |`);
     out.push(`| --- | --- | ${familiesSeen.map(() => '---').join(' | ')} |`);
