@@ -381,7 +381,19 @@ fn staff_and_customer_screens_are_exclusive() {
         &mut s,
         json!({"type":"select_payment","register":1,"side":"customer","method":"qr"}),
     );
-    // 店員がバーコードを読めば登録画面に戻り、店員側が操作できるようになる
+    // 店員が名札を読む（ログインする）と、支払い中でも店員側が操作できる
+    scan(&mut s, 1, "staff", "ST1002");
+    assert_eq!(reg(&s, 1).active_side, Side::Staff);
+    ok(
+        &mut s,
+        json!({"type":"back_to_registering","register":1,"side":"staff"}),
+    );
+    ok(
+        &mut s,
+        json!({"type":"checkout","register":1,"side":"staff"}),
+    );
+    assert_eq!(reg(&s, 1).active_side, Side::Customer);
+    // 商品を読んだ場合も登録画面に戻り、店員側に戻る
     scan(&mut s, 1, "staff", ONIGIRI);
     assert_eq!(reg(&s, 1).active_side, Side::Staff);
     ok(&mut s, json!({"type":"void_transaction","register":1}));

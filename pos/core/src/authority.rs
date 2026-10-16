@@ -4,6 +4,9 @@
 //! 見ているもの。**画面の操作は排他**で、店員が操作しているあいだお客様画面は
 //! 操作できず、お客様が操作しているあいだ店員画面は操作できない。
 //!
+//! 店員画面には常にお客様画面の内容が映り、店員はログイン（名札のスキャン）
+//! することで操作できるようになる。
+//!
 //! どちらが操作するかは、タッチの奪い合いや受け渡しボタンでは決めない。
 //! (運用モード, 取引の段階, 店員のログイン状態, お客様の確認待ちの有無) から
 //! 純粋関数 [`active_side`] で一意に決まる。同じ状態なら必ず同じ側なので、
@@ -152,6 +155,8 @@ pub struct Context {
     /// 店員の受付が済んでいないサービス商品がある
     pub service_pending: bool,
     pub method: Option<PaymentMethod>,
+    /// セミセルフで、店員が会計に進めてお客様に支払いを任せている
+    pub customer_turn: bool,
 }
 
 impl Context {
@@ -181,12 +186,13 @@ pub fn active_side(c: &Context) -> Side {
         // お客様本人の確認（年確・FF 受取）を待っている間はお客様側
         return Side::Customer;
     }
-    match (c.mode, c.phase) {
-        // セミセルフの支払いはお客様が行う
-        (Mode::SemiSelf, Phase::Paying) => Side::Customer,
-        // 有人、セミセルフの登録中、セルフの店員操作モードは店員側
-        _ => Side::Staff,
+    if c.customer_turn {
+        // セミセルフで店員が会計に進めた後はお客様の支払い。
+        // 店員が名札を読む（ログインする）と店員側に戻る
+        return Side::Customer;
     }
+    // ログインしている店員が操作する（有人、セミセルフの登録中、セルフの店員操作モード）
+    Side::Staff
 }
 
 /// 画面ではなく機器の操作（排他の対象外）
@@ -338,17 +344,20 @@ mod tests {
                                 for method in
                                     [None, Some(PaymentMethod::Cash), Some(PaymentMethod::Emoney)]
                                 {
-                                    v.push(Context {
-                                        mode,
-                                        phase,
-                                        staff: StaffState::Ready,
-                                        has_lines,
-                                        age_pending: age_pending && phase == Phase::Paying,
-                                        ff_waiting,
-                                        ff_presented,
-                                        service_pending,
-                                        method,
-                                    });
+                                    for customer_turn in b {
+                                        v.push(Context {
+                                            customer_turn,
+                                            mode,
+                                            phase,
+                                            staff: StaffState::Ready,
+                                            has_lines,
+                                            age_pending: age_pending && phase == Phase::Paying,
+                                            ff_waiting,
+                                            ff_presented,
+                                            service_pending,
+                                            method,
+                                        });
+                                    }
                                 }
                             }
                         }
@@ -377,7 +386,10 @@ mod tests {
     /// 問題5：有人モードでお客様が操作側になるのは、本人の確認を待つときだけ。
     #[test]
     fn attended_customer_is_active_only_for_confirmations() {
-        for c in contexts().into_iter().filter(|c| c.mode == Mode::Attended) {
+        for c in contexts()
+            .into_iter()
+            .filter(|c| c.mode == Mode::Attended && !c.customer_turn)
+        {
             let expect = if c.age_pending || c.ff_presented {
                 Side::Customer
             } else {

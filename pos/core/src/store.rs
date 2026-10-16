@@ -211,6 +211,8 @@ struct Txn {
     age_verified: bool,
     method: Option<PaymentMethod>,
     inserted: Cash,
+    /// セミセルフで店員が会計に進め、お客様に支払いを任せている（店員が名札を読むと解除）
+    customer_turn: bool,
 }
 
 impl Txn {
@@ -324,6 +326,7 @@ impl Register {
             ff_presented: t.any_ff(FfState::Presented),
             service_pending: t.service_pending(),
             method: t.method,
+            customer_turn: t.customer_turn,
         }
     }
 }
@@ -571,6 +574,7 @@ impl Store {
                 let r = self.reg_mut(register)?;
                 r.txn.paying = false;
                 r.txn.method = None;
+                r.txn.customer_turn = false;
                 done("登録画面に戻りました")
             }
             C::SelectPayment {
@@ -745,12 +749,16 @@ impl Store {
             let now = self.now;
             let r = self.reg_mut(register)?;
             let was = r.staff_state();
+            let took_over = r.txn.customer_turn;
             r.staff = Some(StaffSession {
                 account: acc,
                 locked: false,
             });
+            // ログインで店員側が操作できるようになる（お客様の支払い中でも）
+            r.txn.customer_turn = false;
             self.calls.resolve(register, CallKind::CustomerHelp, now);
             return done(match was {
+                _ if took_over => format!("{}さんが操作を引き継ぎました", acc.name),
                 StaffState::Locked => format!("{}さんがロックを解除しました", acc.name),
                 _ => format!("{}さんが店員操作モードに入りました", acc.name),
             });
@@ -763,6 +771,7 @@ impl Store {
         let back = if r.txn.paying {
             r.txn.paying = false;
             r.txn.method = None;
+            r.txn.customer_turn = false;
             "（登録画面に戻りました）"
         } else {
             ""
@@ -814,6 +823,7 @@ impl Store {
         if r.txn.paying {
             r.txn.paying = false;
             r.txn.method = None;
+            r.txn.customer_turn = false;
         }
         r.txn.push(
             p,
@@ -846,6 +856,8 @@ impl Store {
             .max();
         r.txn.paying = true;
         r.txn.required_age = age;
+        // セミセルフでは、会計に進めたら支払いはお客様に任せる
+        r.txn.customer_turn = r.mode == Mode::SemiSelf;
         let ready = r.staff_state() == StaffState::Ready;
         let pending = r.txn.age_pending();
         let mode = r.mode;

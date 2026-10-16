@@ -89,14 +89,26 @@ export function staffScreen(r: RegisterView, snap: Snapshot): string {
   const v = r.staff;
   const reg = r.id;
   const a = (n: string) => find(v.actions, n);
-  if (v.state !== "ready") {
-    return `<div class="locked">
-      <div class="big">${v.state === "locked" ? "🔒 ロック中" : "店員未ログイン"}</div>
-      <p>名札（スタッフバーコード）をこの画面に落とすと${v.state === "locked" ? "解除" : "ログイン"}します</p>
-      ${r.mode === "full_self" ? `<p class="muted">セルフモード：お客様の操作は続いています。右の「お客様画面」と同じ取引です。</p>` : ""}
-      <div class="mirror">${miniLines(r)}</div>
-    </div>`;
+  // 店員画面には常にお客様画面の内容を映す。ログイン（名札）で操作できるようになる
+  if (r.active_side !== "staff") {
+    const why =
+      v.state === "absent"
+        ? "店員未ログイン"
+        : v.state === "locked"
+          ? "ロック中"
+          : v.age_pending
+            ? "お客様の年齢確認待ち"
+            : v.lines.some((l) => l.kind === "ff" && l.state === "presented")
+              ? "お客様の FF 受取確認待ち"
+              : "お客様のお支払い中";
+    const how =
+      v.state === "ready" && (v.age_pending || v.lines.some((l) => l.kind === "ff" && l.state === "presented"))
+        ? "お客様の確認が済むと操作に戻ります"
+        : "名札（スタッフバーコード）をこの画面に落とすと操作できます";
+    return `<div class="mirror-head"><b>${why}</b>　${how}</div>
+      <div class="mirror">${customerScreen(r)}</div>`;
   }
+
 
   const rows = v.lines.map((l) => staffLine(reg, l, v)).join("");
   const paying = v.phase === "paying";
@@ -133,11 +145,7 @@ export function staffScreen(r: RegisterView, snap: Snapshot): string {
       </div>`
     : "";
 
-  const watching =
-    r.active_side === "customer"
-      ? `<div class="banner watch">お客様が操作中です（この画面は表示のみ）${v.age_pending ? "：年齢確認の待ち" : v.lines.some((l) => l.kind === "ff" && l.state === "presented") ? "：FF の受取確認の待ち" : "：お支払い中"}。商品のバーコードは読めます</div>`
-      : "";
-  return `${watching}<div class="staff-head">
+  return `<div class="staff-head">
       <span>店員：<b>${esc(v.name)}</b>${v.role === "owner" ? "（オーナー）" : ""}</span>
       <span class="segs">${modeSel}</span>
     </div>
@@ -169,12 +177,6 @@ export function staffScreen(r: RegisterView, snap: Snapshot): string {
       </div>
       <p class="muted">ログイン中でも出金のたびにパスワードが必要です。在高 ${yen(v.drawer_total)}</p>
     </details>`;
-}
-
-function miniLines(r: RegisterView): string {
-  const c = r.customer;
-  if (!c.lines.length) return "";
-  return `<div class="muted">${c.lines.map((l) => `${esc(l.name)}×${l.qty}`).join("、")}　計 ${yen(c.total)}</div>`;
 }
 
 // ---------------------------------------------------------------------------

@@ -270,3 +270,8 @@ body.dragging .drop-hint { display: inline; }
 }
 .screen-title::after { content: ""; }
 .screen.inactive .screen-title::after { content: "　表示のみ"; font-weight: 700; }
+
+/* 店員画面に映すお客様画面の内容 */
+.mirror-head { font-size: 13px; padding: 6px 8px; border-radius: 6px; background: var(--staff-line); margin-bottom: 8px; }
+.mirror { background: var(--cust-bg); color: var(--ink); border-radius: 8px; padding: 8px 10px; }
+.mirror .muted { color: var(--muted); }
