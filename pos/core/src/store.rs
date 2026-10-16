@@ -59,6 +59,9 @@ pub enum Command {
     },
     RegisterFf {
         register: u8,
+        /// 省略時は店員側。セルフモードではお客様側からも登録できる
+        #[serde(default = "staff_side")]
+        side: Side,
         code: String,
         qty: u32,
     },
@@ -151,6 +154,35 @@ pub enum Command {
         mat: usize,
         offline: bool,
     },
+}
+
+impl Command {
+    /// 対象のレジ（店舗全体の操作なら None）
+    pub fn register(&self) -> Option<u8> {
+        use Command as C;
+        match self {
+            C::Scan { register, .. }
+            | C::RegisterFf { register, .. }
+            | C::FfButton { register, .. }
+            | C::HandOverFf { register, .. }
+            | C::ConfirmFfReceipt { register, .. }
+            | C::CompleteService { register, .. }
+            | C::RemoveLine { register, .. }
+            | C::Checkout { register, .. }
+            | C::BackToRegistering { register, .. }
+            | C::SelectPayment { register, .. }
+            | C::ConfirmAge { register, .. }
+            | C::InsertCash { register, .. }
+            | C::TapEmoney { register, .. }
+            | C::CallStaff { register, .. }
+            | C::VoidTransaction { register, .. }
+            | C::SetMode { register, .. }
+            | C::Lock { register, .. }
+            | C::EndStaffMode { register, .. }
+            | C::CashOut { register, .. } => Some(*register),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Default)]
@@ -305,9 +337,16 @@ struct Register {
     txn: Txn,
     drawer: Drawer,
     last_receipt: Option<Receipt>,
+    /// 最後に操作された時刻（無操作でセミセルフに戻すため）
+    last_op: u64,
 }
 
 impl Register {
+    /// 取引も呼び出しもなく、待機に戻してよい状態か
+    fn idle(&self) -> bool {
+        self.txn.lines.is_empty() && !self.txn.paying
+    }
+
     fn staff_state(&self) -> StaffState {
         match self.staff {
             None => StaffState::Absent,
@@ -368,6 +407,13 @@ pub struct Store {
     receipts: u32,
 }
 
+fn staff_side() -> Side {
+    Side::Staff
+}
+
+/// 無操作がこの時間続くと、レジはセミセルフモードに戻って待機する
+pub const IDLE_REVERT_MS: u64 = 5 * 60 * 1000;
+
 impl Store {
     /// 基本構成はレジ 2 台・MAT 1 台。レジは 10 台、MAT は 5 台まで増やせる。
     pub fn new(seed: u64, registers: u8, mats: u8) -> Store {
@@ -375,18 +421,18 @@ impl Store {
         let mats = mats.clamp(1, MAX_MATS);
         let regs = (1..=registers)
             .map(|id| {
-                // デモ用の初期状態：奇数番はセミセルフで店員ログイン済み、偶数番はセルフ
-                let semi = id % 2 == 1;
+                // 既定はセミセルフ。デモ用にレジ1は山田、レジ2は鈴木がログイン済み
                 Register {
                     id,
-                    mode: if semi { Mode::SemiSelf } else { Mode::FullSelf },
-                    staff: semi.then(|| StaffSession {
-                        account: &ACCOUNTS[0],
+                    mode: Mode::SemiSelf,
+                    staff: (id <= 2).then(|| StaffSession {
+                        account: &ACCOUNTS[(id as usize - 1) % 2],
                         locked: false,
                     }),
                     txn: Txn::default(),
                     drawer: Drawer::default(),
                     last_receipt: None,
+                    last_op: 0,
                 }
             })
             .collect();
@@ -447,6 +493,18 @@ impl Store {
         for m in &mut self.mats {
             m.tick(now, self.bell, self.mat_loss, &mut self.rng);
         }
+        // 無操作が続いたレジは、セミセルフモードに戻って待機する
+        for r in &mut self.registers {
+            let open = self.calls.open.iter().any(|c| c.register == r.id);
+            if r.mode != Mode::SemiSelf
+                && r.idle()
+                && !open
+                && now.saturating_sub(r.last_op) >= IDLE_REVERT_MS
+            {
+                r.mode = Mode::SemiSelf;
+                r.last_op = now;
+            }
+        }
     }
 
     // ---- コマンド --------------------------------------------------------
@@ -470,6 +528,17 @@ impl Store {
     }
 
     pub fn dispatch(&mut self, cmd: Command) -> Result<Outcome, String> {
+        // 成否にかかわらず、触られたレジは「操作あり」
+        if let Some(id) = cmd.register() {
+            let now = self.now;
+            if let Ok(r) = self.reg_mut(id) {
+                r.last_op = now;
+            }
+        }
+        self.apply(cmd)
+    }
+
+    fn apply(&mut self, cmd: Command) -> Result<Outcome, String> {
         use Command as C;
         match cmd {
             C::Scan {
@@ -479,9 +548,10 @@ impl Store {
             } => self.scan(register, side, &code),
             C::RegisterFf {
                 register,
+                side,
                 code,
                 qty,
-            } => self.register_ff(register, &code, qty),
+            } => self.register_ff(register, side, &code, qty),
             C::FfButton { register } => {
                 self.check(register, Side::Customer, Action::FfButton)?;
                 self.call(register, CallKind::FastFood, "FF のご注文");
@@ -818,8 +888,14 @@ impl Store {
         }
     }
 
-    fn register_ff(&mut self, register: u8, code: &str, qty: u32) -> Result<Outcome, String> {
-        self.check(register, Side::Staff, Action::RegisterFf)?;
+    fn register_ff(
+        &mut self,
+        register: u8,
+        side: Side,
+        code: &str,
+        qty: u32,
+    ) -> Result<Outcome, String> {
+        self.check(register, side, Action::RegisterFf)?;
         let p = catalog::find(code)
             .filter(|p| p.category == Category::FastFood)
             .ok_or("FF の商品が見つかりません")?;
@@ -840,6 +916,17 @@ impl Store {
             r.txn.paying = false;
             r.txn.method = None;
             r.txn.customer_turn = false;
+        }
+        if side == Side::Customer {
+            // お客様が自分で取った FF。お渡し・受取確認はない
+            r.txn.push(
+                p,
+                qty,
+                LineKind::Ff {
+                    state: FfState::Received,
+                },
+            );
+            return done(format!("{} ×{qty} を登録しました", p.name));
         }
         r.txn.push(
             p,
@@ -1156,6 +1243,8 @@ impl Store {
             active_side: active_side(&c),
             mode: r.mode,
             mode_label: r.mode.label(),
+            idle_revert_in: (r.mode != Mode::SemiSelf && r.idle())
+                .then(|| IDLE_REVERT_MS.saturating_sub(self.now.saturating_sub(r.last_op))),
             staff: StaffView {
                 state: c.staff,
                 name: staff.map(|a| a.name),
@@ -1276,6 +1365,8 @@ pub struct RegisterView {
     pub active_side: Side,
     pub mode: Mode,
     pub mode_label: &'static str,
+    /// セミセルフ以外で待機中なら、セミセルフに戻るまでの残り時間（ミリ秒）
+    pub idle_revert_in: Option<u64>,
     pub staff: StaffView,
     pub customer: CustomerView,
     pub last_receipt: Option<Receipt>,

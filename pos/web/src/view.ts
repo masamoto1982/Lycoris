@@ -106,7 +106,7 @@ export function staffScreen(r: RegisterView, snap: Snapshot): string {
         ? "お客様の確認が済むと操作に戻ります"
         : "レジ名の右の「店員」でログインすると操作できます";
     return `<div class="mirror-head"><b>${why}</b>　${how}</div>
-      <div class="mirror">${customerScreen(r)}</div>`;
+      <div class="mirror">${customerScreen(r, snap.ff_stock)}</div>`;
   }
 
 
@@ -183,11 +183,24 @@ export function staffScreen(r: RegisterView, snap: Snapshot): string {
 // お客様画面（公開してよい情報だけを使う）
 // ---------------------------------------------------------------------------
 
-export function customerScreen(r: RegisterView): string {
+export function customerScreen(r: RegisterView, ff: Snapshot["ff_stock"] = []): string {
   const c: CustomerView = r.customer;
   const reg = r.id;
   const a = (n: string) => find(c.actions, n);
   const self = r.mode === "full_self";
+  // セルフモードでは、お客様がケースから取った FF を自分で登録する
+  const ffMenu = self
+    ? `<div class="ffmenu center"><span class="muted">FF（揚げ物・中華まん）</span>${ff
+        .map((f) =>
+          btn(
+            `${f.name} ${yen(f.price)}`,
+            { type: "register_ff", register: reg, side: "customer", code: f.code, qty: 1 },
+            f.stock > 0 ? a("register_ff") : { action: "register_ff", allowed: false, reason: "売り切れです" },
+            "small ff",
+          ),
+        )
+        .join("")}</div>`
+    : "";
 
   if (r.last_receipt && !c.lines.length) {
     const rc = r.last_receipt;
@@ -230,7 +243,7 @@ export function customerScreen(r: RegisterView): string {
     return `${banners.join("")}<div class="welcome">
       <div class="big">いらっしゃいませ</div>
       <p>${self ? "商品のバーコードをスキャンしてください" : "係員が商品をお読みします"}</p>
-      ${self ? `<div class="row center">${btn("FF（揚げ物・中華まん）を注文", { type: "ff_button", register: reg }, a("ff_button"), "ff")}</div>` : ""}
+      ${ffMenu}
       ${r.mode !== "attended" ? `<div class="row center">${btn("係員を呼ぶ", { type: "call_staff", register: reg }, a("call_staff"), "ghost")}</div>` : ""}
     </div>`;
   }
@@ -267,9 +280,8 @@ export function customerScreen(r: RegisterView): string {
     c.phase === "registering"
       ? `<div class="row">
           ${self ? btn("お会計", { type: "checkout", register: reg, side: "customer" }, a("checkout"), "primary") : ""}
-          ${self ? btn("FF を注文", { type: "ff_button", register: reg }, a("ff_button"), "ff") : ""}
           ${r.mode !== "attended" ? btn("係員を呼ぶ", { type: "call_staff", register: reg }, a("call_staff"), "ghost") : ""}
-        </div>`
+        </div>${ffMenu}`
       : `<div class="row">${self ? btn("商品登録に戻る", { type: "back_to_registering", register: reg, side: "customer" }, a("back_to_registering"), "ghost") : ""}
           ${r.mode !== "attended" ? btn("係員を呼ぶ", { type: "call_staff", register: reg }, a("call_staff"), "ghost") : ""}</div>`;
 

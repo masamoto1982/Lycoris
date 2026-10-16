@@ -96,6 +96,7 @@ export interface RegisterView {
   active_side: Side;
   mode: Mode;
   mode_label: string;
+  idle_revert_in: number | null;
   staff: StaffView;
   customer: CustomerView;
   last_receipt: Receipt | null;

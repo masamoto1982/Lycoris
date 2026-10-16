@@ -288,3 +288,5 @@ body.dragging .drop-hint { display: inline; }
 .rules-dlg .toast:not(.show) { display: none; }
 .lines.rules tr.grp th { text-align: left; padding-top: 10px; color: var(--muted); font-size: 12px; }
 .lines.rules select { font-size: 13px; padding: 3px 6px; }
+.idle { margin-left: 6px; font-size: 12px; font-weight: 400; color: var(--muted); }
+.ffmenu.center { justify-content: center; }

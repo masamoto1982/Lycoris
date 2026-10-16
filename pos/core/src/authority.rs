@@ -127,6 +127,7 @@ pub const STAFF_ACTIONS: &[Action] = &[
 
 pub const CUSTOMER_ACTIONS: &[Action] = &[
     Action::Scan,
+    Action::RegisterFf,
     Action::FfButton,
     Action::ConfirmFfReceipt,
     Action::RemoveLine,
@@ -268,6 +269,11 @@ fn customer(action: Action, c: &Context) -> Result<(), Denial> {
             require(self_mode, "FF は係員にお申し付けください")?;
             require(!paying, "お会計中です")
         }
+        // セルフモードではお客様が FF を自分で登録する（ケースから自分で取る）
+        Action::RegisterFf => {
+            require(self_mode, "FF は係員にお申し付けください")?;
+            require(!paying, "お会計中です")
+        }
         Action::ConfirmFfReceipt => require(c.ff_presented, "お渡し中の FF はありません"),
         Action::RemoveLine => {
             require(self_mode, "係員にお申し付けください")?;
@@ -315,8 +321,7 @@ fn customer(action: Action, c: &Context) -> Result<(), Denial> {
             )
         }
         Action::CallStaff => require(c.mode != Mode::Attended, "係員が対応中です"),
-        Action::RegisterFf
-        | Action::HandOverFf
+        Action::HandOverFf
         | Action::CompleteService
         | Action::VoidTransaction
         | Action::SetMode

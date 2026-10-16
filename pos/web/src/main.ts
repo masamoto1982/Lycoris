@@ -124,9 +124,10 @@ function buildSkeleton(): void {
       <section>
         <h3>試し方</h3>
         <ol class="help">
-          <li>レジ1（セミセルフ）：商品を店員画面に落とし、店員画面の「会計」。お客様画面で支払方法を選ぶか、投入口に現金を入れます。</li>
-          <li>レジ2（セルフ）：缶ビールをお客様画面に落として「お会計」。年確の呼び出しで MAT が鳴ります。レジ名の右の「店員」でログインすると「20歳以上です」が押せます。</li>
-          <li>FF：レジ2のお客様画面で「FF を注文」→ 「店員」でログイン → FF 登録 →「お渡し」→ お客様画面で「受け取りました」。</li>
+          <li>レジは既定でセミセルフです。商品を店員画面に落とし、店員画面の「会計」。お客様画面で支払方法を選ぶか、投入口に現金を入れます。</li>
+          <li>セルフ：店員画面で「セルフ」にして「ログアウト」。缶ビールをお客様画面に落として「お会計」すると年確の呼び出しで MAT が鳴ります。レジ名の右の「店員」でログインすると「20歳以上です」が押せます。</li>
+          <li>FF：セルフではお客様画面の FF ボタンでお客様が自分で登録します。セミセルフ・有人では店員画面で登録し「お渡し」→ お客様画面で「受け取りました」。</li>
+          <li>セミセルフ以外のモードは、5分間操作がないとセミセルフに戻って待機します。</li>
           <li>宅急便・代行収納をお客様画面に落とすと係員の呼び出しになり、店員が金額を入れて受け付けます。</li>
           <li>出金パスワードは <b>7777</b>（ログインとは別）。年確ルールは売り場の「年確ルール設定」から、オーナー 9001 / <b>9999</b> で商品ごとに変更できます。</li>
         </ol>
@@ -193,10 +194,16 @@ function render(): void {
     // 操作できない側の画面は表示のみ（排他）
     app.querySelector(`[data-drop="${r.id}:staff"]`)?.classList.toggle("inactive", r.active_side !== "staff");
     app.querySelector(`[data-drop="${r.id}:customer"]`)?.classList.toggle("inactive", r.active_side !== "customer");
-    setRegion(`mode-${r.id}`, `<span class="mode mode-${r.mode}">${esc(r.mode_label)}</span>`);
+    const idle = r.idle_revert_in;
+    setRegion(
+      `mode-${r.id}`,
+      `<span class="mode mode-${r.mode}">${esc(r.mode_label)}</span>${
+        idle !== null ? `<span class="idle" title="5分間操作がないとセミセルフに戻って待機します">無操作であと ${Math.floor(idle / 60000)}:${String(Math.floor((idle % 60000) / 1000)).padStart(2, "0")} でセミセルフ</span>` : ""
+      }`,
+    );
     setRegion(`calls-${r.id}`, staffCalls(r, snap.now));
     setRegion(`staff-${r.id}`, staffScreen(r, snap));
-    setRegion(`cust-${r.id}`, customerScreen(r));
+    setRegion(`cust-${r.id}`, customerScreen(r, snap.ff_stock));
   }
   setRegion("mats", matPanel(snap));
   setRegion("sim", simPanel(snap));

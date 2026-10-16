@@ -46,6 +46,13 @@ fn scan(s: &mut Store, r: u8, side: &str, code: &str) {
     );
 }
 
+/// 既定はセミセルフ。店員がセルフモードにして離れた、無人のセルフレジにする
+fn unattended_self(s: &mut Store, r: u8) {
+    scan(s, r, "staff", "ST1001");
+    ok(s, json!({"type":"set_mode","register":r,"mode":"full_self"}));
+    ok(s, json!({"type":"end_staff_mode","register":r}));
+}
+
 fn advance(s: &mut Store, ms: u64) {
     let end = s.now() + ms;
     while s.now() < end {
@@ -141,6 +148,7 @@ fn age_check_happens_at_checkout_and_blocks_payment() {
 #[test]
 fn self_mode_age_check_calls_staff() {
     let mut s = Store::new(1, 2, 1);
+    unattended_self(&mut s, 2);
     scan(&mut s, 2, "customer", BEER);
     ok(
         &mut s,
@@ -218,6 +226,7 @@ fn customer_cannot_take_over_attended_register() {
 #[test]
 fn fast_food_flow_in_self_mode() {
     let mut s = Store::new(1, 2, 1);
+    unattended_self(&mut s, 2);
     scan(&mut s, 2, "customer", ONIGIRI);
     assert!(run(
         &mut s,
@@ -269,6 +278,7 @@ fn fast_food_flow_in_self_mode() {
 #[test]
 fn service_item_needs_staff() {
     let mut s = Store::new(1, 2, 1);
+    unattended_self(&mut s, 2);
     scan(&mut s, 2, "customer", PARCEL);
     assert!(s
         .snapshot()
@@ -289,6 +299,7 @@ fn service_item_needs_staff() {
 #[test]
 fn cash_out_requires_separate_password_every_time() {
     let mut s = Store::new(1, 2, 1);
+    unattended_self(&mut s, 2);
     let co = |pw: &str| json!({"type":"cash_out","register":1,"kind":"emergency","amount":5000,"password":pw});
     assert!(
         run(&mut s, co("1111")).is_err(),
@@ -311,6 +322,8 @@ fn cash_out_requires_separate_password_every_time() {
 #[test]
 fn calls_stay_on_originating_register() {
     let mut s = Store::new(1, 4, 2);
+    unattended_self(&mut s, 2);
+    unattended_self(&mut s, 4);
     ok(&mut s, json!({"type":"call_staff","register":2}));
     ok(&mut s, json!({"type":"call_staff","register":4}));
     let snap = s.snapshot();
@@ -328,6 +341,7 @@ fn calls_stay_on_originating_register() {
 #[test]
 fn mat_rings_despite_loss_and_reports_link_down() {
     let mut s = Store::new(7, 2, 1);
+    unattended_self(&mut s, 2);
     ok(&mut s, json!({"type":"set_mat_loss","percent":60}));
     advance(&mut s, 3_000);
     ok(&mut s, json!({"type":"call_staff","register":2}));
@@ -421,4 +435,44 @@ fn owner_sets_age_rule_per_product() {
     assert_eq!(age(LIGHTER), None);
     assert_eq!(age(BEER), Some(20));
     assert_eq!(age(FIREWORKS), Some(18));
+}
+
+/// セルフモードでは、お客様も FF を自分で登録できる（お渡し・受取確認は不要）。
+#[test]
+fn customer_registers_ff_in_self_mode() {
+    let mut s = Store::new(1, 2, 1);
+    let ff = |r: u8| json!({"type":"register_ff","register":r,"side":"customer","code":"FF01","qty":1});
+    // セミセルフでは店員の操作
+    assert!(run(&mut s, ff(1)).is_err());
+    unattended_self(&mut s, 2);
+    ok(&mut s, ff(2));
+    let v = reg(&s, 2);
+    assert_eq!(v.customer.lines.len(), 1);
+    assert!(s.snapshot().calls.is_empty(), "no staff call for self-picked FF");
+    ok(&mut s, json!({"type":"checkout","register":2,"side":"customer"}));
+    ok(&mut s, json!({"type":"insert_cash","register":2,"denomination":1000,"count":1}));
+    assert!(reg(&s, 2).customer.lines.is_empty(), "paid and settled");
+}
+
+/// 既定はセミセルフ。ほかのモードでも 5 分間操作がなければセミセルフに戻って待機する。
+#[test]
+fn idle_register_returns_to_semi_self() {
+    let mut s = Store::new(1, 2, 1);
+    assert!(s.snapshot().registers.iter().all(|r| r.mode == Mode::SemiSelf));
+    unattended_self(&mut s, 2);
+    advance(&mut s, 4 * 60_000);
+    // 途中で操作があれば数え直す
+    scan(&mut s, 2, "customer", ONIGIRI);
+    ok(&mut s, json!({"type":"remove_line","register":2,"side":"customer","line_id":1}));
+    advance(&mut s, 4 * 60_000);
+    assert_eq!(reg(&s, 2).mode, Mode::FullSelf);
+    advance(&mut s, 61_000);
+    assert_eq!(reg(&s, 2).mode, Mode::SemiSelf);
+    assert!(reg(&s, 2).idle_revert_in.is_none());
+    // 取引中は戻さない
+    ok(&mut s, json!({"type":"scan","register":1,"side":"staff","code":"ST1001"}));
+    ok(&mut s, json!({"type":"set_mode","register":1,"mode":"attended"}));
+    scan(&mut s, 1, "staff", ONIGIRI);
+    advance(&mut s, 6 * 60_000);
+    assert_eq!(reg(&s, 1).mode, Mode::Attended);
 }
