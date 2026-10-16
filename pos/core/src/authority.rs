@@ -1,14 +1,20 @@
 //! 操作権のモデル（問題3・5への対策）。
 //!
-//! 操作権を受け渡す仕組み（トークン）そのものを持たない。誰が何をできるかは
-//! (運用モード, 取引の段階, どちら側の画面か, 取引の状態) から純粋関数
-//! [`permitted`] で毎回決まる。
+//! 店員画面とお客様画面は、内部的には一つの買い物画面（情報空間）を両者が
+//! 見ているもの。**画面の操作は排他**で、店員が操作しているあいだお客様画面は
+//! 操作できず、お客様が操作しているあいだ店員画面は操作できない。
 //!
-//! - 店員側はログイン済み・ロック解除中であれば、どのモード・どの段階でも
-//!   取引を操作できる。お客様の操作で店員が締め出されることはない。
-//! - お客様側にできるのは、運用モードが許す範囲の操作だけ。
-//! - 画面のボタンもこの関数の結果から作り、コアは同じ関数で各操作を検証する。
-//!   「画面に見えているから操作できる」という状態は生まれない。
+//! どちらが操作するかは、タッチの奪い合いや受け渡しボタンでは決めない。
+//! (運用モード, 取引の段階, 店員のログイン状態, お客様の確認待ちの有無) から
+//! 純粋関数 [`active_side`] で一意に決まる。同じ状態なら必ず同じ側なので、
+//! 操作権が勝手に行き来することはない（問題3）。有人モードでお客様が操作側に
+//! なるのは、年確・FF 受取などお客様本人の確認が要る場面だけ（問題5）。
+//!
+//! スキャナー・現金投入口・電子マネー端末は画面ではない（機器）ので排他の対象外。
+//! バーコードはいつでも読め、会計画面で読めば登録画面に戻る。
+//!
+//! 画面のボタンも [`permitted`] の結果から作り、コアは同じ関数で各操作を検証する。
+//! 「画面に見えているから操作できる」という状態は生まれない。
 
 use serde::{Deserialize, Serialize};
 
@@ -165,11 +171,44 @@ impl Context {
 
 pub type Denial = &'static str;
 
+/// 今、画面を操作できる側。もう一方の画面は表示だけになる。
+pub fn active_side(c: &Context) -> Side {
+    if c.staff != StaffState::Ready {
+        // 店員が操作できない（未ログイン・ロック中）ならお客様側
+        return Side::Customer;
+    }
+    if c.age_pending || c.ff_presented {
+        // お客様本人の確認（年確・FF 受取）を待っている間はお客様側
+        return Side::Customer;
+    }
+    match (c.mode, c.phase) {
+        // セミセルフの支払いはお客様が行う
+        (Mode::SemiSelf, Phase::Paying) => Side::Customer,
+        // 有人、セミセルフの登録中、セルフの店員操作モードは店員側
+        _ => Side::Staff,
+    }
+}
+
+/// 画面ではなく機器の操作（排他の対象外）
+pub fn is_device_action(action: Action) -> bool {
+    matches!(
+        action,
+        Action::Scan | Action::InsertCash | Action::TapEmoney
+    )
+}
+
 pub fn permitted(side: Side, action: Action, c: &Context) -> Result<(), Denial> {
     match side {
-        Side::Staff => staff(action, c),
-        Side::Customer => customer(action, c),
+        Side::Staff => staff(action, c)?,
+        Side::Customer => customer(action, c)?,
     }
+    if !is_device_action(action) && active_side(c) != side {
+        return Err(match side {
+            Side::Staff => "お客様が操作中です",
+            Side::Customer => "係員が操作中です",
+        });
+    }
+    Ok(())
 }
 
 fn require(cond: bool, reason: Denial) -> Result<(), Denial> {
@@ -292,7 +331,9 @@ mod tests {
             for phase in [Phase::Registering, Phase::Paying] {
                 for has_lines in b {
                     for age_pending in b {
-                        for ff_waiting in b {
+                        for (ff_waiting, ff_presented) in
+                            [(false, false), (true, false), (false, true), (true, true)]
+                        {
                             for service_pending in b {
                                 for method in
                                     [None, Some(PaymentMethod::Cash), Some(PaymentMethod::Emoney)]
@@ -302,9 +343,9 @@ mod tests {
                                         phase,
                                         staff: StaffState::Ready,
                                         has_lines,
-                                        age_pending,
+                                        age_pending: age_pending && phase == Phase::Paying,
                                         ff_waiting,
-                                        ff_presented: false,
+                                        ff_presented,
                                         service_pending,
                                         method,
                                     });
@@ -318,27 +359,31 @@ mod tests {
         v
     }
 
-    /// 問題5：店員の操作可否は運用モードに左右されない。
+    /// 画面の操作は排他：同じ状態で両方の画面が操作できることはない。
     #[test]
-    fn staff_authority_does_not_depend_on_mode() {
+    fn screens_are_mutually_exclusive() {
         for c in contexts() {
-            for &a in STAFF_ACTIONS {
-                let base = permitted(
-                    Side::Staff,
-                    a,
-                    &Context {
-                        mode: Mode::Attended,
-                        ..c
-                    },
-                );
-                for mode in [Mode::SemiSelf, Mode::FullSelf] {
-                    assert_eq!(
-                        permitted(Side::Staff, a, &Context { mode, ..c }),
-                        base,
-                        "{a:?}"
-                    );
-                }
-            }
+            let any = |side: Side, list: &[Action]| {
+                list.iter()
+                    .any(|&a| !is_device_action(a) && permitted(side, a, &c).is_ok())
+            };
+            assert!(
+                !(any(Side::Staff, STAFF_ACTIONS) && any(Side::Customer, CUSTOMER_ACTIONS)),
+                "{c:?}"
+            );
+        }
+    }
+
+    /// 問題5：有人モードでお客様が操作側になるのは、本人の確認を待つときだけ。
+    #[test]
+    fn attended_customer_is_active_only_for_confirmations() {
+        for c in contexts().into_iter().filter(|c| c.mode == Mode::Attended) {
+            let expect = if c.age_pending || c.ff_presented {
+                Side::Customer
+            } else {
+                Side::Staff
+            };
+            assert_eq!(active_side(&c), expect);
         }
     }
 

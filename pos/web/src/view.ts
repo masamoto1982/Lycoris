@@ -133,7 +133,11 @@ export function staffScreen(r: RegisterView, snap: Snapshot): string {
       </div>`
     : "";
 
-  return `<div class="staff-head">
+  const watching =
+    r.active_side === "customer"
+      ? `<div class="banner watch">お客様が操作中です（この画面は表示のみ）${v.age_pending ? "：年齢確認の待ち" : v.lines.some((l) => l.kind === "ff" && l.state === "presented") ? "：FF の受取確認の待ち" : "：お支払い中"}。商品のバーコードは読めます</div>`
+      : "";
+  return `${watching}<div class="staff-head">
       <span>店員：<b>${esc(v.name)}</b>${v.role === "owner" ? "（オーナー）" : ""}</span>
       <span class="segs">${modeSel}</span>
     </div>
@@ -196,7 +200,7 @@ export function customerScreen(r: RegisterView): string {
 
   const banners: string[] = [];
   if (c.staff_called) banners.push(`<div class="banner call">係員をお呼びしています。しばらくお待ちください</div>`);
-  else if (self && c.staff_present) banners.push(`<div class="banner info">係員が対応しています</div>`);
+  else if (r.active_side === "staff" && c.staff_present) banners.push(`<div class="banner watch">係員が操作中です。しばらくお待ちください</div>`);
 
   const presented = c.lines.filter((l) => l.kind === "ff" && l.state === "presented");
   const ffCard = presented.length

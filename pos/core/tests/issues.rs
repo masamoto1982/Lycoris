@@ -237,9 +237,16 @@ fn fast_food_flow_in_self_mode() {
         .is_err(),
         "sold out"
     );
+    // 店員が操作している間、お客様画面は操作できない（排他）
+    assert!(run(
+        &mut s,
+        json!({"type":"checkout","register":2,"side":"customer"})
+    )
+    .is_err());
+    // 店員が会計に進めても、FF のお渡しが済むまで決済できない
     ok(
         &mut s,
-        json!({"type":"checkout","register":2,"side":"customer"}),
+        json!({"type":"checkout","register":2,"side":"staff"}),
     );
     assert!(run(&mut s, json!({"type":"tap_emoney","register":2})).is_err());
     ok(&mut s, json!({"type":"hand_over_ff","register":2}));
@@ -353,4 +360,29 @@ fn customer_view_hides_staff_only_information() {
     assert!(!c.contains("alcohol") && !c.contains(BEER) && !c.contains("12345678"));
     assert_eq!(v["staff"]["lines"][0]["age"], 20);
     assert_eq!(reg(&s, 1).mode, Mode::SemiSelf);
+}
+
+/// 画面の操作は排他：セミセルフの登録中はお客様画面が、支払い中は店員画面が操作できない。
+#[test]
+fn staff_and_customer_screens_are_exclusive() {
+    let mut s = Store::new(1, 2, 1);
+    scan(&mut s, 1, "customer", ONIGIRI); // スキャナーは機器なので排他の対象外
+    let v = reg(&s, 1);
+    assert_eq!(v.active_side, Side::Staff);
+    assert!(!allowed(&v, Side::Customer, Action::CallStaff));
+    ok(
+        &mut s,
+        json!({"type":"checkout","register":1,"side":"staff"}),
+    );
+    let v = reg(&s, 1);
+    assert_eq!(v.active_side, Side::Customer);
+    assert!(run(&mut s, json!({"type":"void_transaction","register":1})).is_err());
+    ok(
+        &mut s,
+        json!({"type":"select_payment","register":1,"side":"customer","method":"qr"}),
+    );
+    // 店員がバーコードを読めば登録画面に戻り、店員側が操作できるようになる
+    scan(&mut s, 1, "staff", ONIGIRI);
+    assert_eq!(reg(&s, 1).active_side, Side::Staff);
+    ok(&mut s, json!({"type":"void_transaction","register":1}));
 }

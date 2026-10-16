@@ -9,8 +9,8 @@ use serde::{Deserialize, Serialize};
 use crate::age_rules::{AgeRules, RuleTarget};
 use crate::auth::{self, Authenticator, Role, ACCOUNTS};
 use crate::authority::{
-    permitted, Action, Context, Mode, PaymentMethod, Phase, Side, StaffState, CUSTOMER_ACTIONS,
-    STAFF_ACTIONS,
+    active_side, permitted, Action, Context, Mode, PaymentMethod, Phase, Side, StaffState,
+    CUSTOMER_ACTIONS, STAFF_ACTIONS,
 };
 use crate::calls::{Call, CallKind, Calls, ResolvedCall};
 use crate::cash::{is_valid_denomination, Cash, Drawer};
@@ -1123,6 +1123,7 @@ impl Store {
 
         RegisterView {
             id: r.id,
+            active_side: active_side(&c),
             mode: r.mode,
             mode_label: r.mode.label(),
             staff: StaffView {
@@ -1241,6 +1242,8 @@ pub struct CustomerView {
 #[derive(Clone, Debug, Serialize)]
 pub struct RegisterView {
     pub id: u8,
+    /// 今、画面を操作できる側（もう一方は表示だけ）
+    pub active_side: Side,
     pub mode: Mode,
     pub mode_label: &'static str,
     pub staff: StaffView,

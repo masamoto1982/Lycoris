@@ -92,6 +92,8 @@ export interface CustomerView {
 
 export interface RegisterView {
   id: number;
+  /** 今、画面を操作できる側（もう一方は表示だけ） */
+  active_side: Side;
   mode: Mode;
   mode_label: string;
   staff: StaffView;

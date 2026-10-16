@@ -163,6 +163,9 @@ function setRegion(name: string, html: string): void {
 
 function render(): void {
   for (const r of snap.registers) {
+    // 操作できない側の画面は表示のみ（排他）
+    app.querySelector(`[data-drop="${r.id}:staff"]`)?.classList.toggle("inactive", r.active_side !== "staff");
+    app.querySelector(`[data-drop="${r.id}:customer"]`)?.classList.toggle("inactive", r.active_side !== "customer");
     setRegion(`mode-${r.id}`, `<span class="mode mode-${r.mode}">${esc(r.mode_label)}</span>`);
     setRegion(`calls-${r.id}`, staffCalls(r, snap.now));
     setRegion(`staff-${r.id}`, staffScreen(r, snap));

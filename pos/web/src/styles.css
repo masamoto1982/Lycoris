@@ -258,3 +258,10 @@ body.dragging .drop-hint { display: inline; }
 .copyright { margin: 8px 0 0; text-align: center; font-size: 12px; }
 .copyright a { color: var(--muted); }
 .copyright a:hover { color: var(--accent); }
+
+/* 操作できない側の画面（排他）：表示は続けるが、ボタンは押せない */
+.banner.watch { background: var(--line); color: var(--ink); }
+.staff-screen .banner.watch { background: var(--staff-line); color: var(--staff-ink); }
+.screen.inactive button { opacity: .35; }
+.screen-title::after { content: ""; }
+.screen.inactive .screen-title::after { content: "　表示のみ"; font-weight: 700; }
