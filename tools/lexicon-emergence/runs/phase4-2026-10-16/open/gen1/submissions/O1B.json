@@ -1,0 +1,61 @@
+{
+  "agent": "O1B", "generation": 1, "condition": "open",
+  "definitions": [
+    { "name": "O1B.RED", "body": "'()' '' REPLACE '[]' '' REPLACE", "note": "one pass deleting adjacent () and [] pairs from a bracket String" },
+    { "name": "O1B.REDALL", "body": "O1B.RED O1B.RED O1B.RED O1B.RED O1B.RED O1B.RED", "note": "reduce a bracket String of at most 12 characters to its unmatched remainder" },
+    { "name": "O1B.BAL", "body": "O1B.REDALL '' EQ", "note": "TRUE when a bracket String (at most 12 chars) is balanced" },
+    { "name": "O1B.BALPRE", "body": "'BS' BIND 0 BS CHARS LENGTH RANGE 'BR' BIND BR 0 BR [ 'BK' BIND BS CHARS BK TAKE JOIN O1B.BAL ] MAP SELECT 0 [ MAX ] FOLD", "note": "length of the longest balanced prefix of a bracket String" },
+    { "name": "O1B.LEDGER", "body": "ZIP 'LZ' BIND LZ 0 GET LZ 1 GET G0A.SUMBY", "note": "Vector of [name amount] entries to Record name to summed amount, first-appearance order" },
+    { "name": "O1B.RUNS", "body": "'RV' BIND RV 0 GET 1 ADD 1 COLLECT RV CONCAT -1 DROP 'RB' BIND RV RB SUB 'RD' BIND RD RD MUL 1 MIN 0 [ ADD ] SCAN RV GROUP VALUES", "note": "Vector of integers to Vector of its maximal runs of equal adjacent values, each a Vector" },
+    { "name": "O1B.MISSING", "body": "[ NIL? 'MX' BIND 1 0 MX SELECT ] MAP", "note": "Vector with NILs to Vector of 1 for each NIL lane and 0 for each present lane" },
+    { "name": "O1B.ABS", "body": "'AX' BIND AX AX -1 MUL MAX", "note": "absolute value of a number, lifts over Vectors" },
+    { "name": "O1B.MEDIAN", "body": "SORT 'MS' BIND MS LENGTH 'MN' BIND MS MN 1 SUB 2 DIV FLOOR GET MS MN 2 DIV FLOOR GET ADD 2 DIV", "note": "median of a non-empty Vector of numbers" }
+  ],
+  "solutions": {
+    "brackets.depth": "'[' '(' REPLACE ']' ')' REPLACE CHARS [ 'CH' BIND 1 -1 CH '(' EQ SELECT ] MAP 0 [ ADD ] SCAN 0 [ MAX ] FOLD",
+    "brackets.balanced": "O1B.BAL",
+    "brackets.balanced_prefix": "O1B.BALPRE",
+    "brackets.unmatched": "O1B.REDALL CHARS LENGTH",
+
+    "ledger.total": "ZIP 1 GET G0A.SUM",
+    "ledger.by_name": "O1B.LEDGER",
+    "ledger.top_name": "O1B.LEDGER G0A.TOPKEY",
+    "ledger.debtors": "O1B.LEDGER 'LR' BIND LR KEYS LR VALUES 2 COLLECT ZIP [ 1 GET 0 LT ] FILTER [ 0 GET ] MAP",
+    "ledger.count_names": "ZIP 0 GET UNIQUE LENGTH",
+    "ledger.largest_entry": "'LE' BIND LE LE ZIP 1 GET G0A.ARGMAX GET",
+
+    "messy.count": "G0A.WORDS LENGTH",
+    "messy.normalize": "LOWER G0A.WORDS G0B.SPACED",
+    "messy.distinct": "LOWER G0A.WORDS UNIQUE LENGTH",
+    "messy.top_word": "LOWER G0A.WORDS TALLY G0A.TOPKEY",
+    "messy.title": "LOWER G0A.WORDS [ G0B.CAP ] MAP G0B.SPACED",
+    "messy.sorted_unique": "LOWER G0A.WORDS UNIQUE SORT G0B.SPACED",
+
+    "prose.longest": "G0A.WORDS 'PW' BIND PW PW [ CHARS LENGTH ] MAP G0A.ARGMAX GET",
+    "prose.freq_top": "G0A.WORDS TALLY G0A.TOPKEY",
+    "prose.distinct_sorted": "G0A.WORDS UNIQUE SORT G0B.SPACED",
+    "prose.reverse_words": "G0A.WORDS REVERSE G0B.SPACED",
+    "prose.capitalize": "G0A.WORDS [ G0B.CAP ] MAP G0B.SPACED",
+    "prose.initials_of_long": "G0A.WORDS [ CHARS LENGTH 3 GT ] FILTER [ CHARS 0 GET UPPER ] MAP JOIN",
+
+    "runs.rle": "O1B.RUNS [ 'RG' BIND RG 0 GET RG LENGTH 2 COLLECT ] MAP",
+    "runs.upruns": "'UV' BIND UV 0 GET 1 ADD 1 COLLECT UV CONCAT -1 DROP 'UB' BIND 1 UV UB SUB 0 MAX 1 MIN SUB 0 [ ADD ] SCAN UV GROUP VALUES [ LENGTH ] MAP 0 [ MAX ] FOLD",
+    "runs.dedupe": "O1B.RUNS [ 0 GET ] MAP",
+    "runs.second_largest": "UNIQUE SORT -2 GET",
+    "runs.majority": "'MJ' BIND MJ TALLY 'MT' BIND MT VALUES 'MC' BIND MC G0A.ARGMAX 'MI' BIND MT KEYS MI GET NIL MC MI GET 2 MUL MJ LENGTH GT SELECT",
+
+    "sensor.present_mean": "[ NIL? NOT ] FILTER G0A.MEAN",
+    "sensor.filled": "'FV' BIND FV FV [ NIL? NOT ] FILTER 0 GET [ 'SE' BIND 'SA' BIND SA SE SE NIL? SELECT ] SCAN",
+    "sensor.gap_count": "O1B.MISSING 'GM' BIND GM [ 0 ] GM CONCAT -1 DROP SUB 0 MAX G0A.SUM",
+    "sensor.longest_gap": "O1B.MISSING 0 [ 'RE' BIND 1 ADD RE MUL ] SCAN 0 [ MAX ] FOLD",
+    "sensor.ratios": "'RT' BIND RT 1 DROP RT -1 DROP DIV",
+    "sensor.scaled": "'SV' BIND SV SV [ NIL? NOT ] FILTER G0C.MAXV 'SM' BIND SV [ 'SX' BIND NIL 1 SX SX NIL? SELECT SM DIV SX NIL? SELECT ] MAP",
+
+    "series.median": "O1B.MEDIAN",
+    "series.mad": "'AV' BIND AV O1B.MEDIAN 'AM' BIND AV AM SUB O1B.ABS O1B.MEDIAN",
+    "series.moving3": "'MW' BIND MW -2 DROP MW 1 DROP -1 DROP ADD MW 2 DROP ADD 3 DIV",
+    "series.runmax": "'RM' BIND RM RM 0 GET [ MAX ] SCAN",
+    "series.mode": "SORT TALLY G0A.TOPKEY",
+    "series.trimmed": "SORT 1 DROP -1 DROP G0A.MEAN"
+  }
+}

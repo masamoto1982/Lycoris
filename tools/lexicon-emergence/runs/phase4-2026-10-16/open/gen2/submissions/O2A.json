@@ -1,0 +1,68 @@
+{
+  "agent": "O2A", "generation": 2, "condition": "open",
+  "definitions": [
+    { "name": "O2A.BYKEY", "body": "'BKP' BIND BKP [ 0 GET ] MAP BKP [ 1 GET ] MAP GROUP 'BKG' BIND BKG KEYS BKG VALUES [ G0A.SUM ] MAP RECORD", "note": "Vector of [ key amount ] pairs to a Record from each key to the sum of its amounts, keys in order of first appearance" },
+    { "name": "O2A.MEDIAN", "body": "SORT 'MS' BIND MS LENGTH 'MN' BIND MS MN 1 SUB 2 DIV FLOOR GET MS MN 2 DIV FLOOR GET ADD 2 DIV", "note": "median of a non-empty numeric Vector (mean of the two middle values when the count is even)" },
+    { "name": "O2A.ABS", "body": "'AB' BIND AB 0 AB SUB MAX", "note": "absolute value of a number, element-wise over a Vector" },
+    { "name": "O2A.DIVS", "body": "'DN' BIND 1 DN RANGE [ 'DD' BIND DN DD DIV 'DQ' BIND DQ DQ FLOOR EQ ] FILTER", "note": "positive integer to the ascending Vector of its positive divisors" },
+    { "name": "O2A.ORDERS", "body": "JSON-DECODE 'orders' GET", "note": "JSON object String to the Vector of order Records under its \"orders\" key" },
+    { "name": "O2A.LINEREV", "body": "'OL' BIND OL 'price' GET 'OP' BIND OL 'qty' GET 0 OP OP NIL? SELECT MUL", "note": "order Record to qty times price, or 0 when it has no price" },
+    { "name": "O2A.REVENUE", "body": "O2A.ORDERS [ O2A.LINEREV ] MAP G0A.SUM", "note": "orders JSON String to the total of qty times price over priced orders" },
+    { "name": "O2A.SKUQTY", "body": "O2A.ORDERS [ 'OQ' BIND OQ 'sku' GET OQ 'qty' GET 2 COLLECT ] MAP O2A.BYKEY", "note": "orders JSON String to a Record from each sku to its summed qty, in order of first appearance" },
+    { "name": "O2A.VAR", "body": "'VV' BIND VV VV G0A.MEAN SUB 'VD' BIND VD VD MUL G0A.MEAN", "note": "population variance of a numeric Vector" },
+    { "name": "O2A.TITLE", "body": "[ G0B.CAP ] MAP G0B.SPACED", "note": "Vector of lower-case words to one String of them capitalised and joined by single spaces" },
+    { "name": "O2A.LWORDS", "body": "LOWER G0A.WORDS", "note": "messy String to its Vector of lower-case words" }
+  ],
+  "solutions": {
+    "ledger.total": "[ 1 GET ] MAP G0A.SUM",
+    "ledger.by_name": "O2A.BYKEY",
+    "ledger.top_name": "O2A.BYKEY G0A.TOPKEY",
+    "ledger.debtors": "O2A.BYKEY 'LR' BIND LR KEYS [ 'LK' BIND LR LK GET 0 LT ] FILTER",
+    "ledger.count_names": "[ 0 GET ] MAP UNIQUE LENGTH",
+    "ledger.largest_entry": "'LE' BIND LE LE [ 1 GET ] MAP G0A.ARGMAX GET",
+
+    "messy.count": "G0A.WORDS LENGTH",
+    "messy.normalize": "O2A.LWORDS G0B.SPACED",
+    "messy.distinct": "O2A.LWORDS UNIQUE LENGTH",
+    "messy.top_word": "O2A.LWORDS TALLY G0A.TOPKEY",
+    "messy.title": "O2A.LWORDS O2A.TITLE",
+    "messy.sorted_unique": "O2A.LWORDS UNIQUE SORT G0B.SPACED",
+
+    "number.primes": "'PM' BIND 1 PM RANGE [ O2A.DIVS LENGTH 2 EQ ] FILTER",
+    "number.divisors": "O2A.DIVS",
+    "number.binary": "'BN' BIND BN [ 32 16 8 4 2 1 ] DIV FLOOR [ 0 GT ] FILTER [ 'BA' BIND '1' '0' BA 2 DIV 'BH' BIND BH BH FLOOR EQ NOT SELECT ] MAP JOIN",
+    "number.collatz": "'CN' BIND 1 150 RANGE CN [ 'CI' BIND 'CX' BIND 1 CX 2 DIV 'CH' BIND CH CX 3 MUL 1 ADD CH FLOOR CH EQ SELECT CX 1 EQ SELECT ] SCAN 'CS' BIND CN 1 COLLECT CS CONCAT [ 1 EQ NOT ] FILTER LENGTH",
+    "number.digital_root": "1 SUB 'RM' BIND RM RM 9 DIV FLOOR 9 MUL SUB 1 ADD",
+    "number.fib_index": "'FN' BIND [ 1 1 2 3 5 8 13 21 34 55 89 ] [ FN LT ] FILTER LENGTH 1 ADD",
+
+    "orders.revenue": "O2A.REVENUE",
+    "orders.report": "O2A.REVENUE 2 FORMAT",
+    "orders.unpriced": "O2A.ORDERS [ 'price' GET NIL? ] FILTER [ 'sku' GET ] MAP UNIQUE",
+    "orders.qty_by_sku": "O2A.SKUQTY",
+    "orders.top_sku": "O2A.SKUQTY G0A.TOPKEY",
+    "orders.tag_counts": "O2A.ORDERS [ 'tags' GET NIL? NOT ] FILTER [ 'tags' GET UNIQUE ] MAP [ ] [ CONCAT ] FOLD TALLY",
+
+    "series.median": "O2A.MEDIAN",
+    "series.mad": "'SV' BIND SV SV O2A.MEDIAN SUB O2A.ABS O2A.MEDIAN",
+    "series.moving3": "'MW' BIND MW -2 DROP MW 1 DROP -1 DROP ADD MW 2 DROP ADD 3 DIV",
+    "series.runmax": "'RV' BIND RV RV 0 GET [ MAX ] SCAN",
+    "series.mode": "SORT TALLY G0A.TOPKEY",
+    "series.trimmed": "SORT 1 DROP -1 DROP G0A.MEAN",
+
+    "stats.sum": "G0A.SUM",
+    "stats.mean": "G0A.MEAN",
+    "stats.deviations": "'SV' BIND SV SV G0A.MEAN SUB",
+    "stats.variance": "O2A.VAR",
+    "stats.stddev": "O2A.VAR SQRT",
+    "stats.range": "SORT 'SR' BIND SR -1 GET SR 0 GET SUB",
+    "stats.normalize": "'SV' BIND SV SORT 'SS' BIND SV SS 0 GET SUB SS -1 GET SS 0 GET SUB DIV",
+
+    "text.count": "G0A.WORDS LENGTH",
+    "text.frequency": "G0A.WORDS TALLY",
+    "text.distinct": "G0A.WORDS UNIQUE",
+    "text.titlecase": "G0A.WORDS O2A.TITLE",
+    "text.longest": "G0A.WORDS [ CHARS LENGTH ] MAP G0D.MAXV",
+    "text.long-words": "G0A.WORDS [ CHARS LENGTH 3 GT ] FILTER",
+    "text.acronym": "G0A.WORDS [ CHARS 0 GET UPPER ] MAP JOIN"
+  }
+}

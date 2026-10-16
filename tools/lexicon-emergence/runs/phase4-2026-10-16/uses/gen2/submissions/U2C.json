@@ -1,0 +1,66 @@
+{
+  "agent": "U2C", "generation": 2, "condition": "uses",
+  "definitions": [
+    { "name": "U2C.SUMBY", "body": "GROUP 'G' BIND G KEYS G VALUES [ G0A.SUM ] MAP RECORD", "note": "keys vector and values vector -> Record from each key to the sum of its values, keys in first-appearance order" },
+    { "name": "U2C.BYNAME", "body": "'ENT' BIND ENT [ 0 GET ] MAP ENT [ 1 GET ] MAP U2C.SUMBY", "note": "ledger entries -> Record from each name to the sum of its amounts" },
+    { "name": "U2C.QTYREC", "body": "'OO' BIND OO [ 'sku' GET ] MAP OO [ 'qty' GET ] MAP U2C.SUMBY", "note": "orders vector -> Record from each sku to the sum of its qty" },
+    { "name": "U2C.REV", "body": "[ 'price' HAS? ] FILTER [ 'R' BIND R 'qty' GET R 'price' GET MUL ] MAP G0A.SUM", "note": "orders vector -> total of qty times price over the priced orders (0 when none)" },
+    { "name": "U2C.MEDIAN", "body": "SORT 'S' BIND S LENGTH 'N' BIND S N 1 SUB 2 DIV FLOOR N 2 DIV FLOOR 2 COLLECT GET G0A.MEAN", "note": "median of a numeric vector: mean of the middle one or two sorted elements" },
+    { "name": "U2C.VAR", "body": "'V' BIND V G0A.MEAN 'M' BIND V M SUB 'D' BIND D D MUL G0A.MEAN", "note": "population variance of a numeric vector" },
+    { "name": "U2C.DIVISORS", "body": "'N' BIND 1 N RANGE [ 'D' BIND N D DIV FLOOR D MUL N EQ ] FILTER", "note": "ascending positive divisors of a positive integer (divisibility via floor(n/d)*d = n)" },
+    { "name": "U2C.BIN", "body": "'N' BIND N 2 6 0 RANGE POW DIV FLOOR 'Q' BIND Q Q 2 DIV FLOOR 2 MUL SUB [ STR ] MAP JOIN 'S' BIND S CHARS S '1' SEARCH DROP JOIN", "note": "binary text of a positive integer below 64: bits for 2^6..2^0 by floor(n/2^e) mod 2, leading zeros dropped" },
+    { "name": "U2C.CSTEP", "body": "'ST' BIND ST 0 GET 'X' BIND ST 1 GET 'S' BIND X 1 EQ 'D' BIND X 2 DIV FLOOR 2 MUL X EQ 'EV' BIND X 2 DIV FLOOR X 3 MUL 1 ADD EV SELECT 'NX' BIND 1 NX D SELECT 'XN' BIND S S 1 ADD D SELECT 'SN' BIND XN SN 2 COLLECT", "note": "one Collatz step on the state [value steps]; a state at 1 stays put" }
+  ],
+  "solutions": {
+    "ledger.total": "[ 1 GET ] MAP G0A.SUM",
+    "ledger.by_name": "U2C.BYNAME",
+    "ledger.top_name": "U2C.BYNAME 'R' BIND R KEYS R VALUES U1A.ARGMAX GET",
+    "ledger.debtors": "U2C.BYNAME 'R' BIND R KEYS R VALUES 2 COLLECT ZIP [ 1 GET 0 LT ] FILTER [ 0 GET ] MAP",
+    "ledger.count_names": "[ 0 GET ] MAP UNIQUE LENGTH",
+    "ledger.largest_entry": "'ENT' BIND ENT ENT [ 1 GET ] MAP U1A.ARGMAX GET",
+
+    "messy.count": "G0A.WORDS LENGTH",
+    "messy.normalize": "G0A.WORDS [ LOWER ] MAP U1A.UNWORDS",
+    "messy.distinct": "G0A.WORDS [ LOWER ] MAP UNIQUE LENGTH",
+    "messy.top_word": "G0A.WORDS [ LOWER ] MAP TALLY 'R' BIND R KEYS R VALUES U1A.ARGMAX GET",
+    "messy.title": "G0A.WORDS [ U1B.CAP1 ] MAP U1A.UNWORDS",
+    "messy.sorted_unique": "G0A.WORDS [ LOWER ] MAP UNIQUE SORT U1A.UNWORDS",
+
+    "number.primes": "'PN' BIND 1 PN RANGE [ U2C.DIVISORS LENGTH 2 EQ ] FILTER",
+    "number.divisors": "U2C.DIVISORS",
+    "number.binary": "U2C.BIN",
+    "number.collatz": "'N' BIND 1 150 RANGE N 0 2 COLLECT [ 'I' BIND U2C.CSTEP ] FOLD 1 GET",
+    "number.digital_root": "'N' BIND N 1 SUB 'M' BIND M M 9 DIV FLOOR 9 MUL SUB 1 ADD",
+    "number.fib_index": "'N' BIND [ 1 1 2 3 5 8 13 21 34 55 89 ] N LT U1C.STARTIDX LENGTH 1 ADD",
+
+    "orders.revenue": "JSON-DECODE 'orders' GET U2C.REV",
+    "orders.report": "JSON-DECODE 'orders' GET U2C.REV 2 FORMAT",
+    "orders.unpriced": "JSON-DECODE 'orders' GET [ 'price' HAS? NOT ] FILTER [ 'sku' GET ] MAP UNIQUE",
+    "orders.qty_by_sku": "JSON-DECODE 'orders' GET U2C.QTYREC",
+    "orders.top_sku": "JSON-DECODE 'orders' GET U2C.QTYREC 'R' BIND R KEYS R VALUES U1A.ARGMAX GET",
+    "orders.tag_counts": "JSON-DECODE 'orders' GET [ 'tags' HAS? ] FILTER [ 'tags' GET UNIQUE ] MAP FLATTEN TALLY",
+
+    "series.median": "U2C.MEDIAN",
+    "series.mad": "'V' BIND V U2C.MEDIAN 'M' BIND V M SUB 'D' BIND D D -1 MUL MAX U2C.MEDIAN",
+    "series.moving3": "'V' BIND V V LENGTH 2 SUB TAKE V 1 DROP V LENGTH 2 SUB TAKE ADD V 2 DROP ADD 3 DIV",
+    "series.runmax": "'V' BIND V V 0 GET [ MAX ] SCAN",
+    "series.mode": "'V' BIND V SORT TALLY 'R' BIND R KEYS R VALUES U1A.ARGMAX GET",
+    "series.trimmed": "SORT 1 DROP -1 DROP G0A.MEAN",
+
+    "stats.sum": "G0A.SUM",
+    "stats.mean": "G0A.MEAN",
+    "stats.deviations": "'V' BIND V G0A.MEAN 'M' BIND V M SUB",
+    "stats.variance": "U2C.VAR",
+    "stats.stddev": "U2C.VAR SQRT",
+    "stats.range": "SORT 'S' BIND S -1 GET S 0 GET SUB",
+    "stats.normalize": "'V' BIND V SORT 'S' BIND V S 0 GET SUB S -1 GET S 0 GET SUB DIV",
+
+    "text.count": "G0A.WORDS LENGTH",
+    "text.frequency": "G0A.WORDS TALLY",
+    "text.distinct": "G0A.WORDS UNIQUE",
+    "text.titlecase": "G0A.WORDS [ U1B.CAP1 ] MAP U1A.UNWORDS",
+    "text.longest": "G0A.WORDS [ CHARS LENGTH ] MAP 0 [ MAX ] FOLD",
+    "text.long-words": "G0A.WORDS [ CHARS LENGTH 3 GT ] FILTER",
+    "text.acronym": "G0A.WORDS [ CHARS 0 GET UPPER ] MAP JOIN"
+  }
+}

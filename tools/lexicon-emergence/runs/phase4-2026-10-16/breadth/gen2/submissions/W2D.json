@@ -1,0 +1,71 @@
+{
+  "agent": "W2D", "generation": 2, "condition": "breadth",
+  "definitions": [
+    { "name": "W2D.MEAN", "body": "'MV' BIND MV 0 [ ADD ] FOLD MV LENGTH DIV", "note": "arithmetic mean of a non-empty numeric Vector, as a bare scalar" },
+    { "name": "W2D.MEDIAN", "body": "SORT 'MS' BIND MS LENGTH 'ML' BIND MS ML 1 SUB 2 DIV FLOOR GET MS ML 2 DIV FLOOR GET ADD 2 DIV", "note": "median of a non-empty numeric Vector (mean of the two middle values when the count is even)" },
+    { "name": "W2D.ABS", "body": "'AA' BIND AA AA -1 MUL MAX", "note": "absolute value of a number, lifts lane by lane over a Vector" },
+    { "name": "W2D.DEVS", "body": "'DV' BIND DV DV W2D.MEAN SUB", "note": "each number minus the mean of the Vector, in order" },
+    { "name": "W2D.VARIANCE", "body": "W2D.DEVS 'VD' BIND VD VD MUL W2D.MEAN", "note": "population variance of a numeric Vector, as a bare scalar" },
+    { "name": "W2D.SUMS", "body": "'SP' BIND SP [ 0 GET ] MAP SP [ 1 GET ] MAP GROUP 'SG' BIND SG KEYS SG VALUES [ 0 [ ADD ] FOLD ] MAP RECORD", "note": "Vector of [ key amount ] pairs to a Record key -> sum of its amounts, keys in order of first appearance" },
+    { "name": "W2D.TOPKEY", "body": "'TR' BIND TR KEYS TR VALUES W1A.ARGMAX GET", "note": "key of a Record whose numeric value is largest; the first such key on ties" },
+    { "name": "W2D.CAP", "body": "LOWER CHARS 'CC' BIND CC 0 GET UPPER CC 1 DROP JOIN 2 COLLECT JOIN", "note": "non-empty word to Title case: first letter upper, the rest lower" },
+    { "name": "W2D.DIVISORS", "body": "'DP' BIND 1 DP RANGE 'DD' BIND DD 0 DP DD G0A.MOD 1 LT SELECT [ 0 GT ] FILTER", "note": "ascending positive divisors of a positive integer" },
+    { "name": "W2D.ISPRIME", "body": "W2D.DIVISORS LENGTH 2 EQ", "note": "whether a positive integer is prime (1 is not)" },
+    { "name": "W2D.CSTEP", "body": "'CX' BIND 1 CX 2 DIV CX 3 MUL 1 ADD CX 2 G0A.MOD 0 EQ SELECT CX 1 EQ SELECT", "note": "one Collatz step: even halves, odd becomes 3x+1, 1 stays 1" },
+    { "name": "W2D.FIBSTEP", "body": "'FP' BIND FP 1 GET FP 0 [ ADD ] FOLD 2 COLLECT", "note": "[ F(k) F(k+1) ] -> [ F(k+1) F(k+2) ], a SCAN/FOLD step for Fibonacci pairs" },
+    { "name": "W2D.LINE", "body": "'LO' BIND LO 'price' GET 'LP' BIND 0 LP LP NIL? SELECT LO 'qty' GET MUL", "note": "order Record to qty times price, 0 when it has no price" },
+    { "name": "W2D.REVENUE", "body": "JSON-DECODE 'orders' GET [ W2D.LINE ] MAP 0 [ ADD ] FOLD", "note": "orders JSON String to the total of qty times price over the priced orders" }
+  ],
+  "solutions": {
+    "ledger.total": "[ 1 GET ] MAP 0 [ ADD ] FOLD",
+    "ledger.by_name": "W2D.SUMS",
+    "ledger.top_name": "W2D.SUMS W2D.TOPKEY",
+    "ledger.debtors": "W2D.SUMS 'R' BIND R KEYS R VALUES 2 COLLECT ZIP [ 1 GET 0 LT ] FILTER [ 0 GET ] MAP",
+    "ledger.count_names": "[ 0 GET ] MAP UNIQUE LENGTH",
+    "ledger.largest_entry": "'E' BIND E E [ 1 GET ] MAP W1A.ARGMAX GET",
+
+    "messy.count": "G0A.WORDS LENGTH",
+    "messy.normalize": "LOWER G0A.WORDS W1A.UNWORDS",
+    "messy.distinct": "LOWER G0A.WORDS UNIQUE LENGTH",
+    "messy.top_word": "LOWER G0A.WORDS TALLY W2D.TOPKEY",
+    "messy.title": "G0A.WORDS [ W2D.CAP ] MAP W1A.UNWORDS",
+    "messy.sorted_unique": "LOWER G0A.WORDS UNIQUE SORT W1A.UNWORDS",
+
+    "number.primes": "'N' BIND 1 N RANGE [ W2D.ISPRIME ] FILTER",
+    "number.divisors": "W2D.DIVISORS",
+    "number.binary": "'N' BIND N 2 5 0 RANGE POW DIV FLOOR 2 G0A.MOD 'B' BIND B B W1A.ARGMAX DROP STR JOIN",
+    "number.collatz": "'N' BIND N 1 COLLECT [ 130 ] 0 FILL N [ ADD W2D.CSTEP ] SCAN CONCAT [ 1 GT ] FILTER LENGTH",
+    "number.digital_root": "1 SUB 9 G0A.MOD 1 ADD",
+    "number.fib_index": "'N' BIND [ 12 ] 0 FILL [ 0 1 ] [ ADD W2D.FIBSTEP ] SCAN [ 0 GET ] MAP [ N LT ] FILTER LENGTH 1 ADD",
+
+    "orders.revenue": "W2D.REVENUE",
+    "orders.report": "W2D.REVENUE 2 FORMAT",
+    "orders.unpriced": "JSON-DECODE 'orders' GET [ 'price' HAS? NOT ] FILTER [ 'sku' GET ] MAP UNIQUE",
+    "orders.qty_by_sku": "JSON-DECODE 'orders' GET [ [ 'sku' 'qty' ] GET ] MAP W2D.SUMS",
+    "orders.top_sku": "JSON-DECODE 'orders' GET [ [ 'sku' 'qty' ] GET ] MAP W2D.SUMS W2D.TOPKEY",
+    "orders.tag_counts": "JSON-DECODE 'orders' GET [ 'tags' HAS? ] FILTER [ 'tags' GET ] MAP FLATTEN TALLY",
+
+    "series.median": "W2D.MEDIAN",
+    "series.mad": "'V' BIND V V W2D.MEDIAN SUB W2D.ABS W2D.MEDIAN",
+    "series.moving3": "'V' BIND V -2 DROP V 1 DROP -1 DROP ADD V 2 DROP ADD 3 DIV",
+    "series.runmax": "'V' BIND V V 0 GET [ MAX ] SCAN",
+    "series.mode": "SORT TALLY W2D.TOPKEY",
+    "series.trimmed": "SORT 1 DROP -1 DROP W2D.MEAN",
+
+    "stats.sum": "0 [ ADD ] FOLD",
+    "stats.mean": "W2D.MEAN",
+    "stats.deviations": "W2D.DEVS",
+    "stats.variance": "W2D.VARIANCE",
+    "stats.stddev": "W2D.VARIANCE SQRT",
+    "stats.range": "SORT 'S' BIND S -1 GET S 0 GET SUB",
+    "stats.normalize": "'V' BIND V SORT 'S' BIND S 0 GET 'MN' BIND V MN SUB S -1 GET MN SUB DIV",
+
+    "text.count": "G0A.WORDS LENGTH",
+    "text.frequency": "G0A.WORDS TALLY",
+    "text.distinct": "G0A.WORDS UNIQUE",
+    "text.titlecase": "G0A.WORDS [ W2D.CAP ] MAP W1A.UNWORDS",
+    "text.longest": "G0A.WORDS [ CHARS LENGTH ] MAP 0 [ MAX ] FOLD",
+    "text.long-words": "G0A.WORDS [ CHARS LENGTH 3 GT ] FILTER",
+    "text.acronym": "G0A.WORDS [ CHARS 0 GET UPPER ] MAP JOIN"
+  }
+}

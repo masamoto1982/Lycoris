@@ -1,0 +1,129 @@
+{
+  "agent": "W1C",
+  "generation": 1,
+  "condition": "breadth",
+  "definitions": [
+    {
+      "name": "W1C.DELTA",
+      "body": "CHARS 'V' BIND [ '(' '[' ')' ']' ] [ 1 1 -1 -1 ] RECORD V GET",
+      "note": "Bracket String to the Vector of +1 for each opener and -1 for each closer."
+    },
+    {
+      "name": "W1C.CODE",
+      "body": "CHARS 'V' BIND [ '(' '[' ')' ']' ] [ 1 2 -1 -2 ] RECORD V GET",
+      "note": "Bracket String to the Vector of codes: ( is 1, [ is 2, ) is -1, ] is -2."
+    },
+    {
+      "name": "W1C.STEP3",
+      "body": "'K' BIND 'X' BIND X 1220703125 G0A.MOD 'S' BIND X 1220703125 DIV FLOOR 'L' BIND S 5 DIV FLOOR S 5 MUL K 0 MAX ADD S 5 G0A.MOD K ADD 0 EQ SELECT 'S2' BIND L 1 SUB L 1 ADD S 5 G0A.MOD K ADD 0 EQ SELECT 'L2' BIND S2 L2 1220703125 MUL ADD",
+      "note": "FOLD/SCAN step on X = stack + 5^13 * count, the stack being base-5 digits (openers 1 or 2, unmatched closers 0); a closer pops when its digit matches."
+    },
+    {
+      "name": "W1C.JOINSP",
+      "body": "[ ' ' 2 COLLECT JOIN ] MAP JOIN TRIM",
+      "note": "Vector of Strings joined by single spaces with no space at either end."
+    },
+    {
+      "name": "W1C.CAP",
+      "body": "'C' BIND C 0 GET UPPER C 1 DROP JOIN LOWER 2 COLLECT JOIN",
+      "note": "Word String with its first letter upper case and the rest lower case."
+    },
+    {
+      "name": "W1C.LONGER",
+      "body": "'P' BIND 'A' BIND P A P CHARS LENGTH A CHARS LENGTH GT SELECT",
+      "note": "FOLD step over Strings: the longer of word and accumulator, the accumulator on ties."
+    },
+    {
+      "name": "W1C.PICK",
+      "body": "'P' BIND 'A' BIND P A 2 COLLECT 0 1 P 1 GET A 1 GET GT SELECT GET",
+      "note": "FOLD step over [key value] pairs or entries: the element whose second item is strictly larger, the accumulator on ties."
+    },
+    {
+      "name": "W1C.RECPAIRS",
+      "body": "'R' BIND R KEYS R VALUES 2 COLLECT ZIP",
+      "note": "Record to the Vector of [key value] pairs in key order."
+    },
+    {
+      "name": "W1C.ARGMAX",
+      "body": "W1C.RECPAIRS 'PR' BIND PR PR 0 GET [ W1C.PICK ] FOLD 0 GET",
+      "note": "Record to the key whose value is largest, the first key on ties."
+    },
+    {
+      "name": "W1C.BYNAME",
+      "body": "'E' BIND E [ 0 GET ] MAP 'N' BIND E [ 1 GET ] MAP 'A' BIND N A GROUP 'R' BIND R KEYS R VALUES [ G0A.SUM ] MAP RECORD",
+      "note": "Vector of [name amount] entries to a Record from name to the sum of its amounts, names in first-appearance order."
+    },
+    {
+      "name": "W1C.RUNPAIR",
+      "body": "'G' BIND G 0 GET G LENGTH 2 COLLECT",
+      "note": "Vector of equal values to the two-element Vector [value count]."
+    },
+    {
+      "name": "W1C.RUNS",
+      "body": "'V' BIND [ 1 ] V 1 DROP V -1 DROP SUB 'D' BIND 1 0 D D MUL 0 GT SELECT CONCAT 0 [ ADD ] SCAN V GROUP",
+      "note": "Vector to a Record from run number to the values of that maximal run of equal adjacent values, in run order."
+    },
+    {
+      "name": "W1C.FSTEP",
+      "body": "'X' BIND 'A' BIND A X X NIL? SELECT",
+      "note": "SCAN step that carries the last present reading forward over a missing one."
+    },
+    {
+      "name": "W1C.RUNSTEP",
+      "body": "'M' BIND 'A' BIND A 1 ADD 0 M SELECT",
+      "note": "SCAN step over truths: length of the current run of TRUE values, reset to 0 on FALSE."
+    },
+    {
+      "name": "W1C.MEDIAN",
+      "body": "SORT 'S' BIND S S LENGTH 1 SUB 2 DIV FLOOR S LENGTH 2 DIV FLOOR 2 COLLECT GET G0A.MEAN",
+      "note": "Median of a non-empty numeric Vector: mean of the middle one or two sorted values."
+    }
+  ],
+  "solutions": {
+    "brackets.depth": "W1C.DELTA 0 [ ADD 0 MAX ] SCAN 0 [ MAX ] FOLD",
+    "brackets.balanced": "W1C.CODE 0 [ W1C.STEP3 ] FOLD 1220703125 LT",
+    "brackets.balanced_prefix": "W1C.CODE 'C' BIND C 0 [ W1C.STEP3 ] SCAN 'XS' BIND 1 C LENGTH RANGE C LENGTH TAKE 0 XS 1220703125 LT SELECT 0 [ MAX ] FOLD",
+    "brackets.unmatched": "W1C.CODE 0 [ W1C.STEP3 ] FOLD 1220703125 DIV FLOOR",
+
+    "ledger.total": "[ 1 GET ] MAP G0A.SUM",
+    "ledger.by_name": "W1C.BYNAME",
+    "ledger.top_name": "W1C.BYNAME W1C.ARGMAX",
+    "ledger.debtors": "W1C.BYNAME W1C.RECPAIRS [ 1 GET 0 LT ] FILTER [ 0 GET ] MAP",
+    "ledger.count_names": "W1C.BYNAME KEYS LENGTH",
+    "ledger.largest_entry": "'E' BIND E E 0 GET [ W1C.PICK ] FOLD",
+
+    "messy.count": "G0A.WORDS LENGTH",
+    "messy.normalize": "G0A.WORDS [ LOWER ] MAP W1C.JOINSP",
+    "messy.distinct": "G0A.WORDS [ LOWER ] MAP UNIQUE LENGTH",
+    "messy.top_word": "G0A.WORDS [ LOWER ] MAP TALLY W1C.ARGMAX",
+    "messy.title": "G0A.WORDS [ W1C.CAP ] MAP W1C.JOINSP",
+    "messy.sorted_unique": "G0A.WORDS [ LOWER ] MAP UNIQUE SORT W1C.JOINSP",
+
+    "prose.longest": "G0A.WORDS 'W' BIND W W 0 GET [ W1C.LONGER ] FOLD",
+    "prose.freq_top": "G0A.WORDS TALLY W1C.ARGMAX",
+    "prose.distinct_sorted": "G0A.WORDS UNIQUE SORT W1C.JOINSP",
+    "prose.reverse_words": "G0A.WORDS REVERSE W1C.JOINSP",
+    "prose.capitalize": "G0A.WORDS [ W1C.CAP ] MAP W1C.JOINSP",
+    "prose.initials_of_long": "G0A.WORDS [ CHARS LENGTH 3 GT ] FILTER [ CHARS 0 GET UPPER ] MAP JOIN",
+
+    "runs.rle": "W1C.RUNS VALUES [ W1C.RUNPAIR ] MAP",
+    "runs.upruns": "'V' BIND [ 1 ] V 1 DROP V -1 DROP SUB 'D' BIND 0 1 D 0 GT SELECT CONCAT 0 [ ADD ] SCAN V GROUP VALUES [ LENGTH ] MAP G0C.MAXV",
+    "runs.dedupe": "W1C.RUNS VALUES [ 0 GET ] MAP",
+    "runs.second_largest": "UNIQUE SORT -2 GET",
+    "runs.majority": "'V' BIND V LENGTH 'N' BIND V TALLY W1C.RECPAIRS [ 1 GET 2 MUL N GT ] FILTER [ 0 GET ] MAP 0 GET",
+
+    "sensor.present_mean": "[ NIL? NOT ] FILTER G0A.MEAN",
+    "sensor.filled": "'V' BIND V [ NIL? NOT ] FILTER 0 GET 'F' BIND V F [ W1C.FSTEP ] SCAN",
+    "sensor.gap_count": "'V' BIND V [ NIL? ] MAP 'M' BIND [ FALSE ] M -1 DROP CONCAT 'P' BIND M P NOT AND G0B.COUNT",
+    "sensor.longest_gap": "'V' BIND V [ NIL? ] MAP 0 [ W1C.RUNSTEP ] SCAN 0 [ MAX ] FOLD",
+    "sensor.ratios": "'V' BIND V 1 DROP V -1 DROP DIV",
+    "sensor.scaled": "'V' BIND V [ NIL? NOT ] FILTER G0C.MAXV 'M' BIND V M DIV",
+
+    "series.median": "W1C.MEDIAN",
+    "series.mad": "'V' BIND V W1C.MEDIAN 'MD' BIND V MD SUB 'D' BIND D 0 D SUB MAX W1C.MEDIAN",
+    "series.moving3": "'V' BIND V -2 DROP V 1 DROP -1 DROP ADD V 2 DROP ADD 3 DIV",
+    "series.runmax": "'V' BIND V V 0 GET [ MAX ] SCAN",
+    "series.mode": "'V' BIND V TALLY W1C.RECPAIRS 'P' BIND P [ 1 GET ] MAP G0C.MAXV 'M' BIND P [ 1 GET M LT NOT ] FILTER [ 0 GET ] MAP SORT 0 GET",
+    "series.trimmed": "SORT 'S' BIND S 1 DROP -1 DROP G0A.MEAN"
+  }
+}

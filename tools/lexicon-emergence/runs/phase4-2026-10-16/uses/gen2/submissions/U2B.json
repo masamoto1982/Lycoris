@@ -1,0 +1,66 @@
+{
+  "agent": "U2B", "generation": 2, "condition": "uses",
+  "definitions": [
+    { "name": "U2B.MOD", "body": "'B' BIND 'A' BIND A A B DIV FLOOR B MUL SUB", "note": "a b -> a mod b (floor remainder), lifts over vectors" },
+    { "name": "U2B.PICK", "body": "2 COLLECT ZIP [ 1 GET ] FILTER [ 0 GET ] MAP", "note": "values truths -> the values whose truth is TRUE" },
+    { "name": "U2B.NDIV", "body": "'K' BIND 1 0 K 1 K RANGE U2B.MOD 1 LT SELECT G0A.SUM", "note": "positive integer -> number of its positive divisors" },
+    { "name": "U2B.STEP", "body": "'X' BIND X 2 DIV X 3 MUL 1 ADD X 2 U2B.MOD 1 LT SELECT X X 1 GT SELECT", "note": "one Collatz step; 1 stays 1" },
+    { "name": "U2B.SUMGRP", "body": "GROUP 'G' BIND G KEYS G VALUES [ G0A.SUM ] MAP RECORD", "note": "keys values -> Record key -> sum of its values, first-appearance order" },
+    { "name": "U2B.TOPKEY", "body": "'R' BIND R KEYS R VALUES U1A.ARGMAX GET", "note": "Record of numbers -> key with largest value, first on ties" },
+    { "name": "U2B.LINE", "body": "'O' BIND O 'price' GET 'P' BIND 0 P P NIL? SELECT O 'qty' GET MUL", "note": "order Record -> qty times price, 0 when no price" },
+    { "name": "U2B.MEDIAN", "body": "SORT 'S' BIND S LENGTH 'N' BIND S N 1 SUB 2 DIV FLOOR GET S N 2 DIV FLOOR GET ADD 2 DIV", "note": "Vector of numbers -> median" },
+    { "name": "U2B.VAR", "body": "'V' BIND V V G0A.MEAN SUB 'D' BIND D D MUL G0A.MEAN", "note": "Vector of numbers -> population variance" }
+  ],
+  "solutions": {
+    "ledger.total": "[ 1 GET ] MAP G0A.SUM",
+    "ledger.by_name": "'L' BIND L [ 0 GET ] MAP L [ 1 GET ] MAP U2B.SUMGRP",
+    "ledger.top_name": "'L' BIND L [ 0 GET ] MAP L [ 1 GET ] MAP U2B.SUMGRP U2B.TOPKEY",
+    "ledger.debtors": "'L' BIND L [ 0 GET ] MAP L [ 1 GET ] MAP U2B.SUMGRP 'R' BIND R KEYS R VALUES 0 LT U2B.PICK",
+    "ledger.count_names": "[ 0 GET ] MAP UNIQUE LENGTH",
+    "ledger.largest_entry": "'L' BIND L L [ 1 GET ] MAP U1A.ARGMAX GET",
+
+    "messy.count": "G0A.WORDS LENGTH",
+    "messy.normalize": "G0A.WORDS [ LOWER ] MAP U1A.UNWORDS",
+    "messy.distinct": "G0A.WORDS [ LOWER ] MAP UNIQUE LENGTH",
+    "messy.top_word": "G0A.WORDS [ LOWER ] MAP TALLY U2B.TOPKEY",
+    "messy.title": "G0A.WORDS [ U1B.CAP1 ] MAP U1A.UNWORDS",
+    "messy.sorted_unique": "G0A.WORDS [ LOWER ] MAP UNIQUE SORT U1A.UNWORDS",
+
+    "number.primes": "'N' BIND 1 N RANGE 'C' BIND C C [ U2B.NDIV 2 EQ ] MAP U2B.PICK",
+    "number.divisors": "'N' BIND 1 N RANGE 'C' BIND C N C U2B.MOD 1 LT U2B.PICK",
+    "number.binary": "'N' BIND N [ 1 2 4 8 16 32 ] DIV FLOOR 2 U2B.MOD REVERSE [ 1 2 4 8 16 32 ] REVERSE N GT NOT U2B.PICK STR JOIN",
+    "number.collatz": "'N' BIND N 1 COLLECT 1 120 RANGE N [ 0 MUL ADD U2B.STEP ] SCAN CONCAT 'S' BIND 1 0 S 1 GT SELECT G0A.SUM",
+    "number.digital_root": "1 SUB 9 U2B.MOD 1 ADD",
+    "number.fib_index": "'N' BIND 1 0 [ 1 1 2 3 5 8 13 21 34 55 89 ] N LT SELECT G0A.SUM 1 ADD",
+
+    "orders.revenue": "JSON-DECODE 'orders' GET [ U2B.LINE ] MAP G0A.SUM",
+    "orders.report": "JSON-DECODE 'orders' GET [ U2B.LINE ] MAP G0A.SUM 2 FORMAT",
+    "orders.unpriced": "JSON-DECODE 'orders' GET [ 'price' HAS? NOT ] FILTER [ 'sku' GET ] MAP UNIQUE",
+    "orders.qty_by_sku": "JSON-DECODE 'orders' GET 'OS' BIND OS [ 'sku' GET ] MAP OS [ 'qty' GET ] MAP U2B.SUMGRP",
+    "orders.top_sku": "JSON-DECODE 'orders' GET 'OS' BIND OS [ 'sku' GET ] MAP OS [ 'qty' GET ] MAP U2B.SUMGRP U2B.TOPKEY",
+    "orders.tag_counts": "JSON-DECODE 'orders' GET [ 'tags' HAS? ] FILTER [ 'tags' GET UNIQUE ] MAP FLATTEN TALLY",
+
+    "series.median": "U2B.MEDIAN",
+    "series.mad": "'V' BIND V V U2B.MEDIAN SUB 'D' BIND D D -1 MUL MAX U2B.MEDIAN",
+    "series.moving3": "'V' BIND V -2 DROP V 1 DROP -1 DROP ADD V 2 DROP ADD 3 DIV",
+    "series.runmax": "'V' BIND V V 0 GET [ MAX ] SCAN",
+    "series.mode": "SORT TALLY U2B.TOPKEY",
+    "series.trimmed": "SORT 1 DROP -1 DROP G0A.MEAN",
+
+    "stats.sum": "G0A.SUM",
+    "stats.mean": "G0A.MEAN",
+    "stats.deviations": "'V' BIND V V G0A.MEAN SUB",
+    "stats.variance": "U2B.VAR",
+    "stats.stddev": "U2B.VAR SQRT",
+    "stats.range": "SORT 'S' BIND S -1 GET S 0 GET SUB",
+    "stats.normalize": "'V' BIND V SORT 'S' BIND S 0 GET 'MN' BIND S -1 GET 'MX' BIND V MN SUB MX MN SUB DIV",
+
+    "text.count": "G0A.WORDS LENGTH",
+    "text.frequency": "G0A.WORDS TALLY",
+    "text.distinct": "G0A.WORDS UNIQUE",
+    "text.titlecase": "G0A.WORDS [ U1B.CAP1 ] MAP U1A.UNWORDS",
+    "text.longest": "G0A.WORDS [ CHARS LENGTH ] MAP SORT -1 GET",
+    "text.long-words": "G0A.WORDS [ CHARS LENGTH 3 GT ] FILTER",
+    "text.acronym": "G0A.WORDS [ CHARS 0 GET UPPER ] MAP JOIN"
+  }
+}

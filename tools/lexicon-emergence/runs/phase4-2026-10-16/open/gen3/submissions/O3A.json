@@ -1,0 +1,64 @@
+{
+  "agent": "O3A", "generation": 3, "condition": "open",
+  "definitions": [
+    { "name": "O3A.BSTEPS", "body": "CHARS [ 'BC' BIND 1 -1 BC ')' EQ NOT BC ']' EQ NOT AND SELECT ] MAP", "note": "bracket String to a Vector of +1 for each opener and -1 for each closer" },
+    { "name": "O3A.RSTEP", "body": "'RE' BIND 'RA' BIND RA CHARS -1 DROP JOIN RA RE 2 COLLECT JOIN RA CHARS -1 GET RE 2 COLLECT JOIN 'RP' BIND RP '()' EQ NOT RP '[]' EQ NOT AND NOT SELECT", "note": "FOLD/SCAN step (stack-String char): pop the last char when it opens what char closes, else append char; seed with 'X'" },
+    { "name": "O3A.REDUCE", "body": "CHARS 'X' [ O3A.RSTEP ] FOLD", "note": "bracket String to 'X' followed by what is left after deleting matched () and [] pairs" },
+    { "name": "O3A.PSTEP", "body": "'PE' BIND [ 'PS' 'PN' 'PB' ] BIND PS PE O3A.RSTEP 'PT' BIND PN 1 ADD 'PM' BIND PT PM PM PB PT 'X' EQ SELECT 3 COLLECT", "note": "FOLD step over [ stack length best ] recording the longest balanced prefix length in best" },
+    { "name": "O3A.RLESTEP", "body": "'RLE' BIND 'RLA' BIND RLA -1 GET 'RLL' BIND RLA RLA LENGTH 1 SUB RLL 0 GET RLL 1 GET 1 ADD 2 COLLECT PUT RLA RLE 1 2 COLLECT 1 COLLECT CONCAT 2 COLLECT 0 1 RLL 0 GET RLE EQ SELECT GET", "note": "FOLD step over a non-empty Vector of [ value count ] pairs: bump the last count or append [ elem 1 ]" },
+    { "name": "O3A.RLE", "body": "'RLV' BIND RLV RLV 0 GET 0 2 COLLECT 1 COLLECT [ O3A.RLESTEP ] FOLD", "note": "non-empty Vector to its run-length encoding, a Vector of [ value count ] pairs" },
+    { "name": "O3A.UPSTEP", "body": "'UE' BIND [ 'UP' 'UC' 'UB' ] BIND UC 1 ADD 1 UE UP GT SELECT 'UN' BIND UE UN UB UN MAX 3 COLLECT", "note": "FOLD step over [ previous current-run best ] for the longest strictly increasing stretch" },
+    { "name": "O3A.FFSTEP", "body": "'FE' BIND 'FA' BIND FA FE FE NIL? SELECT", "note": "SCAN step: the element, or the accumulator when the element is NIL (forward fill)" },
+    { "name": "O3A.GAPSTEP", "body": "'GE' BIND [ 'GP' 'GC' ] BIND GE NIL? 'GM' BIND GM GC 1 ADD GC GM GP NOT AND SELECT 2 COLLECT", "note": "FOLD step over [ previous-missing count ] counting runs of NIL; seed FALSE 0 2 COLLECT" },
+    { "name": "O3A.LGSTEP", "body": "'LGE' BIND [ 'LGC' 'LGB' ] BIND LGC 1 ADD 0 LGE NIL? SELECT 'LGN' BIND LGN LGB LGN MAX 2 COLLECT", "note": "FOLD step over [ current-NIL-run best ] tracking the longest run of NIL; seed 0 0 2 COLLECT" },
+    { "name": "O3A.RATSTEP", "body": "'TE' BIND [ 'TP' 'TIG' ] BIND 1 TE TE NIL? SELECT 'TX' BIND 1 TP TP NIL? SELECT 'TY' BIND NIL TX TY DIV TE NIL? NOT TP NIL? NOT AND NOT SELECT 'TQ' BIND TE TQ 2 COLLECT", "note": "SCAN step over [ previous ratio ]: [ elem elem/previous ], ratio NIL when either is NIL" },
+    { "name": "O3A.MEDIAN", "body": "SORT 'MS' BIND MS LENGTH 'MN' BIND MS MN 1 SUB 2 DIV FLOOR GET MS MN 2 DIV FLOOR GET ADD 2 DIV", "note": "median of a non-empty Vector of numbers (mean of the two middle ones when even)" }
+  ],
+  "solutions": {
+    "brackets.depth": "O3A.BSTEPS 0 [ ADD ] SCAN 0 [ MAX ] FOLD",
+    "brackets.balanced": "O3A.REDUCE 'X' EQ",
+    "brackets.balanced_prefix": "CHARS 'X' 0 0 3 COLLECT [ O3A.PSTEP ] FOLD 2 GET",
+    "brackets.unmatched": "O3A.REDUCE CHARS LENGTH 1 SUB",
+
+    "ledger.total": "[ 1 GET ] MAP G0A.SUM",
+    "ledger.by_name": "O2A.BYKEY",
+    "ledger.top_name": "O2A.BYKEY G0A.TOPKEY",
+    "ledger.debtors": "O2A.BYKEY 'LR' BIND LR KEYS [ 'LQ' BIND LR LQ GET 0 LT ] FILTER",
+    "ledger.count_names": "[ 0 GET ] MAP UNIQUE LENGTH",
+    "ledger.largest_entry": "'LEX' BIND LEX LEX [ 1 GET ] MAP G0A.ARGMAX GET",
+
+    "messy.count": "G0A.WORDS LENGTH",
+    "messy.normalize": "LOWER G0A.WORDS G0B.SPACED",
+    "messy.distinct": "LOWER G0A.WORDS UNIQUE LENGTH",
+    "messy.top_word": "LOWER G0A.WORDS TALLY G0A.TOPKEY",
+    "messy.title": "LOWER G0A.WORDS [ G0B.CAP ] MAP G0B.SPACED",
+    "messy.sorted_unique": "LOWER G0A.WORDS UNIQUE SORT G0B.SPACED",
+
+    "prose.longest": "G0A.WORDS 'PW' BIND PW PW [ CHARS LENGTH ] MAP G0A.ARGMAX GET",
+    "prose.freq_top": "G0A.WORDS TALLY G0A.TOPKEY",
+    "prose.distinct_sorted": "G0A.WORDS UNIQUE SORT G0B.SPACED",
+    "prose.reverse_words": "G0A.WORDS REVERSE G0B.SPACED",
+    "prose.capitalize": "G0A.WORDS [ G0B.CAP ] MAP G0B.SPACED",
+    "prose.initials_of_long": "G0A.WORDS [ CHARS LENGTH 3 GT ] FILTER [ CHARS 0 GET UPPER ] MAP JOIN",
+
+    "runs.rle": "O3A.RLE",
+    "runs.upruns": "'UV' BIND UV UV 0 GET 0 0 3 COLLECT [ O3A.UPSTEP ] FOLD 2 GET",
+    "runs.dedupe": "O3A.RLE [ 0 GET ] MAP",
+    "runs.second_largest": "UNIQUE SORT 'SU' BIND NIL SU -2 GET SU LENGTH 1 EQ SELECT",
+    "runs.majority": "'MJ' BIND MJ TALLY 'MT' BIND MT G0A.TOPKEY 'MK' BIND MK NIL MT MK GET 2 MUL MJ LENGTH GT SELECT",
+
+    "sensor.present_mean": "O1D.PRESENT G0A.MEAN",
+    "sensor.filled": "'FV' BIND FV FV O1D.PRESENT 0 GET [ O3A.FFSTEP ] SCAN",
+    "sensor.gap_count": "FALSE 0 2 COLLECT [ O3A.GAPSTEP ] FOLD 1 GET",
+    "sensor.longest_gap": "0 0 2 COLLECT [ O3A.LGSTEP ] FOLD 1 GET",
+    "sensor.ratios": "'RTV' BIND RTV 1 DROP RTV 0 GET 0 2 COLLECT [ O3A.RATSTEP ] SCAN [ 1 GET ] MAP",
+    "sensor.scaled": "'KV' BIND KV O1D.PRESENT G0D.MAXV 'KM' BIND KV [ 'KE' BIND NIL 1 KE KE NIL? SELECT KM DIV KE NIL? SELECT ] MAP",
+
+    "series.median": "O3A.MEDIAN",
+    "series.mad": "'DV' BIND DV DV O3A.MEDIAN SUB 'DD' BIND DD 0 DD SUB MAX O3A.MEDIAN",
+    "series.moving3": "'MW' BIND MW -2 DROP MW 1 DROP -1 DROP ADD MW 2 DROP ADD 3 DIV",
+    "series.runmax": "'RMV' BIND RMV RMV 0 GET [ MAX ] SCAN",
+    "series.mode": "SORT TALLY G0A.TOPKEY",
+    "series.trimmed": "SORT 1 DROP -1 DROP G0A.MEAN"
+  }
+}

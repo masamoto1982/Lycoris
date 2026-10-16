@@ -1,0 +1,93 @@
+{
+  "agent": "U3C",
+  "generation": 3,
+  "condition": "uses",
+  "definitions": [
+    {
+      "name": "U3C.JOINSP",
+      "body": "'' [ 'EL' BIND ' ' EL 3 COLLECT JOIN ] FOLD TRIM",
+      "note": "Vector of Strings -> one String joined by single spaces"
+    },
+    {
+      "name": "U3C.TITLE",
+      "body": "LOWER 'W' BIND W CHARS 'C' BIND C 0 GET UPPER C 1 DROP JOIN 2 COLLECT JOIN",
+      "note": "String word -> lower case with its first letter in upper case"
+    },
+    {
+      "name": "U3C.FIRSTMAX",
+      "body": "-1 MUL ORDER 0 GET",
+      "note": "Vector of numbers -> index of its first maximum"
+    },
+    {
+      "name": "U3C.STK",
+      "body": "[ 'Z' ] [ 'CH' BIND 'ST' BIND ST -1 TAKE 0 GET CH 2 COLLECT JOIN 'PR' BIND PR '()' EQ NOT PR '[]' EQ NOT AND NOT 'TR' BIND ST -1 DROP ST CH 1 COLLECT CONCAT 2 COLLECT 0 1 TR SELECT GET ] FOLD",
+      "note": "Vector of single bracket Strings -> final stack as a Vector (sentinel 'Z' at bottom); a close that does not match the top is pushed, so the length minus one is the unmatched count"
+    },
+    {
+      "name": "U3C.PREV",
+      "body": "'XV' BIND XV 0 GET 1 COLLECT XV XV LENGTH 1 SUB TAKE CONCAT",
+      "note": "Vector -> the vector shifted right by one place, its first element repeated in front"
+    },
+    {
+      "name": "U3C.RUNIDS",
+      "body": "'XV' BIND XV U3C.PREV 'XB' BIND XV XB LT NOT XV XB GT NOT AND NOT 'XT' BIND 1 0 XT SELECT 0 [ ADD ] SCAN",
+      "note": "Vector of numbers -> run id at each position, the id rising by one at every change of value"
+    },
+    {
+      "name": "U3C.MED",
+      "body": "SORT 'S' BIND S S LENGTH 1 SUB 2 DIV FLOOR GET S S LENGTH 2 DIV FLOOR GET ADD 2 DIV",
+      "note": "Vector of numbers -> median (mean of the two middle numbers when the count is even)"
+    },
+    {
+      "name": "U3C.MISS",
+      "body": "[ NIL? ] MAP 'MT' BIND 1 0 MT SELECT",
+      "note": "Vector of readings -> numeric flags, 1 where the reading is missing and 0 where present"
+    },
+    {
+      "name": "U3C.BYNAME",
+      "body": "'E' BIND E [ 0 GET ] MAP E [ 1 GET ] MAP U2A.GSUM",
+      "note": "Vector of [name amount] entries -> Record from each name to the sum of its amounts"
+    }
+  ],
+  "solutions": {
+    "brackets.depth": "CHARS [ 'CH' BIND CH '(' EQ NOT CH '[' EQ NOT AND NOT 'TR' BIND 1 -1 TR SELECT ] MAP 0 [ ADD ] SCAN 0 [ MAX ] FOLD",
+    "brackets.balanced": "CHARS U3C.STK LENGTH 1 EQ",
+    "brackets.balanced_prefix": "CHARS 'V' BIND V LENGTH 'N' BIND 0 N RANGE 'KS' BIND KS [ 'K' BIND V K TAKE U3C.STK LENGTH 1 EQ ] MAP 'TV' BIND KS 0 TV SELECT 0 [ MAX ] FOLD",
+    "brackets.unmatched": "CHARS U3C.STK LENGTH 1 SUB",
+    "ledger.total": "[ 1 GET ] MAP G0A.SUM",
+    "ledger.by_name": "U3C.BYNAME",
+    "ledger.top_name": "U3C.BYNAME 'R' BIND R VALUES U3C.FIRSTMAX 'I' BIND R KEYS I GET",
+    "ledger.debtors": "U3C.BYNAME 'R' BIND R KEYS [ 'NM' BIND R NM GET 0 LT ] FILTER",
+    "ledger.count_names": "[ 0 GET ] MAP UNIQUE LENGTH",
+    "ledger.largest_entry": "'E' BIND E [ 1 GET ] MAP U3C.FIRSTMAX 'I' BIND E I GET",
+    "messy.count": "G0A.WORDS LENGTH",
+    "messy.normalize": "G0A.WORDS [ LOWER ] MAP U3C.JOINSP",
+    "messy.distinct": "G0A.WORDS [ LOWER ] MAP UNIQUE LENGTH",
+    "messy.top_word": "G0A.WORDS [ LOWER ] MAP TALLY 'T' BIND T KEYS 'K' BIND K T VALUES U3C.FIRSTMAX GET",
+    "messy.title": "G0A.WORDS [ U3C.TITLE ] MAP U3C.JOINSP",
+    "messy.sorted_unique": "G0A.WORDS [ LOWER ] MAP UNIQUE SORT U3C.JOINSP",
+    "prose.longest": "G0A.WORDS 'W' BIND W [ CHARS LENGTH ] MAP U3C.FIRSTMAX 'I' BIND W I GET",
+    "prose.freq_top": "G0A.WORDS TALLY 'T' BIND T KEYS 'K' BIND K T VALUES U3C.FIRSTMAX GET",
+    "prose.distinct_sorted": "G0A.WORDS UNIQUE SORT U3C.JOINSP",
+    "prose.reverse_words": "G0A.WORDS REVERSE U3C.JOINSP",
+    "prose.capitalize": "G0A.WORDS [ U3C.TITLE ] MAP U3C.JOINSP",
+    "prose.initials_of_long": "G0A.WORDS [ CHARS LENGTH 3 GT ] FILTER [ CHARS 0 GET UPPER ] MAP JOIN",
+    "runs.rle": "'V' BIND V U3C.RUNIDS 'I' BIND I V GROUP VALUES [ 'G' BIND G 0 GET G LENGTH 2 COLLECT ] MAP",
+    "runs.upruns": "'V' BIND V U3C.PREV 'B' BIND B V LT 'IV' BIND 1 0 IV SELECT 0 [ 'E' BIND E MUL 1 ADD ] SCAN 0 [ MAX ] FOLD",
+    "runs.dedupe": "'V' BIND V U3C.RUNIDS 'I' BIND I V GROUP VALUES [ 0 GET ] MAP",
+    "runs.second_largest": "'V' BIND V UNIQUE SORT 'D' BIND D LENGTH 'N' BIND NIL D N 2 SUB GET N 2 LT SELECT",
+    "runs.majority": "'V' BIND V TALLY 'T' BIND T VALUES U3C.FIRSTMAX 'I' BIND T KEYS I GET 'MK' BIND MK NIL V LENGTH T VALUES I GET 2 MUL LT SELECT",
+    "sensor.present_mean": "[ NIL? NOT ] FILTER G0A.MEAN",
+    "sensor.filled": "'R' BIND R R [ NIL? NOT ] FILTER 0 GET [ 'E' BIND 'AC' BIND E AC E NIL? NOT SELECT ] SCAN",
+    "sensor.gap_count": "U3C.MISS 0 [ 'E' BIND 1 ADD E MUL ] SCAN 'LN' BIND LN 0 GT LN 2 LT AND 'TV' BIND 1 0 TV SELECT G0A.SUM",
+    "sensor.longest_gap": "U3C.MISS 0 [ 'E' BIND 1 ADD E MUL ] SCAN 0 [ MAX ] FOLD",
+    "sensor.ratios": "'R' BIND R 1 DROP R R LENGTH 1 SUB TAKE DIV",
+    "sensor.scaled": "'R' BIND R R [ NIL? NOT ] FILTER 'P' BIND R P P 0 GET [ MAX ] FOLD DIV",
+    "series.median": "U3C.MED",
+    "series.mad": "'V' BIND V U3C.MED 'M' BIND V M SUB 'D' BIND D 0 D SUB MAX U3C.MED",
+    "series.moving3": "'V' BIND V V LENGTH 2 SUB TAKE V 1 DROP V LENGTH 2 SUB TAKE ADD V 2 DROP ADD 3 DIV",
+    "series.runmax": "'V' BIND V V 0 GET [ MAX ] SCAN",
+    "series.mode": "SORT TALLY 'T' BIND T KEYS 'K' BIND K T VALUES U3C.FIRSTMAX GET",
+    "series.trimmed": "SORT 'S' BIND S 1 DROP S LENGTH 2 SUB TAKE G0A.MEAN"
+  }
+}

@@ -1,0 +1,104 @@
+{
+  "generation": 2,
+  "capacity": 8,
+  "rule": "breadth",
+  "entries": [
+    {
+      "name": "G0A.WORDS",
+      "body": "' ' TOKENIZE [ '' EQ NOT ] FILTER",
+      "note": "split a String on spaces, dropping empty pieces",
+      "classId": "G0A.WORDS",
+      "uses": 23,
+      "tasks": 6,
+      "agents": [
+        "W1A",
+        "W1B",
+        "W1C",
+        "W1D"
+      ]
+    },
+    {
+      "name": "W1C.CODE",
+      "body": "CHARS 'V' BIND [ '(' '[' ')' ']' ] [ 1 2 -1 -2 ] RECORD V GET",
+      "note": "Bracket String to the Vector of codes: ( is 1, [ is 2, ) is -1, ] is -2.",
+      "classId": "W1C.DELTA",
+      "uses": 4,
+      "tasks": 4,
+      "agents": [
+        "W1C"
+      ]
+    },
+    {
+      "name": "W1A.UNWORDS",
+      "body": "[ ' ' 2 COLLECT JOIN ] MAP JOIN TRIM",
+      "note": "join a Vector of space-free Strings with single spaces ('' for empty)",
+      "classId": "W1A.UNWORDS",
+      "uses": 11,
+      "tasks": 3,
+      "agents": [
+        "W1A",
+        "W1B",
+        "W1C",
+        "W1D"
+      ]
+    },
+    {
+      "name": "W1A.ARGMAX",
+      "body": "-1 MUL ORDER 0 GET",
+      "note": "index of the first largest number in a non-empty numeric Vector",
+      "classId": "W1A.ARGMAX",
+      "uses": 6,
+      "tasks": 3,
+      "agents": [
+        "W1A",
+        "W1D"
+      ]
+    },
+    {
+      "name": "W1B.R1",
+      "body": "'()' '' REPLACE '[]' '' REPLACE",
+      "note": "one pass deleting adjacent () then [] pairs from a String",
+      "classId": "W1B.R1",
+      "uses": 6,
+      "tasks": 3,
+      "agents": [
+        "W1B",
+        "W1D"
+      ]
+    },
+    {
+      "name": "W1D.PRESENT",
+      "body": "[ NIL? NOT ] FILTER",
+      "note": "the non-NIL elements of a Vector, in order",
+      "classId": "W1A.FILLED",
+      "uses": 4,
+      "tasks": 3,
+      "agents": [
+        "W1A",
+        "W1D"
+      ]
+    },
+    {
+      "name": "G0A.MOD",
+      "body": "'MB' BIND 'MA' BIND MA MA MB DIV FLOOR MB MUL SUB",
+      "note": "a b -> a mod b (floored), lifts over Vectors",
+      "classId": "G0A.MOD",
+      "uses": 3,
+      "tasks": 3,
+      "agents": [
+        "W1C"
+      ]
+    },
+    {
+      "name": "W1C.STEP3",
+      "body": "'K' BIND 'X' BIND X 1220703125 G0A.MOD 'S' BIND X 1220703125 DIV FLOOR 'L' BIND S 5 DIV FLOOR S 5 MUL K 0 MAX ADD S 5 G0A.MOD K ADD 0 EQ SELECT 'S2' BIND L 1 SUB L 1 ADD S 5 G0A.MOD K ADD 0 EQ SELECT 'L2' BIND S2 L2 1220703125 MUL ADD",
+      "note": "FOLD/SCAN step on X = stack + 5^13 * count, the stack being base-5 digits (openers 1 or 2, unmatched closers 0); a closer pops when its digit matches.",
+      "classId": "W1C.STEP3",
+      "uses": 3,
+      "tasks": 3,
+      "agents": [
+        "W1C"
+      ]
+    }
+  ]
+}

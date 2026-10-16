@@ -1,0 +1,67 @@
+{
+  "agent": "F3B", "generation": 3, "condition": "fixed",
+  "definitions": [
+    { "name": "F3B.SPJOIN", "body": "[ ' ' 2 COLLECT JOIN ] MAP JOIN TRIM", "note": "Vector of words -> one String joined by single spaces" },
+    { "name": "F3B.CAP", "body": "LOWER CHARS 'KC' BIND KC 0 GET UPPER KC 1 DROP JOIN 2 COLLECT JOIN", "note": "word -> first letter upper case, rest lower case" },
+    { "name": "F3B.TOPKEY", "body": "'KR' BIND KR KEYS KR VALUES -1 MUL ORDER 0 GET GET", "note": "Record of numbers -> key with the largest value, first on ties" },
+    { "name": "F3B.BYNAME", "body": "'KL' BIND KL [ 0 GET ] MAP KL [ 1 GET ] MAP G0A.SUMBY", "note": "Vector of [name amount] entries -> Record name to summed amount" },
+    { "name": "F3B.NDIV", "body": "'KD' BIND 1 0 KD 1 KD RANGE G0A.MOD 1 LT SELECT G0A.SUM", "note": "positive integer -> number of its divisors" },
+    { "name": "F3B.DIVS", "body": "'KE' BIND 1 KE RANGE [ 'KF' BIND KE KF G0A.MOD 0 EQ ] FILTER", "note": "positive integer -> Vector of its divisors ascending" },
+    { "name": "F3B.CSTEP", "body": "'KX' BIND 1 KX 2 DIV KX 3 MUL 1 ADD KX 2 G0A.MOD 1 LT SELECT KX 1 EQ SELECT", "note": "one Collatz step, with 1 staying 1" },
+    { "name": "F3B.MEDIAN", "body": "SORT 'KS' BIND KS LENGTH 'KN' BIND KS KN 1 SUB 2 DIV FLOOR KN 2 DIV FLOOR 2 COLLECT GET G0A.MEAN", "note": "median of a Vector of numbers" },
+    { "name": "F3B.LINE", "body": "'KO' BIND KO 'price' GET 'KP' BIND 0 KP KP NIL? SELECT KO 'qty' GET MUL", "note": "order Record -> qty times price, 0 when no price" },
+    { "name": "F3B.QBYSKU", "body": "G0C.ORDERS 'KQ' BIND KQ [ 'sku' GET ] MAP KQ [ 'qty' GET ] MAP G0A.SUMBY", "note": "orders JSON text -> Record sku to summed qty" }
+  ],
+  "solutions": {
+    "ledger.total": "[ 1 GET ] MAP G0A.SUM",
+    "ledger.by_name": "F3B.BYNAME",
+    "ledger.top_name": "F3B.BYNAME F3B.TOPKEY",
+    "ledger.debtors": "F3B.BYNAME 'DR' BIND DR KEYS [ 'DK' BIND DR DK GET 0 LT ] FILTER",
+    "ledger.count_names": "[ 0 GET ] MAP UNIQUE LENGTH",
+    "ledger.largest_entry": "'LG' BIND LG LG [ 1 GET ] MAP -1 MUL ORDER 0 GET GET",
+
+    "messy.count": "G0A.WORDS LENGTH",
+    "messy.normalize": "LOWER G0A.WORDS F3B.SPJOIN",
+    "messy.distinct": "LOWER G0A.WORDS UNIQUE LENGTH",
+    "messy.top_word": "LOWER G0A.WORDS TALLY F3B.TOPKEY",
+    "messy.title": "G0A.WORDS [ F3B.CAP ] MAP F3B.SPJOIN",
+    "messy.sorted_unique": "LOWER G0A.WORDS UNIQUE SORT F3B.SPJOIN",
+
+    "number.primes": "'PN' BIND 1 PN RANGE [ F3B.NDIV 2 EQ ] FILTER",
+    "number.divisors": "F3B.DIVS",
+    "number.binary": "'BN' BIND [ 32 16 8 4 2 1 ] 'BP' BIND BN BP DIV FLOOR 2 G0A.MOD STR 1 0 BP BN 1 ADD LT SELECT G0A.SUM -1 MUL TAKE JOIN",
+    "number.collatz": "'CN' BIND 1 0 CN 1 COLLECT 1 130 RANGE CN [ 0 MUL ADD F3B.CSTEP ] SCAN CONCAT 1 GT SELECT G0A.SUM",
+    "number.digital_root": "1 SUB 9 G0A.MOD 1 ADD",
+    "number.fib_index": "'FN' BIND 1 0 [ 1 1 2 3 5 8 13 21 34 55 89 ] FN LT SELECT G0A.SUM 1 ADD",
+
+    "orders.revenue": "G0C.ORDERS [ F3B.LINE ] MAP G0A.SUM",
+    "orders.report": "G0C.ORDERS [ F3B.LINE ] MAP G0A.SUM 2 FORMAT",
+    "orders.unpriced": "G0C.ORDERS [ 'price' GET NIL? ] FILTER [ 'sku' GET ] MAP UNIQUE",
+    "orders.qty_by_sku": "F3B.QBYSKU",
+    "orders.top_sku": "F3B.QBYSKU F3B.TOPKEY",
+    "orders.tag_counts": "G0C.ORDERS [ 'tags' GET NIL? NOT ] FILTER [ 'tags' GET ] MAP [ UNIQUE ] MAP FLATTEN TALLY",
+
+    "series.median": "F3B.MEDIAN",
+    "series.mad": "'AX' BIND AX AX F3B.MEDIAN SUB 'AD' BIND AD AD -1 MUL MAX F3B.MEDIAN",
+    "series.moving3": "'SX' BIND SX -2 DROP SX 1 DROP -1 DROP ADD SX 2 DROP ADD 3 DIV",
+    "series.runmax": "'RX' BIND RX RX 0 GET [ MAX ] SCAN",
+    "series.mode": "SORT TALLY F3B.TOPKEY",
+    "series.trimmed": "SORT 1 DROP -1 DROP G0A.MEAN",
+
+    "stats.sum": "G0A.SUM",
+    "stats.mean": "G0A.MEAN",
+    "stats.deviations": "G0A.DEVS",
+    "stats.variance": "G0A.VAR",
+    "stats.stddev": "G0A.VAR SQRT",
+    "stats.range": "SORT 'GS' BIND GS -1 GET GS 0 GET SUB",
+    "stats.normalize": "'NX' BIND NX SORT 0 GET 'NLO' BIND NX SORT -1 GET 'NHI' BIND NX NLO SUB NHI NLO SUB DIV",
+
+    "text.count": "G0A.WORDS LENGTH",
+    "text.frequency": "G0A.WORDS TALLY",
+    "text.distinct": "G0A.WORDS UNIQUE",
+    "text.titlecase": "G0A.WORDS [ F3B.CAP ] MAP F3B.SPJOIN",
+    "text.longest": "G0A.WORDS [ CHARS LENGTH ] MAP 0 [ MAX ] FOLD",
+    "text.long-words": "G0A.WORDS [ CHARS LENGTH 3 GT ] FILTER",
+    "text.acronym": "G0A.WORDS [ CHARS 0 GET UPPER ] MAP JOIN"
+  }
+}

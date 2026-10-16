@@ -1,0 +1,73 @@
+{
+  "agent": "F2D", "generation": 2, "condition": "fixed",
+  "definitions": [
+    { "name": "F2D.ARGMAX", "body": "'AV' BIND 0 AV SUB ORDER 0 GET", "note": "Vector of numbers -> index of its largest element, the first one when several tie" },
+    { "name": "F2D.MAXKEY", "body": "'MR' BIND MR KEYS MR VALUES F2D.ARGMAX GET", "note": "Record with numeric values -> the key holding the largest value, the earliest key when several tie" },
+    { "name": "F2D.UNWORDS", "body": "[ ' ' 2 COLLECT JOIN ] MAP JOIN TRIM", "note": "Vector of words -> one String with the words joined by single spaces (inverse of G0A.WORDS)" },
+    { "name": "F2D.CAP", "body": "LOWER CHARS 'CC' BIND CC 0 GET UPPER CC 1 DROP JOIN 2 COLLECT JOIN", "note": "non-empty word -> first letter upper case, the rest lower case" },
+    { "name": "F2D.ABS", "body": "'AX' BIND AX 0 AX SUB MAX", "note": "absolute value, lifts over Vectors" },
+    { "name": "F2D.VMAX", "body": "'XV' BIND XV XV 0 GET [ MAX ] FOLD", "note": "largest element of a non-empty Vector of numbers (or Strings)" },
+    { "name": "F2D.VMIN", "body": "'NV' BIND NV NV 0 GET [ MIN ] FOLD", "note": "smallest element of a non-empty Vector of numbers (or Strings)" },
+    { "name": "F2D.MEDIAN", "body": "SORT 'SV' BIND SV SV LENGTH 1 SUB 2 DIV FLOOR GET SV SV LENGTH 2 DIV FLOOR GET ADD 2 DIV", "note": "median of a non-empty Vector of numbers (mean of the two middle ones when the count is even)" },
+    { "name": "F2D.LEDGER", "body": "'LG' BIND LG [ 0 GET ] MAP LG [ 1 GET ] MAP G0A.SUMBY", "note": "Vector of [ name amount ] entries -> Record name to sum of its amounts, names in first-appearance order" },
+    { "name": "F2D.DIVISORS", "body": "'DN' BIND 1 DN RANGE 'DS' BIND DS 0 DN DS G0A.MOD 1 LT SELECT [ 0 GT ] FILTER", "note": "positive integer -> Vector of its positive divisors, ascending" },
+    { "name": "F2D.ISPRIME", "body": "F2D.DIVISORS LENGTH 2 EQ", "note": "positive integer -> TRUE when it is prime" },
+    { "name": "F2D.CSTEP", "body": "'CE' BIND [ 'CV' 'CT' ] BIND 1 CV 2 DIV CV 3 MUL 1 ADD CV 2 G0A.MOD 0 EQ SELECT CV 1 EQ SELECT CT CT 1 ADD CV 1 EQ SELECT 2 COLLECT", "note": "FOLD step for Collatz: [ value steps ] dummy -> [ next-value steps+1 ], unchanged once the value is 1" },
+    { "name": "F2D.COLLATZ", "body": "'CN' BIND 1 150 RANGE CN 0 2 COLLECT [ F2D.CSTEP ] FOLD 1 GET", "note": "positive integer (up to 150 steps, enough below 100) -> number of Collatz steps to reach 1" },
+    { "name": "F2D.BINARY", "body": "'BN' BIND BN [ 32 16 8 4 2 1 ] DIV FLOOR 2 G0A.MOD STR JOIN 'BS' BIND BS CHARS BS '1' SEARCH DROP JOIN", "note": "integer 1..63 -> its base-2 digits as a String without leading zeros" },
+    { "name": "F2D.REVENUE", "body": "G0C.ORDERS [ 'price' GET NIL? NOT ] FILTER [ 'ORD' BIND ORD 'qty' GET ORD 'price' GET MUL ] MAP G0A.SUM", "note": "orders JSON text -> total of qty times price over the orders that have a price" },
+    { "name": "F2D.QTYBYSKU", "body": "G0C.ORDERS 'OS' BIND OS [ 'sku' GET ] MAP OS [ 'qty' GET ] MAP G0A.SUMBY", "note": "orders JSON text -> Record sku to total qty, skus in first-appearance order" }
+  ],
+  "solutions": {
+    "ledger.total": "[ 1 GET ] MAP G0A.SUM",
+    "ledger.by_name": "F2D.LEDGER",
+    "ledger.top_name": "F2D.LEDGER F2D.MAXKEY",
+    "ledger.debtors": "F2D.LEDGER 'DR' BIND DR KEYS [ 'DK' BIND DR DK GET 0 LT ] FILTER",
+    "ledger.count_names": "[ 0 GET ] MAP UNIQUE LENGTH",
+    "ledger.largest_entry": "'LE' BIND LE LE [ 1 GET ] MAP F2D.ARGMAX GET",
+
+    "messy.count": "G0A.WORDS LENGTH",
+    "messy.normalize": "LOWER G0A.WORDS F2D.UNWORDS",
+    "messy.distinct": "LOWER G0A.WORDS UNIQUE LENGTH",
+    "messy.top_word": "LOWER G0A.WORDS TALLY F2D.MAXKEY",
+    "messy.title": "G0A.WORDS [ F2D.CAP ] MAP F2D.UNWORDS",
+    "messy.sorted_unique": "LOWER G0A.WORDS UNIQUE SORT F2D.UNWORDS",
+
+    "number.primes": "'PN' BIND 1 PN RANGE [ F2D.ISPRIME ] FILTER",
+    "number.divisors": "F2D.DIVISORS",
+    "number.binary": "F2D.BINARY",
+    "number.collatz": "F2D.COLLATZ",
+    "number.digital_root": "1 SUB 9 G0A.MOD 1 ADD",
+    "number.fib_index": "'FN' BIND [ 1 1 2 3 5 8 13 21 34 55 89 144 233 377 610 987 1597 2584 4181 6765 ] [ FN LT ] FILTER LENGTH 1 ADD",
+
+    "orders.revenue": "F2D.REVENUE",
+    "orders.report": "F2D.REVENUE 2 FORMAT",
+    "orders.unpriced": "G0C.ORDERS [ 'price' GET NIL? ] FILTER [ 'sku' GET ] MAP UNIQUE",
+    "orders.qty_by_sku": "F2D.QTYBYSKU",
+    "orders.top_sku": "F2D.QTYBYSKU F2D.MAXKEY",
+    "orders.tag_counts": "G0C.ORDERS [ 'tags' GET ] MAP [ NIL? NOT ] FILTER FLATTEN TALLY",
+
+    "series.median": "F2D.MEDIAN",
+    "series.mad": "'SX' BIND SX SX F2D.MEDIAN SUB F2D.ABS F2D.MEDIAN",
+    "series.moving3": "'MX' BIND MX -2 DROP MX 1 DROP -1 DROP ADD MX 2 DROP ADD 3 DIV",
+    "series.runmax": "'RX' BIND RX RX 0 GET [ MAX ] SCAN",
+    "series.mode": "SORT TALLY F2D.MAXKEY",
+    "series.trimmed": "SORT 1 DROP -1 DROP G0A.MEAN",
+
+    "stats.sum": "G0A.SUM",
+    "stats.mean": "G0A.MEAN",
+    "stats.deviations": "G0A.DEVS",
+    "stats.variance": "G0A.VAR",
+    "stats.stddev": "G0A.VAR SQRT",
+    "stats.range": "'RV' BIND RV F2D.VMAX RV F2D.VMIN SUB",
+    "stats.normalize": "'NX' BIND NX NX F2D.VMIN SUB NX F2D.VMAX NX F2D.VMIN SUB DIV",
+
+    "text.count": "G0A.WORDS LENGTH",
+    "text.frequency": "G0A.WORDS TALLY",
+    "text.distinct": "G0A.WORDS UNIQUE",
+    "text.titlecase": "G0A.WORDS [ F2D.CAP ] MAP F2D.UNWORDS",
+    "text.longest": "G0A.WORDS [ CHARS LENGTH ] MAP F2D.VMAX",
+    "text.long-words": "G0A.WORDS [ CHARS LENGTH 3 GT ] FILTER",
+    "text.acronym": "G0A.WORDS [ CHARS 0 GET ] MAP JOIN UPPER"
+  }
+}

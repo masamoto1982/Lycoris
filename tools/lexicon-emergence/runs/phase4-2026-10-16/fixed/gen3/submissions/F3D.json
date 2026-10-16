@@ -1,0 +1,73 @@
+{
+  "agent": "F3D", "generation": 3, "condition": "fixed",
+  "definitions": [
+    { "name": "F3D.ARGMAX", "body": "-1 MUL ORDER 0 GET", "note": "Vector of numbers -> index of its largest element, the first one when several tie" },
+    { "name": "F3D.TOPKEY", "body": "'TR' BIND TR KEYS TR VALUES F3D.ARGMAX GET", "note": "Record with number values -> the key with the largest value, the first on ties" },
+    { "name": "F3D.PAIRS", "body": "'PR' BIND PR KEYS PR VALUES 2 COLLECT ZIP", "note": "Record -> Vector of [ key value ] pairs in key order" },
+    { "name": "F3D.LEDGER", "body": "ZIP [ 'LN' 'LA' ] BIND LN LA G0A.SUMBY", "note": "Vector of [ name amount ] entries -> Record name to sum of its amounts, first-appearance order" },
+    { "name": "F3D.UNWORDS", "body": "[ ' ' 2 COLLECT JOIN ] MAP JOIN TRIM", "note": "Vector of Strings -> one String, the pieces joined by single spaces" },
+    { "name": "F3D.CAP", "body": "LOWER CHARS 'CPC' BIND CPC 0 GET UPPER CPC 1 DROP JOIN 2 COLLECT JOIN", "note": "non-empty String -> first letter upper case, the rest lower case" },
+    { "name": "F3D.NDIV", "body": "'PK' BIND 1 PK RANGE 'PR' BIND PK PK PR DIV FLOOR PR MUL SUB [ 0 EQ ] FILTER LENGTH", "note": "positive integer -> how many positive divisors it has" },
+    { "name": "F3D.ISPRIME", "body": "F3D.NDIV 2 EQ", "note": "positive integer -> TRUE when it is prime" },
+    { "name": "F3D.DIVISORS", "body": "'DN' BIND 1 DN RANGE [ 'DK' BIND DN DK G0A.MOD 0 EQ ] FILTER", "note": "positive integer -> Vector of its positive divisors, ascending" },
+    { "name": "F3D.PRICE0", "body": "'PO' BIND PO 'price' GET 0 PO 'price' HAS? SELECT", "note": "order Record -> its 'price', or 0 when it has none" },
+    { "name": "F3D.LINE", "body": "'LO' BIND LO 'qty' GET LO F3D.PRICE0 MUL", "note": "order Record -> qty times price (0 when unpriced)" },
+    { "name": "F3D.TAGS", "body": "'TO' BIND TO 'tags' GET [ ] 2 COLLECT 0 1 TO 'tags' HAS? SELECT GET UNIQUE", "note": "order Record -> its distinct 'tags', or [ ] when it has none" },
+    { "name": "F3D.MEDIAN", "body": "SORT 'MS' BIND MS LENGTH 'ML' BIND MS ML 1 SUB 2 DIV FLOOR GET MS ML 2 DIV FLOOR GET ADD 2 DIV", "note": "Vector of numbers -> median (mean of the two middle values when the count is even)" },
+    { "name": "F3D.ABS", "body": "'AV' BIND AV AV -1 MUL MAX", "note": "absolute value, lifts over Vectors" },
+    { "name": "F3D.VMAX", "body": "'VX' BIND VX VX 0 GET [ MAX ] FOLD", "note": "non-empty Vector -> its largest element" },
+    { "name": "F3D.VMIN", "body": "'VN' BIND VN VN 0 GET [ MIN ] FOLD", "note": "non-empty Vector -> its smallest element" }
+  ],
+  "solutions": {
+    "ledger.total": "[ 1 GET ] MAP G0A.SUM",
+    "ledger.by_name": "F3D.LEDGER",
+    "ledger.top_name": "F3D.LEDGER F3D.TOPKEY",
+    "ledger.debtors": "F3D.LEDGER F3D.PAIRS [ 1 GET 0 LT ] FILTER [ 0 GET ] MAP",
+    "ledger.count_names": "[ 0 GET ] MAP UNIQUE LENGTH",
+    "ledger.largest_entry": "'LV' BIND LV LV [ 1 GET ] MAP F3D.ARGMAX GET",
+
+    "messy.count": "G0A.WORDS LENGTH",
+    "messy.normalize": "LOWER G0A.WORDS F3D.UNWORDS",
+    "messy.distinct": "LOWER G0A.WORDS UNIQUE LENGTH",
+    "messy.top_word": "LOWER G0A.WORDS TALLY F3D.TOPKEY",
+    "messy.title": "G0A.WORDS [ F3D.CAP ] MAP F3D.UNWORDS",
+    "messy.sorted_unique": "LOWER G0A.WORDS UNIQUE SORT F3D.UNWORDS",
+
+    "number.primes": "'PN' BIND 1 PN RANGE [ F3D.ISPRIME ] FILTER",
+    "number.divisors": "F3D.DIVISORS",
+    "number.binary": "'BN' BIND BN [ 32 16 8 4 2 1 ] DIV FLOOR 2 G0A.MOD STR [ 1 2 4 8 16 32 ] [ BN GT NOT ] FILTER LENGTH -1 MUL TAKE JOIN",
+    "number.collatz": "'CZ' BIND 1 150 RANGE CZ 0 2 COLLECT [ 'CI' BIND [ 'CC' 'CS' ] BIND CC 2 DIV CC 3 MUL 1 ADD CC 2 G0A.MOD 0 EQ SELECT 'CN' BIND CC 1 EQ 'CD' BIND 1 CN CD SELECT CS CS 1 ADD CD SELECT 2 COLLECT ] FOLD 1 GET",
+    "number.digital_root": "1 SUB 9 G0A.MOD 1 ADD",
+    "number.fib_index": "'FN' BIND [ 1 1 2 3 5 8 13 21 34 55 89 144 ] [ FN LT ] FILTER LENGTH 1 ADD",
+
+    "orders.revenue": "G0C.ORDERS [ F3D.LINE ] MAP G0A.SUM",
+    "orders.report": "G0C.ORDERS [ F3D.LINE ] MAP G0A.SUM 2 FORMAT",
+    "orders.unpriced": "G0C.ORDERS [ 'price' HAS? NOT ] FILTER [ 'sku' GET ] MAP UNIQUE",
+    "orders.qty_by_sku": "G0C.ORDERS 'OS' BIND OS [ 'sku' GET ] MAP OS [ 'qty' GET ] MAP G0A.SUMBY",
+    "orders.top_sku": "G0C.ORDERS 'OS' BIND OS [ 'sku' GET ] MAP OS [ 'qty' GET ] MAP G0A.SUMBY F3D.TOPKEY",
+    "orders.tag_counts": "G0C.ORDERS [ F3D.TAGS ] MAP FLATTEN TALLY",
+
+    "series.median": "F3D.MEDIAN",
+    "series.mad": "'SV' BIND SV SV F3D.MEDIAN SUB F3D.ABS F3D.MEDIAN",
+    "series.moving3": "'WV' BIND WV -2 DROP WV 1 DROP -1 DROP ADD WV 2 DROP ADD 3 DIV",
+    "series.runmax": "'RV' BIND RV RV 0 GET [ MAX ] SCAN",
+    "series.mode": "SORT TALLY F3D.TOPKEY",
+    "series.trimmed": "SORT 1 DROP -1 DROP G0A.MEAN",
+
+    "stats.sum": "G0A.SUM",
+    "stats.mean": "G0A.MEAN",
+    "stats.deviations": "G0A.DEVS",
+    "stats.variance": "G0A.VAR",
+    "stats.stddev": "G0A.VAR SQRT",
+    "stats.range": "'XV' BIND XV F3D.VMAX XV F3D.VMIN SUB",
+    "stats.normalize": "'NV' BIND NV NV F3D.VMIN SUB NV F3D.VMAX NV F3D.VMIN SUB DIV",
+
+    "text.count": "G0A.WORDS LENGTH",
+    "text.frequency": "G0A.WORDS TALLY",
+    "text.distinct": "G0A.WORDS UNIQUE",
+    "text.titlecase": "G0A.WORDS [ F3D.CAP ] MAP F3D.UNWORDS",
+    "text.longest": "G0A.WORDS [ CHARS LENGTH ] MAP F3D.VMAX",
+    "text.long-words": "G0A.WORDS [ CHARS LENGTH 3 GT ] FILTER",
+    "text.acronym": "G0A.WORDS [ CHARS 0 GET ] MAP JOIN UPPER"
+  }
+}

@@ -1,0 +1,2600 @@
+{
+  "agent": "W3A",
+  "generation": 3,
+  "condition": "breadth",
+  "definitions": [
+    {
+      "name": "W3A.BRCODE",
+      "body": "CHARS 'BC' BIND [ '(' '[' ')' ']' ] [ 1 2 -1 -2 ] RECORD 'BR' BIND BC [ 'CH' BIND BR CH GET ] MAP",
+      "note": "bracket String -> Vector of codes: ( 1, [ 2, ) -1, ] -2"
+    },
+    {
+      "name": "W3A.BRSTEP",
+      "body": "'BE' BIND 'BA' BIND BA BE 1 COLLECT CONCAT BA -1 DROP 2 COLLECT 1 0 BA -1 GET 0 BE SUB EQ BE 0 LT AND SELECT GET",
+      "note": "FOLD/SCAN step over bracket codes: stack (seed [ 0 ]) pops a matching opener, else pushes the code"
+    },
+    {
+      "name": "W3A.BPSTEP",
+      "body": "'BT' BIND 'BP' BIND BP 0 GET 1 ADD 'BI' BIND BI BI BP 1 GET BT LENGTH 1 EQ SELECT 2 COLLECT",
+      "note": "FOLD step over bracket stacks: acc [ position best ] keeps the last position whose stack is just the sentinel"
+    },
+    {
+      "name": "W3A.ARGMAX",
+      "body": "-1 MUL ORDER 0 GET",
+      "note": "numeric Vector -> index of its largest element, first on ties"
+    },
+    {
+      "name": "W3A.LEDGER",
+      "body": "ZIP 'LZ' BIND LZ 0 GET LZ 1 GET GROUP 'LG' BIND LG KEYS LG VALUES [ 0 [ ADD ] FOLD ] MAP RECORD",
+      "note": "Vector of [ key number ] pairs -> Record key -> sum, keys in first-appearance order"
+    },
+    {
+      "name": "W3A.MODEFIRST",
+      "body": "TALLY 'MT' BIND MT KEYS MT VALUES W3A.ARGMAX GET",
+      "note": "Vector -> most frequent element, earliest first appearance on ties"
+    },
+    {
+      "name": "W3A.UNWORDS",
+      "body": "[ 'UW' BIND ' ' UW 2 COLLECT JOIN ] MAP JOIN TRIM",
+      "note": "Vector of space-free Strings -> one String joined by single spaces"
+    },
+    {
+      "name": "W3A.CAP",
+      "body": "CHARS 'CC' BIND CC 0 GET UPPER CC 1 DROP JOIN LOWER 2 COLLECT JOIN",
+      "note": "non-empty String -> first letter upper case, rest lower case"
+    },
+    {
+      "name": "W3A.RLESTEP",
+      "body": "'RE' BIND 'RA' BIND RA -1 GET 'RL' BIND RA -1 DROP RE RL 1 GET 1 ADD 2 COLLECT 1 COLLECT CONCAT RA RE 1 2 COLLECT 1 COLLECT CONCAT 2 COLLECT 0 1 RL 0 GET RE EQ SELECT GET",
+      "note": "FOLD step for run-length encoding: extend the last [ value count ] or append [ value 1 ]"
+    },
+    {
+      "name": "W3A.RLE",
+      "body": "[ [ 'x' 0 ] ] [ W3A.RLESTEP ] FOLD 1 DROP",
+      "note": "Vector -> Vector of [ value count ] per maximal run of equal adjacent values"
+    },
+    {
+      "name": "W3A.UPSTEP",
+      "body": "'UE' BIND 'UA' BIND UA 1 GET 1 ADD 1 UE UA 0 GET GT SELECT 'UR' BIND UE UR UA 2 GET UR MAX 3 COLLECT",
+      "note": "FOLD step, acc [ prev run best ], for the longest strictly increasing stretch"
+    },
+    {
+      "name": "W3A.FFSTEP",
+      "body": "'FE' BIND 'FA' BIND FE FA FE NIL? NOT SELECT",
+      "note": "SCAN step for forward fill: the element if present, else the accumulator"
+    },
+    {
+      "name": "W3A.PAIRSTEP",
+      "body": "'PE' BIND 'PA' BIND PA 1 GET PE 2 COLLECT",
+      "note": "SCAN step leaving [ previous current ] at each position"
+    },
+    {
+      "name": "W3A.QRATIO",
+      "body": "'QP' BIND QP 0 GET 'QA' BIND QP 1 GET 'QB' BIND 1 QB QB NIL? SELECT 1 QA QA NIL? SELECT DIV NIL QA NIL? NOT QB NIL? NOT AND SELECT",
+      "note": "[ a b ] -> b / a, or NIL when either is NIL"
+    },
+    {
+      "name": "W3A.MEDIAN",
+      "body": "SORT 'MS' BIND MS LENGTH 'MQ' BIND MS MQ 1 SUB 2 DIV FLOOR MQ 2 DIV FLOOR 2 COLLECT GET 0 [ ADD ] FOLD 2 DIV",
+      "note": "median of a non-empty numeric Vector"
+    }
+  ],
+  "lexiconNames": [
+    "W2B.SUM",
+    "G0A.WORDS",
+    "W2A.ORDERS",
+    "G0A.MOD",
+    "W2A.MEAN",
+    "W2B.MEAN",
+    "W2B.DEV",
+    "W2B.VAR"
+  ],
+  "results": [
+    {
+      "task": "brackets.depth",
+      "submitted": true,
+      "solution": "W3A.BRCODE [ 'DK' BIND 1 -1 DK 0 GT SELECT ] MAP 0 [ ADD 0 MAX ] SCAN 0 [ MAX ] FOLD",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 24,
+      "expandedTokens": 53,
+      "uses": [
+        "W3A.BRCODE"
+      ],
+      "perInput": [
+        {
+          "input": "'([]())'",
+          "ok": true,
+          "got": [
+            "2/1"
+          ],
+          "expected": [
+            "2/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "''",
+          "ok": true,
+          "got": [
+            "0/1"
+          ],
+          "expected": [
+            "0/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'([)]'",
+          "ok": true,
+          "got": [
+            "2/1"
+          ],
+          "expected": [
+            "2/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'(('",
+          "ok": true,
+          "got": [
+            "2/1"
+          ],
+          "expected": [
+            "2/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'[](([]))'",
+          "ok": true,
+          "got": [
+            "3/1"
+          ],
+          "expected": [
+            "3/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'])'",
+          "ok": true,
+          "got": [
+            "0/1"
+          ],
+          "expected": [
+            "0/1"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "brackets.balanced",
+      "submitted": true,
+      "solution": "W3A.BRCODE [ 0 ] [ W3A.BRSTEP ] FOLD LENGTH 1 EQ",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 11,
+      "expandedTokens": 71,
+      "uses": [
+        "W3A.BRCODE",
+        "W3A.BRSTEP"
+      ],
+      "perInput": [
+        {
+          "input": "'([]())'",
+          "ok": true,
+          "got": [
+            "TRUE"
+          ],
+          "expected": [
+            "TRUE"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "''",
+          "ok": true,
+          "got": [
+            "TRUE"
+          ],
+          "expected": [
+            "TRUE"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'([)]'",
+          "ok": true,
+          "got": [
+            "FALSE"
+          ],
+          "expected": [
+            "FALSE"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'(('",
+          "ok": true,
+          "got": [
+            "FALSE"
+          ],
+          "expected": [
+            "FALSE"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'[](([]))'",
+          "ok": true,
+          "got": [
+            "TRUE"
+          ],
+          "expected": [
+            "TRUE"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'])'",
+          "ok": true,
+          "got": [
+            "FALSE"
+          ],
+          "expected": [
+            "FALSE"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "brackets.balanced_prefix",
+      "submitted": true,
+      "solution": "W3A.BRCODE [ 0 ] [ W3A.BRSTEP ] SCAN [ 0 0 ] [ W3A.BPSTEP ] FOLD 1 GET",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 18,
+      "expandedTokens": 103,
+      "uses": [
+        "W3A.BRCODE",
+        "W3A.BRSTEP",
+        "W3A.BPSTEP"
+      ],
+      "perInput": [
+        {
+          "input": "'([]())'",
+          "ok": true,
+          "got": [
+            "6/1"
+          ],
+          "expected": [
+            "6/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "''",
+          "ok": true,
+          "got": [
+            "0/1"
+          ],
+          "expected": [
+            "0/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'([)]'",
+          "ok": true,
+          "got": [
+            "0/1"
+          ],
+          "expected": [
+            "0/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'(('",
+          "ok": true,
+          "got": [
+            "0/1"
+          ],
+          "expected": [
+            "0/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'[](([]))'",
+          "ok": true,
+          "got": [
+            "8/1"
+          ],
+          "expected": [
+            "8/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'])'",
+          "ok": true,
+          "got": [
+            "0/1"
+          ],
+          "expected": [
+            "0/1"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "brackets.unmatched",
+      "submitted": true,
+      "solution": "W3A.BRCODE [ 0 ] [ W3A.BRSTEP ] FOLD LENGTH 1 SUB",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 11,
+      "expandedTokens": 71,
+      "uses": [
+        "W3A.BRCODE",
+        "W3A.BRSTEP"
+      ],
+      "perInput": [
+        {
+          "input": "'([]())'",
+          "ok": true,
+          "got": [
+            "0/1"
+          ],
+          "expected": [
+            "0/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "''",
+          "ok": true,
+          "got": [
+            "0/1"
+          ],
+          "expected": [
+            "0/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'([)]'",
+          "ok": true,
+          "got": [
+            "4/1"
+          ],
+          "expected": [
+            "4/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'(('",
+          "ok": true,
+          "got": [
+            "2/1"
+          ],
+          "expected": [
+            "2/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'[](([]))'",
+          "ok": true,
+          "got": [
+            "0/1"
+          ],
+          "expected": [
+            "0/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'])'",
+          "ok": true,
+          "got": [
+            "2/1"
+          ],
+          "expected": [
+            "2/1"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "ledger.total",
+      "heldOut": true,
+      "submitted": true,
+      "solution": "ZIP 1 GET W2B.SUM",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 4,
+      "expandedTokens": 11,
+      "uses": [
+        "W2B.SUM"
+      ],
+      "perInput": [
+        {
+          "input": "[ [ 'ann' 30 ] [ 'bob' -5 ] [ 'ann' 12 ] [ 'cy' -20 ] [ 'bob' 2 ] ]",
+          "ok": true,
+          "got": [
+            "19/1"
+          ],
+          "expected": [
+            "19/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ [ 'zed' 10 ] ]",
+          "ok": true,
+          "got": [
+            "10/1"
+          ],
+          "expected": [
+            "10/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ [ 'x' -1 ] [ 'y' -1 ] [ 'x' 1/2 ] ]",
+          "ok": true,
+          "got": [
+            "-3/2"
+          ],
+          "expected": [
+            "-3/2"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ [ 'p' 5 ] [ 'q' 7 ] [ 'p' 2 ] [ 'q' 0 ] ]",
+          "ok": true,
+          "got": [
+            "14/1"
+          ],
+          "expected": [
+            "14/1"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "ledger.by_name",
+      "heldOut": true,
+      "submitted": true,
+      "solution": "W3A.LEDGER",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 1,
+      "expandedTokens": 28,
+      "uses": [
+        "W3A.LEDGER"
+      ],
+      "perInput": [
+        {
+          "input": "[ [ 'ann' 30 ] [ 'bob' -5 ] [ 'ann' 12 ] [ 'cy' -20 ] [ 'bob' 2 ] ]",
+          "ok": true,
+          "got": [
+            "[ 'ann' 'bob' 'cy' ] [ 42/1 -3/1 -20/1 ] RECORD"
+          ],
+          "expected": [
+            "[ 'ann' 'bob' 'cy' ] [ 42/1 -3/1 -20/1 ] RECORD"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ [ 'zed' 10 ] ]",
+          "ok": true,
+          "got": [
+            "[ 'zed' ] [ 10/1 ] RECORD"
+          ],
+          "expected": [
+            "[ 'zed' ] [ 10/1 ] RECORD"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ [ 'x' -1 ] [ 'y' -1 ] [ 'x' 1/2 ] ]",
+          "ok": true,
+          "got": [
+            "[ 'x' 'y' ] [ -1/2 -1/1 ] RECORD"
+          ],
+          "expected": [
+            "[ 'x' 'y' ] [ -1/2 -1/1 ] RECORD"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ [ 'p' 5 ] [ 'q' 7 ] [ 'p' 2 ] [ 'q' 0 ] ]",
+          "ok": true,
+          "got": [
+            "[ 'p' 'q' ] [ 7/1 7/1 ] RECORD"
+          ],
+          "expected": [
+            "[ 'p' 'q' ] [ 7/1 7/1 ] RECORD"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "ledger.top_name",
+      "heldOut": true,
+      "submitted": true,
+      "solution": "W3A.LEDGER 'TR' BIND TR KEYS TR VALUES W3A.ARGMAX GET",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 9,
+      "expandedTokens": 43,
+      "uses": [
+        "W3A.LEDGER",
+        "W3A.ARGMAX"
+      ],
+      "perInput": [
+        {
+          "input": "[ [ 'ann' 30 ] [ 'bob' -5 ] [ 'ann' 12 ] [ 'cy' -20 ] [ 'bob' 2 ] ]",
+          "ok": true,
+          "got": [
+            "'ann'"
+          ],
+          "expected": [
+            "'ann'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ [ 'zed' 10 ] ]",
+          "ok": true,
+          "got": [
+            "'zed'"
+          ],
+          "expected": [
+            "'zed'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ [ 'x' -1 ] [ 'y' -1 ] [ 'x' 1/2 ] ]",
+          "ok": true,
+          "got": [
+            "'x'"
+          ],
+          "expected": [
+            "'x'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ [ 'p' 5 ] [ 'q' 7 ] [ 'p' 2 ] [ 'q' 0 ] ]",
+          "ok": true,
+          "got": [
+            "'p'"
+          ],
+          "expected": [
+            "'p'"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "ledger.debtors",
+      "heldOut": true,
+      "submitted": true,
+      "solution": "W3A.LEDGER 'DR' BIND DR KEYS [ 'DN' BIND DR DN GET 0 LT ] FILTER",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 15,
+      "expandedTokens": 42,
+      "uses": [
+        "W3A.LEDGER"
+      ],
+      "perInput": [
+        {
+          "input": "[ [ 'ann' 30 ] [ 'bob' -5 ] [ 'ann' 12 ] [ 'cy' -20 ] [ 'bob' 2 ] ]",
+          "ok": true,
+          "got": [
+            "[ 'bob' 'cy' ]"
+          ],
+          "expected": [
+            "[ 'bob' 'cy' ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ [ 'zed' 10 ] ]",
+          "ok": true,
+          "got": [
+            "[ ]"
+          ],
+          "expected": [
+            "[ ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ [ 'x' -1 ] [ 'y' -1 ] [ 'x' 1/2 ] ]",
+          "ok": true,
+          "got": [
+            "[ 'x' 'y' ]"
+          ],
+          "expected": [
+            "[ 'x' 'y' ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ [ 'p' 5 ] [ 'q' 7 ] [ 'p' 2 ] [ 'q' 0 ] ]",
+          "ok": true,
+          "got": [
+            "[ ]"
+          ],
+          "expected": [
+            "[ ]"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "ledger.count_names",
+      "heldOut": true,
+      "submitted": true,
+      "solution": "ZIP 0 GET UNIQUE LENGTH",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 5,
+      "expandedTokens": 5,
+      "uses": [],
+      "perInput": [
+        {
+          "input": "[ [ 'ann' 30 ] [ 'bob' -5 ] [ 'ann' 12 ] [ 'cy' -20 ] [ 'bob' 2 ] ]",
+          "ok": true,
+          "got": [
+            "3/1"
+          ],
+          "expected": [
+            "3/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ [ 'zed' 10 ] ]",
+          "ok": true,
+          "got": [
+            "1/1"
+          ],
+          "expected": [
+            "1/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ [ 'x' -1 ] [ 'y' -1 ] [ 'x' 1/2 ] ]",
+          "ok": true,
+          "got": [
+            "2/1"
+          ],
+          "expected": [
+            "2/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ [ 'p' 5 ] [ 'q' 7 ] [ 'p' 2 ] [ 'q' 0 ] ]",
+          "ok": true,
+          "got": [
+            "2/1"
+          ],
+          "expected": [
+            "2/1"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "ledger.largest_entry",
+      "heldOut": true,
+      "submitted": true,
+      "solution": "'LE' BIND LE LE ZIP 1 GET W3A.ARGMAX GET",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 9,
+      "expandedTokens": 16,
+      "uses": [
+        "W3A.ARGMAX"
+      ],
+      "perInput": [
+        {
+          "input": "[ [ 'ann' 30 ] [ 'bob' -5 ] [ 'ann' 12 ] [ 'cy' -20 ] [ 'bob' 2 ] ]",
+          "ok": true,
+          "got": [
+            "[ 'ann' 30/1 ]"
+          ],
+          "expected": [
+            "[ 'ann' 30/1 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ [ 'zed' 10 ] ]",
+          "ok": true,
+          "got": [
+            "[ 'zed' 10/1 ]"
+          ],
+          "expected": [
+            "[ 'zed' 10/1 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ [ 'x' -1 ] [ 'y' -1 ] [ 'x' 1/2 ] ]",
+          "ok": true,
+          "got": [
+            "[ 'x' 1/2 ]"
+          ],
+          "expected": [
+            "[ 'x' 1/2 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ [ 'p' 5 ] [ 'q' 7 ] [ 'p' 2 ] [ 'q' 0 ] ]",
+          "ok": true,
+          "got": [
+            "[ 'q' 7/1 ]"
+          ],
+          "expected": [
+            "[ 'q' 7/1 ]"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "messy.count",
+      "heldOut": true,
+      "submitted": true,
+      "solution": "G0A.WORDS LENGTH",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 2,
+      "expandedTokens": 12,
+      "uses": [
+        "G0A.WORDS"
+      ],
+      "perInput": [
+        {
+          "input": "'  The cat saw THE dog   and the Cat  '",
+          "ok": true,
+          "got": [
+            "8/1"
+          ],
+          "expected": [
+            "8/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'one'",
+          "ok": true,
+          "got": [
+            "1/1"
+          ],
+          "expected": [
+            "1/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'Bb aa  BB Aa bb'",
+          "ok": true,
+          "got": [
+            "5/1"
+          ],
+          "expected": [
+            "5/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "' x  Y z '",
+          "ok": true,
+          "got": [
+            "3/1"
+          ],
+          "expected": [
+            "3/1"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "messy.normalize",
+      "heldOut": true,
+      "submitted": true,
+      "solution": "LOWER G0A.WORDS W3A.UNWORDS",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 3,
+      "expandedTokens": 27,
+      "uses": [
+        "G0A.WORDS",
+        "W3A.UNWORDS"
+      ],
+      "perInput": [
+        {
+          "input": "'  The cat saw THE dog   and the Cat  '",
+          "ok": true,
+          "got": [
+            "'the cat saw the dog and the cat'"
+          ],
+          "expected": [
+            "'the cat saw the dog and the cat'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'one'",
+          "ok": true,
+          "got": [
+            "'one'"
+          ],
+          "expected": [
+            "'one'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'Bb aa  BB Aa bb'",
+          "ok": true,
+          "got": [
+            "'bb aa bb aa bb'"
+          ],
+          "expected": [
+            "'bb aa bb aa bb'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "' x  Y z '",
+          "ok": true,
+          "got": [
+            "'x y z'"
+          ],
+          "expected": [
+            "'x y z'"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "messy.distinct",
+      "heldOut": true,
+      "submitted": true,
+      "solution": "LOWER G0A.WORDS UNIQUE LENGTH",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 4,
+      "expandedTokens": 14,
+      "uses": [
+        "G0A.WORDS"
+      ],
+      "perInput": [
+        {
+          "input": "'  The cat saw THE dog   and the Cat  '",
+          "ok": true,
+          "got": [
+            "5/1"
+          ],
+          "expected": [
+            "5/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'one'",
+          "ok": true,
+          "got": [
+            "1/1"
+          ],
+          "expected": [
+            "1/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'Bb aa  BB Aa bb'",
+          "ok": true,
+          "got": [
+            "2/1"
+          ],
+          "expected": [
+            "2/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "' x  Y z '",
+          "ok": true,
+          "got": [
+            "3/1"
+          ],
+          "expected": [
+            "3/1"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "messy.top_word",
+      "heldOut": true,
+      "submitted": true,
+      "solution": "LOWER G0A.WORDS W3A.MODEFIRST",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 3,
+      "expandedTokens": 31,
+      "uses": [
+        "G0A.WORDS",
+        "W3A.ARGMAX",
+        "W3A.MODEFIRST"
+      ],
+      "perInput": [
+        {
+          "input": "'  The cat saw THE dog   and the Cat  '",
+          "ok": true,
+          "got": [
+            "'the'"
+          ],
+          "expected": [
+            "'the'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'one'",
+          "ok": true,
+          "got": [
+            "'one'"
+          ],
+          "expected": [
+            "'one'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'Bb aa  BB Aa bb'",
+          "ok": true,
+          "got": [
+            "'bb'"
+          ],
+          "expected": [
+            "'bb'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "' x  Y z '",
+          "ok": true,
+          "got": [
+            "'x'"
+          ],
+          "expected": [
+            "'x'"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "messy.title",
+      "heldOut": true,
+      "submitted": true,
+      "solution": "G0A.WORDS [ W3A.CAP ] MAP W3A.UNWORDS",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 6,
+      "expandedTokens": 47,
+      "uses": [
+        "G0A.WORDS",
+        "W3A.CAP",
+        "W3A.UNWORDS"
+      ],
+      "perInput": [
+        {
+          "input": "'  The cat saw THE dog   and the Cat  '",
+          "ok": true,
+          "got": [
+            "'The Cat Saw The Dog And The Cat'"
+          ],
+          "expected": [
+            "'The Cat Saw The Dog And The Cat'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'one'",
+          "ok": true,
+          "got": [
+            "'One'"
+          ],
+          "expected": [
+            "'One'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'Bb aa  BB Aa bb'",
+          "ok": true,
+          "got": [
+            "'Bb Aa Bb Aa Bb'"
+          ],
+          "expected": [
+            "'Bb Aa Bb Aa Bb'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "' x  Y z '",
+          "ok": true,
+          "got": [
+            "'X Y Z'"
+          ],
+          "expected": [
+            "'X Y Z'"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "messy.sorted_unique",
+      "heldOut": true,
+      "submitted": true,
+      "solution": "LOWER G0A.WORDS UNIQUE SORT W3A.UNWORDS",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 5,
+      "expandedTokens": 29,
+      "uses": [
+        "G0A.WORDS",
+        "W3A.UNWORDS"
+      ],
+      "perInput": [
+        {
+          "input": "'  The cat saw THE dog   and the Cat  '",
+          "ok": true,
+          "got": [
+            "'and cat dog saw the'"
+          ],
+          "expected": [
+            "'and cat dog saw the'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'one'",
+          "ok": true,
+          "got": [
+            "'one'"
+          ],
+          "expected": [
+            "'one'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'Bb aa  BB Aa bb'",
+          "ok": true,
+          "got": [
+            "'aa bb'"
+          ],
+          "expected": [
+            "'aa bb'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "' x  Y z '",
+          "ok": true,
+          "got": [
+            "'x y z'"
+          ],
+          "expected": [
+            "'x y z'"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "prose.longest",
+      "submitted": true,
+      "solution": "G0A.WORDS 'PW' BIND PW PW [ CHARS LENGTH ] MAP W3A.ARGMAX GET",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 12,
+      "expandedTokens": 29,
+      "uses": [
+        "G0A.WORDS",
+        "W3A.ARGMAX"
+      ],
+      "perInput": [
+        {
+          "input": "'the quick brown fox jumps over the lazy dog the end'",
+          "ok": true,
+          "got": [
+            "'quick'"
+          ],
+          "expected": [
+            "'quick'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'a bb a ccc bb a'",
+          "ok": true,
+          "got": [
+            "'ccc'"
+          ],
+          "expected": [
+            "'ccc'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'zebra apple mango apple'",
+          "ok": true,
+          "got": [
+            "'zebra'"
+          ],
+          "expected": [
+            "'zebra'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'solo'",
+          "ok": true,
+          "got": [
+            "'solo'"
+          ],
+          "expected": [
+            "'solo'"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "prose.freq_top",
+      "submitted": true,
+      "solution": "G0A.WORDS W3A.MODEFIRST",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 2,
+      "expandedTokens": 30,
+      "uses": [
+        "G0A.WORDS",
+        "W3A.ARGMAX",
+        "W3A.MODEFIRST"
+      ],
+      "perInput": [
+        {
+          "input": "'the quick brown fox jumps over the lazy dog the end'",
+          "ok": true,
+          "got": [
+            "'the'"
+          ],
+          "expected": [
+            "'the'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'a bb a ccc bb a'",
+          "ok": true,
+          "got": [
+            "'a'"
+          ],
+          "expected": [
+            "'a'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'zebra apple mango apple'",
+          "ok": true,
+          "got": [
+            "'apple'"
+          ],
+          "expected": [
+            "'apple'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'solo'",
+          "ok": true,
+          "got": [
+            "'solo'"
+          ],
+          "expected": [
+            "'solo'"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "prose.distinct_sorted",
+      "submitted": true,
+      "solution": "G0A.WORDS UNIQUE SORT W3A.UNWORDS",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 4,
+      "expandedTokens": 28,
+      "uses": [
+        "G0A.WORDS",
+        "W3A.UNWORDS"
+      ],
+      "perInput": [
+        {
+          "input": "'the quick brown fox jumps over the lazy dog the end'",
+          "ok": true,
+          "got": [
+            "'brown dog end fox jumps lazy over quick the'"
+          ],
+          "expected": [
+            "'brown dog end fox jumps lazy over quick the'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'a bb a ccc bb a'",
+          "ok": true,
+          "got": [
+            "'a bb ccc'"
+          ],
+          "expected": [
+            "'a bb ccc'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'zebra apple mango apple'",
+          "ok": true,
+          "got": [
+            "'apple mango zebra'"
+          ],
+          "expected": [
+            "'apple mango zebra'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'solo'",
+          "ok": true,
+          "got": [
+            "'solo'"
+          ],
+          "expected": [
+            "'solo'"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "prose.reverse_words",
+      "submitted": true,
+      "solution": "G0A.WORDS REVERSE W3A.UNWORDS",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 3,
+      "expandedTokens": 27,
+      "uses": [
+        "G0A.WORDS",
+        "W3A.UNWORDS"
+      ],
+      "perInput": [
+        {
+          "input": "'the quick brown fox jumps over the lazy dog the end'",
+          "ok": true,
+          "got": [
+            "'end the dog lazy the over jumps fox brown quick the'"
+          ],
+          "expected": [
+            "'end the dog lazy the over jumps fox brown quick the'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'a bb a ccc bb a'",
+          "ok": true,
+          "got": [
+            "'a bb ccc a bb a'"
+          ],
+          "expected": [
+            "'a bb ccc a bb a'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'zebra apple mango apple'",
+          "ok": true,
+          "got": [
+            "'apple mango apple zebra'"
+          ],
+          "expected": [
+            "'apple mango apple zebra'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'solo'",
+          "ok": true,
+          "got": [
+            "'solo'"
+          ],
+          "expected": [
+            "'solo'"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "prose.capitalize",
+      "submitted": true,
+      "solution": "G0A.WORDS [ W3A.CAP ] MAP W3A.UNWORDS",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 6,
+      "expandedTokens": 47,
+      "uses": [
+        "G0A.WORDS",
+        "W3A.CAP",
+        "W3A.UNWORDS"
+      ],
+      "perInput": [
+        {
+          "input": "'the quick brown fox jumps over the lazy dog the end'",
+          "ok": true,
+          "got": [
+            "'The Quick Brown Fox Jumps Over The Lazy Dog The End'"
+          ],
+          "expected": [
+            "'The Quick Brown Fox Jumps Over The Lazy Dog The End'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'a bb a ccc bb a'",
+          "ok": true,
+          "got": [
+            "'A Bb A Ccc Bb A'"
+          ],
+          "expected": [
+            "'A Bb A Ccc Bb A'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'zebra apple mango apple'",
+          "ok": true,
+          "got": [
+            "'Zebra Apple Mango Apple'"
+          ],
+          "expected": [
+            "'Zebra Apple Mango Apple'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'solo'",
+          "ok": true,
+          "got": [
+            "'Solo'"
+          ],
+          "expected": [
+            "'Solo'"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "prose.initials_of_long",
+      "submitted": true,
+      "solution": "G0A.WORDS [ CHARS LENGTH 3 GT ] FILTER [ CHARS 0 GET UPPER ] MAP JOIN",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 16,
+      "expandedTokens": 26,
+      "uses": [
+        "G0A.WORDS"
+      ],
+      "perInput": [
+        {
+          "input": "'the quick brown fox jumps over the lazy dog the end'",
+          "ok": true,
+          "got": [
+            "'QBJOL'"
+          ],
+          "expected": [
+            "'QBJOL'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'a bb a ccc bb a'",
+          "ok": true,
+          "got": [
+            "''"
+          ],
+          "expected": [
+            "''"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'zebra apple mango apple'",
+          "ok": true,
+          "got": [
+            "'ZAMA'"
+          ],
+          "expected": [
+            "'ZAMA'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'solo'",
+          "ok": true,
+          "got": [
+            "'S'"
+          ],
+          "expected": [
+            "'S'"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "runs.rle",
+      "submitted": true,
+      "solution": "W3A.RLE",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 1,
+      "expandedTokens": 59,
+      "uses": [
+        "W3A.RLESTEP",
+        "W3A.RLE"
+      ],
+      "perInput": [
+        {
+          "input": "[ 1 1 2 2 2 3 1 1 ]",
+          "ok": true,
+          "got": [
+            "[ [ 1/1 2/1 ] [ 2/1 3/1 ] [ 3/1 1/1 ] [ 1/1 2/1 ] ]"
+          ],
+          "expected": [
+            "[ [ 1/1 2/1 ] [ 2/1 3/1 ] [ 3/1 1/1 ] [ 1/1 2/1 ] ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 5 ]",
+          "ok": true,
+          "got": [
+            "[ [ 5/1 1/1 ] ]"
+          ],
+          "expected": [
+            "[ [ 5/1 1/1 ] ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 4 4 4 4 ]",
+          "ok": true,
+          "got": [
+            "[ [ 4/1 4/1 ] ]"
+          ],
+          "expected": [
+            "[ [ 4/1 4/1 ] ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 1 2 1 2 ]",
+          "ok": true,
+          "got": [
+            "[ [ 1/1 1/1 ] [ 2/1 1/1 ] [ 1/1 1/1 ] [ 2/1 1/1 ] ]"
+          ],
+          "expected": [
+            "[ [ 1/1 1/1 ] [ 2/1 1/1 ] [ 1/1 1/1 ] [ 2/1 1/1 ] ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 3 1 4 1 5 9 2 6 5 3 5 ]",
+          "ok": true,
+          "got": [
+            "[ [ 3/1 1/1 ] [ 1/1 1/1 ] [ 4/1 1/1 ] [ 1/1 1/1 ] [ 5/1 1/1 ] [ 9/1 1/1 ] [ 2/1 1/1 ] [ 6/1 1/1 ] [ 5/1 1/1 ] [ 3/1 1/1 ] [ 5/1 1/1 ] ]"
+          ],
+          "expected": [
+            "[ [ 3/1 1/1 ] [ 1/1 1/1 ] [ 4/1 1/1 ] [ 1/1 1/1 ] [ 5/1 1/1 ] [ 9/1 1/1 ] [ 2/1 1/1 ] [ 6/1 1/1 ] [ 5/1 1/1 ] [ 3/1 1/1 ] [ 5/1 1/1 ] ]"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "runs.upruns",
+      "submitted": true,
+      "solution": "'UV' BIND UV UV 0 GET 0 0 3 COLLECT [ W3A.UPSTEP ] FOLD 2 GET",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 16,
+      "expandedTokens": 45,
+      "uses": [
+        "W3A.UPSTEP"
+      ],
+      "perInput": [
+        {
+          "input": "[ 1 1 2 2 2 3 1 1 ]",
+          "ok": true,
+          "got": [
+            "2/1"
+          ],
+          "expected": [
+            "2/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 5 ]",
+          "ok": true,
+          "got": [
+            "1/1"
+          ],
+          "expected": [
+            "1/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 4 4 4 4 ]",
+          "ok": true,
+          "got": [
+            "1/1"
+          ],
+          "expected": [
+            "1/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 1 2 1 2 ]",
+          "ok": true,
+          "got": [
+            "2/1"
+          ],
+          "expected": [
+            "2/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 3 1 4 1 5 9 2 6 5 3 5 ]",
+          "ok": true,
+          "got": [
+            "3/1"
+          ],
+          "expected": [
+            "3/1"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "runs.dedupe",
+      "submitted": true,
+      "solution": "W3A.RLE [ 0 GET ] MAP",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 6,
+      "expandedTokens": 64,
+      "uses": [
+        "W3A.RLESTEP",
+        "W3A.RLE"
+      ],
+      "perInput": [
+        {
+          "input": "[ 1 1 2 2 2 3 1 1 ]",
+          "ok": true,
+          "got": [
+            "[ 1/1 2/1 3/1 1/1 ]"
+          ],
+          "expected": [
+            "[ 1/1 2/1 3/1 1/1 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 5 ]",
+          "ok": true,
+          "got": [
+            "[ 5/1 ]"
+          ],
+          "expected": [
+            "[ 5/1 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 4 4 4 4 ]",
+          "ok": true,
+          "got": [
+            "[ 4/1 ]"
+          ],
+          "expected": [
+            "[ 4/1 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 1 2 1 2 ]",
+          "ok": true,
+          "got": [
+            "[ 1/1 2/1 1/1 2/1 ]"
+          ],
+          "expected": [
+            "[ 1/1 2/1 1/1 2/1 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 3 1 4 1 5 9 2 6 5 3 5 ]",
+          "ok": true,
+          "got": [
+            "[ 3/1 1/1 4/1 1/1 5/1 9/1 2/1 6/1 5/1 3/1 5/1 ]"
+          ],
+          "expected": [
+            "[ 3/1 1/1 4/1 1/1 5/1 9/1 2/1 6/1 5/1 3/1 5/1 ]"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "runs.second_largest",
+      "submitted": true,
+      "solution": "UNIQUE SORT 'SV' BIND SV -2 GET 'SG' BIND SG NIL SV LENGTH 1 GT SELECT",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 16,
+      "expandedTokens": 16,
+      "uses": [],
+      "perInput": [
+        {
+          "input": "[ 1 1 2 2 2 3 1 1 ]",
+          "ok": true,
+          "got": [
+            "2/1"
+          ],
+          "expected": [
+            "2/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 5 ]",
+          "ok": true,
+          "got": [
+            "NIL"
+          ],
+          "expected": [
+            "NIL"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 4 4 4 4 ]",
+          "ok": true,
+          "got": [
+            "NIL"
+          ],
+          "expected": [
+            "NIL"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 1 2 1 2 ]",
+          "ok": true,
+          "got": [
+            "1/1"
+          ],
+          "expected": [
+            "1/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 3 1 4 1 5 9 2 6 5 3 5 ]",
+          "ok": true,
+          "got": [
+            "6/1"
+          ],
+          "expected": [
+            "6/1"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "runs.majority",
+      "submitted": true,
+      "solution": "'MJ' BIND MJ TALLY 'MK' BIND MK VALUES W3A.ARGMAX 'MI' BIND MK KEYS MI GET NIL MK VALUES MI GET 2 MUL MJ LENGTH GT SELECT",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 26,
+      "expandedTokens": 33,
+      "uses": [
+        "W3A.ARGMAX"
+      ],
+      "perInput": [
+        {
+          "input": "[ 1 1 2 2 2 3 1 1 ]",
+          "ok": true,
+          "got": [
+            "NIL"
+          ],
+          "expected": [
+            "NIL"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 5 ]",
+          "ok": true,
+          "got": [
+            "5/1"
+          ],
+          "expected": [
+            "5/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 4 4 4 4 ]",
+          "ok": true,
+          "got": [
+            "4/1"
+          ],
+          "expected": [
+            "4/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 1 2 1 2 ]",
+          "ok": true,
+          "got": [
+            "NIL"
+          ],
+          "expected": [
+            "NIL"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 3 1 4 1 5 9 2 6 5 3 5 ]",
+          "ok": true,
+          "got": [
+            "NIL"
+          ],
+          "expected": [
+            "NIL"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "sensor.present_mean",
+      "submitted": true,
+      "solution": "[ NIL? NOT ] FILTER W2B.MEAN",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 6,
+      "expandedTokens": 22,
+      "uses": [
+        "W2B.SUM",
+        "W2B.MEAN"
+      ],
+      "perInput": [
+        {
+          "input": "[ 3 NIL 5 1 NIL NIL 4 ]",
+          "ok": true,
+          "got": [
+            "13/4"
+          ],
+          "expected": [
+            "13/4"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ NIL NIL 2 2 NIL 8 ]",
+          "ok": true,
+          "got": [
+            "4/1"
+          ],
+          "expected": [
+            "4/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 6 NIL ]",
+          "ok": true,
+          "got": [
+            "6/1"
+          ],
+          "expected": [
+            "6/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ -1 0 2 NIL -3 0 0 ]",
+          "ok": true,
+          "got": [
+            "-1/3"
+          ],
+          "expected": [
+            "-1/3"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ NIL -2 0 ]",
+          "ok": true,
+          "got": [
+            "-1/1"
+          ],
+          "expected": [
+            "-1/1"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "sensor.filled",
+      "submitted": true,
+      "solution": "'FV' BIND FV FV [ NIL? NOT ] FILTER 0 GET [ W3A.FFSTEP ] SCAN",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 15,
+      "expandedTokens": 27,
+      "uses": [
+        "W3A.FFSTEP"
+      ],
+      "perInput": [
+        {
+          "input": "[ 3 NIL 5 1 NIL NIL 4 ]",
+          "ok": true,
+          "got": [
+            "[ 3/1 3/1 5/1 1/1 1/1 1/1 4/1 ]"
+          ],
+          "expected": [
+            "[ 3/1 3/1 5/1 1/1 1/1 1/1 4/1 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ NIL NIL 2 2 NIL 8 ]",
+          "ok": true,
+          "got": [
+            "[ 2/1 2/1 2/1 2/1 2/1 8/1 ]"
+          ],
+          "expected": [
+            "[ 2/1 2/1 2/1 2/1 2/1 8/1 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 6 NIL ]",
+          "ok": true,
+          "got": [
+            "[ 6/1 6/1 ]"
+          ],
+          "expected": [
+            "[ 6/1 6/1 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ -1 0 2 NIL -3 0 0 ]",
+          "ok": true,
+          "got": [
+            "[ -1/1 0/1 2/1 2/1 -3/1 0/1 0/1 ]"
+          ],
+          "expected": [
+            "[ -1/1 0/1 2/1 2/1 -3/1 0/1 0/1 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ NIL -2 0 ]",
+          "ok": true,
+          "got": [
+            "[ -2/1 -2/1 0/1 ]"
+          ],
+          "expected": [
+            "[ -2/1 -2/1 0/1 ]"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "sensor.gap_count",
+      "submitted": true,
+      "solution": "[ NIL? ] MAP W3A.RLE [ 0 GET ] FILTER LENGTH",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 11,
+      "expandedTokens": 69,
+      "uses": [
+        "W3A.RLESTEP",
+        "W3A.RLE"
+      ],
+      "perInput": [
+        {
+          "input": "[ 3 NIL 5 1 NIL NIL 4 ]",
+          "ok": true,
+          "got": [
+            "2/1"
+          ],
+          "expected": [
+            "2/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ NIL NIL 2 2 NIL 8 ]",
+          "ok": true,
+          "got": [
+            "2/1"
+          ],
+          "expected": [
+            "2/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 6 NIL ]",
+          "ok": true,
+          "got": [
+            "1/1"
+          ],
+          "expected": [
+            "1/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ -1 0 2 NIL -3 0 0 ]",
+          "ok": true,
+          "got": [
+            "1/1"
+          ],
+          "expected": [
+            "1/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ NIL -2 0 ]",
+          "ok": true,
+          "got": [
+            "1/1"
+          ],
+          "expected": [
+            "1/1"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "sensor.longest_gap",
+      "submitted": true,
+      "solution": "[ NIL? ] MAP W3A.RLE [ 0 GET ] FILTER [ 1 GET ] MAP 0 [ MAX ] FOLD",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 20,
+      "expandedTokens": 78,
+      "uses": [
+        "W3A.RLESTEP",
+        "W3A.RLE"
+      ],
+      "perInput": [
+        {
+          "input": "[ 3 NIL 5 1 NIL NIL 4 ]",
+          "ok": true,
+          "got": [
+            "2/1"
+          ],
+          "expected": [
+            "2/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ NIL NIL 2 2 NIL 8 ]",
+          "ok": true,
+          "got": [
+            "2/1"
+          ],
+          "expected": [
+            "2/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 6 NIL ]",
+          "ok": true,
+          "got": [
+            "1/1"
+          ],
+          "expected": [
+            "1/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ -1 0 2 NIL -3 0 0 ]",
+          "ok": true,
+          "got": [
+            "1/1"
+          ],
+          "expected": [
+            "1/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ NIL -2 0 ]",
+          "ok": true,
+          "got": [
+            "1/1"
+          ],
+          "expected": [
+            "1/1"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "sensor.ratios",
+      "submitted": true,
+      "solution": "[ 0 0 ] [ W3A.PAIRSTEP ] SCAN 1 DROP [ W3A.QRATIO ] MAP",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 14,
+      "expandedTokens": 60,
+      "uses": [
+        "W3A.PAIRSTEP",
+        "W3A.QRATIO"
+      ],
+      "perInput": [
+        {
+          "input": "[ 3 NIL 5 1 NIL NIL 4 ]",
+          "ok": true,
+          "got": [
+            "[ NIL NIL 1/5 NIL NIL NIL ]"
+          ],
+          "expected": [
+            "[ NIL NIL 1/5 NIL NIL NIL ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ NIL NIL 2 2 NIL 8 ]",
+          "ok": true,
+          "got": [
+            "[ NIL NIL 1/1 NIL NIL ]"
+          ],
+          "expected": [
+            "[ NIL NIL 1/1 NIL NIL ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 6 NIL ]",
+          "ok": true,
+          "got": [
+            "[ NIL ]"
+          ],
+          "expected": [
+            "[ NIL ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ -1 0 2 NIL -3 0 0 ]",
+          "ok": true,
+          "got": [
+            "[ 0/1 1/0 NIL NIL 0/1 0/0 ]"
+          ],
+          "expected": [
+            "[ 0/1 1/0 NIL NIL 0/1 0/0 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ NIL -2 0 ]",
+          "ok": true,
+          "got": [
+            "[ NIL 0/1 ]"
+          ],
+          "expected": [
+            "[ NIL 0/1 ]"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "sensor.scaled",
+      "submitted": true,
+      "solution": "'SC' BIND SC [ NIL? NOT ] FILTER 'SP' BIND SP SP 0 GET [ MAX ] FOLD 'SM' BIND SC [ 'SE' BIND NIL 0 SE SE NIL? SELECT SM DIV SE NIL? SELECT ] MAP",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 37,
+      "expandedTokens": 37,
+      "uses": [],
+      "perInput": [
+        {
+          "input": "[ 3 NIL 5 1 NIL NIL 4 ]",
+          "ok": true,
+          "got": [
+            "[ 3/5 NIL 1/1 1/5 NIL NIL 4/5 ]"
+          ],
+          "expected": [
+            "[ 3/5 NIL 1/1 1/5 NIL NIL 4/5 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ NIL NIL 2 2 NIL 8 ]",
+          "ok": true,
+          "got": [
+            "[ NIL NIL 1/4 1/4 NIL 1/1 ]"
+          ],
+          "expected": [
+            "[ NIL NIL 1/4 1/4 NIL 1/1 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 6 NIL ]",
+          "ok": true,
+          "got": [
+            "[ 1/1 NIL ]"
+          ],
+          "expected": [
+            "[ 1/1 NIL ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ -1 0 2 NIL -3 0 0 ]",
+          "ok": true,
+          "got": [
+            "[ -1/2 0/1 1/1 NIL -3/2 0/1 0/1 ]"
+          ],
+          "expected": [
+            "[ -1/2 0/1 1/1 NIL -3/2 0/1 0/1 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ NIL -2 0 ]",
+          "ok": true,
+          "got": [
+            "[ NIL 1/0 0/0 ]"
+          ],
+          "expected": [
+            "[ NIL 1/0 0/0 ]"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "series.median",
+      "heldOut": true,
+      "submitted": true,
+      "solution": "W3A.MEDIAN",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 1,
+      "expandedTokens": 31,
+      "uses": [
+        "W3A.MEDIAN"
+      ],
+      "perInput": [
+        {
+          "input": "[ 3 1 4 1 5 9 2 6 ]",
+          "ok": true,
+          "got": [
+            "7/2"
+          ],
+          "expected": [
+            "7/2"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 5 -3 5 0 2 ]",
+          "ok": true,
+          "got": [
+            "2/1"
+          ],
+          "expected": [
+            "2/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 1/2 3/4 1/4 ]",
+          "ok": true,
+          "got": [
+            "1/2"
+          ],
+          "expected": [
+            "1/2"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 4 4 1 1 9 ]",
+          "ok": true,
+          "got": [
+            "4/1"
+          ],
+          "expected": [
+            "4/1"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "series.mad",
+      "heldOut": true,
+      "submitted": true,
+      "solution": "'DV' BIND DV DV W3A.MEDIAN SUB 'DD' BIND DD 0 DD SUB MAX W3A.MEDIAN",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 14,
+      "expandedTokens": 74,
+      "uses": [
+        "W3A.MEDIAN"
+      ],
+      "perInput": [
+        {
+          "input": "[ 3 1 4 1 5 9 2 6 ]",
+          "ok": true,
+          "got": [
+            "2/1"
+          ],
+          "expected": [
+            "2/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 5 -3 5 0 2 ]",
+          "ok": true,
+          "got": [
+            "3/1"
+          ],
+          "expected": [
+            "3/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 1/2 3/4 1/4 ]",
+          "ok": true,
+          "got": [
+            "1/4"
+          ],
+          "expected": [
+            "1/4"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 4 4 1 1 9 ]",
+          "ok": true,
+          "got": [
+            "3/1"
+          ],
+          "expected": [
+            "3/1"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "series.moving3",
+      "heldOut": true,
+      "submitted": true,
+      "solution": "'MV' BIND MV -2 DROP MV 1 DROP -1 DROP ADD MV 2 DROP ADD 3 DIV",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 17,
+      "expandedTokens": 17,
+      "uses": [],
+      "perInput": [
+        {
+          "input": "[ 3 1 4 1 5 9 2 6 ]",
+          "ok": true,
+          "got": [
+            "[ 8/3 2/1 10/3 5/1 16/3 17/3 ]"
+          ],
+          "expected": [
+            "[ 8/3 2/1 10/3 5/1 16/3 17/3 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 5 -3 5 0 2 ]",
+          "ok": true,
+          "got": [
+            "[ 7/3 2/3 7/3 ]"
+          ],
+          "expected": [
+            "[ 7/3 2/3 7/3 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 1/2 3/4 1/4 ]",
+          "ok": true,
+          "got": [
+            "[ 1/2 ]"
+          ],
+          "expected": [
+            "[ 1/2 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 4 4 1 1 9 ]",
+          "ok": true,
+          "got": [
+            "[ 3/1 2/1 11/3 ]"
+          ],
+          "expected": [
+            "[ 3/1 2/1 11/3 ]"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "series.runmax",
+      "heldOut": true,
+      "submitted": true,
+      "solution": "'RM' BIND RM RM 0 GET [ MAX ] SCAN",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 10,
+      "expandedTokens": 10,
+      "uses": [],
+      "perInput": [
+        {
+          "input": "[ 3 1 4 1 5 9 2 6 ]",
+          "ok": true,
+          "got": [
+            "[ 3/1 3/1 4/1 4/1 5/1 9/1 9/1 9/1 ]"
+          ],
+          "expected": [
+            "[ 3/1 3/1 4/1 4/1 5/1 9/1 9/1 9/1 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 5 -3 5 0 2 ]",
+          "ok": true,
+          "got": [
+            "[ 5/1 5/1 5/1 5/1 5/1 ]"
+          ],
+          "expected": [
+            "[ 5/1 5/1 5/1 5/1 5/1 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 1/2 3/4 1/4 ]",
+          "ok": true,
+          "got": [
+            "[ 1/2 3/4 3/4 ]"
+          ],
+          "expected": [
+            "[ 1/2 3/4 3/4 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 4 4 1 1 9 ]",
+          "ok": true,
+          "got": [
+            "[ 4/1 4/1 4/1 4/1 9/1 ]"
+          ],
+          "expected": [
+            "[ 4/1 4/1 4/1 4/1 9/1 ]"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "series.mode",
+      "heldOut": true,
+      "submitted": true,
+      "solution": "SORT W3A.MODEFIRST",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 2,
+      "expandedTokens": 20,
+      "uses": [
+        "W3A.ARGMAX",
+        "W3A.MODEFIRST"
+      ],
+      "perInput": [
+        {
+          "input": "[ 3 1 4 1 5 9 2 6 ]",
+          "ok": true,
+          "got": [
+            "1/1"
+          ],
+          "expected": [
+            "1/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 5 -3 5 0 2 ]",
+          "ok": true,
+          "got": [
+            "5/1"
+          ],
+          "expected": [
+            "5/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 1/2 3/4 1/4 ]",
+          "ok": true,
+          "got": [
+            "1/4"
+          ],
+          "expected": [
+            "1/4"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 4 4 1 1 9 ]",
+          "ok": true,
+          "got": [
+            "1/1"
+          ],
+          "expected": [
+            "1/1"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "series.trimmed",
+      "heldOut": true,
+      "submitted": true,
+      "solution": "SORT 1 DROP -1 DROP W2B.MEAN",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 6,
+      "expandedTokens": 22,
+      "uses": [
+        "W2B.SUM",
+        "W2B.MEAN"
+      ],
+      "perInput": [
+        {
+          "input": "[ 3 1 4 1 5 9 2 6 ]",
+          "ok": true,
+          "got": [
+            "7/2"
+          ],
+          "expected": [
+            "7/2"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 5 -3 5 0 2 ]",
+          "ok": true,
+          "got": [
+            "7/3"
+          ],
+          "expected": [
+            "7/3"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 1/2 3/4 1/4 ]",
+          "ok": true,
+          "got": [
+            "1/2"
+          ],
+          "expected": [
+            "1/2"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 4 4 1 1 9 ]",
+          "ok": true,
+          "got": [
+            "3/1"
+          ],
+          "expected": [
+            "3/1"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    }
+  ],
+  "calls": null
+}

@@ -1,0 +1,9 @@
+{
+  "rotation": {
+    "train": [["text", "stats", "orders", "number"], ["prose", "sensor", "runs", "brackets"]],
+    "heldOut": ["messy", "series", "ledger"],
+    "fixed": ["fixed"]
+  },
+  "models": { "A": "opus", "B": "sonnet", "C": "haiku", "D": "fable" },
+  "callBudget": 0
+}

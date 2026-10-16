@@ -1,0 +1,83 @@
+{
+  "agent": "O1C",
+  "generation": 1,
+  "condition": "open",
+  "definitions": [
+    {
+      "name": "O1C.DELTA",
+      "body": "'C' BIND 1 -1 '([' C SEARCH NIL? NOT SELECT",
+      "note": "Bracket character string to 1 when it opens a bracket, -1 when it closes one."
+    },
+    {
+      "name": "O1C.REDUCE",
+      "body": "'S' BIND 0 5 RANGE S [ 'E' BIND '()' '' REPLACE '[]' '' REPLACE ] FOLD",
+      "note": "String to its reduced form after deleting adjacent () and [] pairs (six rounds cover twelve characters)."
+    },
+    {
+      "name": "O1C.SHIFT",
+      "body": "'X' BIND 1 COLLECT X X LENGTH 1 SUB TAKE CONCAT",
+      "note": "s X to the Vector [ s ] followed by X without its last element (each element's predecessor)."
+    },
+    {
+      "name": "O1C.PREV",
+      "body": "'X' BIND X 0 GET X O1C.SHIFT",
+      "note": "Vector to the predecessor of each position; the first position is its own predecessor."
+    },
+    {
+      "name": "O1C.RUNIDS",
+      "body": "'X' BIND X X O1C.PREV SUB [ 'D' BIND 1 0 D 0 EQ NOT SELECT ] MAP 0 1 PUT 0 [ ADD ] SCAN",
+      "note": "Vector to the 1-based index of the maximal run of equal adjacent values each position belongs to."
+    },
+    {
+      "name": "O1C.MEDIAN",
+      "body": "'V' BIND V SORT 'S' BIND S V LENGTH 1 SUB 2 DIV FLOOR GET S V LENGTH 2 DIV FLOOR GET ADD 2 DIV",
+      "note": "Median of a non-empty numeric Vector (mean of the two middle values when the count is even)."
+    },
+    {
+      "name": "O1C.BYNAME",
+      "body": "'L' BIND L [ 0 GET ] MAP L [ 1 GET ] MAP G0A.SUMBY",
+      "note": "Vector of [name amount] entries to a Record from each name to the sum of its amounts, first-appearance order."
+    }
+  ],
+  "solutions": {
+    "brackets.depth": "CHARS [ O1C.DELTA ] MAP 0 [ ADD 0 MAX ] SCAN 0 [ MAX ] FOLD",
+    "brackets.balanced": "O1C.REDUCE '' EQ",
+    "brackets.balanced_prefix": "'S' BIND S CHARS 'C' BIND 0 C LENGTH RANGE [ 'K' BIND C K TAKE JOIN O1C.REDUCE '' EQ ] FILTER 0 [ MAX ] FOLD",
+    "brackets.unmatched": "O1C.REDUCE CHARS LENGTH",
+    "ledger.total": "[ 1 GET ] MAP G0A.SUM",
+    "ledger.by_name": "O1C.BYNAME",
+    "ledger.top_name": "O1C.BYNAME G0A.TOPKEY",
+    "ledger.debtors": "O1C.BYNAME 'R' BIND R KEYS 'K' BIND R VALUES 'V' BIND K V 2 COLLECT ZIP [ 1 GET 0 LT ] FILTER [ 0 GET ] MAP",
+    "ledger.count_names": "[ 0 GET ] MAP UNIQUE LENGTH",
+    "ledger.largest_entry": "'L' BIND L L [ 1 GET ] MAP G0A.ARGMAX GET",
+    "messy.count": "G0A.WORDS LENGTH",
+    "messy.normalize": "G0A.WORDS [ LOWER ] MAP G0B.SPACED",
+    "messy.distinct": "G0A.WORDS [ LOWER ] MAP UNIQUE LENGTH",
+    "messy.top_word": "G0A.WORDS [ LOWER ] MAP TALLY G0A.TOPKEY",
+    "messy.title": "G0A.WORDS [ LOWER G0B.CAP ] MAP G0B.SPACED",
+    "messy.sorted_unique": "G0A.WORDS [ LOWER ] MAP UNIQUE SORT G0B.SPACED",
+    "prose.longest": "G0A.WORDS 'W' BIND W W [ CHARS LENGTH ] MAP G0A.ARGMAX GET",
+    "prose.freq_top": "G0A.WORDS TALLY G0A.TOPKEY",
+    "prose.distinct_sorted": "G0A.WORDS UNIQUE SORT G0B.SPACED",
+    "prose.reverse_words": "G0A.WORDS REVERSE G0B.SPACED",
+    "prose.capitalize": "G0A.WORDS [ G0B.CAP ] MAP G0B.SPACED",
+    "prose.initials_of_long": "G0A.WORDS [ CHARS LENGTH 3 GT ] FILTER [ CHARS 0 GET UPPER ] MAP JOIN",
+    "runs.rle": "'X' BIND X O1C.RUNIDS X GROUP VALUES [ 'V' BIND V 0 GET V LENGTH 2 COLLECT ] MAP",
+    "runs.upruns": "'X' BIND X X O1C.PREV SUB [ 'D' BIND 0 1 D 0 GT SELECT ] MAP 0 [ ADD ] SCAN 'I' BIND I X GROUP VALUES [ LENGTH ] MAP 0 [ MAX ] FOLD",
+    "runs.dedupe": "'X' BIND X O1C.RUNIDS X GROUP VALUES [ 0 GET ] MAP",
+    "runs.second_largest": "UNIQUE SORT -2 GET",
+    "runs.majority": "'X' BIND X TALLY 'R' BIND R G0A.TOPKEY 'K' BIND K NIL R K GET 2 MUL X LENGTH GT SELECT",
+    "sensor.present_mean": "[ NIL? NOT ] FILTER G0A.MEAN",
+    "sensor.filled": "'V' BIND V [ NIL? NOT ] FILTER 0 GET 'F' BIND V F [ 'E' BIND 'A' BIND E A E NIL? NOT SELECT ] SCAN",
+    "sensor.gap_count": "[ 'E' BIND 1 0 E NIL? SELECT ] MAP 'F' BIND F 0 F O1C.SHIFT SUB 0 MAX G0A.SUM",
+    "sensor.longest_gap": "[ 'E' BIND 1 0 E NIL? SELECT ] MAP 0 [ 'E' BIND 'A' BIND A 1 ADD E MUL ] SCAN 0 [ MAX ] FOLD",
+    "sensor.ratios": "'V' BIND V 1 DROP V -1 DROP DIV",
+    "sensor.scaled": "'V' BIND V [ NIL? NOT ] FILTER G0C.MAXV 'M' BIND V M DIV",
+    "series.median": "O1C.MEDIAN",
+    "series.mad": "'V' BIND V O1C.MEDIAN 'M' BIND V M SUB 'D' BIND D D -1 MUL MAX O1C.MEDIAN",
+    "series.moving3": "'V' BIND V -2 DROP V 1 DROP -1 DROP ADD V 2 DROP ADD 3 DIV",
+    "series.runmax": "'V' BIND V V 0 GET [ MAX ] SCAN",
+    "series.mode": "TALLY G0C.MAXKEYS G0D.MINV",
+    "series.trimmed": "SORT 1 DROP -1 DROP G0A.MEAN"
+  }
+}

@@ -1,0 +1,2568 @@
+{
+  "agent": "U2B",
+  "generation": 2,
+  "condition": "uses",
+  "definitions": [
+    {
+      "name": "U2B.MOD",
+      "body": "'B' BIND 'A' BIND A A B DIV FLOOR B MUL SUB",
+      "note": "a b -> a mod b (floor remainder), lifts over vectors"
+    },
+    {
+      "name": "U2B.PICK",
+      "body": "2 COLLECT ZIP [ 1 GET ] FILTER [ 0 GET ] MAP",
+      "note": "values truths -> the values whose truth is TRUE"
+    },
+    {
+      "name": "U2B.NDIV",
+      "body": "'K' BIND 1 0 K 1 K RANGE U2B.MOD 1 LT SELECT G0A.SUM",
+      "note": "positive integer -> number of its positive divisors"
+    },
+    {
+      "name": "U2B.STEP",
+      "body": "'X' BIND X 2 DIV X 3 MUL 1 ADD X 2 U2B.MOD 1 LT SELECT X X 1 GT SELECT",
+      "note": "one Collatz step; 1 stays 1"
+    },
+    {
+      "name": "U2B.SUMGRP",
+      "body": "GROUP 'G' BIND G KEYS G VALUES [ G0A.SUM ] MAP RECORD",
+      "note": "keys values -> Record key -> sum of its values, first-appearance order"
+    },
+    {
+      "name": "U2B.TOPKEY",
+      "body": "'R' BIND R KEYS R VALUES U1A.ARGMAX GET",
+      "note": "Record of numbers -> key with largest value, first on ties"
+    },
+    {
+      "name": "U2B.LINE",
+      "body": "'O' BIND O 'price' GET 'P' BIND 0 P P NIL? SELECT O 'qty' GET MUL",
+      "note": "order Record -> qty times price, 0 when no price"
+    },
+    {
+      "name": "U2B.MEDIAN",
+      "body": "SORT 'S' BIND S LENGTH 'N' BIND S N 1 SUB 2 DIV FLOOR GET S N 2 DIV FLOOR GET ADD 2 DIV",
+      "note": "Vector of numbers -> median"
+    },
+    {
+      "name": "U2B.VAR",
+      "body": "'V' BIND V V G0A.MEAN SUB 'D' BIND D D MUL G0A.MEAN",
+      "note": "Vector of numbers -> population variance"
+    }
+  ],
+  "lexiconNames": [
+    "G0A.WORDS",
+    "U1B.RED1",
+    "U1A.UNWORDS",
+    "U1A.ARGMAX",
+    "G0A.SUM",
+    "U1C.STARTIDX",
+    "U1B.CAP1",
+    "G0A.MEAN"
+  ],
+  "results": [
+    {
+      "task": "ledger.total",
+      "heldOut": true,
+      "submitted": true,
+      "solution": "[ 1 GET ] MAP G0A.SUM",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 6,
+      "expandedTokens": 13,
+      "uses": [
+        "G0A.SUM"
+      ],
+      "perInput": [
+        {
+          "input": "[ [ 'ann' 30 ] [ 'bob' -5 ] [ 'ann' 12 ] [ 'cy' -20 ] [ 'bob' 2 ] ]",
+          "ok": true,
+          "got": [
+            "19/1"
+          ],
+          "expected": [
+            "19/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ [ 'zed' 10 ] ]",
+          "ok": true,
+          "got": [
+            "10/1"
+          ],
+          "expected": [
+            "10/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ [ 'x' -1 ] [ 'y' -1 ] [ 'x' 1/2 ] ]",
+          "ok": true,
+          "got": [
+            "-3/2"
+          ],
+          "expected": [
+            "-3/2"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ [ 'p' 5 ] [ 'q' 7 ] [ 'p' 2 ] [ 'q' 0 ] ]",
+          "ok": true,
+          "got": [
+            "14/1"
+          ],
+          "expected": [
+            "14/1"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "ledger.by_name",
+      "heldOut": true,
+      "submitted": true,
+      "solution": "'L' BIND L [ 0 GET ] MAP L [ 1 GET ] MAP U2B.SUMGRP",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 15,
+      "expandedTokens": 36,
+      "uses": [
+        "G0A.SUM",
+        "U2B.SUMGRP"
+      ],
+      "perInput": [
+        {
+          "input": "[ [ 'ann' 30 ] [ 'bob' -5 ] [ 'ann' 12 ] [ 'cy' -20 ] [ 'bob' 2 ] ]",
+          "ok": true,
+          "got": [
+            "[ 'ann' 'bob' 'cy' ] [ 42/1 -3/1 -20/1 ] RECORD"
+          ],
+          "expected": [
+            "[ 'ann' 'bob' 'cy' ] [ 42/1 -3/1 -20/1 ] RECORD"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ [ 'zed' 10 ] ]",
+          "ok": true,
+          "got": [
+            "[ 'zed' ] [ 10/1 ] RECORD"
+          ],
+          "expected": [
+            "[ 'zed' ] [ 10/1 ] RECORD"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ [ 'x' -1 ] [ 'y' -1 ] [ 'x' 1/2 ] ]",
+          "ok": true,
+          "got": [
+            "[ 'x' 'y' ] [ -1/2 -1/1 ] RECORD"
+          ],
+          "expected": [
+            "[ 'x' 'y' ] [ -1/2 -1/1 ] RECORD"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ [ 'p' 5 ] [ 'q' 7 ] [ 'p' 2 ] [ 'q' 0 ] ]",
+          "ok": true,
+          "got": [
+            "[ 'p' 'q' ] [ 7/1 7/1 ] RECORD"
+          ],
+          "expected": [
+            "[ 'p' 'q' ] [ 7/1 7/1 ] RECORD"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "ledger.top_name",
+      "heldOut": true,
+      "submitted": true,
+      "solution": "'L' BIND L [ 0 GET ] MAP L [ 1 GET ] MAP U2B.SUMGRP U2B.TOPKEY",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 16,
+      "expandedTokens": 54,
+      "uses": [
+        "G0A.SUM",
+        "U2B.SUMGRP",
+        "U1A.ARGMAX",
+        "U2B.TOPKEY"
+      ],
+      "perInput": [
+        {
+          "input": "[ [ 'ann' 30 ] [ 'bob' -5 ] [ 'ann' 12 ] [ 'cy' -20 ] [ 'bob' 2 ] ]",
+          "ok": true,
+          "got": [
+            "'ann'"
+          ],
+          "expected": [
+            "'ann'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ [ 'zed' 10 ] ]",
+          "ok": true,
+          "got": [
+            "'zed'"
+          ],
+          "expected": [
+            "'zed'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ [ 'x' -1 ] [ 'y' -1 ] [ 'x' 1/2 ] ]",
+          "ok": true,
+          "got": [
+            "'x'"
+          ],
+          "expected": [
+            "'x'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ [ 'p' 5 ] [ 'q' 7 ] [ 'p' 2 ] [ 'q' 0 ] ]",
+          "ok": true,
+          "got": [
+            "'p'"
+          ],
+          "expected": [
+            "'p'"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "ledger.debtors",
+      "heldOut": true,
+      "submitted": true,
+      "solution": "'L' BIND L [ 0 GET ] MAP L [ 1 GET ] MAP U2B.SUMGRP 'R' BIND R KEYS R VALUES 0 LT U2B.PICK",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 24,
+      "expandedTokens": 60,
+      "uses": [
+        "G0A.SUM",
+        "U2B.SUMGRP",
+        "U2B.PICK"
+      ],
+      "perInput": [
+        {
+          "input": "[ [ 'ann' 30 ] [ 'bob' -5 ] [ 'ann' 12 ] [ 'cy' -20 ] [ 'bob' 2 ] ]",
+          "ok": true,
+          "got": [
+            "[ 'bob' 'cy' ]"
+          ],
+          "expected": [
+            "[ 'bob' 'cy' ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ [ 'zed' 10 ] ]",
+          "ok": true,
+          "got": [
+            "[ ]"
+          ],
+          "expected": [
+            "[ ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ [ 'x' -1 ] [ 'y' -1 ] [ 'x' 1/2 ] ]",
+          "ok": true,
+          "got": [
+            "[ 'x' 'y' ]"
+          ],
+          "expected": [
+            "[ 'x' 'y' ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ [ 'p' 5 ] [ 'q' 7 ] [ 'p' 2 ] [ 'q' 0 ] ]",
+          "ok": true,
+          "got": [
+            "[ ]"
+          ],
+          "expected": [
+            "[ ]"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "ledger.count_names",
+      "heldOut": true,
+      "submitted": true,
+      "solution": "[ 0 GET ] MAP UNIQUE LENGTH",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 7,
+      "expandedTokens": 7,
+      "uses": [],
+      "perInput": [
+        {
+          "input": "[ [ 'ann' 30 ] [ 'bob' -5 ] [ 'ann' 12 ] [ 'cy' -20 ] [ 'bob' 2 ] ]",
+          "ok": true,
+          "got": [
+            "3/1"
+          ],
+          "expected": [
+            "3/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ [ 'zed' 10 ] ]",
+          "ok": true,
+          "got": [
+            "1/1"
+          ],
+          "expected": [
+            "1/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ [ 'x' -1 ] [ 'y' -1 ] [ 'x' 1/2 ] ]",
+          "ok": true,
+          "got": [
+            "2/1"
+          ],
+          "expected": [
+            "2/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ [ 'p' 5 ] [ 'q' 7 ] [ 'p' 2 ] [ 'q' 0 ] ]",
+          "ok": true,
+          "got": [
+            "2/1"
+          ],
+          "expected": [
+            "2/1"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "ledger.largest_entry",
+      "heldOut": true,
+      "submitted": true,
+      "solution": "'L' BIND L L [ 1 GET ] MAP U1A.ARGMAX GET",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 11,
+      "expandedTokens": 18,
+      "uses": [
+        "U1A.ARGMAX"
+      ],
+      "perInput": [
+        {
+          "input": "[ [ 'ann' 30 ] [ 'bob' -5 ] [ 'ann' 12 ] [ 'cy' -20 ] [ 'bob' 2 ] ]",
+          "ok": true,
+          "got": [
+            "[ 'ann' 30/1 ]"
+          ],
+          "expected": [
+            "[ 'ann' 30/1 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ [ 'zed' 10 ] ]",
+          "ok": true,
+          "got": [
+            "[ 'zed' 10/1 ]"
+          ],
+          "expected": [
+            "[ 'zed' 10/1 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ [ 'x' -1 ] [ 'y' -1 ] [ 'x' 1/2 ] ]",
+          "ok": true,
+          "got": [
+            "[ 'x' 1/2 ]"
+          ],
+          "expected": [
+            "[ 'x' 1/2 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ [ 'p' 5 ] [ 'q' 7 ] [ 'p' 2 ] [ 'q' 0 ] ]",
+          "ok": true,
+          "got": [
+            "[ 'q' 7/1 ]"
+          ],
+          "expected": [
+            "[ 'q' 7/1 ]"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "messy.count",
+      "heldOut": true,
+      "submitted": true,
+      "solution": "G0A.WORDS LENGTH",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 2,
+      "expandedTokens": 12,
+      "uses": [
+        "G0A.WORDS"
+      ],
+      "perInput": [
+        {
+          "input": "'  The cat saw THE dog   and the Cat  '",
+          "ok": true,
+          "got": [
+            "8/1"
+          ],
+          "expected": [
+            "8/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'one'",
+          "ok": true,
+          "got": [
+            "1/1"
+          ],
+          "expected": [
+            "1/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'Bb aa  BB Aa bb'",
+          "ok": true,
+          "got": [
+            "5/1"
+          ],
+          "expected": [
+            "5/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "' x  Y z '",
+          "ok": true,
+          "got": [
+            "3/1"
+          ],
+          "expected": [
+            "3/1"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "messy.normalize",
+      "heldOut": true,
+      "submitted": true,
+      "solution": "G0A.WORDS [ LOWER ] MAP U1A.UNWORDS",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 6,
+      "expandedTokens": 27,
+      "uses": [
+        "G0A.WORDS",
+        "U1A.UNWORDS"
+      ],
+      "perInput": [
+        {
+          "input": "'  The cat saw THE dog   and the Cat  '",
+          "ok": true,
+          "got": [
+            "'the cat saw the dog and the cat'"
+          ],
+          "expected": [
+            "'the cat saw the dog and the cat'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'one'",
+          "ok": true,
+          "got": [
+            "'one'"
+          ],
+          "expected": [
+            "'one'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'Bb aa  BB Aa bb'",
+          "ok": true,
+          "got": [
+            "'bb aa bb aa bb'"
+          ],
+          "expected": [
+            "'bb aa bb aa bb'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "' x  Y z '",
+          "ok": true,
+          "got": [
+            "'x y z'"
+          ],
+          "expected": [
+            "'x y z'"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "messy.distinct",
+      "heldOut": true,
+      "submitted": true,
+      "solution": "G0A.WORDS [ LOWER ] MAP UNIQUE LENGTH",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 7,
+      "expandedTokens": 17,
+      "uses": [
+        "G0A.WORDS"
+      ],
+      "perInput": [
+        {
+          "input": "'  The cat saw THE dog   and the Cat  '",
+          "ok": true,
+          "got": [
+            "5/1"
+          ],
+          "expected": [
+            "5/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'one'",
+          "ok": true,
+          "got": [
+            "1/1"
+          ],
+          "expected": [
+            "1/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'Bb aa  BB Aa bb'",
+          "ok": true,
+          "got": [
+            "2/1"
+          ],
+          "expected": [
+            "2/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "' x  Y z '",
+          "ok": true,
+          "got": [
+            "3/1"
+          ],
+          "expected": [
+            "3/1"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "messy.top_word",
+      "heldOut": true,
+      "submitted": true,
+      "solution": "G0A.WORDS [ LOWER ] MAP TALLY U2B.TOPKEY",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 7,
+      "expandedTokens": 34,
+      "uses": [
+        "G0A.WORDS",
+        "U1A.ARGMAX",
+        "U2B.TOPKEY"
+      ],
+      "perInput": [
+        {
+          "input": "'  The cat saw THE dog   and the Cat  '",
+          "ok": true,
+          "got": [
+            "'the'"
+          ],
+          "expected": [
+            "'the'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'one'",
+          "ok": true,
+          "got": [
+            "'one'"
+          ],
+          "expected": [
+            "'one'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'Bb aa  BB Aa bb'",
+          "ok": true,
+          "got": [
+            "'bb'"
+          ],
+          "expected": [
+            "'bb'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "' x  Y z '",
+          "ok": true,
+          "got": [
+            "'x'"
+          ],
+          "expected": [
+            "'x'"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "messy.title",
+      "heldOut": true,
+      "submitted": true,
+      "solution": "G0A.WORDS [ U1B.CAP1 ] MAP U1A.UNWORDS",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 6,
+      "expandedTokens": 41,
+      "uses": [
+        "G0A.WORDS",
+        "U1B.CAP1",
+        "U1A.UNWORDS"
+      ],
+      "perInput": [
+        {
+          "input": "'  The cat saw THE dog   and the Cat  '",
+          "ok": true,
+          "got": [
+            "'The Cat Saw The Dog And The Cat'"
+          ],
+          "expected": [
+            "'The Cat Saw The Dog And The Cat'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'one'",
+          "ok": true,
+          "got": [
+            "'One'"
+          ],
+          "expected": [
+            "'One'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'Bb aa  BB Aa bb'",
+          "ok": true,
+          "got": [
+            "'Bb Aa Bb Aa Bb'"
+          ],
+          "expected": [
+            "'Bb Aa Bb Aa Bb'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "' x  Y z '",
+          "ok": true,
+          "got": [
+            "'X Y Z'"
+          ],
+          "expected": [
+            "'X Y Z'"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "messy.sorted_unique",
+      "heldOut": true,
+      "submitted": true,
+      "solution": "G0A.WORDS [ LOWER ] MAP UNIQUE SORT U1A.UNWORDS",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 8,
+      "expandedTokens": 29,
+      "uses": [
+        "G0A.WORDS",
+        "U1A.UNWORDS"
+      ],
+      "perInput": [
+        {
+          "input": "'  The cat saw THE dog   and the Cat  '",
+          "ok": true,
+          "got": [
+            "'and cat dog saw the'"
+          ],
+          "expected": [
+            "'and cat dog saw the'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'one'",
+          "ok": true,
+          "got": [
+            "'one'"
+          ],
+          "expected": [
+            "'one'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'Bb aa  BB Aa bb'",
+          "ok": true,
+          "got": [
+            "'aa bb'"
+          ],
+          "expected": [
+            "'aa bb'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "' x  Y z '",
+          "ok": true,
+          "got": [
+            "'x y z'"
+          ],
+          "expected": [
+            "'x y z'"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "number.primes",
+      "submitted": true,
+      "solution": "'N' BIND 1 N RANGE 'C' BIND C C [ U2B.NDIV 2 EQ ] MAP U2B.PICK",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 16,
+      "expandedTokens": 67,
+      "uses": [
+        "U2B.MOD",
+        "G0A.SUM",
+        "U2B.NDIV",
+        "U2B.PICK"
+      ],
+      "perInput": [
+        {
+          "input": "10",
+          "ok": true,
+          "got": [
+            "[ 2/1 3/1 5/1 7/1 ]"
+          ],
+          "expected": [
+            "[ 2/1 3/1 5/1 7/1 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "1",
+          "ok": true,
+          "got": [
+            "[ ]"
+          ],
+          "expected": [
+            "[ ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "27",
+          "ok": true,
+          "got": [
+            "[ 2/1 3/1 5/1 7/1 11/1 13/1 17/1 19/1 23/1 ]"
+          ],
+          "expected": [
+            "[ 2/1 3/1 5/1 7/1 11/1 13/1 17/1 19/1 23/1 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "60",
+          "ok": true,
+          "got": [
+            "[ 2/1 3/1 5/1 7/1 11/1 13/1 17/1 19/1 23/1 29/1 31/1 37/1 41/1 43/1 47/1 53/1 59/1 ]"
+          ],
+          "expected": [
+            "[ 2/1 3/1 5/1 7/1 11/1 13/1 17/1 19/1 23/1 29/1 31/1 37/1 41/1 43/1 47/1 53/1 59/1 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "2",
+          "ok": true,
+          "got": [
+            "[ 2/1 ]"
+          ],
+          "expected": [
+            "[ 2/1 ]"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "number.divisors",
+      "submitted": true,
+      "solution": "'N' BIND 1 N RANGE 'C' BIND C N C U2B.MOD 1 LT U2B.PICK",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 14,
+      "expandedTokens": 43,
+      "uses": [
+        "U2B.MOD",
+        "U2B.PICK"
+      ],
+      "perInput": [
+        {
+          "input": "10",
+          "ok": true,
+          "got": [
+            "[ 1/1 2/1 5/1 10/1 ]"
+          ],
+          "expected": [
+            "[ 1/1 2/1 5/1 10/1 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "1",
+          "ok": true,
+          "got": [
+            "[ 1/1 ]"
+          ],
+          "expected": [
+            "[ 1/1 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "27",
+          "ok": true,
+          "got": [
+            "[ 1/1 3/1 9/1 27/1 ]"
+          ],
+          "expected": [
+            "[ 1/1 3/1 9/1 27/1 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "60",
+          "ok": true,
+          "got": [
+            "[ 1/1 2/1 3/1 4/1 5/1 6/1 10/1 12/1 15/1 20/1 30/1 60/1 ]"
+          ],
+          "expected": [
+            "[ 1/1 2/1 3/1 4/1 5/1 6/1 10/1 12/1 15/1 20/1 30/1 60/1 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "2",
+          "ok": true,
+          "got": [
+            "[ 1/1 2/1 ]"
+          ],
+          "expected": [
+            "[ 1/1 2/1 ]"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "number.binary",
+      "submitted": true,
+      "solution": "'N' BIND N [ 1 2 4 8 16 32 ] DIV FLOOR 2 U2B.MOD REVERSE [ 1 2 4 8 16 32 ] REVERSE N GT NOT U2B.PICK STR JOIN",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 31,
+      "expandedTokens": 60,
+      "uses": [
+        "U2B.MOD",
+        "U2B.PICK"
+      ],
+      "perInput": [
+        {
+          "input": "10",
+          "ok": true,
+          "got": [
+            "'1010'"
+          ],
+          "expected": [
+            "'1010'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "1",
+          "ok": true,
+          "got": [
+            "'1'"
+          ],
+          "expected": [
+            "'1'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "27",
+          "ok": true,
+          "got": [
+            "'11011'"
+          ],
+          "expected": [
+            "'11011'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "60",
+          "ok": true,
+          "got": [
+            "'111100'"
+          ],
+          "expected": [
+            "'111100'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "2",
+          "ok": true,
+          "got": [
+            "'10'"
+          ],
+          "expected": [
+            "'10'"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "number.collatz",
+      "submitted": true,
+      "solution": "'N' BIND N 1 COLLECT 1 120 RANGE N [ 0 MUL ADD U2B.STEP ] SCAN CONCAT 'S' BIND 1 0 S 1 GT SELECT G0A.SUM",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 26,
+      "expandedTokens": 70,
+      "uses": [
+        "U2B.MOD",
+        "U2B.STEP",
+        "G0A.SUM"
+      ],
+      "perInput": [
+        {
+          "input": "10",
+          "ok": true,
+          "got": [
+            "6/1"
+          ],
+          "expected": [
+            "6/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "1",
+          "ok": true,
+          "got": [
+            "0/1"
+          ],
+          "expected": [
+            "0/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "27",
+          "ok": true,
+          "got": [
+            "111/1"
+          ],
+          "expected": [
+            "111/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "60",
+          "ok": true,
+          "got": [
+            "19/1"
+          ],
+          "expected": [
+            "19/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "2",
+          "ok": true,
+          "got": [
+            "1/1"
+          ],
+          "expected": [
+            "1/1"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "number.digital_root",
+      "submitted": true,
+      "solution": "1 SUB 9 U2B.MOD 1 ADD",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 6,
+      "expandedTokens": 20,
+      "uses": [
+        "U2B.MOD"
+      ],
+      "perInput": [
+        {
+          "input": "10",
+          "ok": true,
+          "got": [
+            "1/1"
+          ],
+          "expected": [
+            "1/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "1",
+          "ok": true,
+          "got": [
+            "1/1"
+          ],
+          "expected": [
+            "1/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "27",
+          "ok": true,
+          "got": [
+            "9/1"
+          ],
+          "expected": [
+            "9/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "60",
+          "ok": true,
+          "got": [
+            "6/1"
+          ],
+          "expected": [
+            "6/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "2",
+          "ok": true,
+          "got": [
+            "2/1"
+          ],
+          "expected": [
+            "2/1"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "number.fib_index",
+      "submitted": true,
+      "solution": "'N' BIND 1 0 [ 1 1 2 3 5 8 13 21 34 55 89 ] N LT SELECT G0A.SUM 1 ADD",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 23,
+      "expandedTokens": 30,
+      "uses": [
+        "G0A.SUM"
+      ],
+      "perInput": [
+        {
+          "input": "10",
+          "ok": true,
+          "got": [
+            "7/1"
+          ],
+          "expected": [
+            "7/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "1",
+          "ok": true,
+          "got": [
+            "1/1"
+          ],
+          "expected": [
+            "1/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "27",
+          "ok": true,
+          "got": [
+            "9/1"
+          ],
+          "expected": [
+            "9/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "60",
+          "ok": true,
+          "got": [
+            "11/1"
+          ],
+          "expected": [
+            "11/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "2",
+          "ok": true,
+          "got": [
+            "3/1"
+          ],
+          "expected": [
+            "3/1"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "orders.revenue",
+      "submitted": true,
+      "solution": "JSON-DECODE 'orders' GET [ U2B.LINE ] MAP G0A.SUM",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 8,
+      "expandedTokens": 33,
+      "uses": [
+        "U2B.LINE",
+        "G0A.SUM"
+      ],
+      "perInput": [
+        {
+          "input": "'{\"orders\":[{\"sku\":\"a1\",\"qty\":2,\"price\":1.5},{\"sku\":\"b2\",\"qty\":1,\"price\":4,\"tags\":[\"gift\"]},{\"sku\":\"a1\",\"qty\":3,\"price\":1.5,\"tags\":[\"bulk\",\"gift\"]},{\"sku\":\"c3\",\"qty\":5}]}'",
+          "ok": true,
+          "got": [
+            "23/2"
+          ],
+          "expected": [
+            "23/2"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'{\"orders\":[{\"sku\":\"z\",\"qty\":0,\"price\":2}]}'",
+          "ok": true,
+          "got": [
+            "0/1"
+          ],
+          "expected": [
+            "0/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'{\"orders\":[{\"sku\":\"m\",\"qty\":1},{\"sku\":\"n\",\"qty\":2,\"tags\":[]},{\"sku\":\"m\",\"qty\":4,\"price\":0.25}]}'",
+          "ok": true,
+          "got": [
+            "1/1"
+          ],
+          "expected": [
+            "1/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'{\"orders\":[{\"sku\":\"q\",\"qty\":1,\"price\":10,\"tags\":[\"x\"]},{\"sku\":\"r\",\"qty\":2,\"price\":0.1,\"tags\":[\"x\",\"y\"]},{\"sku\":\"q\",\"qty\":1},{\"sku\":\"s\",\"qty\":1,\"price\":0.005},{\"sku\":\"r\",\"qty\":0}]}'",
+          "ok": true,
+          "got": [
+            "2041/200"
+          ],
+          "expected": [
+            "2041/200"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "orders.report",
+      "submitted": true,
+      "solution": "JSON-DECODE 'orders' GET [ U2B.LINE ] MAP G0A.SUM 2 FORMAT",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 10,
+      "expandedTokens": 35,
+      "uses": [
+        "U2B.LINE",
+        "G0A.SUM"
+      ],
+      "perInput": [
+        {
+          "input": "'{\"orders\":[{\"sku\":\"a1\",\"qty\":2,\"price\":1.5},{\"sku\":\"b2\",\"qty\":1,\"price\":4,\"tags\":[\"gift\"]},{\"sku\":\"a1\",\"qty\":3,\"price\":1.5,\"tags\":[\"bulk\",\"gift\"]},{\"sku\":\"c3\",\"qty\":5}]}'",
+          "ok": true,
+          "got": [
+            "'11.50'"
+          ],
+          "expected": [
+            "'11.50'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'{\"orders\":[{\"sku\":\"z\",\"qty\":0,\"price\":2}]}'",
+          "ok": true,
+          "got": [
+            "'0.00'"
+          ],
+          "expected": [
+            "'0.00'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'{\"orders\":[{\"sku\":\"m\",\"qty\":1},{\"sku\":\"n\",\"qty\":2,\"tags\":[]},{\"sku\":\"m\",\"qty\":4,\"price\":0.25}]}'",
+          "ok": true,
+          "got": [
+            "'1.00'"
+          ],
+          "expected": [
+            "'1.00'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'{\"orders\":[{\"sku\":\"q\",\"qty\":1,\"price\":10,\"tags\":[\"x\"]},{\"sku\":\"r\",\"qty\":2,\"price\":0.1,\"tags\":[\"x\",\"y\"]},{\"sku\":\"q\",\"qty\":1},{\"sku\":\"s\",\"qty\":1,\"price\":0.005},{\"sku\":\"r\",\"qty\":0}]}'",
+          "ok": true,
+          "got": [
+            "'10.21'"
+          ],
+          "expected": [
+            "'10.21'"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "orders.unpriced",
+      "submitted": true,
+      "solution": "JSON-DECODE 'orders' GET [ 'price' HAS? NOT ] FILTER [ 'sku' GET ] MAP UNIQUE",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 15,
+      "expandedTokens": 15,
+      "uses": [],
+      "perInput": [
+        {
+          "input": "'{\"orders\":[{\"sku\":\"a1\",\"qty\":2,\"price\":1.5},{\"sku\":\"b2\",\"qty\":1,\"price\":4,\"tags\":[\"gift\"]},{\"sku\":\"a1\",\"qty\":3,\"price\":1.5,\"tags\":[\"bulk\",\"gift\"]},{\"sku\":\"c3\",\"qty\":5}]}'",
+          "ok": true,
+          "got": [
+            "[ 'c3' ]"
+          ],
+          "expected": [
+            "[ 'c3' ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'{\"orders\":[{\"sku\":\"z\",\"qty\":0,\"price\":2}]}'",
+          "ok": true,
+          "got": [
+            "[ ]"
+          ],
+          "expected": [
+            "[ ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'{\"orders\":[{\"sku\":\"m\",\"qty\":1},{\"sku\":\"n\",\"qty\":2,\"tags\":[]},{\"sku\":\"m\",\"qty\":4,\"price\":0.25}]}'",
+          "ok": true,
+          "got": [
+            "[ 'm' 'n' ]"
+          ],
+          "expected": [
+            "[ 'm' 'n' ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'{\"orders\":[{\"sku\":\"q\",\"qty\":1,\"price\":10,\"tags\":[\"x\"]},{\"sku\":\"r\",\"qty\":2,\"price\":0.1,\"tags\":[\"x\",\"y\"]},{\"sku\":\"q\",\"qty\":1},{\"sku\":\"s\",\"qty\":1,\"price\":0.005},{\"sku\":\"r\",\"qty\":0}]}'",
+          "ok": true,
+          "got": [
+            "[ 'q' 'r' ]"
+          ],
+          "expected": [
+            "[ 'q' 'r' ]"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "orders.qty_by_sku",
+      "submitted": true,
+      "solution": "JSON-DECODE 'orders' GET 'OS' BIND OS [ 'sku' GET ] MAP OS [ 'qty' GET ] MAP U2B.SUMGRP",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 18,
+      "expandedTokens": 39,
+      "uses": [
+        "G0A.SUM",
+        "U2B.SUMGRP"
+      ],
+      "perInput": [
+        {
+          "input": "'{\"orders\":[{\"sku\":\"a1\",\"qty\":2,\"price\":1.5},{\"sku\":\"b2\",\"qty\":1,\"price\":4,\"tags\":[\"gift\"]},{\"sku\":\"a1\",\"qty\":3,\"price\":1.5,\"tags\":[\"bulk\",\"gift\"]},{\"sku\":\"c3\",\"qty\":5}]}'",
+          "ok": true,
+          "got": [
+            "[ 'a1' 'b2' 'c3' ] [ 5/1 1/1 5/1 ] RECORD"
+          ],
+          "expected": [
+            "[ 'a1' 'b2' 'c3' ] [ 5/1 1/1 5/1 ] RECORD"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'{\"orders\":[{\"sku\":\"z\",\"qty\":0,\"price\":2}]}'",
+          "ok": true,
+          "got": [
+            "[ 'z' ] [ 0/1 ] RECORD"
+          ],
+          "expected": [
+            "[ 'z' ] [ 0/1 ] RECORD"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'{\"orders\":[{\"sku\":\"m\",\"qty\":1},{\"sku\":\"n\",\"qty\":2,\"tags\":[]},{\"sku\":\"m\",\"qty\":4,\"price\":0.25}]}'",
+          "ok": true,
+          "got": [
+            "[ 'm' 'n' ] [ 5/1 2/1 ] RECORD"
+          ],
+          "expected": [
+            "[ 'm' 'n' ] [ 5/1 2/1 ] RECORD"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'{\"orders\":[{\"sku\":\"q\",\"qty\":1,\"price\":10,\"tags\":[\"x\"]},{\"sku\":\"r\",\"qty\":2,\"price\":0.1,\"tags\":[\"x\",\"y\"]},{\"sku\":\"q\",\"qty\":1},{\"sku\":\"s\",\"qty\":1,\"price\":0.005},{\"sku\":\"r\",\"qty\":0}]}'",
+          "ok": true,
+          "got": [
+            "[ 'q' 'r' 's' ] [ 2/1 2/1 1/1 ] RECORD"
+          ],
+          "expected": [
+            "[ 'q' 'r' 's' ] [ 2/1 2/1 1/1 ] RECORD"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "orders.top_sku",
+      "submitted": true,
+      "solution": "JSON-DECODE 'orders' GET 'OS' BIND OS [ 'sku' GET ] MAP OS [ 'qty' GET ] MAP U2B.SUMGRP U2B.TOPKEY",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 19,
+      "expandedTokens": 57,
+      "uses": [
+        "G0A.SUM",
+        "U2B.SUMGRP",
+        "U1A.ARGMAX",
+        "U2B.TOPKEY"
+      ],
+      "perInput": [
+        {
+          "input": "'{\"orders\":[{\"sku\":\"a1\",\"qty\":2,\"price\":1.5},{\"sku\":\"b2\",\"qty\":1,\"price\":4,\"tags\":[\"gift\"]},{\"sku\":\"a1\",\"qty\":3,\"price\":1.5,\"tags\":[\"bulk\",\"gift\"]},{\"sku\":\"c3\",\"qty\":5}]}'",
+          "ok": true,
+          "got": [
+            "'a1'"
+          ],
+          "expected": [
+            "'a1'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'{\"orders\":[{\"sku\":\"z\",\"qty\":0,\"price\":2}]}'",
+          "ok": true,
+          "got": [
+            "'z'"
+          ],
+          "expected": [
+            "'z'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'{\"orders\":[{\"sku\":\"m\",\"qty\":1},{\"sku\":\"n\",\"qty\":2,\"tags\":[]},{\"sku\":\"m\",\"qty\":4,\"price\":0.25}]}'",
+          "ok": true,
+          "got": [
+            "'m'"
+          ],
+          "expected": [
+            "'m'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'{\"orders\":[{\"sku\":\"q\",\"qty\":1,\"price\":10,\"tags\":[\"x\"]},{\"sku\":\"r\",\"qty\":2,\"price\":0.1,\"tags\":[\"x\",\"y\"]},{\"sku\":\"q\",\"qty\":1},{\"sku\":\"s\",\"qty\":1,\"price\":0.005},{\"sku\":\"r\",\"qty\":0}]}'",
+          "ok": true,
+          "got": [
+            "'q'"
+          ],
+          "expected": [
+            "'q'"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "orders.tag_counts",
+      "submitted": true,
+      "solution": "JSON-DECODE 'orders' GET [ 'tags' HAS? ] FILTER [ 'tags' GET UNIQUE ] MAP FLATTEN TALLY",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 16,
+      "expandedTokens": 16,
+      "uses": [],
+      "perInput": [
+        {
+          "input": "'{\"orders\":[{\"sku\":\"a1\",\"qty\":2,\"price\":1.5},{\"sku\":\"b2\",\"qty\":1,\"price\":4,\"tags\":[\"gift\"]},{\"sku\":\"a1\",\"qty\":3,\"price\":1.5,\"tags\":[\"bulk\",\"gift\"]},{\"sku\":\"c3\",\"qty\":5}]}'",
+          "ok": true,
+          "got": [
+            "[ 'gift' 'bulk' ] [ 2/1 1/1 ] RECORD"
+          ],
+          "expected": [
+            "[ 'gift' 'bulk' ] [ 2/1 1/1 ] RECORD"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'{\"orders\":[{\"sku\":\"z\",\"qty\":0,\"price\":2}]}'",
+          "ok": true,
+          "got": [
+            "[ ] [ ] RECORD"
+          ],
+          "expected": [
+            "[ ] [ ] RECORD"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'{\"orders\":[{\"sku\":\"m\",\"qty\":1},{\"sku\":\"n\",\"qty\":2,\"tags\":[]},{\"sku\":\"m\",\"qty\":4,\"price\":0.25}]}'",
+          "ok": true,
+          "got": [
+            "[ ] [ ] RECORD"
+          ],
+          "expected": [
+            "[ ] [ ] RECORD"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'{\"orders\":[{\"sku\":\"q\",\"qty\":1,\"price\":10,\"tags\":[\"x\"]},{\"sku\":\"r\",\"qty\":2,\"price\":0.1,\"tags\":[\"x\",\"y\"]},{\"sku\":\"q\",\"qty\":1},{\"sku\":\"s\",\"qty\":1,\"price\":0.005},{\"sku\":\"r\",\"qty\":0}]}'",
+          "ok": true,
+          "got": [
+            "[ 'x' 'y' ] [ 2/1 1/1 ] RECORD"
+          ],
+          "expected": [
+            "[ 'x' 'y' ] [ 2/1 1/1 ] RECORD"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "series.median",
+      "heldOut": true,
+      "submitted": true,
+      "solution": "U2B.MEDIAN",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 1,
+      "expandedTokens": 27,
+      "uses": [
+        "U2B.MEDIAN"
+      ],
+      "perInput": [
+        {
+          "input": "[ 3 1 4 1 5 9 2 6 ]",
+          "ok": true,
+          "got": [
+            "7/2"
+          ],
+          "expected": [
+            "7/2"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 5 -3 5 0 2 ]",
+          "ok": true,
+          "got": [
+            "2/1"
+          ],
+          "expected": [
+            "2/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 1/2 3/4 1/4 ]",
+          "ok": true,
+          "got": [
+            "1/2"
+          ],
+          "expected": [
+            "1/2"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 4 4 1 1 9 ]",
+          "ok": true,
+          "got": [
+            "4/1"
+          ],
+          "expected": [
+            "4/1"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "series.mad",
+      "heldOut": true,
+      "submitted": true,
+      "solution": "'V' BIND V V U2B.MEDIAN SUB 'D' BIND D D -1 MUL MAX U2B.MEDIAN",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 14,
+      "expandedTokens": 66,
+      "uses": [
+        "U2B.MEDIAN"
+      ],
+      "perInput": [
+        {
+          "input": "[ 3 1 4 1 5 9 2 6 ]",
+          "ok": true,
+          "got": [
+            "2/1"
+          ],
+          "expected": [
+            "2/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 5 -3 5 0 2 ]",
+          "ok": true,
+          "got": [
+            "3/1"
+          ],
+          "expected": [
+            "3/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 1/2 3/4 1/4 ]",
+          "ok": true,
+          "got": [
+            "1/4"
+          ],
+          "expected": [
+            "1/4"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 4 4 1 1 9 ]",
+          "ok": true,
+          "got": [
+            "3/1"
+          ],
+          "expected": [
+            "3/1"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "series.moving3",
+      "heldOut": true,
+      "submitted": true,
+      "solution": "'V' BIND V -2 DROP V 1 DROP -1 DROP ADD V 2 DROP ADD 3 DIV",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 17,
+      "expandedTokens": 17,
+      "uses": [],
+      "perInput": [
+        {
+          "input": "[ 3 1 4 1 5 9 2 6 ]",
+          "ok": true,
+          "got": [
+            "[ 8/3 2/1 10/3 5/1 16/3 17/3 ]"
+          ],
+          "expected": [
+            "[ 8/3 2/1 10/3 5/1 16/3 17/3 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 5 -3 5 0 2 ]",
+          "ok": true,
+          "got": [
+            "[ 7/3 2/3 7/3 ]"
+          ],
+          "expected": [
+            "[ 7/3 2/3 7/3 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 1/2 3/4 1/4 ]",
+          "ok": true,
+          "got": [
+            "[ 1/2 ]"
+          ],
+          "expected": [
+            "[ 1/2 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 4 4 1 1 9 ]",
+          "ok": true,
+          "got": [
+            "[ 3/1 2/1 11/3 ]"
+          ],
+          "expected": [
+            "[ 3/1 2/1 11/3 ]"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "series.runmax",
+      "heldOut": true,
+      "submitted": true,
+      "solution": "'V' BIND V V 0 GET [ MAX ] SCAN",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 10,
+      "expandedTokens": 10,
+      "uses": [],
+      "perInput": [
+        {
+          "input": "[ 3 1 4 1 5 9 2 6 ]",
+          "ok": true,
+          "got": [
+            "[ 3/1 3/1 4/1 4/1 5/1 9/1 9/1 9/1 ]"
+          ],
+          "expected": [
+            "[ 3/1 3/1 4/1 4/1 5/1 9/1 9/1 9/1 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 5 -3 5 0 2 ]",
+          "ok": true,
+          "got": [
+            "[ 5/1 5/1 5/1 5/1 5/1 ]"
+          ],
+          "expected": [
+            "[ 5/1 5/1 5/1 5/1 5/1 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 1/2 3/4 1/4 ]",
+          "ok": true,
+          "got": [
+            "[ 1/2 3/4 3/4 ]"
+          ],
+          "expected": [
+            "[ 1/2 3/4 3/4 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 4 4 1 1 9 ]",
+          "ok": true,
+          "got": [
+            "[ 4/1 4/1 4/1 4/1 9/1 ]"
+          ],
+          "expected": [
+            "[ 4/1 4/1 4/1 4/1 9/1 ]"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "series.mode",
+      "heldOut": true,
+      "submitted": true,
+      "solution": "SORT TALLY U2B.TOPKEY",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 3,
+      "expandedTokens": 20,
+      "uses": [
+        "U1A.ARGMAX",
+        "U2B.TOPKEY"
+      ],
+      "perInput": [
+        {
+          "input": "[ 3 1 4 1 5 9 2 6 ]",
+          "ok": true,
+          "got": [
+            "1/1"
+          ],
+          "expected": [
+            "1/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 5 -3 5 0 2 ]",
+          "ok": true,
+          "got": [
+            "5/1"
+          ],
+          "expected": [
+            "5/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 1/2 3/4 1/4 ]",
+          "ok": true,
+          "got": [
+            "1/4"
+          ],
+          "expected": [
+            "1/4"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 4 4 1 1 9 ]",
+          "ok": true,
+          "got": [
+            "1/1"
+          ],
+          "expected": [
+            "1/1"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "series.trimmed",
+      "heldOut": true,
+      "submitted": true,
+      "solution": "SORT 1 DROP -1 DROP G0A.MEAN",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 6,
+      "expandedTokens": 22,
+      "uses": [
+        "G0A.SUM",
+        "G0A.MEAN"
+      ],
+      "perInput": [
+        {
+          "input": "[ 3 1 4 1 5 9 2 6 ]",
+          "ok": true,
+          "got": [
+            "7/2"
+          ],
+          "expected": [
+            "7/2"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 5 -3 5 0 2 ]",
+          "ok": true,
+          "got": [
+            "7/3"
+          ],
+          "expected": [
+            "7/3"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 1/2 3/4 1/4 ]",
+          "ok": true,
+          "got": [
+            "1/2"
+          ],
+          "expected": [
+            "1/2"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 4 4 1 1 9 ]",
+          "ok": true,
+          "got": [
+            "3/1"
+          ],
+          "expected": [
+            "3/1"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "stats.sum",
+      "submitted": true,
+      "solution": "G0A.SUM",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 1,
+      "expandedTokens": 8,
+      "uses": [
+        "G0A.SUM"
+      ],
+      "perInput": [
+        {
+          "input": "[ 3 1 4 1 5 ]",
+          "ok": true,
+          "got": [
+            "14/1"
+          ],
+          "expected": [
+            "14/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 2 4 4 4 5 5 7 9 ]",
+          "ok": true,
+          "got": [
+            "40/1"
+          ],
+          "expected": [
+            "40/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 10 -2 7/2 ]",
+          "ok": true,
+          "got": [
+            "23/2"
+          ],
+          "expected": [
+            "23/2"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "stats.mean",
+      "submitted": true,
+      "solution": "G0A.MEAN",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 1,
+      "expandedTokens": 17,
+      "uses": [
+        "G0A.SUM",
+        "G0A.MEAN"
+      ],
+      "perInput": [
+        {
+          "input": "[ 3 1 4 1 5 ]",
+          "ok": true,
+          "got": [
+            "14/5"
+          ],
+          "expected": [
+            "14/5"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 2 4 4 4 5 5 7 9 ]",
+          "ok": true,
+          "got": [
+            "5/1"
+          ],
+          "expected": [
+            "5/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 10 -2 7/2 ]",
+          "ok": true,
+          "got": [
+            "23/6"
+          ],
+          "expected": [
+            "23/6"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "stats.deviations",
+      "submitted": true,
+      "solution": "'V' BIND V V G0A.MEAN SUB",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 6,
+      "expandedTokens": 22,
+      "uses": [
+        "G0A.SUM",
+        "G0A.MEAN"
+      ],
+      "perInput": [
+        {
+          "input": "[ 3 1 4 1 5 ]",
+          "ok": true,
+          "got": [
+            "[ 1/5 -9/5 6/5 -9/5 11/5 ]"
+          ],
+          "expected": [
+            "[ 1/5 -9/5 6/5 -9/5 11/5 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 2 4 4 4 5 5 7 9 ]",
+          "ok": true,
+          "got": [
+            "[ -3/1 -1/1 -1/1 -1/1 0/1 0/1 2/1 4/1 ]"
+          ],
+          "expected": [
+            "[ -3/1 -1/1 -1/1 -1/1 0/1 0/1 2/1 4/1 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 10 -2 7/2 ]",
+          "ok": true,
+          "got": [
+            "[ 37/6 -35/6 -1/3 ]"
+          ],
+          "expected": [
+            "[ 37/6 -35/6 -1/3 ]"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "stats.variance",
+      "submitted": true,
+      "solution": "U2B.VAR",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 1,
+      "expandedTokens": 47,
+      "uses": [
+        "G0A.SUM",
+        "G0A.MEAN",
+        "U2B.VAR"
+      ],
+      "perInput": [
+        {
+          "input": "[ 3 1 4 1 5 ]",
+          "ok": true,
+          "got": [
+            "64/25"
+          ],
+          "expected": [
+            "64/25"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 2 4 4 4 5 5 7 9 ]",
+          "ok": true,
+          "got": [
+            "4/1"
+          ],
+          "expected": [
+            "4/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 10 -2 7/2 ]",
+          "ok": true,
+          "got": [
+            "433/18"
+          ],
+          "expected": [
+            "433/18"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "stats.stddev",
+      "submitted": true,
+      "solution": "U2B.VAR SQRT",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 2,
+      "expandedTokens": 48,
+      "uses": [
+        "G0A.SUM",
+        "G0A.MEAN",
+        "U2B.VAR"
+      ],
+      "perInput": [
+        {
+          "input": "[ 3 1 4 1 5 ]",
+          "ok": true,
+          "got": [
+            "8/5"
+          ],
+          "expected": [
+            "8/5"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 2 4 4 4 5 5 7 9 ]",
+          "ok": true,
+          "got": [
+            "2/1"
+          ],
+          "expected": [
+            "2/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 10 -2 7/2 ]",
+          "ok": true,
+          "got": [
+            "1/6*sqrt(866)"
+          ],
+          "expected": [
+            "1/6*sqrt(866)"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "stats.range",
+      "submitted": true,
+      "solution": "SORT 'S' BIND S -1 GET S 0 GET SUB",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 10,
+      "expandedTokens": 10,
+      "uses": [],
+      "perInput": [
+        {
+          "input": "[ 3 1 4 1 5 ]",
+          "ok": true,
+          "got": [
+            "4/1"
+          ],
+          "expected": [
+            "4/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 2 4 4 4 5 5 7 9 ]",
+          "ok": true,
+          "got": [
+            "7/1"
+          ],
+          "expected": [
+            "7/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 10 -2 7/2 ]",
+          "ok": true,
+          "got": [
+            "12/1"
+          ],
+          "expected": [
+            "12/1"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "stats.normalize",
+      "submitted": true,
+      "solution": "'V' BIND V SORT 'S' BIND S 0 GET 'MN' BIND S -1 GET 'MX' BIND V MN SUB MX MN SUB DIV",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 23,
+      "expandedTokens": 23,
+      "uses": [],
+      "perInput": [
+        {
+          "input": "[ 3 1 4 1 5 ]",
+          "ok": true,
+          "got": [
+            "[ 1/2 0/1 3/4 0/1 1/1 ]"
+          ],
+          "expected": [
+            "[ 1/2 0/1 3/4 0/1 1/1 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 2 4 4 4 5 5 7 9 ]",
+          "ok": true,
+          "got": [
+            "[ 0/1 2/7 2/7 2/7 3/7 3/7 5/7 1/1 ]"
+          ],
+          "expected": [
+            "[ 0/1 2/7 2/7 2/7 3/7 3/7 5/7 1/1 ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "[ 10 -2 7/2 ]",
+          "ok": true,
+          "got": [
+            "[ 1/1 0/1 11/24 ]"
+          ],
+          "expected": [
+            "[ 1/1 0/1 11/24 ]"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "text.count",
+      "submitted": true,
+      "solution": "G0A.WORDS LENGTH",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 2,
+      "expandedTokens": 12,
+      "uses": [
+        "G0A.WORDS"
+      ],
+      "perInput": [
+        {
+          "input": "'the quick brown fox jumps over the lazy dog'",
+          "ok": true,
+          "got": [
+            "9/1"
+          ],
+          "expected": [
+            "9/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'a rose is a rose is a rose'",
+          "ok": true,
+          "got": [
+            "8/1"
+          ],
+          "expected": [
+            "8/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'hello world'",
+          "ok": true,
+          "got": [
+            "2/1"
+          ],
+          "expected": [
+            "2/1"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "text.frequency",
+      "submitted": true,
+      "solution": "G0A.WORDS TALLY",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 2,
+      "expandedTokens": 12,
+      "uses": [
+        "G0A.WORDS"
+      ],
+      "perInput": [
+        {
+          "input": "'the quick brown fox jumps over the lazy dog'",
+          "ok": true,
+          "got": [
+            "[ 'the' 'quick' 'brown' 'fox' 'jumps' 'over' 'lazy' 'dog' ] [ 2/1 1/1 1/1 1/1 1/1 1/1 1/1 1/1 ] RECORD"
+          ],
+          "expected": [
+            "[ 'the' 'quick' 'brown' 'fox' 'jumps' 'over' 'lazy' 'dog' ] [ 2/1 1/1 1/1 1/1 1/1 1/1 1/1 1/1 ] RECORD"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'a rose is a rose is a rose'",
+          "ok": true,
+          "got": [
+            "[ 'a' 'rose' 'is' ] [ 3/1 3/1 2/1 ] RECORD"
+          ],
+          "expected": [
+            "[ 'a' 'rose' 'is' ] [ 3/1 3/1 2/1 ] RECORD"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'hello world'",
+          "ok": true,
+          "got": [
+            "[ 'hello' 'world' ] [ 1/1 1/1 ] RECORD"
+          ],
+          "expected": [
+            "[ 'hello' 'world' ] [ 1/1 1/1 ] RECORD"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "text.distinct",
+      "submitted": true,
+      "solution": "G0A.WORDS UNIQUE",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 2,
+      "expandedTokens": 12,
+      "uses": [
+        "G0A.WORDS"
+      ],
+      "perInput": [
+        {
+          "input": "'the quick brown fox jumps over the lazy dog'",
+          "ok": true,
+          "got": [
+            "[ 'the' 'quick' 'brown' 'fox' 'jumps' 'over' 'lazy' 'dog' ]"
+          ],
+          "expected": [
+            "[ 'the' 'quick' 'brown' 'fox' 'jumps' 'over' 'lazy' 'dog' ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'a rose is a rose is a rose'",
+          "ok": true,
+          "got": [
+            "[ 'a' 'rose' 'is' ]"
+          ],
+          "expected": [
+            "[ 'a' 'rose' 'is' ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'hello world'",
+          "ok": true,
+          "got": [
+            "[ 'hello' 'world' ]"
+          ],
+          "expected": [
+            "[ 'hello' 'world' ]"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "text.titlecase",
+      "submitted": true,
+      "solution": "G0A.WORDS [ U1B.CAP1 ] MAP U1A.UNWORDS",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 6,
+      "expandedTokens": 41,
+      "uses": [
+        "G0A.WORDS",
+        "U1B.CAP1",
+        "U1A.UNWORDS"
+      ],
+      "perInput": [
+        {
+          "input": "'the quick brown fox jumps over the lazy dog'",
+          "ok": true,
+          "got": [
+            "'The Quick Brown Fox Jumps Over The Lazy Dog'"
+          ],
+          "expected": [
+            "'The Quick Brown Fox Jumps Over The Lazy Dog'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'a rose is a rose is a rose'",
+          "ok": true,
+          "got": [
+            "'A Rose Is A Rose Is A Rose'"
+          ],
+          "expected": [
+            "'A Rose Is A Rose Is A Rose'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'hello world'",
+          "ok": true,
+          "got": [
+            "'Hello World'"
+          ],
+          "expected": [
+            "'Hello World'"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "text.longest",
+      "submitted": true,
+      "solution": "G0A.WORDS [ CHARS LENGTH ] MAP SORT -1 GET",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 9,
+      "expandedTokens": 19,
+      "uses": [
+        "G0A.WORDS"
+      ],
+      "perInput": [
+        {
+          "input": "'the quick brown fox jumps over the lazy dog'",
+          "ok": true,
+          "got": [
+            "5/1"
+          ],
+          "expected": [
+            "5/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'a rose is a rose is a rose'",
+          "ok": true,
+          "got": [
+            "4/1"
+          ],
+          "expected": [
+            "4/1"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'hello world'",
+          "ok": true,
+          "got": [
+            "5/1"
+          ],
+          "expected": [
+            "5/1"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "text.long-words",
+      "submitted": true,
+      "solution": "G0A.WORDS [ CHARS LENGTH 3 GT ] FILTER",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 8,
+      "expandedTokens": 18,
+      "uses": [
+        "G0A.WORDS"
+      ],
+      "perInput": [
+        {
+          "input": "'the quick brown fox jumps over the lazy dog'",
+          "ok": true,
+          "got": [
+            "[ 'quick' 'brown' 'jumps' 'over' 'lazy' ]"
+          ],
+          "expected": [
+            "[ 'quick' 'brown' 'jumps' 'over' 'lazy' ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'a rose is a rose is a rose'",
+          "ok": true,
+          "got": [
+            "[ 'rose' 'rose' 'rose' ]"
+          ],
+          "expected": [
+            "[ 'rose' 'rose' 'rose' ]"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'hello world'",
+          "ok": true,
+          "got": [
+            "[ 'hello' 'world' ]"
+          ],
+          "expected": [
+            "[ 'hello' 'world' ]"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    },
+    {
+      "task": "text.acronym",
+      "submitted": true,
+      "solution": "G0A.WORDS [ CHARS 0 GET UPPER ] MAP JOIN",
+      "correct": true,
+      "coreEquivalent": true,
+      "tokens": 9,
+      "expandedTokens": 19,
+      "uses": [
+        "G0A.WORDS"
+      ],
+      "perInput": [
+        {
+          "input": "'the quick brown fox jumps over the lazy dog'",
+          "ok": true,
+          "got": [
+            "'TQBFJOTLD'"
+          ],
+          "expected": [
+            "'TQBFJOTLD'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'a rose is a rose is a rose'",
+          "ok": true,
+          "got": [
+            "'ARIARIAR'"
+          ],
+          "expected": [
+            "'ARIARIAR'"
+          ],
+          "coreEquivalent": true
+        },
+        {
+          "input": "'hello world'",
+          "ok": true,
+          "got": [
+            "'HW'"
+          ],
+          "expected": [
+            "'HW'"
+          ],
+          "coreEquivalent": true
+        }
+      ]
+    }
+  ],
+  "calls": null
+}

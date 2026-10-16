@@ -1,0 +1,73 @@
+{
+  "agent": "W2B", "generation": 2, "condition": "breadth",
+  "definitions": [
+    { "name": "W2B.SUM", "body": "0 [ ADD ] FOLD", "note": "sum of a numeric Vector, bare scalar" },
+    { "name": "W2B.MEAN", "body": "'SX' BIND SX W2B.SUM SX LENGTH DIV", "note": "arithmetic mean of a numeric Vector" },
+    { "name": "W2B.GSUM", "body": "GROUP 'GG' BIND GG KEYS GG VALUES [ W2B.SUM ] MAP RECORD", "note": "keys-Vector values-Vector -> Record from each key to the sum of its values, first-appearance order" },
+    { "name": "W2B.TOPKEY", "body": "'TR' BIND TR KEYS TR VALUES W1A.ARGMAX GET", "note": "Record of numbers -> the key with the largest value, first on ties" },
+    { "name": "W2B.CAP", "body": "LOWER CHARS 'CC' BIND CC 0 GET UPPER CC 1 DROP JOIN 2 COLLECT JOIN", "note": "word -> first letter upper case, rest lower case" },
+    { "name": "W2B.DIVISORS", "body": "'DN' BIND 1 DN RANGE 'DV' BIND DV 0 DN DV G0A.MOD 0 GT NOT SELECT [ 0 GT ] FILTER", "note": "positive integer -> Vector of its positive divisors, ascending" },
+    { "name": "W2B.MEDIAN", "body": "SORT 'MS' BIND MS LENGTH 'MN' BIND MS MN 1 SUB 2 DIV FLOOR GET MS MN 2 DIV FLOOR GET ADD 2 DIV", "note": "median of a numeric Vector (mean of two middles when even)" },
+    { "name": "W2B.MAD", "body": "'AX' BIND AX W2B.MEDIAN 'AM' BIND AX AM SUB 'AD' BIND AD AD -1 MUL MAX W2B.MEDIAN", "note": "median absolute deviation of a numeric Vector" },
+    { "name": "W2B.LINE", "body": "'OO' BIND OO 'price' GET 'OP' BIND OO 'qty' GET 0 OP OP NIL? SELECT MUL", "note": "order Record -> qty times price, 0 when it has no price" },
+    { "name": "W2B.CSTEP", "body": "'CE' BIND 'CX' BIND CX 2 DIV CX 3 MUL 1 ADD CX 2 G0A.MOD 0 GT NOT SELECT 'CNN' BIND CNN 1 CX 1 GT SELECT", "note": "acc elem -> next Collatz value of acc (stays at 1); elem ignored, for SCAN over a dummy range" },
+    { "name": "W2B.COLLATZ", "body": "'CNA' BIND 1 0 0 149 RANGE CNA [ W2B.CSTEP ] SCAN 1 GT SELECT W2B.SUM 1 0 CNA 1 GT SELECT ADD", "note": "positive integer <= 60 -> number of Collatz steps to reach 1" },
+    { "name": "W2B.BINARY", "body": "'BN' BIND [ 32 16 8 4 2 1 ] 'BQ' BIND 0 BQ BQ BN GT SELECT [ 0 GT ] FILTER 'BR' BIND BN BR DIV FLOOR 2 G0A.MOD STR JOIN", "note": "integer 1..63 -> base-2 String without leading zeros" },
+    { "name": "W2B.DEV", "body": "'DX' BIND DX DX W2B.MEAN SUB", "note": "numeric Vector -> each number minus the mean" },
+    { "name": "W2B.VAR", "body": "W2B.DEV 'VD' BIND VD VD MUL W2B.MEAN", "note": "population variance of a numeric Vector" },
+    { "name": "W2B.BYNAME", "body": "'LG' BIND LG [ 0 GET ] MAP LG [ 1 GET ] MAP W2B.GSUM", "note": "Vector of [name amount] entries -> Record name to summed amounts" },
+    { "name": "W2B.REVENUE", "body": "JSON-DECODE 'orders' GET [ W2B.LINE ] MAP W2B.SUM", "note": "orders JSON String -> total of qty times price over priced orders" }
+  ],
+  "solutions": {
+    "ledger.total": "[ 1 GET ] MAP W2B.SUM",
+    "ledger.by_name": "W2B.BYNAME",
+    "ledger.top_name": "W2B.BYNAME W2B.TOPKEY",
+    "ledger.debtors": "W2B.BYNAME 'LR' BIND LR KEYS [ 'LQ' BIND LR LQ GET 0 LT ] FILTER",
+    "ledger.count_names": "[ 0 GET ] MAP UNIQUE LENGTH",
+    "ledger.largest_entry": "'LV' BIND LV LV [ 1 GET ] MAP W1A.ARGMAX GET",
+
+    "messy.count": "G0A.WORDS LENGTH",
+    "messy.normalize": "LOWER G0A.WORDS W1A.UNWORDS",
+    "messy.distinct": "LOWER G0A.WORDS UNIQUE LENGTH",
+    "messy.top_word": "LOWER G0A.WORDS TALLY W2B.TOPKEY",
+    "messy.title": "G0A.WORDS [ W2B.CAP ] MAP W1A.UNWORDS",
+    "messy.sorted_unique": "LOWER G0A.WORDS UNIQUE SORT W1A.UNWORDS",
+
+    "number.primes": "'PN' BIND 1 PN RANGE [ W2B.DIVISORS LENGTH 2 EQ ] FILTER",
+    "number.divisors": "W2B.DIVISORS",
+    "number.binary": "W2B.BINARY",
+    "number.collatz": "W2B.COLLATZ",
+    "number.digital_root": "1 SUB 9 G0A.MOD 1 ADD",
+    "number.fib_index": "'FN' BIND 1 0 FN [ 1 1 2 3 5 8 13 21 34 55 89 ] GT SELECT W2B.SUM 1 ADD",
+
+    "orders.revenue": "W2B.REVENUE",
+    "orders.report": "W2B.REVENUE 2 FORMAT",
+    "orders.unpriced": "JSON-DECODE 'orders' GET [ 'price' HAS? NOT ] FILTER [ 'sku' GET ] MAP UNIQUE",
+    "orders.qty_by_sku": "JSON-DECODE 'orders' GET 'OD' BIND OD [ 'sku' GET ] MAP OD [ 'qty' GET ] MAP W2B.GSUM",
+    "orders.top_sku": "JSON-DECODE 'orders' GET 'OD' BIND OD [ 'sku' GET ] MAP OD [ 'qty' GET ] MAP W2B.GSUM W2B.TOPKEY",
+    "orders.tag_counts": "JSON-DECODE 'orders' GET [ 'tags' HAS? ] FILTER [ 'tags' GET UNIQUE ] MAP FLATTEN TALLY",
+
+    "series.median": "W2B.MEDIAN",
+    "series.mad": "W2B.MAD",
+    "series.moving3": "'MX' BIND MX -2 DROP MX 1 DROP -1 DROP ADD MX 2 DROP ADD 3 DIV",
+    "series.runmax": "'RX' BIND RX RX 0 GET [ MAX ] SCAN",
+    "series.mode": "SORT TALLY W2B.TOPKEY",
+    "series.trimmed": "SORT 1 DROP -1 DROP W2B.MEAN",
+
+    "stats.sum": "W2B.SUM",
+    "stats.mean": "W2B.MEAN",
+    "stats.deviations": "W2B.DEV",
+    "stats.variance": "W2B.VAR",
+    "stats.stddev": "W2B.VAR SQRT",
+    "stats.range": "SORT 'RS' BIND RS -1 GET RS 0 GET SUB",
+    "stats.normalize": "'NX' BIND NX SORT 'NS' BIND NS 0 GET 'NL' BIND NX NL SUB NS -1 GET NL SUB DIV",
+
+    "text.count": "G0A.WORDS LENGTH",
+    "text.frequency": "G0A.WORDS TALLY",
+    "text.distinct": "G0A.WORDS UNIQUE",
+    "text.titlecase": "G0A.WORDS [ W2B.CAP ] MAP W1A.UNWORDS",
+    "text.longest": "G0A.WORDS [ CHARS LENGTH ] MAP 0 [ MAX ] FOLD",
+    "text.long-words": "G0A.WORDS [ CHARS LENGTH 3 GT ] FILTER",
+    "text.acronym": "G0A.WORDS [ CHARS 0 GET UPPER ] MAP JOIN"
+  }
+}

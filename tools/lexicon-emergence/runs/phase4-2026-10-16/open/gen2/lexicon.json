@@ -1,0 +1,519 @@
+{
+  "generation": 2,
+  "capacity": null,
+  "rule": "uses",
+  "entries": [
+    {
+      "name": "G0A.WORDS",
+      "body": "' ' TOKENIZE [ '' EQ NOT ] FILTER",
+      "note": "split a String on spaces, dropping empty pieces",
+      "classId": "G0A.WORDS",
+      "uses": 24,
+      "tasks": 6,
+      "agents": [
+        "O1A",
+        "O1B",
+        "O1C",
+        "O1D"
+      ]
+    },
+    {
+      "name": "G0B.SPACED",
+      "body": "[ ' ' 2 COLLECT JOIN ] MAP JOIN TRIM",
+      "note": "Vector of Strings joined with single spaces",
+      "classId": "G0B.SPACED",
+      "uses": 13,
+      "tasks": 4,
+      "agents": [
+        "O1A",
+        "O1B",
+        "O1C",
+        "O1D"
+      ]
+    },
+    {
+      "name": "G0A.ARGMAX",
+      "body": "-1 MUL ORDER 0 GET",
+      "note": "index of the largest number in a Vector, first on ties",
+      "classId": "G0A.ARGMAX",
+      "uses": 11,
+      "tasks": 3,
+      "agents": [
+        "O1A",
+        "O1B",
+        "O1C",
+        "O1D"
+      ]
+    },
+    {
+      "name": "G0A.TOPKEY",
+      "body": "'TK' BIND TK KEYS TK VALUES G0A.ARGMAX GET",
+      "note": "key of a Record whose numeric value is largest, first on ties",
+      "classId": "G0A.TOPKEY",
+      "uses": 6,
+      "tasks": 2,
+      "agents": [
+        "O1A",
+        "O1B",
+        "O1C",
+        "O1D"
+      ]
+    },
+    {
+      "name": "G0A.SUM",
+      "body": "0 [ ADD ] FOLD",
+      "note": "sum of a Vector of numbers (0 for empty)",
+      "classId": "G0A.SUM",
+      "uses": 6,
+      "tasks": 2,
+      "agents": [
+        "O1A",
+        "O1B",
+        "O1C",
+        "O1D"
+      ]
+    },
+    {
+      "name": "O1B.RED",
+      "body": "'()' '' REPLACE '[]' '' REPLACE",
+      "note": "one pass deleting adjacent () and [] pairs from a bracket String",
+      "classId": "O1B.RED",
+      "uses": 6,
+      "tasks": 3,
+      "agents": [
+        "O1B",
+        "O1C"
+      ]
+    },
+    {
+      "name": "G0B.CAP",
+      "body": "CHARS 'CC' BIND CC 0 GET UPPER CC 1 DROP JOIN 2 COLLECT JOIN",
+      "note": "upper-case the first letter of a String",
+      "classId": "G0B.CAP",
+      "uses": 4,
+      "tasks": 1,
+      "agents": [
+        "O1A",
+        "O1B",
+        "O1C",
+        "O1D"
+      ]
+    },
+    {
+      "name": "G0A.MEAN",
+      "body": "'MV' BIND MV G0A.SUM MV LENGTH DIV",
+      "note": "arithmetic mean of a Vector",
+      "classId": "G0A.MEAN",
+      "uses": 4,
+      "tasks": 1,
+      "agents": [
+        "O1A",
+        "O1B",
+        "O1C",
+        "O1D"
+      ]
+    },
+    {
+      "name": "O1A.RSTEP",
+      "body": "'RX' BIND 'RA' BIND RA -1 DROP RX RA -1 GET 1 GET 1 ADD 2 COLLECT 1 COLLECT CONCAT RA RX 1 2 COLLECT 1 COLLECT CONCAT 2 COLLECT 0 1 RA -1 GET 0 GET RX EQ SELECT GET",
+      "note": "FOLD step for run-length encoding: extend the last [ value count ] pair or append [ x 1 ]",
+      "classId": "O1A.RSTEP",
+      "uses": 2,
+      "tasks": 2,
+      "agents": [
+        "O1A"
+      ]
+    },
+    {
+      "name": "O1A.RLE",
+      "body": "[ [ 1/2 0 ] ] [ O1A.RSTEP ] FOLD 1 DROP",
+      "note": "Vector of integers to its run-length encoding [ [ value count ] ... ]",
+      "classId": "O1A.RLE",
+      "uses": 4,
+      "tasks": 2,
+      "agents": [
+        "O1A",
+        "O1D"
+      ]
+    },
+    {
+      "name": "O1C.SHIFT",
+      "body": "'X' BIND 1 COLLECT X X LENGTH 1 SUB TAKE CONCAT",
+      "note": "s X to the Vector [ s ] followed by X without its last element (each element's predecessor).",
+      "classId": "O1C.SHIFT",
+      "uses": 4,
+      "tasks": 4,
+      "agents": [
+        "O1C"
+      ]
+    },
+    {
+      "name": "G0D.MAXV",
+      "body": "SORT -1 GET",
+      "note": "Largest element of a Vector of numbers or Strings.",
+      "classId": "G0D.MAXV",
+      "uses": 4,
+      "tasks": 4,
+      "agents": [
+        "O1D"
+      ]
+    },
+    {
+      "name": "G0C.MAXV",
+      "body": "'LX' BIND LX LX 0 GET [ MAX ] FOLD",
+      "note": "Largest element of a non-empty numeric Vector.",
+      "classId": "G0C.MAXV",
+      "uses": 3,
+      "tasks": 2,
+      "agents": [
+        "O1A",
+        "O1C"
+      ]
+    },
+    {
+      "name": "O1A.BSTEP",
+      "body": "'QC' BIND 'QA' BIND QA CHARS -1 DROP JOIN QA QC 2 COLLECT JOIN QA CHARS -1 GET [ '(' ')' '[' ']' ] [ '?' '(' '?' '[' ] RECORD QC GET EQ SELECT",
+      "note": "FOLD/SCAN step over a '.'-based bracket stack String: pop on a matching close, else push the char",
+      "classId": "O1A.BSTEP",
+      "uses": 3,
+      "tasks": 3,
+      "agents": [
+        "O1A"
+      ]
+    },
+    {
+      "name": "O1C.PREV",
+      "body": "'X' BIND X 0 GET X O1C.SHIFT",
+      "note": "Vector to the predecessor of each position; the first position is its own predecessor.",
+      "classId": "O1C.PREV",
+      "uses": 3,
+      "tasks": 3,
+      "agents": [
+        "O1C"
+      ]
+    },
+    {
+      "name": "O1D.BSTEP",
+      "body": "'C' BIND 'S' BIND S CHARS 'A' BIND A -1 GET C 2 COLLECT JOIN 'P' BIND A -1 DROP JOIN S C 2 COLLECT JOIN 2 COLLECT 0 1 P '()' EQ NOT P '[]' EQ NOT AND NOT SELECT GET",
+      "note": "FOLD/SCAN step [stack char]: pops the stack String's last char when it pairs with the char ('()' or '[]'), else appends the char",
+      "classId": "O1D.BSTEP",
+      "uses": 3,
+      "tasks": 3,
+      "agents": [
+        "O1D"
+      ]
+    },
+    {
+      "name": "O1D.PRESENT",
+      "body": "[ NIL? NOT ] FILTER",
+      "note": "the non-NIL elements of a Vector, in order",
+      "classId": "O1D.PRESENT",
+      "uses": 3,
+      "tasks": 3,
+      "agents": [
+        "O1D"
+      ]
+    },
+    {
+      "name": "O1A.DELTA1",
+      "body": "'DC' BIND [ '(' ')' '[' ']' ] [ 1 -1 1 -1 ] RECORD DC GET",
+      "note": "one bracket character to +1 (opening) or -1 (closing)",
+      "classId": "O1A.DELTA1",
+      "uses": 1,
+      "tasks": 1,
+      "agents": [
+        "O1A"
+      ]
+    },
+    {
+      "name": "O1A.DELTAS",
+      "body": "CHARS [ O1A.DELTA1 ] MAP",
+      "note": "bracket String to its Vector of +1/-1 steps (empty for '')",
+      "classId": "O1A.DELTAS",
+      "uses": 2,
+      "tasks": 1,
+      "agents": [
+        "O1A",
+        "O1D"
+      ]
+    },
+    {
+      "name": "G0B.COUNT",
+      "body": "NOT [ NOT ] FILTER LENGTH",
+      "note": "number of TRUE lanes in a Vector of truths",
+      "classId": "G0B.COUNT",
+      "uses": 2,
+      "tasks": 1,
+      "agents": [
+        "O1A",
+        "O1D"
+      ]
+    },
+    {
+      "name": "O1A.BREDUCE",
+      "body": "CHARS '.' [ O1A.BSTEP ] FOLD",
+      "note": "bracket String to '.' followed by what remains after deleting matched pairs",
+      "classId": "O1A.BREDUCE",
+      "uses": 2,
+      "tasks": 2,
+      "agents": [
+        "O1A"
+      ]
+    },
+    {
+      "name": "O1B.REDALL",
+      "body": "O1B.RED O1B.RED O1B.RED O1B.RED O1B.RED O1B.RED",
+      "note": "reduce a bracket String of at most 12 characters to its unmatched remainder",
+      "classId": "O1B.RED",
+      "uses": 6,
+      "tasks": 3,
+      "agents": [
+        "O1B",
+        "O1C"
+      ]
+    },
+    {
+      "name": "O1B.BAL",
+      "body": "O1B.REDALL '' EQ",
+      "note": "TRUE when a bracket String (at most 12 chars) is balanced",
+      "classId": "O1B.BAL",
+      "uses": 2,
+      "tasks": 2,
+      "agents": [
+        "O1B"
+      ]
+    },
+    {
+      "name": "O1B.RUNS",
+      "body": "'RV' BIND RV 0 GET 1 ADD 1 COLLECT RV CONCAT -1 DROP 'RB' BIND RV RB SUB 'RD' BIND RD RD MUL 1 MIN 0 [ ADD ] SCAN RV GROUP VALUES",
+      "note": "Vector of integers to Vector of its maximal runs of equal adjacent values, each a Vector",
+      "classId": "O1B.RUNS",
+      "uses": 2,
+      "tasks": 2,
+      "agents": [
+        "O1B"
+      ]
+    },
+    {
+      "name": "O1B.MISSING",
+      "body": "[ NIL? 'MX' BIND 1 0 MX SELECT ] MAP",
+      "note": "Vector with NILs to Vector of 1 for each NIL lane and 0 for each present lane",
+      "classId": "O1B.MISSING",
+      "uses": 2,
+      "tasks": 2,
+      "agents": [
+        "O1B"
+      ]
+    },
+    {
+      "name": "O1C.RUNIDS",
+      "body": "'X' BIND X X O1C.PREV SUB [ 'D' BIND 1 0 D 0 EQ NOT SELECT ] MAP 0 1 PUT 0 [ ADD ] SCAN",
+      "note": "Vector to the 1-based index of the maximal run of equal adjacent values each position belongs to.",
+      "classId": "O1C.RUNIDS",
+      "uses": 2,
+      "tasks": 2,
+      "agents": [
+        "O1C"
+      ]
+    },
+    {
+      "name": "O1D.BREDUCE",
+      "body": "CHARS '.' [ O1D.BSTEP ] FOLD",
+      "note": "bracket String reduced by deleting adjacent matched pairs, with a leading '.' sentinel ('.' alone means balanced)",
+      "classId": "O1D.BREDUCE",
+      "uses": 2,
+      "tasks": 2,
+      "agents": [
+        "O1D"
+      ]
+    },
+    {
+      "name": "O1D.RLESTEP",
+      "body": "'E' BIND 'A' BIND A -1 GET 'P' BIND A -1 DROP P 0 GET P 1 GET 1 ADD 2 COLLECT 1 COLLECT CONCAT A E 1 2 COLLECT 1 COLLECT CONCAT 2 COLLECT 0 1 P 0 GET E EQ SELECT GET",
+      "note": "FOLD step [runs elem] over a non-empty Vector of [value count] pairs: bumps the last count when its value equals elem, else appends [elem 1]",
+      "classId": "O1D.RLESTEP",
+      "uses": 2,
+      "tasks": 2,
+      "agents": [
+        "O1D"
+      ]
+    },
+    {
+      "name": "O1D.NILFLAGS",
+      "body": "[ NIL? ] MAP",
+      "note": "Vector of truths: TRUE where the element is NIL",
+      "classId": "O1D.NILFLAGS",
+      "uses": 2,
+      "tasks": 2,
+      "agents": [
+        "O1D"
+      ]
+    },
+    {
+      "name": "O1D.GAPS",
+      "body": "O1D.NILFLAGS 'F' BIND F FALSE 1 COLLECT F -1 DROP CONCAT NOT AND G0B.COUNT",
+      "note": "number of runs of consecutive NILs in a Vector",
+      "classId": "O1D.GAPS",
+      "uses": 2,
+      "tasks": 2,
+      "agents": [
+        "O1D"
+      ]
+    },
+    {
+      "name": "O1A.USTEP",
+      "body": "'UX' BIND 'UA' BIND UX UA 1 GET 1 ADD 1 UX UA 0 GET GT SELECT 2 COLLECT",
+      "note": "SCAN step over [ prev len ]: len+1 when x > prev, else 1",
+      "classId": "O1A.USTEP",
+      "uses": 1,
+      "tasks": 1,
+      "agents": [
+        "O1A"
+      ]
+    },
+    {
+      "name": "O1A.FSTEP",
+      "body": "'FX' BIND 'FA' BIND FA FX FX NIL? SELECT",
+      "note": "SCAN step for forward fill: the element, or the accumulator when the element is NIL",
+      "classId": "O1A.FSTEP",
+      "uses": 1,
+      "tasks": 1,
+      "agents": [
+        "O1A"
+      ]
+    },
+    {
+      "name": "O1A.RUNSTEP",
+      "body": "'KT' BIND 'KA' BIND KA 1 ADD 0 KT SELECT",
+      "note": "SCAN step over truths: current run length of TRUE (acc+1 or 0)",
+      "classId": "O1A.RUNSTEP",
+      "uses": 1,
+      "tasks": 1,
+      "agents": [
+        "O1A"
+      ]
+    },
+    {
+      "name": "O1A.RATSTEP",
+      "body": "'TX' BIND 'TA' BIND TA 0 GET 'TP' BIND TX TX TP DIV NIL TX NIL? NOT TP NIL? NOT AND SELECT 2 COLLECT",
+      "note": "SCAN step over [ prev ratio ]: [ x x/prev ], ratio NIL when either is NIL",
+      "classId": "O1A.RATSTEP",
+      "uses": 1,
+      "tasks": 1,
+      "agents": [
+        "O1A"
+      ]
+    },
+    {
+      "name": "O1B.BALPRE",
+      "body": "'BS' BIND 0 BS CHARS LENGTH RANGE 'BR' BIND BR 0 BR [ 'BK' BIND BS CHARS BK TAKE JOIN O1B.BAL ] MAP SELECT 0 [ MAX ] FOLD",
+      "note": "length of the longest balanced prefix of a bracket String",
+      "classId": "O1B.BALPRE",
+      "uses": 1,
+      "tasks": 1,
+      "agents": [
+        "O1B"
+      ]
+    },
+    {
+      "name": "O1C.DELTA",
+      "body": "'C' BIND 1 -1 '([' C SEARCH NIL? NOT SELECT",
+      "note": "Bracket character string to 1 when it opens a bracket, -1 when it closes one.",
+      "classId": "O1C.DELTA",
+      "uses": 1,
+      "tasks": 1,
+      "agents": [
+        "O1C"
+      ]
+    },
+    {
+      "name": "O1D.BDELTAS",
+      "body": "CHARS [ '(' '[' ')' ']' ] [ 1 1 -1 -1 ] RECORD 'BR' BIND [ 'BC' BIND BR BC GET ] MAP",
+      "note": "bracket String to a Vector of +1 per opener and -1 per closer",
+      "classId": "O1A.DELTAS",
+      "uses": 2,
+      "tasks": 1,
+      "agents": [
+        "O1A",
+        "O1D"
+      ]
+    },
+    {
+      "name": "O1D.BDEPTH",
+      "body": "O1D.BDELTAS 0 [ ADD ] SCAN 0 1 COLLECT CONCAT G0D.MAXV",
+      "note": "greatest nesting depth of a bracket String (0 for empty)",
+      "classId": "O1D.BDEPTH",
+      "uses": 1,
+      "tasks": 1,
+      "agents": [
+        "O1D"
+      ]
+    },
+    {
+      "name": "O1D.BPREFIX",
+      "body": "CHARS 'CS' BIND 0 CS LENGTH RANGE '.' 1 COLLECT CS '.' [ O1D.BSTEP ] SCAN CONCAT 2 COLLECT ZIP [ 1 GET '.' EQ ] FILTER [ 0 GET ] MAP -1 GET",
+      "note": "length of the longest balanced prefix of a bracket String (0 when only the empty prefix is)",
+      "classId": "O1D.BPREFIX",
+      "uses": 1,
+      "tasks": 1,
+      "agents": [
+        "O1D"
+      ]
+    },
+    {
+      "name": "O1D.UPRUNS",
+      "body": "'V' BIND V 1 DROP V -1 DROP GT 1 [ 'T' BIND 'A' BIND A 1 ADD 1 T SELECT ] SCAN 1 1 COLLECT CONCAT G0D.MAXV",
+      "note": "length of the longest strictly increasing stretch of adjacent values (1 for a single value)",
+      "classId": "O1D.UPRUNS",
+      "uses": 1,
+      "tasks": 1,
+      "agents": [
+        "O1D"
+      ]
+    },
+    {
+      "name": "O1D.MAJORITY",
+      "body": "'V' BIND V TALLY 'T' BIND T KEYS T VALUES 2 COLLECT ZIP [ 1 GET 2 MUL V LENGTH GT ] FILTER [ 0 GET ] MAP 0 GET",
+      "note": "the value occurring in more than half the positions, or NIL when none does",
+      "classId": "O1D.MAJORITY",
+      "uses": 1,
+      "tasks": 1,
+      "agents": [
+        "O1D"
+      ]
+    },
+    {
+      "name": "O1D.RATIO",
+      "body": "[ 'P' 'C' ] BIND NIL 1 C C NIL? SELECT 1 P P NIL? SELECT DIV P NIL? NOT C NIL? NOT AND NOT SELECT",
+      "note": "pair [prev cur] to cur divided by prev, or NIL when either is NIL",
+      "classId": "O1D.RATIO",
+      "uses": 1,
+      "tasks": 1,
+      "agents": [
+        "O1D"
+      ]
+    },
+    {
+      "name": "O1D.RATIOS",
+      "body": "'V' BIND V -1 DROP V 1 DROP 2 COLLECT ZIP [ O1D.RATIO ] MAP",
+      "note": "each element divided by the one before it (NIL where either is NIL); one shorter than the input",
+      "classId": "O1D.RATIOS",
+      "uses": 1,
+      "tasks": 1,
+      "agents": [
+        "O1D"
+      ]
+    },
+    {
+      "name": "O1D.SCALED",
+      "body": "'V' BIND V O1D.PRESENT G0D.MAXV 'M' BIND V [ 'X' BIND NIL 0 X X NIL? SELECT M DIV X NIL? SELECT ] MAP",
+      "note": "each present element divided by the largest present element; NILs stay NIL",
+      "classId": "O1D.SCALED",
+      "uses": 1,
+      "tasks": 1,
+      "agents": [
+        "O1D"
+      ]
+    }
+  ]
+}

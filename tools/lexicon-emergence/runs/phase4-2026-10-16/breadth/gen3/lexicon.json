@@ -1,0 +1,114 @@
+{
+  "generation": 3,
+  "capacity": 8,
+  "rule": "breadth",
+  "entries": [
+    {
+      "name": "W2B.SUM",
+      "body": "0 [ ADD ] FOLD",
+      "note": "sum of a numeric Vector, bare scalar",
+      "classId": "W2A.SUM",
+      "uses": 21,
+      "tasks": 12,
+      "agents": [
+        "W2A",
+        "W2B"
+      ]
+    },
+    {
+      "name": "G0A.WORDS",
+      "body": "' ' TOKENIZE [ '' EQ NOT ] FILTER",
+      "note": "split a String on spaces, dropping empty pieces",
+      "classId": "G0A.WORDS",
+      "uses": 28,
+      "tasks": 7,
+      "agents": [
+        "W2A",
+        "W2B",
+        "W2C",
+        "W2D"
+      ]
+    },
+    {
+      "name": "W2A.ORDERS",
+      "body": "JSON-DECODE 'orders' GET",
+      "note": "JSON String -> Vector of order Records under its orders key",
+      "classId": "W2A.ORDERS",
+      "uses": 10,
+      "tasks": 6,
+      "agents": [
+        "W2A",
+        "W2B",
+        "W2D"
+      ]
+    },
+    {
+      "name": "G0A.MOD",
+      "body": "'MB' BIND 'MA' BIND MA MA MB DIV FLOOR MB MUL SUB",
+      "note": "a b -> a mod b (floored), lifts over Vectors",
+      "classId": "G0A.MOD",
+      "uses": 18,
+      "tasks": 5,
+      "agents": [
+        "W2A",
+        "W2B",
+        "W2C",
+        "W2D"
+      ]
+    },
+    {
+      "name": "W2A.MEAN",
+      "body": "'MN' BIND MN W2B.SUM MN LENGTH DIV",
+      "note": "arithmetic mean of a non-empty numeric Vector",
+      "classId": "W2A.MEAN",
+      "uses": 16,
+      "tasks": 4,
+      "agents": [
+        "W2A",
+        "W2B",
+        "W2C",
+        "W2D"
+      ]
+    },
+    {
+      "name": "W2B.MEAN",
+      "body": "'SX' BIND SX W2B.SUM SX LENGTH DIV",
+      "note": "arithmetic mean of a numeric Vector",
+      "classId": "W2A.MEAN",
+      "uses": 16,
+      "tasks": 4,
+      "agents": [
+        "W2A",
+        "W2B",
+        "W2C",
+        "W2D"
+      ]
+    },
+    {
+      "name": "W2B.DEV",
+      "body": "'DX' BIND DX DX W2B.MEAN SUB",
+      "note": "numeric Vector -> each number minus the mean",
+      "classId": "W2B.DEV",
+      "uses": 6,
+      "tasks": 3,
+      "agents": [
+        "W2B",
+        "W2D"
+      ]
+    },
+    {
+      "name": "W2B.VAR",
+      "body": "W2B.DEV 'VD' BIND VD VD MUL W2B.MEAN",
+      "note": "population variance of a numeric Vector",
+      "classId": "W2A.VAR",
+      "uses": 8,
+      "tasks": 2,
+      "agents": [
+        "W2A",
+        "W2B",
+        "W2C",
+        "W2D"
+      ]
+    }
+  ]
+}

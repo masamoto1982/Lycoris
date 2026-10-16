@@ -1,0 +1,468 @@
+{
+  "generation": 1,
+  "capacity": null,
+  "rule": "uses",
+  "entries": [
+    {
+      "name": "G0A.SUM",
+      "body": "0 [ ADD ] FOLD",
+      "note": "sum of a Vector of numbers (0 for empty)",
+      "classId": "G0A.SUM",
+      "uses": 33,
+      "tasks": 10,
+      "agents": [
+        "G0A",
+        "G0B",
+        "G0C",
+        "G0D"
+      ]
+    },
+    {
+      "name": "G0A.WORDS",
+      "body": "' ' TOKENIZE [ '' EQ NOT ] FILTER",
+      "note": "split a String on spaces, dropping empty pieces",
+      "classId": "G0A.WORDS",
+      "uses": 21,
+      "tasks": 7,
+      "agents": [
+        "G0A",
+        "G0C",
+        "G0D"
+      ]
+    },
+    {
+      "name": "G0C.ORDERS",
+      "body": "JSON-DECODE 'orders' GET",
+      "note": "JSON text to the Vector of its order Records.",
+      "classId": "G0A.REVENUE",
+      "uses": 20,
+      "tasks": 6,
+      "agents": [
+        "G0A",
+        "G0B",
+        "G0C",
+        "G0D"
+      ]
+    },
+    {
+      "name": "G0A.MEAN",
+      "body": "'MV' BIND MV G0A.SUM MV LENGTH DIV",
+      "note": "arithmetic mean of a Vector",
+      "classId": "G0A.MEAN",
+      "uses": 16,
+      "tasks": 4,
+      "agents": [
+        "G0A",
+        "G0B",
+        "G0C",
+        "G0D"
+      ]
+    },
+    {
+      "name": "G0A.MOD",
+      "body": "'MB' BIND 'MA' BIND MA MA MB DIV FLOOR MB MUL SUB",
+      "note": "a b -> a mod b (floored), lifts over Vectors",
+      "classId": "G0A.MOD",
+      "uses": 11,
+      "tasks": 5,
+      "agents": [
+        "G0A",
+        "G0B",
+        "G0C",
+        "G0D"
+      ]
+    },
+    {
+      "name": "G0A.SUMBY",
+      "body": "GROUP 'GR' BIND GR KEYS GR VALUES [ G0A.SUM ] MAP RECORD",
+      "note": "keys values -> Record key to sum of its values, first-appearance order",
+      "classId": "G0A.SUMBY",
+      "uses": 8,
+      "tasks": 2,
+      "agents": [
+        "G0A",
+        "G0B",
+        "G0C",
+        "G0D"
+      ]
+    },
+    {
+      "name": "G0A.DEVS",
+      "body": "'DV' BIND DV DV G0A.MEAN SUB",
+      "note": "each number minus the mean",
+      "classId": "G0A.DEVS",
+      "uses": 6,
+      "tasks": 3,
+      "agents": [
+        "G0A",
+        "G0B"
+      ]
+    },
+    {
+      "name": "G0A.VAR",
+      "body": "G0A.DEVS 'VD' BIND VD VD MUL G0A.MEAN",
+      "note": "population variance",
+      "classId": "G0A.VAR",
+      "uses": 8,
+      "tasks": 2,
+      "agents": [
+        "G0A",
+        "G0B",
+        "G0C",
+        "G0D"
+      ]
+    },
+    {
+      "name": "G0C.MAXV",
+      "body": "'LX' BIND LX LX 0 GET [ MAX ] FOLD",
+      "note": "Largest element of a non-empty numeric Vector.",
+      "classId": "G0B.MAXOF",
+      "uses": 5,
+      "tasks": 4,
+      "agents": [
+        "G0B",
+        "G0C"
+      ]
+    },
+    {
+      "name": "G0B.CAP",
+      "body": "CHARS 'CC' BIND CC 0 GET UPPER CC 1 DROP JOIN 2 COLLECT JOIN",
+      "note": "upper-case the first letter of a String",
+      "classId": "G0A.CAP",
+      "uses": 4,
+      "tasks": 1,
+      "agents": [
+        "G0A",
+        "G0B",
+        "G0C",
+        "G0D"
+      ]
+    },
+    {
+      "name": "G0C.LINE",
+      "body": "'LR' BIND LR 'qty' GET LR 'price' GET MUL",
+      "note": "qty times price of one order Record.",
+      "classId": "G0B.ORDVAL",
+      "uses": 4,
+      "tasks": 2,
+      "agents": [
+        "G0B",
+        "G0C"
+      ]
+    },
+    {
+      "name": "G0A.ARGMAX",
+      "body": "-1 MUL ORDER 0 GET",
+      "note": "index of the largest number in a Vector, first on ties",
+      "classId": "G0A.ARGMAX",
+      "uses": 3,
+      "tasks": 1,
+      "agents": [
+        "G0A",
+        "G0B",
+        "G0D"
+      ]
+    },
+    {
+      "name": "G0A.TOPKEY",
+      "body": "'TK' BIND TK KEYS TK VALUES G0A.ARGMAX GET",
+      "note": "key of a Record whose numeric value is largest, first on ties",
+      "classId": "G0A.TOPKEY",
+      "uses": 3,
+      "tasks": 1,
+      "agents": [
+        "G0A",
+        "G0B",
+        "G0D"
+      ]
+    },
+    {
+      "name": "G0B.SPACED",
+      "body": "[ ' ' 2 COLLECT JOIN ] MAP JOIN TRIM",
+      "note": "Vector of Strings joined with single spaces",
+      "classId": "G0A.UNWORDS",
+      "uses": 3,
+      "tasks": 1,
+      "agents": [
+        "G0A",
+        "G0B",
+        "G0C"
+      ]
+    },
+    {
+      "name": "G0B.COUNT",
+      "body": "NOT [ NOT ] FILTER LENGTH",
+      "note": "number of TRUE lanes in a Vector of truths",
+      "classId": "G0B.COUNT",
+      "uses": 3,
+      "tasks": 3,
+      "agents": [
+        "G0B"
+      ]
+    },
+    {
+      "name": "G0D.MAXV",
+      "body": "SORT -1 GET",
+      "note": "Largest element of a Vector of numbers or Strings.",
+      "classId": "G0D.MAXV",
+      "uses": 3,
+      "tasks": 3,
+      "agents": [
+        "G0D"
+      ]
+    },
+    {
+      "name": "G0A.DIVISORS",
+      "body": "'DN' BIND 1 DN RANGE 'DR' BIND DR DN DR G0A.MOD 2 COLLECT ZIP [ 1 GET 0 EQ ] FILTER [ 0 GET ] MAP",
+      "note": "positive divisors of a positive integer, ascending",
+      "classId": "G0A.DIVISORS",
+      "uses": 2,
+      "tasks": 2,
+      "agents": [
+        "G0A"
+      ]
+    },
+    {
+      "name": "G0A.SPAN",
+      "body": "SORT 'SP' BIND SP -1 GET SP 0 GET SUB",
+      "note": "largest minus smallest",
+      "classId": "G0A.SPAN",
+      "uses": 2,
+      "tasks": 2,
+      "agents": [
+        "G0A"
+      ]
+    },
+    {
+      "name": "G0B.DIVISORS",
+      "body": "'DN' BIND 1 DN RANGE 'DK' BIND DN DK DIV 'DQ' BIND 0 DK DQ DQ FLOOR SUB 0 GT SELECT [ 0 GT ] FILTER",
+      "note": "positive divisors of a positive integer, ascending",
+      "classId": "G0B.DIVISORS",
+      "uses": 2,
+      "tasks": 2,
+      "agents": [
+        "G0B"
+      ]
+    },
+    {
+      "name": "G0C.DIVIDES",
+      "body": "'LN' BIND 'LD' BIND LN LD DIV FLOOR LN LD DIV EQ",
+      "note": "Stack pair [d n] to TRUE when d divides n exactly (d nonzero).",
+      "classId": "G0C.DIVIDES",
+      "uses": 2,
+      "tasks": 2,
+      "agents": [
+        "G0C"
+      ]
+    },
+    {
+      "name": "G0C.SQ",
+      "body": "'LX' BIND LX LX MUL",
+      "note": "Square of a number.",
+      "classId": "G0C.SQ",
+      "uses": 2,
+      "tasks": 2,
+      "agents": [
+        "G0C"
+      ]
+    },
+    {
+      "name": "G0C.MINV",
+      "body": "'LX' BIND LX LX 0 GET [ MIN ] FOLD",
+      "note": "Smallest element of a non-empty numeric Vector.",
+      "classId": "G0C.MINV",
+      "uses": 2,
+      "tasks": 2,
+      "agents": [
+        "G0C"
+      ]
+    },
+    {
+      "name": "G0D.DIVISORS",
+      "body": "'K' BIND 1 K RANGE [ 'D' BIND K K D DIV FLOOR D MUL SUB 0 EQ ] FILTER",
+      "note": "Ascending Vector of the positive divisors of a positive integer.",
+      "classId": "G0D.DIVISORS",
+      "uses": 2,
+      "tasks": 2,
+      "agents": [
+        "G0D"
+      ]
+    },
+    {
+      "name": "G0D.MINV",
+      "body": "SORT 0 GET",
+      "note": "Smallest element of a Vector of numbers or Strings.",
+      "classId": "G0D.MINV",
+      "uses": 2,
+      "tasks": 2,
+      "agents": [
+        "G0D"
+      ]
+    },
+    {
+      "name": "G0A.CSTEP",
+      "body": "'CX' BIND CX 2 DIV CX 3 MUL 1 ADD CX 2 G0A.MOD 0 EQ SELECT 'CY' BIND 1 CY CX 1 EQ SELECT",
+      "note": "one Collatz step, with 1 fixed at 1",
+      "classId": "G0A.CSTEP",
+      "uses": 1,
+      "tasks": 1,
+      "agents": [
+        "G0A"
+      ]
+    },
+    {
+      "name": "G0A.COLLATZ",
+      "body": "'CN' BIND 1 120 RANGE CN [ 'CE' BIND G0A.CSTEP ] SCAN 'CS' BIND CN 1 COLLECT CS CONCAT [ 1 EQ NOT ] FILTER LENGTH",
+      "note": "Collatz step count to reach 1 (inputs whose count is at most 120)",
+      "classId": "G0A.COLLATZ",
+      "uses": 1,
+      "tasks": 1,
+      "agents": [
+        "G0A"
+      ]
+    },
+    {
+      "name": "G0B.BINARY",
+      "body": "'BN' BIND [ 32 16 8 4 2 1 ] 'BP' BIND BN BP DIV FLOOR 'BQ' BIND BQ BQ 2 DIV FLOOR 2 MUL SUB STR BP BN GT G0B.COUNT DROP JOIN",
+      "note": "integer 1..63 as a base-2 String without leading zeros",
+      "classId": "G0B.BINARY",
+      "uses": 1,
+      "tasks": 1,
+      "agents": [
+        "G0B"
+      ]
+    },
+    {
+      "name": "G0B.CSTEP",
+      "body": "'CX' BIND 3 CX MUL 1 ADD CX 2 DIV CX 2 G0A.MOD 0 GT SELECT 'CY' BIND 1 CY CX 1 EQ SELECT",
+      "note": "one Collatz step, with 1 staying at 1",
+      "classId": "G0B.CSTEP",
+      "uses": 1,
+      "tasks": 1,
+      "agents": [
+        "G0B"
+      ]
+    },
+    {
+      "name": "G0C.ISPRIME",
+      "body": "'LK' BIND 1 LK RANGE [ LK G0C.DIVIDES ] FILTER LENGTH 2 EQ",
+      "note": "TRUE when the integer k has exactly two divisors in 1..k.",
+      "classId": "G0C.ISPRIME",
+      "uses": 1,
+      "tasks": 1,
+      "agents": [
+        "G0C"
+      ]
+    },
+    {
+      "name": "G0C.COLSTEP",
+      "body": "'LE' BIND 'LV' BIND 1 LV 2 DIV LV 3 MUL 1 ADD LV 2 DIV FLOOR 2 MUL LV EQ SELECT LV 1 EQ SELECT",
+      "note": "SCAN block [acc elem] to the next Collatz value; 1 stays 1, the element is ignored.",
+      "classId": "G0C.COLSTEP",
+      "uses": 1,
+      "tasks": 1,
+      "agents": [
+        "G0C"
+      ]
+    },
+    {
+      "name": "G0C.MAXKEYS",
+      "body": "'LR' BIND LR VALUES G0C.MAXV 'LM' BIND LR KEYS LR VALUES 2 COLLECT ZIP [ 1 GET LM EQ ] FILTER [ 0 GET ] MAP",
+      "note": "Record to the Vector of keys whose value is the largest, in order.",
+      "classId": "G0C.MAXKEYS",
+      "uses": 1,
+      "tasks": 1,
+      "agents": [
+        "G0C"
+      ]
+    },
+    {
+      "name": "G0C.ARGMAXKEY",
+      "body": "G0C.MAXKEYS 0 GET",
+      "note": "Record to the first key (in order) whose value is the largest.",
+      "classId": "G0C.ARGMAXKEY",
+      "uses": 1,
+      "tasks": 1,
+      "agents": [
+        "G0C"
+      ]
+    },
+    {
+      "name": "G0D.IS-PRIME",
+      "body": "G0D.DIVISORS LENGTH 2 EQ",
+      "note": "Whether a positive integer is prime.",
+      "classId": "G0D.IS-PRIME",
+      "uses": 1,
+      "tasks": 1,
+      "agents": [
+        "G0D"
+      ]
+    },
+    {
+      "name": "G0D.PRIMES",
+      "body": "'N' BIND 1 N RANGE [ G0D.IS-PRIME ] FILTER",
+      "note": "Ascending Vector of the primes <= a positive integer (empty for 1).",
+      "classId": "G0D.PRIMES",
+      "uses": 1,
+      "tasks": 1,
+      "agents": [
+        "G0D"
+      ]
+    },
+    {
+      "name": "G0D.BINARY",
+      "body": "'N' BIND [ 32 16 8 4 2 1 ] [ 'P' BIND N P DIV FLOOR 2 G0A.MOD ] MAP STR JOIN 'S' BIND S CHARS S '1' SEARCH DROP JOIN",
+      "note": "An integer 1..63 written in base 2 as a String without leading zeros.",
+      "classId": "G0D.BINARY",
+      "uses": 1,
+      "tasks": 1,
+      "agents": [
+        "G0D"
+      ]
+    },
+    {
+      "name": "G0D.COLLATZ-STEP",
+      "body": "'I' BIND [ 'X' 'C' ] BIND X X 2 DIV X 3 MUL 1 ADD X 2 G0A.MOD 0 EQ SELECT X 1 EQ SELECT C C 1 ADD X 1 EQ SELECT 2 COLLECT",
+      "note": "FOLD step over [ value steps ]: applies one Collatz move unless value is already 1; the second operand (the fold element) is ignored.",
+      "classId": "G0D.COLLATZ-STEP",
+      "uses": 1,
+      "tasks": 1,
+      "agents": [
+        "G0D"
+      ]
+    },
+    {
+      "name": "G0D.COLLATZ",
+      "body": "'N' BIND 1 130 RANGE N 0 2 COLLECT [ G0D.COLLATZ-STEP ] FOLD 1 GET",
+      "note": "Number of Collatz steps to reach 1 for an integer 1..60 (130 bounded iterations).",
+      "classId": "G0D.COLLATZ",
+      "uses": 1,
+      "tasks": 1,
+      "agents": [
+        "G0D"
+      ]
+    },
+    {
+      "name": "G0D.FIB-INDEX",
+      "body": "'N' BIND [ 1 1 2 3 5 8 13 21 34 55 89 144 233 377 610 987 ] [ N LT ] FILTER LENGTH 1 ADD",
+      "note": "Smallest k with F(k) >= n (F(1)=F(2)=1), for n up to 987.",
+      "classId": "G0D.FIB-INDEX",
+      "uses": 1,
+      "tasks": 1,
+      "agents": [
+        "G0D"
+      ]
+    },
+    {
+      "name": "G0D.JOIN-WITH",
+      "body": "'S' BIND [ 'W' BIND S W 2 COLLECT ] MAP FLATTEN 'F' BIND F 0 1 F LENGTH 0 EQ SELECT DROP JOIN",
+      "note": "vector sep G0D.JOIN-WITH joins a Vector of Strings with the separator between them ('' for an empty Vector).",
+      "classId": "G0D.JOIN-WITH",
+      "uses": 1,
+      "tasks": 1,
+      "agents": [
+        "G0D"
+      ]
+    }
+  ]
+}

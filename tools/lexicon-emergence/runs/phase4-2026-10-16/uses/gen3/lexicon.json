@@ -1,0 +1,113 @@
+{
+  "generation": 3,
+  "capacity": 8,
+  "rule": "uses",
+  "entries": [
+    {
+      "name": "G0A.SUM",
+      "body": "0 [ ADD ] FOLD",
+      "note": "sum of a Vector of numbers (0 for empty)",
+      "classId": "G0A.SUM",
+      "uses": 39,
+      "tasks": 12,
+      "agents": [
+        "U2A",
+        "U2B",
+        "U2C",
+        "U2D"
+      ]
+    },
+    {
+      "name": "G0A.WORDS",
+      "body": "' ' TOKENIZE [ '' EQ NOT ] FILTER",
+      "note": "split a String on spaces, dropping empty pieces",
+      "classId": "G0A.WORDS",
+      "uses": 28,
+      "tasks": 7,
+      "agents": [
+        "U2A",
+        "U2B",
+        "U2C",
+        "U2D"
+      ]
+    },
+    {
+      "name": "G0A.MEAN",
+      "body": "'MV' BIND MV G0A.SUM MV LENGTH DIV",
+      "note": "arithmetic mean of a Vector",
+      "classId": "G0A.MEAN",
+      "uses": 16,
+      "tasks": 4,
+      "agents": [
+        "U2A",
+        "U2B",
+        "U2C",
+        "U2D"
+      ]
+    },
+    {
+      "name": "U2A.ORDERS",
+      "body": "JSON-DECODE 'orders' GET",
+      "note": "JSON String -> the Vector of Records under its \"orders\" key",
+      "classId": "U2A.ORDERS",
+      "uses": 12,
+      "tasks": 6,
+      "agents": [
+        "U2A",
+        "U2D"
+      ]
+    },
+    {
+      "name": "U2A.GSUM",
+      "body": "GROUP 'GSR' BIND GSR KEYS GSR VALUES [ G0A.SUM ] MAP RECORD",
+      "note": "keys Vector, values Vector -> Record from each distinct key to the sum of its values, first-appearance order",
+      "classId": "U2A.GSUM",
+      "uses": 8,
+      "tasks": 2,
+      "agents": [
+        "U2A",
+        "U2B",
+        "U2C",
+        "U2D"
+      ]
+    },
+    {
+      "name": "U2D.DEVS",
+      "body": "'V' BIND V V G0A.MEAN SUB",
+      "note": "Vector of numbers -> each number minus the mean, in order",
+      "classId": "U2D.DEVS",
+      "uses": 3,
+      "tasks": 3,
+      "agents": [
+        "U2D"
+      ]
+    },
+    {
+      "name": "U2D.VAR",
+      "body": "U2D.DEVS 'D' BIND D D MUL G0A.MEAN",
+      "note": "Vector of numbers -> population variance",
+      "classId": "U2A.VAR",
+      "uses": 8,
+      "tasks": 2,
+      "agents": [
+        "U2A",
+        "U2B",
+        "U2C",
+        "U2D"
+      ]
+    },
+    {
+      "name": "U2A.DIVS",
+      "body": "'DN' BIND 1 DN RANGE [ 'DX' BIND DN DX DIV FLOOR DX MUL DN EQ ] FILTER",
+      "note": "positive integer -> Vector of its positive divisors, ascending",
+      "classId": "U2A.DIVS",
+      "uses": 6,
+      "tasks": 2,
+      "agents": [
+        "U2A",
+        "U2C",
+        "U2D"
+      ]
+    }
+  ]
+}
