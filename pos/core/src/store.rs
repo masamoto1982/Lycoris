@@ -14,7 +14,9 @@ use crate::authority::{
 };
 use crate::calls::{Call, CallKind, Calls, ResolvedCall};
 use crate::cash::{is_valid_denomination, Cash, Drawer};
-use crate::catalog::{self, Category, Product, Scanned, TaxRate, CATALOG, INITIAL_FF_STOCK};
+use crate::catalog::{
+    self, Category, FfTab, Product, Scanned, TaxRate, CATALOG, FF_MENU, INITIAL_FF_STOCK,
+};
 use crate::mat::{Bell, Mat};
 use crate::rng::Rng;
 
@@ -1550,15 +1552,20 @@ impl Store {
         }
     }
 
+    /// FF のメニュー：タブごとに売れ筋順
     fn ff_menu(&self) -> Vec<FfMenuItem> {
-        self.ff_stock
+        FF_MENU
             .iter()
-            .filter_map(|(code, stock)| {
-                catalog::find(code).map(|p| FfMenuItem {
+            .filter_map(|&(code, tab)| {
+                let p = catalog::find(code)?;
+                let stock = self.ff_stock.iter().find(|(c, _)| *c == code)?.1;
+                Some(FfMenuItem {
                     code: p.code,
                     name: p.name,
                     price: p.price,
-                    stock: *stock,
+                    stock,
+                    tab,
+                    tab_label: tab.label(),
                 })
             })
             .collect()
@@ -1813,6 +1820,8 @@ pub struct FfMenuItem {
     pub name: &'static str,
     pub price: u32,
     pub stock: u32,
+    pub tab: FfTab,
+    pub tab_label: &'static str,
 }
 
 #[derive(Clone, Debug, Serialize)]

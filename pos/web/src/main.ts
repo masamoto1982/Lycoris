@@ -12,6 +12,10 @@ import type { Command, Snapshot } from "./types";
 import { beepError, beepScan, setMatRinging, unlockAudio } from "./sound";
 import {
   esc,
+  FF_TABS,
+  type FfUi,
+  itemsPanel,
+  screenHead,
   matPanel,
   ownerPanel,
   shelfPanel,
@@ -80,18 +84,24 @@ function buildSkeleton(): void {
         </label>
       </h2>
       <div class="screens">
-        <section class="screen staff-screen" data-drop="${r.id}:staff">
-          <div class="screen-title">店員画面<span class="drop-hint">ここに落とす＝店員側スキャナーで読む</span></div>
-          <button type="button" class="gear" data-gear="${r.id}" aria-label="レジ${r.id}の店舗メニュー（店員画面）" title="店舗メニュー" hidden>⚙</button>
-          <div data-region="staff-${r.id}"></div>
-          <div class="toast" id="toast-${r.id}-staff"></div>
-        </section>
-        <section class="screen customer-screen" data-drop="${r.id}:customer">
-          <div class="screen-title">お客様画面<span class="drop-hint">ここに落とす＝お客様側スキャナーで読む</span></div>
-          <button type="button" class="gear" data-gear="${r.id}" aria-label="レジ${r.id}の店舗メニュー" title="店舗メニュー（有人モードの店員用）" hidden>⚙</button>
-          <div data-region="cust-${r.id}"></div>
-          <div class="toast" id="toast-${r.id}-customer"></div>
-        </section>
+        <div class="screen-wrap" data-wrap="${r.id}:staff">
+          <div class="screen-cap">店員側<span class="drop-hint">ここに落とす＝店員側スキャナーで読む</span></div>
+          <section class="screen staff-screen" data-drop="${r.id}:staff">
+            <div class="screen-head" data-region="head-${r.id}-staff"></div>
+            <div class="screen-main" data-region="staff-${r.id}"></div>
+            <div class="screen-items" data-region="items-${r.id}-staff"></div>
+            <div class="toast" id="toast-${r.id}-staff"></div>
+          </section>
+        </div>
+        <div class="screen-wrap" data-wrap="${r.id}:customer">
+          <div class="screen-cap">お客様側<span class="drop-hint">ここに落とす＝お客様側スキャナーで読む</span></div>
+          <section class="screen customer-screen" data-drop="${r.id}:customer">
+            <div class="screen-head" data-region="head-${r.id}-customer"></div>
+            <div class="screen-main" data-region="cust-${r.id}"></div>
+            <div class="screen-items" data-region="items-${r.id}-customer"></div>
+            <div class="toast" id="toast-${r.id}-customer"></div>
+          </section>
+        </div>
       </div>
       <div class="money-io" aria-label="レジ${r.id}の投入口と排出口（お客様側だけにあります）">
         <div class="money-io-cust" data-cash-drop="${r.id}">
@@ -194,15 +204,22 @@ function render(): void {
       lamp.style.setProperty("--blink", `${(1.4 - 1.1 * r.ring_volume).toFixed(2)}s`);
       lamp.title = on ? `呼び出し中（${Math.floor((r.call_waiting_ms ?? 0) / 1000)}秒）` : "呼び出しランプ";
     }
+    const head = screenHead(r, new Date());
+    const items = itemsPanel(r, snap, ffUi(r.id));
     // 操作できない側の画面は表示のみ（排他）
     for (const side of ["staff", "customer"] as const) {
       const el = app.querySelector(`[data-drop="${r.id}:${side}"]`);
       el?.classList.toggle("inactive", r.active_side !== side);
       // 有人モードでは、グレーの画面にタッチして操作を引き継げる
       el?.classList.toggle("claimable", r.active_side !== side && r.switchable);
+      const wrap = el?.parentElement;
+      wrap?.classList.toggle("inactive", r.active_side !== side);
+      wrap?.classList.toggle("claimable", r.active_side !== side && r.switchable);
+      // レジ画面のヘッダー（歯車は店員ログイン中だけ。時刻とベルは常時）
+      setRegion(`head-${r.id}-${side}`, head);
+      setRegion(`items-${r.id}-${side}`, items);
+      el?.classList.toggle("no-items", !items);
     }
-    // 店舗メニューの歯車は、名札でログインした店員がいる（有人モード）ときだけ出す
-    app.querySelectorAll<HTMLButtonElement>(`[data-gear="${r.id}"]`).forEach((g) => (g.hidden = r.staff.state !== "ready"));
     const idle = r.idle_revert_in;
     setRegion(
       `mode-${r.id}`,
@@ -225,6 +242,10 @@ function render(): void {
   setRegion("wallet", walletPanel());
 }
 
+
+// FF タブとページ（画面の表示だけの状態なので、レジごとに UI 側で持つ）
+const ffTabs = new Map<number, FfUi>();
+const ffUi = (reg: number): FfUi => ffTabs.get(reg) ?? { tab: FF_TABS[0][0], page: 0 };
 
 function frame(): void {
   sim.tick(performance.now() - t0);
@@ -380,6 +401,17 @@ app.addEventListener("click", (e) => {
   if (!b || b.disabled) return;
   if (b.hasAttribute("data-open-rules")) return rulesDlg().showModal();
   if (b.hasAttribute("data-close-rules")) return rulesDlg().close();
+  if (b.dataset.fftab) {
+    const [reg, tab] = b.dataset.fftab.split(":");
+    ffTabs.set(Number(reg), { tab, page: 0 });
+    return frame();
+  }
+  if (b.dataset.ffpage) {
+    const [reg, d] = b.dataset.ffpage.split(":").map(Number);
+    const u = ffUi(reg);
+    ffTabs.set(reg, { tab: u.tab, page: Math.max(0, u.page + d) });
+    return frame();
+  }
   if (b.dataset.gear) {
     const reg = Number(b.dataset.gear);
     const open = snap.registers.find((x) => x.id === reg)?.menu;

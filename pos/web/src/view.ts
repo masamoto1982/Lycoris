@@ -96,23 +96,12 @@ export function staffCalls(r: RegisterView, now: number): string {
   return warn + calls;
 }
 
-export function staffScreen(r: RegisterView, snap: Snapshot): string {
+export function staffScreen(r: RegisterView): string {
   const v = r.staff;
   const reg = r.id;
   const a = (n: string) => find(v.actions, n);
   const rows = v.lines.map((l) => staffLine(reg, l, v)).join("");
   const paying = v.phase === "paying";
-
-  const ffMenu = snap.ff_stock
-    .map((f) =>
-      btn(
-        `${f.name}（残${f.stock}）`,
-        { type: "register_ff", register: reg, code: f.code, qty: 1 },
-        f.stock > 0 ? a("register_ff") : { action: "register_ff", allowed: false, reason: "在庫がありません" },
-        "small ff",
-      ),
-    )
-    .join("");
 
   const pay = paying
     ? `<div class="paybox">
@@ -141,8 +130,7 @@ export function staffScreen(r: RegisterView, snap: Snapshot): string {
       ${btn("取引中止", { type: "void_transaction", register: reg }, a("void_transaction"), "ghost")}
       ${btn("ロック", { type: "lock", register: reg }, a("lock"), "ghost")}
       ${btn("ログアウト", { type: "end_staff_mode", register: reg }, a("end_staff_mode"), "ghost")}
-    </div>
-    <div class="ffmenu"><span class="muted">FF 登録</span>${ffMenu}</div>`;
+    </div>`;
 }
 
 /**
@@ -150,8 +138,84 @@ export function staffScreen(r: RegisterView, snap: Snapshot): string {
  * 内容は「いま操作している側」の画面で、もう一方は同じものをグレーで表示するだけ。
  */
 export function sharedScreen(r: RegisterView, snap: Snapshot): string {
-  const body = r.active_side === "staff" ? staffScreen(r, snap) : customerScreen(r, snap.ff_stock);
+  const body = r.active_side === "staff" ? staffScreen(r) : customerScreen(r);
   return staffCalls(r, snap.now) + body;
+}
+
+// ---------------------------------------------------------------------------
+// レジ画面のヘッダー：左上に歯車（店員ログイン中だけ）、中央に日付と時刻、右上に呼び出しベル。
+// 時刻とベルは常に表示する。どちらが店員側・お客様側かは設置で自明なので画面には出さない
+// ---------------------------------------------------------------------------
+
+const pad = (n: number) => String(n).padStart(2, "0");
+
+export function clockText(d: Date): string {
+  return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日 ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+export function screenHead(r: RegisterView, now: Date): string {
+  const call = find(r.customer.actions, "call_staff");
+  const bell = `<button type="button" class="bell-btn" data-hold="${esc(JSON.stringify({ type: "call_staff", register: r.id }))}" aria-label="係員を呼ぶ（押している間鳴ります）" title="${esc(call.allowed ? "係員を呼ぶ（押している間鳴ります）" : (call.reason ?? ""))}"${call.allowed ? "" : " disabled"}>🔔</button>`;
+  const gear = `<button type="button" class="gear" data-gear="${r.id}" aria-label="レジ${r.id}の店舗メニュー" title="店舗メニュー"${r.staff.state === "ready" ? "" : " hidden"}>⚙</button>`;
+  return `<span class="head-l">${gear}</span><time class="clock">${clockText(now)}</time><span class="head-r">${bell}</span>`;
+}
+
+// ---------------------------------------------------------------------------
+// バーコードなしアイテム欄（レジ画面の下 1/3）
+// - セミセルフ：店員呼び出しベルのショートカット（FF・サービス・たばこ）。触れている間だけ鳴る
+// - 有人・セルフ：FF をタブ（揚げ物・常温総菜・ドリンク・コールド・その他）で選ぶ。
+//   各タブはページを持ち、売れ筋順に並ぶので先頭ページの最上部に売れ筋が来る
+// ---------------------------------------------------------------------------
+
+export const FF_TABS = [
+  ["fried", "揚げ物"],
+  ["deli", "常温総菜"],
+  ["drink", "ドリンク"],
+  ["cold", "コールド"],
+  ["other", "その他"],
+] as const;
+export const FF_PER_PAGE = 8;
+export type FfUi = { tab: string; page: number };
+
+export function itemsPanel(r: RegisterView, snap: Snapshot, ui: FfUi): string {
+  const reg = r.id;
+  if (r.menu) return "";
+  if (r.mode === "semi_self") {
+    const a = (n: string) => find(r.customer.actions, n);
+    const callBtn = (main: string, sub: string, cmd: Command, st: ActionState, cls: string) =>
+      `<button class="call-btn ${cls}" data-hold="${esc(JSON.stringify(cmd))}"${st.allowed ? "" : ` disabled title="${esc(st.reason ?? "")}"`}><b>${esc(main)}</b>${sub ? `<small>${esc(sub)}</small>` : ""}</button>`;
+    return `<div class="call-row">${[
+      callBtn("FF", "揚げ物・中華まん", { type: "ff_button", register: reg }, a("ff_button"), "ff"),
+      callBtn("サービス", "代行収納・宅配便", { type: "call_staff", register: reg, topic: "service" }, a("call_staff"), "svc"),
+      callBtn("たばこ", "", { type: "call_staff", register: reg, topic: "tobacco" }, a("call_staff"), "tob"),
+    ].join("")}</div>`;
+  }
+  // 有人モードは店員・お客様どちらの画面からも登録できる。セルフはお客様が登録する
+  const side = r.mode === "attended" ? r.active_side : "customer";
+  const view = side === "staff" ? r.staff : r.customer;
+  const can = find(view.actions, "register_ff");
+  const items = snap.ff_stock.filter((f) => f.tab === ui.tab);
+  const pages = Math.max(1, Math.ceil(items.length / FF_PER_PAGE));
+  const page = Math.min(ui.page, pages - 1);
+  const tabs = FF_TABS.map(
+    ([k, label]) => `<button type="button" class="ff-tab ${k === ui.tab ? "on" : ""}" data-fftab="${reg}:${k}" aria-pressed="${k === ui.tab}">${label}</button>`,
+  ).join("");
+  const pager =
+    pages > 1
+      ? `<span class="ff-pager"><button type="button" class="small ghost" data-ffpage="${reg}:-1"${page === 0 ? " disabled" : ""} aria-label="前のページ">‹</button><span class="muted">${page + 1}/${pages}</span><button type="button" class="small ghost" data-ffpage="${reg}:1"${page >= pages - 1 ? " disabled" : ""} aria-label="次のページ">›</button></span>`
+      : "";
+  const grid = items
+    .slice(page * FF_PER_PAGE, (page + 1) * FF_PER_PAGE)
+    .map((f) =>
+      btn(
+        `${f.name}`,
+        { type: "register_ff", register: reg, side, code: f.code, qty: 1 },
+        f.stock > 0 ? can : { action: "register_ff", allowed: false, reason: "売り切れです" },
+        `ff-item ${f.stock > 0 ? "" : "soldout"}`,
+      ).replace("</button>", `<small>${f.stock > 0 ? (r.mode === "attended" ? `残${f.stock}` : yen(f.price)) : "売り切れ"}</small></button>`),
+    )
+    .join("");
+  return `<div class="ff-tabs" role="tablist">${tabs}${pager}</div><div class="ff-grid">${grid}</div>`;
 }
 
 // ---------------------------------------------------------------------------
@@ -215,7 +279,7 @@ export function storeMenu(r: RegisterView): string {
 // お客様画面（公開してよい情報だけを使う）
 // ---------------------------------------------------------------------------
 
-export function customerScreen(r: RegisterView, ff: Snapshot["ff_stock"] = []): string {
+export function customerScreen(r: RegisterView): string {
   // 店員が店舗メニューを開いている間は、お客様画面にメニューを出す
   if (r.menu) return storeMenu(r);
   const c: CustomerView = r.customer;
@@ -223,37 +287,6 @@ export function customerScreen(r: RegisterView, ff: Snapshot["ff_stock"] = []): 
   const a = (n: string) => find(c.actions, n);
   // セミセルフ（名札なし）とセルフは、お客様が自分で登録・会計する
   const self = r.mode !== "attended";
-  // セルフモード（将来の拡張）では、お客様がケースから取った FF も自分で登録する。
-  // 有人モードでは、係員がお客様画面からも FF を登録できる（お渡しは係員）
-  const attended = r.mode === "attended";
-  const ffMenu = r.mode === "full_self" || attended
-    ? `<div class="ffmenu center"><span class="muted">${attended ? "FF 登録" : "FF（揚げ物・中華まん）"}</span>${ff
-        .map((f) =>
-          btn(
-            attended ? `${f.name}（残${f.stock}）` : `${f.name} ${yen(f.price)}`,
-            { type: "register_ff", register: reg, side: "customer", code: f.code, qty: 1 },
-            f.stock > 0 ? a("register_ff") : { action: "register_ff", allowed: false, reason: "売り切れです" },
-            "small ff",
-          ),
-        )
-        .join("")}</div>`
-    : "";
-  // セミセルフの店員呼び出しボタン：FF・サービス・たばこは「係員を呼ぶ」のショートカット。
-  // 触れている間だけ MAT が鳴る（離すと止まる。鳴らし直しはしない）
-  const callBtn = (main: string, sub: string, cmd: Command, st: ActionState, cls: string) => {
-    const off = !st.allowed;
-    return `<button class="call-btn ${cls}" data-hold="${esc(JSON.stringify(cmd))}"${off ? ` disabled title="${esc(st.reason ?? "")}"` : ""}><b>${esc(main)}</b>${sub ? `<small>${esc(sub)}</small>` : ""}</button>`;
-  };
-  const ffOrder =
-    r.mode !== "attended"
-      ? `<div class="call-row">${[
-          r.mode === "semi_self" ? callBtn("FF", "揚げ物・中華まん", { type: "ff_button", register: reg }, a("ff_button"), "ff") : "",
-          callBtn("サービス", "代行収納・宅配便", { type: "call_staff", register: reg, topic: "service" }, a("call_staff"), "svc"),
-          callBtn("たばこ", "", { type: "call_staff", register: reg, topic: "tobacco" }, a("call_staff"), "tob"),
-          callBtn("係員を呼ぶ", "", { type: "call_staff", register: reg }, a("call_staff"), "help"),
-        ].join("")}</div>`
-      : "";
-
   if (r.last_receipt && !c.lines.length) {
     const rc = r.last_receipt;
     const change = rc.change.map(([d, n]) => `${d.toLocaleString()}円×${n}`).join("　");
@@ -286,7 +319,6 @@ export function customerScreen(r: RegisterView, ff: Snapshot["ff_stock"] = []): 
     return `${banners.join("")}<div class="welcome">
       <div class="big">いらっしゃいませ</div>
       <p>${self ? "商品のバーコードをスキャンしてください" : "係員が商品をお読みします"}</p>
-      ${ffMenu}${ffOrder}
     </div>`;
   }
 
@@ -322,9 +354,9 @@ export function customerScreen(r: RegisterView, ff: Snapshot["ff_stock"] = []): 
     c.phase === "registering"
       ? `<div class="row">
           ${self ? btn("お会計", { type: "checkout", register: reg, side: "customer" }, a("checkout"), "primary") : ""}
-        </div>${ffOrder}${ffMenu}`
+        </div>`
       : `<div class="row">${self ? btn("商品登録に戻る", { type: "back_to_registering", register: reg, side: "customer" }, a("back_to_registering"), "ghost") : ""}
-          </div>${ffOrder}`;
+          </div>`;
 
   return `${banners.join("")}
     <table class="lines"><tbody>${rows}</tbody></table>
