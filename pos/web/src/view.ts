@@ -239,10 +239,10 @@ export function customerScreen(r: RegisterView, ff: Snapshot["ff_stock"] = []): 
         .join("")}</div>`
     : "";
   // セミセルフの店員呼び出しボタン：FF・サービス・たばこは「係員を呼ぶ」のショートカット。
-  // 呼び出しは店員が来るまで鳴り続ける
+  // 触れている間だけ MAT が鳴る（離すと止まる。鳴らし直しはしない）
   const callBtn = (main: string, sub: string, cmd: Command, st: ActionState, cls: string) => {
     const off = !st.allowed;
-    return `<button class="call-btn ${cls}" data-cmd="${esc(JSON.stringify(cmd))}"${off ? ` disabled title="${esc(st.reason ?? "")}"` : ""}><b>${esc(main)}</b>${sub ? `<small>${esc(sub)}</small>` : ""}</button>`;
+    return `<button class="call-btn ${cls}" data-hold="${esc(JSON.stringify(cmd))}"${off ? ` disabled title="${esc(st.reason ?? "")}"` : ""}><b>${esc(main)}</b>${sub ? `<small>${esc(sub)}</small>` : ""}</button>`;
   };
   const ffOrder =
     r.mode !== "attended"

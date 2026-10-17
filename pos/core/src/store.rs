@@ -15,7 +15,7 @@ use crate::authority::{
 use crate::calls::{Call, CallKind, Calls, ResolvedCall};
 use crate::cash::{is_valid_denomination, Cash, Drawer};
 use crate::catalog::{self, Category, Product, Scanned, TaxRate, CATALOG, INITIAL_FF_STOCK};
-use crate::mat::{Bell, Mat, RERING_MS};
+use crate::mat::{Bell, Mat};
 use crate::rng::Rng;
 
 pub const MAX_REGISTERS: u8 = 10;
@@ -165,11 +165,16 @@ pub enum Command {
         #[serde(default)]
         method: Option<PaymentMethod>,
     },
-    /// 店員呼び出し。topic はショートカットボタン（サービス・たばこ）。省略時は「係員を呼ぶ」
+    /// 店員呼び出しボタンに触れた。topic はショートカットボタン（サービス・たばこ）。
+    /// 省略時は「係員を呼ぶ」。離す（ReleaseCall）まで MAT が鳴る
     CallStaff {
         register: u8,
         #[serde(default)]
         topic: Option<CallTopic>,
+    },
+    /// 呼び出しボタン（FF・サービス・たばこ・係員を呼ぶ）から指を離した
+    ReleaseCall {
+        register: u8,
     },
     VoidTransaction {
         register: u8,
@@ -260,6 +265,7 @@ impl Command {
             | C::InsertCash { register, .. }
             | C::TapEmoney { register, .. }
             | C::CallStaff { register, .. }
+            | C::ReleaseCall { register }
             | C::VoidTransaction { register, .. }
             | C::SetMode { register, .. }
             | C::Lock { register, .. }
@@ -462,6 +468,8 @@ struct Register {
     holder: Side,
     /// 各画面が最後に触られた時刻（[店員, お客様]）
     touched: [Option<u64>; 2],
+    /// お客様画面の呼び出しボタンが押されている（触れている間 MAT が鳴る）
+    pressing: bool,
 }
 
 fn slot(side: Side) -> usize {
@@ -513,7 +521,10 @@ impl Register {
             has_lines: !t.lines.is_empty(),
             age_pending: t.age_pending(),
             ff_waiting: t.any_ff(FfState::Waiting),
-            has_ff: t.lines.iter().any(|l| matches!(l.kind, LineKind::Ff { .. })),
+            has_ff: t
+                .lines
+                .iter()
+                .any(|l| matches!(l.kind, LineKind::Ff { .. })),
             service_pending: t.service_pending(),
             method: t.method,
             customer_turn: t.customer_turn,
@@ -552,7 +563,8 @@ pub struct Store {
     mat_loss: u8,
     bell: Bell,
     seen_raised: u64,
-    last_ring_at: u64,
+    /// MAT を鳴らした回数（ボタンを押した・呼び出しが起きた）
+    presses: u64,
     receipts: u32,
 }
 
@@ -596,6 +608,7 @@ impl Store {
                     menu: None,
                     holder: Side::Customer,
                     touched: [None, None],
+                    pressing: false,
                 }
             })
             .collect();
@@ -613,7 +626,7 @@ impl Store {
             mat_loss: 0,
             bell: Bell::default(),
             seen_raised: 0,
-            last_ring_at: 0,
+            presses: 0,
             receipts: 0,
         }
     }
@@ -627,26 +640,15 @@ impl Store {
     pub fn tick(&mut self, now: u64) {
         self.now = self.now.max(now);
         let now = self.now;
-        // 「未対応」の呼び出し＝そのレジに店員がまだ来ていないもの
-        let open = self
-            .calls
-            .open
-            .iter()
-            .filter(|c| {
-                self.reg(c.register)
-                    .is_some_and(|r| r.staff_state() == StaffState::Absent)
-            })
-            .count();
-        let mut bell = self.bell;
-        bell.open_calls = open;
+        // MAT はデジタルな呼び鈴：ボタンが押されている間だけ鳴る。鳴らし直しはしない。
+        // 年確・代行収納の読み取りのようにボタンを介さない呼び出しは、起きた瞬間に短く鳴る
         if self.calls.raised > self.seen_raised {
             self.seen_raised = self.calls.raised;
-            bell.ring_token += 1;
-            self.last_ring_at = now;
-        } else if open > 0 && now.saturating_sub(self.last_ring_at) >= RERING_MS {
-            bell.ring_token += 1;
-            self.last_ring_at = now;
+            self.presses += 1;
         }
+        let mut bell = self.bell;
+        bell.held = self.registers.iter().filter(|r| r.pressing).count();
+        bell.presses = self.presses;
         if bell != self.bell {
             bell.seq += 1;
             self.bell = bell;
@@ -741,6 +743,7 @@ impl Store {
             C::FfButton { register } => {
                 self.check(register, Side::Customer, Action::FfButton)?;
                 self.call(register, CallKind::FastFood, "FF のご注文");
+                self.press(register)?;
                 done("係員をお呼びしました。FF のご注文を伺います")
             }
             C::CheckFf {
@@ -879,11 +882,16 @@ impl Store {
                     None => (CallKind::CustomerHelp, "お客様からの呼び出し"),
                 };
                 self.call(register, kind, detail);
+                self.press(register)?;
                 done(match topic {
                     Some(CallTopic::Service) => "係員をお呼びしました（サービス）",
                     Some(CallTopic::Tobacco) => "係員をお呼びしました（たばこ）",
                     None => "係員をお呼びしました",
                 })
+            }
+            C::ReleaseCall { register } => {
+                self.reg_mut(register)?.pressing = false;
+                done("")
             }
             C::VoidTransaction { register } => {
                 self.check(register, Side::Staff, Action::VoidTransaction)?;
@@ -900,7 +908,12 @@ impl Store {
                         self.restock(l.code, l.qty);
                     }
                 }
-                for k in [CallKind::AgeCheck, CallKind::FastFood, CallKind::Service, CallKind::Tobacco] {
+                for k in [
+                    CallKind::AgeCheck,
+                    CallKind::FastFood,
+                    CallKind::Service,
+                    CallKind::Tobacco,
+                ] {
                     self.calls.resolve(register, k, now);
                 }
                 if back > 0 {
@@ -912,7 +925,10 @@ impl Store {
             C::SetMode { register, mode } => {
                 // 有人／セミセルフは名札で切り替わる。選べるのはセルフ（有効なときだけ）
                 if mode != Mode::FullSelf {
-                    return Err("運用モードは名札で切り替わります（名札あり＝有人、なし＝セミセルフ）".into());
+                    return Err(
+                        "運用モードは名札で切り替わります（名札あり＝有人、なし＝セミセルフ）"
+                            .into(),
+                    );
                 }
                 if !self.self_mode_enabled {
                     return Err("セルフモードは使えません（将来の拡張用）".into());
@@ -1043,6 +1059,13 @@ impl Store {
         self.calls.raise(register, kind, self.now, detail);
     }
 
+    /// 呼び出しボタンに触れた：離すまで MAT を鳴らす。触れるたびに必ず鳴る
+    fn press(&mut self, register: u8) -> Result<(), String> {
+        self.reg_mut(register)?.pressing = true;
+        self.presses += 1;
+        Ok(())
+    }
+
     fn restock(&mut self, code: &str, qty: u32) {
         if let Some(e) = self.ff_stock.iter_mut().find(|(c, _)| *c == code) {
             e.1 += qty;
@@ -1064,11 +1087,17 @@ impl Store {
             });
             // ログイン直後はお客様画面が操作側。支払い中の引き継ぎなら店員側
             if was == StaffState::Absent || took_over {
-                r.holder = if took_over { Side::Staff } else { Side::Customer };
+                r.holder = if took_over {
+                    Side::Staff
+                } else {
+                    Side::Customer
+                };
                 r.touched = [None, None];
             }
             // ログインで店員側が操作できるようになる（お客様の支払い中でも）
             r.txn.customer_turn = false;
+            // 店員が来たので、呼び出しボタンの鳴動も止める
+            r.pressing = false;
             // 店員が来たら、ボタンでの呼び出しは片付く（サービス商品の受付待ちがあれば残す）
             let service_pending = r.txn.service_pending();
             self.calls.resolve(register, CallKind::CustomerHelp, now);
@@ -1299,7 +1328,10 @@ impl Store {
             amount,
             result: "実行".into(),
         });
-        done(format!("{amount}円を {to}円×{} に両替しました。出金ボックスから取り出してください", amount / to))
+        done(format!(
+            "{amount}円を {to}円×{} に両替しました。出金ボックスから取り出してください",
+            amount / to
+        ))
     }
 
     fn pay_cash(&mut self, register: u8, c: Cash) -> Result<Outcome, String> {
@@ -1368,7 +1400,12 @@ impl Store {
             "お支払いが完了しました".to_string()
         };
         r.last_receipt = Some(receipt);
-        for k in [CallKind::AgeCheck, CallKind::FastFood, CallKind::Service, CallKind::Tobacco] {
+        for k in [
+            CallKind::AgeCheck,
+            CallKind::FastFood,
+            CallKind::Service,
+            CallKind::Tobacco,
+        ] {
             self.calls.resolve(register, k, now);
         }
         done(msg)
@@ -1410,7 +1447,10 @@ impl Store {
             Ok(c) => {
                 r.outlet.merge(&c);
                 log(self, "実行".into());
-                done(format!("{} {amount}円を出金しました。出金ボックスから取り出してください", kind.label()))
+                done(format!(
+                    "{} {amount}円を出金しました。出金ボックスから取り出してください",
+                    kind.label()
+                ))
             }
             Err(e) => {
                 log(self, format!("失敗：{e}"));
@@ -1583,8 +1623,13 @@ impl Store {
             lamp: waiting.is_some(),
             call_waiting_ms: waiting,
             ring_volume: waiting.map_or(0.0, ring_volume),
-            switchable: active_side(&Context { holder: Side::Staff, ..c })
-                != active_side(&Context { holder: Side::Customer, ..c }),
+            switchable: active_side(&Context {
+                holder: Side::Staff,
+                ..c
+            }) != active_side(&Context {
+                holder: Side::Customer,
+                ..c
+            }),
             mode: r.mode,
             mode_label: r.mode.label(),
             outlet: r.outlet.total(),

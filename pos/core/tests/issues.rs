@@ -258,7 +258,11 @@ fn fast_food_flow_in_semi_self_mode() {
     )
     .is_err());
     // FF のお渡し確認にチェックを入れるまで、会計に進めない
-    let e = run(&mut s, json!({"type":"checkout","register":2,"side":"staff"})).unwrap_err();
+    let e = run(
+        &mut s,
+        json!({"type":"checkout","register":2,"side":"staff"}),
+    )
+    .unwrap_err();
     assert!(e.contains("お渡し確認"), "{e}");
     let ff = reg(&s, 2)
         .staff
@@ -282,7 +286,11 @@ fn fast_food_flow_in_semi_self_mode() {
         json!({"type":"check_ff","register":2,"side":"staff","line_id":ff,"checked":false})
     )
     .is_err());
-    assert_eq!(reg(&s, 2).mode, Mode::Attended, "badge keeps the register attended");
+    assert_eq!(
+        reg(&s, 2).mode,
+        Mode::Attended,
+        "badge keeps the register attended"
+    );
     // 有人モードなので支払方法は店員が選ぶ
     assert!(run(
         &mut s,
@@ -358,6 +366,7 @@ fn calls_stay_on_originating_register() {
 }
 
 /// 問題10：通信ロスがあっても再送で MAT は鳴り、不通は検知される。
+/// MAT は呼び鈴：ボタンに触れている間だけ鳴り、離せば止む。鳴らし直しはしない。
 #[test]
 fn mat_rings_despite_loss_and_reports_link_down() {
     let mut s = Store::new(7, 2, 1);
@@ -367,11 +376,18 @@ fn mat_rings_despite_loss_and_reports_link_down() {
     advance(&mut s, 8_000);
     let snap = s.snapshot();
     assert!(snap.mats[0].rings >= 1);
+    assert!(snap.mats[0].buzzing, "rings while the button is held");
     assert!(snap.mat_links[0].retries > 0 || snap.mat_links[0].acked_seq == snap.bell.seq);
-    // 未対応の間は鳴らし直す
+    ok(&mut s, json!({"type":"release_call","register":2}));
+    advance(&mut s, 8_000);
+    let snap = s.snapshot();
+    assert!(!snap.mats[0].buzzing, "stops once released");
+    // 呼び出しは開いたままでも、鳴らし直さない
     let before = snap.mats[0].rings;
-    advance(&mut s, 25_000);
-    assert!(s.snapshot().mats[0].rings > before);
+    advance(&mut s, 60_000);
+    assert_eq!(s.snapshot().mats[0].rings, before);
+    assert!(!s.snapshot().mats[0].buzzing);
+    assert!(reg(&s, 2).lamp, "the lamp stays on until staff arrives");
 
     ok(
         &mut s,
@@ -406,7 +422,10 @@ fn staff_and_customer_screens_are_exclusive() {
     assert_eq!(v.mode, Mode::SemiSelf);
     assert_eq!(v.active_side, Side::Customer);
     assert!(run(&mut s, json!({"type":"void_transaction","register":1})).is_err());
-    ok(&mut s, json!({"type":"checkout","register":1,"side":"customer"}));
+    ok(
+        &mut s,
+        json!({"type":"checkout","register":1,"side":"customer"}),
+    );
     ok(
         &mut s,
         json!({"type":"select_payment","register":1,"side":"customer","method":"qr"}),
@@ -430,16 +449,17 @@ fn staff_and_customer_screens_are_exclusive() {
     let v = reg(&s, 1);
     assert_eq!(v.mode, Mode::SemiSelf);
     assert_eq!(v.active_side, Side::Customer);
-    ok(&mut s, json!({"type":"checkout","register":1,"side":"customer"}));
+    ok(
+        &mut s,
+        json!({"type":"checkout","register":1,"side":"customer"}),
+    );
 }
 
 /// 年確ルールは売り場のどの商品にも個別に付けられる（オーナーのみ、法令は外せない）。
 #[test]
 fn owner_sets_age_rule_per_product() {
     let mut s = Store::new(1, 2, 1);
-    let set = |id: &str, pw: &str, code: &str, age: Option<u8>| {
-        json!({"type":"set_product_age","owner_id":id,"password":pw,"code":code,"min_age":age})
-    };
+    let set = |id: &str, pw: &str, code: &str, age: Option<u8>| json!({"type":"set_product_age","owner_id":id,"password":pw,"code":code,"min_age":age});
     assert!(run(&mut s, set("1001", "1111", LOTTERY, Some(20))).is_err());
     ok(&mut s, set("9001", "9999", LOTTERY, Some(20)));
     ok(&mut s, set("9001", "9999", LIGHTER, None));
@@ -460,8 +480,11 @@ fn owner_sets_age_rule_per_product() {
 #[test]
 fn mode_follows_staff_badge() {
     let mut s = Store::new(1, 2, 1);
-    assert!(s.snapshot().registers.iter().all(|r| r.mode == Mode::SemiSelf
-        && r.staff.state == StaffState::Absent));
+    assert!(s
+        .snapshot()
+        .registers
+        .iter()
+        .all(|r| r.mode == Mode::SemiSelf && r.staff.state == StaffState::Absent));
     login(&mut s, 1);
     assert_eq!(reg(&s, 1).mode, Mode::Attended);
     for m in ["attended", "semi_self", "full_self"] {
@@ -469,24 +492,41 @@ fn mode_follows_staff_badge() {
     }
     ok(&mut s, json!({"type":"end_staff_mode","register":1}));
     assert_eq!(reg(&s, 1).mode, Mode::SemiSelf);
-    assert!(run(&mut s, json!({"type":"set_mode","register":1,"mode":"full_self"})).is_err());
+    assert!(run(
+        &mut s,
+        json!({"type":"set_mode","register":1,"mode":"full_self"})
+    )
+    .is_err());
 }
 
 /// セルフモード（将来の拡張）：有効にすると、お客様が FF も自分で登録できる。
 #[test]
 fn customer_registers_ff_in_self_mode() {
     let mut s = Store::new(1, 2, 1);
-    let ff = |r: u8| json!({"type":"register_ff","register":r,"side":"customer","code":"FF01","qty":1});
+    let ff =
+        |r: u8| json!({"type":"register_ff","register":r,"side":"customer","code":"FF01","qty":1});
     // セミセルフでは FF は店員の登録
     assert!(run(&mut s, ff(2)).is_err());
     s.set_self_mode_enabled(true);
-    ok(&mut s, json!({"type":"set_mode","register":2,"mode":"full_self"}));
+    ok(
+        &mut s,
+        json!({"type":"set_mode","register":2,"mode":"full_self"}),
+    );
     ok(&mut s, ff(2));
     let v = reg(&s, 2);
     assert_eq!(v.customer.lines.len(), 1);
-    assert!(s.snapshot().calls.is_empty(), "no staff call for self-picked FF");
-    ok(&mut s, json!({"type":"checkout","register":2,"side":"customer"}));
-    ok(&mut s, json!({"type":"insert_cash","register":2,"denomination":1000,"count":1}));
+    assert!(
+        s.snapshot().calls.is_empty(),
+        "no staff call for self-picked FF"
+    );
+    ok(
+        &mut s,
+        json!({"type":"checkout","register":2,"side":"customer"}),
+    );
+    ok(
+        &mut s,
+        json!({"type":"insert_cash","register":2,"denomination":1000,"count":1}),
+    );
     assert!(reg(&s, 2).customer.lines.is_empty(), "paid and settled");
 }
 
@@ -524,17 +564,27 @@ fn cash_in_needs_no_password_but_cash_out_does() {
     login(&mut s, 1);
     let before = reg(&s, 1).staff.drawer_total;
     ok(&mut s, cin);
-    ok(&mut s, json!({"type":"cash_in","register":1,"kind":"changer_refill","amount":1500}));
+    ok(
+        &mut s,
+        json!({"type":"cash_in","register":1,"kind":"changer_refill","amount":1500}),
+    );
     assert_eq!(reg(&s, 1).staff.drawer_total, before + 4500);
     let out = |pw: &str| json!({"type":"cash_out","register":1,"kind":"changer_collect","amount":4500,"password":pw});
     assert!(run(&mut s, out("")).is_err());
     ok(&mut s, out("7777"));
     assert_eq!(reg(&s, 1).staff.drawer_total, before);
     let ops: Vec<_> = s.snapshot().audit.iter().map(|a| a.operation).collect();
-    assert_eq!(ops, vec!["取引外入金", "釣銭補充", "釣銭機回収", "釣銭機回収"]);
+    assert_eq!(
+        ops,
+        vec!["取引外入金", "釣銭補充", "釣銭機回収", "釣銭機回収"]
+    );
     // 取引中は入出金できない
     scan(&mut s, 1, "staff", ONIGIRI);
-    assert!(run(&mut s, json!({"type":"cash_in","register":1,"kind":"deposit","amount":100})).is_err());
+    assert!(run(
+        &mut s,
+        json!({"type":"cash_in","register":1,"kind":"deposit","amount":100})
+    )
+    .is_err());
 }
 
 /// 投入口と排出口：投入口に金額を入れて支払い、おつりは排出口に出て取り出すまで残る。
@@ -544,7 +594,10 @@ fn inlet_pays_and_change_waits_in_outlet() {
     scan(&mut s, 1, "customer", ONIGIRI);
     // お会計前は受け付けない
     assert!(run(&mut s, json!({"type":"insert","register":1,"amount":1000})).is_err());
-    ok(&mut s, json!({"type":"checkout","register":1,"side":"customer"}));
+    ok(
+        &mut s,
+        json!({"type":"checkout","register":1,"side":"customer"}),
+    );
     ok(&mut s, json!({"type":"insert","register":1,"amount":1000}));
     let v = reg(&s, 1);
     assert_eq!(v.outlet, 1000 - 160);
@@ -559,19 +612,28 @@ fn inlet_pays_and_change_waits_in_outlet() {
 fn store_menu_uses_inlet_and_outlet() {
     let mut s = Store::new(1, 2, 1);
     let open = |screen: &str| json!({"type":"open_menu","register":1,"screen":screen});
-    assert!(run(&mut s, open("top")).is_err(), "only for logged-in staff");
+    assert!(
+        run(&mut s, open("top")).is_err(),
+        "only for logged-in staff"
+    );
     login(&mut s, 1);
     ok(&mut s, open("top"));
     let v = reg(&s, 1);
     assert_eq!(v.active_side, Side::Customer);
-    assert!(run(&mut s, json!({"type":"lock","register":1})).is_err(), "staff screen waits");
+    assert!(
+        run(&mut s, json!({"type":"lock","register":1})).is_err(),
+        "staff screen waits"
+    );
     // 取引外入金：投入口に入れた金額が入金になる
     ok(&mut s, open("deposit"));
     let before = reg(&s, 1).staff.drawer_total;
     ok(&mut s, json!({"type":"insert","register":1,"amount":2000}));
     assert_eq!(reg(&s, 1).staff.drawer_total, before + 2000);
     // 自動釣銭機：一万円を千円札に両替して排出口へ
-    ok(&mut s, json!({"type":"open_menu","register":1,"screen":"changer","exchange_to":1000}));
+    ok(
+        &mut s,
+        json!({"type":"open_menu","register":1,"screen":"changer","exchange_to":1000}),
+    );
     assert!(run(&mut s, json!({"type":"insert","register":1,"amount":1500})).is_err());
     ok(&mut s, json!({"type":"insert","register":1,"amount":10000}));
     let v = reg(&s, 1);
@@ -580,14 +642,27 @@ fn store_menu_uses_inlet_and_outlet() {
     ok(&mut s, json!({"type":"take_outlet","register":1}));
     // 緊急出金：パスワードが要り、お金は排出口に出る
     ok(&mut s, open("emergency"));
-    assert!(run(&mut s, json!({"type":"cash_out","register":1,"kind":"emergency","amount":5000,"password":"x"})).is_err());
-    ok(&mut s, json!({"type":"cash_out","register":1,"kind":"emergency","amount":5000,"password":"7777"}));
+    assert!(run(
+        &mut s,
+        json!({"type":"cash_out","register":1,"kind":"emergency","amount":5000,"password":"x"})
+    )
+    .is_err());
+    ok(
+        &mut s,
+        json!({"type":"cash_out","register":1,"kind":"emergency","amount":5000,"password":"7777"}),
+    );
     assert_eq!(reg(&s, 1).outlet, 5000);
     // 閉じると店員画面に戻る。ログアウトでもメニューは閉じる
-    ok(&mut s, json!({"type":"open_menu","register":1,"screen":null}));
+    ok(
+        &mut s,
+        json!({"type":"open_menu","register":1,"screen":null}),
+    );
     assert_eq!(reg(&s, 1).active_side, Side::Staff);
     ok(&mut s, open("top"));
-    ok(&mut s, json!({"type":"scan","register":1,"side":"staff","code":"ST1002"}));
+    ok(
+        &mut s,
+        json!({"type":"scan","register":1,"side":"staff","code":"ST1002"}),
+    );
     ok(&mut s, json!({"type":"end_staff_mode","register":1}));
     assert!(reg(&s, 1).menu.is_none());
 }
@@ -637,14 +712,15 @@ fn attended_screen_is_held_by_one_side_at_a_time() {
     .is_err());
     // 操作している側（店員）がチェックを入れる。お客様画面からは入れられない
     let ids: Vec<u32> = v.staff.lines.iter().map(|l| l.line.id).collect();
-    let check = |id: u32, side: &str| {
-        json!({"type":"check_ff","register":1,"side":side,"line_id":id,"checked":true})
-    };
+    let check = |id: u32, side: &str| json!({"type":"check_ff","register":1,"side":side,"line_id":id,"checked":true});
     assert!(run(&mut s, check(ids[0], "customer")).is_err());
     ok(&mut s, check(ids[0], "staff"));
     assert!(!allowed(&reg(&s, 1), Side::Staff, Action::Checkout));
     ok(&mut s, check(ids[1], "staff"));
-    ok(&mut s, json!({"type":"checkout","register":1,"side":"staff"}));
+    ok(
+        &mut s,
+        json!({"type":"checkout","register":1,"side":"staff"}),
+    );
 }
 
 /// 呼び出したレジはランプで知らせる。順番待ちはなく、後から呼んだレジもすぐ点く。
@@ -653,13 +729,25 @@ fn attended_screen_is_held_by_one_side_at_a_time() {
 fn called_register_lamp_lights_at_once_until_staff_arrives() {
     let mut s = Store::new(1, 2, 1);
     scan(&mut s, 1, "customer", BEER);
-    ok(&mut s, json!({"type":"checkout","register":1,"side":"customer"}));
+    ok(
+        &mut s,
+        json!({"type":"checkout","register":1,"side":"customer"}),
+    );
     assert!(reg(&s, 1).lamp);
     assert!(!reg(&s, 2).lamp, "only the calling register lights");
-    ok(&mut s, json!({"type":"call_staff","register":2,"topic":"tobacco"}));
-    assert!(reg(&s, 2).lamp, "a second call is not queued behind the first");
+    ok(
+        &mut s,
+        json!({"type":"call_staff","register":2,"topic":"tobacco"}),
+    );
+    assert!(
+        reg(&s, 2).lamp,
+        "a second call is not queued behind the first"
+    );
     advance(&mut s, 30_000);
-    assert!(reg(&s, 1).lamp && reg(&s, 2).lamp, "stays lit while waiting");
+    assert!(
+        reg(&s, 1).lamp && reg(&s, 2).lamp,
+        "stays lit while waiting"
+    );
     scan(&mut s, 1, "staff", "ST1001");
     assert!(!reg(&s, 1).lamp, "staff arrived");
     assert!(reg(&s, 2).lamp);
@@ -670,14 +758,24 @@ fn called_register_lamp_lights_at_once_until_staff_arrives() {
 fn wallet_card_must_match_chosen_method() {
     let mut s = Store::new(1, 2, 1);
     scan(&mut s, 1, "customer", ONIGIRI);
-    ok(&mut s, json!({"type":"checkout","register":1,"side":"customer"}));
+    ok(
+        &mut s,
+        json!({"type":"checkout","register":1,"side":"customer"}),
+    );
     ok(
         &mut s,
         json!({"type":"select_payment","register":1,"side":"customer","method":"credit"}),
     );
-    let e = run(&mut s, json!({"type":"tap_emoney","register":1,"method":"emoney"})).unwrap_err();
+    let e = run(
+        &mut s,
+        json!({"type":"tap_emoney","register":1,"method":"emoney"}),
+    )
+    .unwrap_err();
     assert!(e.contains("クレジットカードが選ばれています"), "{e}");
-    ok(&mut s, json!({"type":"tap_emoney","register":1,"method":"credit"}));
+    ok(
+        &mut s,
+        json!({"type":"tap_emoney","register":1,"method":"credit"}),
+    );
     let rc = reg(&s, 1).last_receipt.unwrap();
     assert_eq!(rc.total, 160);
     assert_eq!(rc.method, "クレジットカード");
@@ -692,30 +790,52 @@ fn neglected_calls_ring_louder() {
     assert!(ring_volume(10_000) < ring_volume(30_000));
     let mut s = Store::new(1, 2, 1);
     scan(&mut s, 1, "customer", BEER);
-    ok(&mut s, json!({"type":"checkout","register":1,"side":"customer"}));
+    ok(
+        &mut s,
+        json!({"type":"checkout","register":1,"side":"customer"}),
+    );
     advance(&mut s, 20_000);
     scan(&mut s, 2, "customer", BEER);
-    ok(&mut s, json!({"type":"checkout","register":2,"side":"customer"}));
+    ok(
+        &mut s,
+        json!({"type":"checkout","register":2,"side":"customer"}),
+    );
     let (r1, r2) = (reg(&s, 1), reg(&s, 2));
-    assert!(r1.ring_volume > r2.ring_volume, "the first caller is louder");
+    assert!(
+        r1.ring_volume > r2.ring_volume,
+        "the first caller is louder"
+    );
     assert_eq!(r1.call_waiting_ms, Some(20_000));
     scan(&mut s, 1, "staff", "ST1001");
     assert_eq!(reg(&s, 1).ring_volume, 0.0);
 }
 
 /// セミセルフ画面の FF・サービス・たばこボタンは店員呼び出しのショートカット。
-/// 代行収納・宅配便のバーコードを直接読んでも呼び出しになる。店員が来るまで鳴り続ける。
+/// 代行収納・宅配便のバーコードを直接読んでも呼び出しになる。ランプは店員が来るまで点く。
 #[test]
 fn shortcut_buttons_call_staff() {
     let mut s = Store::new(1, 2, 1);
-    let kinds = |s: &Store, r: u8| -> Vec<CallKind> { reg(s, r).staff.calls.iter().map(|c| c.kind).collect() };
-    ok(&mut s, json!({"type":"call_staff","register":1,"topic":"tobacco"}));
-    ok(&mut s, json!({"type":"call_staff","register":1,"topic":"service"}));
+    let kinds = |s: &Store, r: u8| -> Vec<CallKind> {
+        reg(s, r).staff.calls.iter().map(|c| c.kind).collect()
+    };
+    ok(
+        &mut s,
+        json!({"type":"call_staff","register":1,"topic":"tobacco"}),
+    );
+    ok(
+        &mut s,
+        json!({"type":"call_staff","register":1,"topic":"service"}),
+    );
     ok(&mut s, json!({"type":"ff_button","register":1}));
     let k = kinds(&s, 1);
-    assert!(k.contains(&CallKind::Tobacco) && k.contains(&CallKind::Service) && k.contains(&CallKind::FastFood));
+    assert!(
+        k.contains(&CallKind::Tobacco)
+            && k.contains(&CallKind::Service)
+            && k.contains(&CallKind::FastFood)
+    );
     assert!(reg(&s, 1).lamp);
-    // 鳴らし直しの合間も呼び出しは開いたまま（店員が来るまで続く）
+    // 呼び出しは開いたまま（店員が来るまでランプが点く）
+    ok(&mut s, json!({"type":"release_call","register":1}));
     advance(&mut s, 60_000);
     assert_eq!(kinds(&s, 1).len(), 3);
     // 宅急便のバーコードを直接読むと、サービスの呼び出しになる
@@ -725,5 +845,55 @@ fn shortcut_buttons_call_staff() {
     login(&mut s, 1);
     assert_eq!(kinds(&s, 1), vec![CallKind::FastFood]);
     // 有人モードではボタンで呼ばない
-    assert!(run(&mut s, json!({"type":"call_staff","register":1,"topic":"tobacco"})).is_err());
+    assert!(run(
+        &mut s,
+        json!({"type":"call_staff","register":1,"topic":"tobacco"})
+    )
+    .is_err());
+}
+
+/// 呼び出しボタンは触れている間だけ MAT を鳴らす。短く押して「押した」電文が失われても、
+/// 押した回数が届いた時点で必ず鳴る（押したのに鳴らない、をなくす）。
+#[test]
+fn call_button_rings_only_while_held_and_every_press_rings() {
+    for seed in 1..20u64 {
+        let mut s = Store::new(seed, 2, 1);
+        ok(&mut s, json!({"type":"set_mat_loss","percent":70}));
+        advance(&mut s, 3_000);
+        for (i, topic) in [json!(null), json!("tobacco"), json!("service")]
+            .into_iter()
+            .enumerate()
+        {
+            let before = s.snapshot().mats[0].rings;
+            ok(
+                &mut s,
+                json!({"type":"call_staff","register":1,"topic":topic}),
+            );
+            // ちょんと押してすぐ離す
+            advance(&mut s, 50);
+            ok(&mut s, json!({"type":"release_call","register":1}));
+            advance(&mut s, 30_000);
+            let snap = s.snapshot();
+            assert_eq!(
+                snap.mats[0].rings,
+                before + 1,
+                "seed {seed} press {i}: every press rings once"
+            );
+            assert!(
+                !snap.mats[0].buzzing,
+                "seed {seed}: no re-ring after release"
+            );
+            assert_eq!(
+                snap.mat_links[0].acked_seq, snap.bell.seq,
+                "delivery is acknowledged"
+            );
+        }
+        // FF ボタンも同じ（ショートカット）
+        ok(&mut s, json!({"type":"ff_button","register":2}));
+        advance(&mut s, 20_000);
+        assert!(s.snapshot().mats[0].buzzing, "held FF keeps ringing");
+        ok(&mut s, json!({"type":"release_call","register":2}));
+        advance(&mut s, 20_000);
+        assert!(!s.snapshot().mats[0].buzzing);
+    }
 }

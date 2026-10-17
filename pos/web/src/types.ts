@@ -129,7 +129,7 @@ export interface Snapshot {
   registers: RegisterView[];
   mats: { id: string; buzzing: boolean; link_ok: boolean; rings: number; offline: boolean }[];
   mat_links: { id: string; link_ok: boolean; acked_seq: number; sent: number; retries: number }[];
-  bell: { seq: number; ring_token: number; open_calls: number };
+  bell: { seq: number; held: number; presses: number };
   calls: Call[];
   call_history: { id: number; register: number; label: string; created_at: number; resolved_at: number }[];
   age_rules: { rules: AgeRule[]; history: { at: number; by: string; change: string }[] };

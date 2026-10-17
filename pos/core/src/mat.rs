@@ -10,7 +10,9 @@
 //!   レジ側は「鳴動状態」の版数を持ち、MAT は受け取った版数を ACK で返す。
 //!   ACK が最新に追いつくまで一定間隔で再送する（状態の丸ごと送信なので
 //!   重複しても壊れない）。
-//! - 未対応の呼び出しが残っている間は、一定間隔で鳴らし直す。
+//! - 鳴るのはお客様が呼び出しボタン（FF・サービス・たばこ・係員を呼ぶ）を押している間だけ。
+//!   鳴らし直し（スヌーズ）はしない。押した回数も版数とは別に送るので、短く押されて
+//!   「押した」状態の電文が失われても、届いた時点で必ず短く鳴る（押したのに鳴らない、をなくす）。
 //! - 変化がなくてもハートビートを送り、ACK が途絶えた MAT は「不通」として
 //!   MAT とレジの両方に表示する。鳴らない状態を黙って放置しない。
 
@@ -18,22 +20,21 @@ use serde::Serialize;
 
 use crate::rng::Rng;
 
-pub const RETRY_MS: u64 = 600;
+pub const RETRY_MS: u64 = 200;
 pub const HEARTBEAT_MS: u64 = 2_000;
 pub const LINK_TIMEOUT_MS: u64 = 5_000;
-pub const BUZZ_MS: u64 = 3_000;
-/// 未対応の呼び出しがある間、鳴らし直す間隔
-pub const RERING_MS: u64 = 10_000;
+/// 押された（または年確・代行収納の読み取りで呼ばれた）ことを知ったときの最短の鳴動
+pub const MIN_RING_MS: u64 = 1_000;
 
 /// レジ側から MAT へ送る鳴動状態。
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize)]
 pub struct Bell {
     /// 版数（変化のたびに増える）
     pub seq: u64,
-    /// 鳴らす合図。増えたら MAT は鳴る（新しい呼び出し・鳴らし直し）
-    pub ring_token: u64,
-    /// 未対応の呼び出し件数
-    pub open_calls: usize,
+    /// 呼び出しボタンが押されているレジの数。1 以上の間 MAT は鳴り続ける
+    pub held: usize,
+    /// 呼び出しの回数。増えたら MAT は少なくとも MIN_RING_MS 鳴る
+    pub presses: u64,
 }
 
 #[derive(Clone, Debug)]
@@ -96,8 +97,10 @@ impl Mat {
         now.saturating_sub(self.last_rx_at) <= LINK_TIMEOUT_MS
     }
 
+    /// 押されている間は鳴る。ただし受信が途絶えたら（「離した」が届かない恐れ）鳴り止む。
+    /// 途絶えは不通としてレジ側に表示される
     pub fn buzzing(&self, now: u64) -> bool {
-        self.buzz_until > now
+        self.buzz_until > now || (self.received.held > 0 && self.rx_ok(now))
     }
 
     pub fn tick(&mut self, now: u64, bell: Bell, loss_percent: u8, rng: &mut Rng) {
@@ -111,8 +114,8 @@ impl Mat {
                 continue;
             }
             if p.bell.seq >= self.received.seq {
-                if p.bell.ring_token > self.received.ring_token {
-                    self.buzz_until = now + BUZZ_MS;
+                if p.bell.presses > self.received.presses {
+                    self.buzz_until = now + MIN_RING_MS;
                     self.rings += 1;
                 }
                 self.received = p.bell;
@@ -124,12 +127,14 @@ impl Mat {
             }
         }
 
-        // 送信判定：未 ACK の版があれば RETRY_MS ごとに再送、なければハートビート
+        // 送信判定：未 ACK の版があれば RETRY_MS ごとに再送、なければハートビート。
+        // ボタンが押されている間は「押されている」を RETRY_MS ごとに送り続ける
+        // （MAT は受信が途絶えると鳴り止むので、通信ロスがあっても鳴り続けさせる）
         let since = self.last_sent_at.map(|t| now.saturating_sub(t));
         let behind = self.acked_seq < bell.seq;
         let due = match since {
             None => true,
-            Some(s) => (behind && s >= RETRY_MS) || s >= HEARTBEAT_MS,
+            Some(s) => ((behind || bell.held > 0) && s >= RETRY_MS) || s >= HEARTBEAT_MS,
         };
         if due {
             if behind && self.last_sent_at.is_some() && self.last_sent_seq == bell.seq {

@@ -9,7 +9,7 @@
 
 import init, { PosSimulator } from "./wasm/generated/janus_pos.js";
 import type { Command, Snapshot } from "./types";
-import { beepError, beepScan, ringMat, unlockAudio } from "./sound";
+import { beepError, beepScan, setMatRinging, unlockAudio } from "./sound";
 import {
   esc,
   matPanel,
@@ -226,17 +226,38 @@ function render(): void {
 }
 
 
-let matRings = 0;
-
 function frame(): void {
   sim.tick(performance.now() - t0);
   snap = JSON.parse(sim.snapshot()) as Snapshot;
-  // MAT が鳴動を受けた瞬間に鳴らす（新しい呼び出し・鳴らし直しのたび。順番待ちにはしない）。
+  // MAT が鳴動中の間だけ鳴らす（お客様が呼び出しボタンに触れている間。順番待ちにはしない）。
   // 音量は最も長く待たせている呼び出しで決まる
-  const rings = snap.mats.reduce((n, m) => n + m.rings, 0);
-  if (rings > matRings) ringMat(Math.max(0, ...snap.registers.map((r) => r.ring_volume)));
-  matRings = rings;
+  setMatRinging(
+    snap.mats.some((m) => m.buzzing),
+    Math.max(0, ...snap.registers.map((r) => r.ring_volume)),
+  );
   render();
+  app.querySelectorAll<HTMLElement>("[data-hold]").forEach((b) => b.classList.toggle("pressing", b.dataset.hold === held?.cmd));
+}
+
+// ---------------------------------------------------------------------------
+// 呼び出しボタン：触れている間だけ鳴る。離す・指が外れる・画面を離れると止まる
+// ---------------------------------------------------------------------------
+
+let held: { cmd: string; register: number; pointer: number | null } | null = null;
+
+function press(b: HTMLElement, pointer: number | null): void {
+  if (held || (b as HTMLButtonElement).disabled) return;
+  const cmd = b.dataset.hold!;
+  const c = JSON.parse(cmd) as Command;
+  if (send(c)) held = { cmd, register: c.register as number, pointer };
+  frame();
+}
+
+function release(): void {
+  if (!held) return;
+  const r = held.register;
+  held = null;
+  send({ type: "release_call", register: r });
 }
 
 function toast(where: string, text: string, error: boolean): void {
@@ -439,6 +460,39 @@ function setupDrag(): void {
   });
 
   window.addEventListener("pointercancel", end);
+
+  app.addEventListener("pointerdown", (e) => {
+    const b = (e.target as Element).closest<HTMLElement>("[data-hold]");
+    if (!b || e.button !== 0) return;
+    e.preventDefault();
+    press(b, e.pointerId);
+  });
+  window.addEventListener("pointermove", (e) => {
+    if (!held || e.pointerId !== held.pointer) return;
+    // 指がボタンから外れたら離したのと同じ
+    const over = document.elementFromPoint(e.clientX, e.clientY)?.closest<HTMLElement>("[data-hold]");
+    if (over?.dataset.hold !== held.cmd) release();
+  });
+  for (const ev of ["pointerup", "pointercancel"] as const) {
+    window.addEventListener(ev, (e) => {
+      if (held && e.pointerId === held.pointer) release();
+    });
+  }
+  window.addEventListener("blur", release);
+  document.addEventListener("visibilitychange", release);
+  app.addEventListener("contextmenu", (e) => {
+    if ((e.target as Element).closest("[data-hold]")) e.preventDefault();
+  });
+  // キーボード：Space / Enter を押している間
+  app.addEventListener("keydown", (e) => {
+    const b = (e.target as Element).closest<HTMLElement>("[data-hold]");
+    if (!b || e.repeat || (e.key !== " " && e.key !== "Enter")) return;
+    e.preventDefault();
+    press(b, null);
+  });
+  app.addEventListener("keyup", (e) => {
+    if (held && held.pointer === null && (e.key === " " || e.key === "Enter")) release();
+  });
 }
 
 boot().catch((e) => {

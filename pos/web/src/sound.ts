@@ -52,20 +52,38 @@ export function beepError(): void {
 // - 呼び出しを順番待ちにしない：キュー（FIFO）に並べると、前の呼び出しのせいで後の
 //   呼び出しの知らせが遅れる。実機で問題になっている罠なので、MAT の鳴動はコアが
 //   鳴らすと決めた瞬間にそのまま鳴らす。
+// - 鳴るのはお客様が呼び出しボタンに触れている間だけ。鳴らし直し（スヌーズ）はない。
 // - 音を出すのは MAT だけ。レジの呼び出しはレジ本体のランプ（画面上の表示）で知らせる。
 //   音源が一つなので、複数の音が重なって曲のように聞こえることもない。
 // - 放置ほど大きく：音量はコアの ring_volume（最も長く待たせている呼び出しの放置時間）。
 // ---------------------------------------------------------------------------
 
-/** MAT の鳴動（約3秒。MAT の鳴動時間に合わせる）。volume は 0〜1 */
-export function ringMat(volume: number): void {
-  if (!ready() || !ctx || volume <= 0) return;
-  const bus = ctx.createGain();
-  bus.gain.value = volume;
-  bus.connect(ctx.destination);
-  for (let i = 0; i < 6; i++) {
-    tone(1320, i * 0.5, 0.18, "triangle", 0.28, bus);
-    tone(990, i * 0.5 + 0.2, 0.25, "triangle", 0.28, bus);
+/** MAT の鳴動。on の間だけ鳴り続け、off で即座に止む（お客様がボタンから指を離したとき）。
+ *  volume は 0〜1。鳴っている途中で音量が変わればそのまま反映する */
+let ring: { bus: GainNode; timer: number } | null = null;
+
+function ringPattern(bus: GainNode): void {
+  tone(1320, 0, 0.18, "triangle", 0.28, bus);
+  tone(990, 0.2, 0.25, "triangle", 0.28, bus);
+}
+
+export function setMatRinging(on: boolean, volume: number): void {
+  if (!on || !ready() || !ctx) {
+    if (ring) {
+      window.clearInterval(ring.timer);
+      ring.bus.disconnect();
+      ring = null;
+    }
+    return;
   }
-  window.setTimeout(() => bus.disconnect(), 3300);
+  const v = Math.max(0.05, Math.min(1, volume || 0.25));
+  if (ring) {
+    ring.bus.gain.value = v;
+    return;
+  }
+  const bus = ctx.createGain();
+  bus.gain.value = v;
+  bus.connect(ctx.destination);
+  ringPattern(bus);
+  ring = { bus, timer: window.setInterval(() => ringPattern(bus), 500) };
 }
