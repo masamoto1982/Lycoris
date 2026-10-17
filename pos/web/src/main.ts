@@ -9,6 +9,7 @@
 
 import init, { PosSimulator } from "./wasm/generated/janus_pos.js";
 import type { Command, Snapshot } from "./types";
+import { beepError, beepScan, isMuted, ringMat, setMuted, unlockAudio } from "./sound";
 import {
   auditPanel,
   esc,
@@ -111,12 +112,12 @@ function buildSkeleton(): void {
     </header>
     <article class="floor">
       <div class="left">
-        ${regs}
         <section class="mat-area" aria-label="携帯情報端末">
-          <h2>携帯情報端末（MAT）</h2>
+          <h2>携帯情報端末（MAT） <button type="button" class="small ghost sound-toggle" data-sound aria-pressed="true">🔊 音あり</button></h2>
           <div class="mat-row"><div class="mats" data-region="mats"></div><div class="mat-sim" data-region="sim"></div></div>
           <div class="toast" id="toast-store"></div>
         </section>
+        ${regs}
       </div>
       <aside class="right" aria-label="売り場">
         <h2>売り場 <button class="small ghost rules-open" data-open-rules aria-haspopup="dialog">年確ルール設定</button></h2>
@@ -132,6 +133,7 @@ function buildSkeleton(): void {
           <li>有人：「店員」で名前を選んでログインすると、まずお客様画面が操作側になります。グレーの画面にタッチすると、操作している側が3秒触られていなければ操作を引き継げます。店員画面で「会計」します。</li>
           <li>FF：有人モードでは店員画面からもお客様画面からも FF を登録できます。セミセルフではお客様画面の「FF を注文」で係員を呼びます。FF の明細は個数の右のチェックボックスにお渡し確認のチェックを入れるまで、会計に進めません。</li>
           <li>宅急便・代行収納をお客様画面に落とすと係員の呼び出しになり、店員が金額を入れて受け付けます。</li>
+          <li>音が出ます：商品を登録すると「ピッ」、読めないと「ブッブー」、MAT が鳴ると呼び出し音。MAT の見出しの右のボタンで消せます（ブラウザの都合で、最初に画面のどこかに触れてから鳴ります）。</li>
           <li>有人モードは、取引のない状態で5分間操作がないとログアウトしてセミセルフに戻ります。残り時間はレジ名の横に出ます。</li>
           <li>お金は各レジ最下段の「入金」ボックスに金額を打ち込んで Enter で入れます。おつりや出金したお金は「出金」ボックスに金額が出て、金額をタッチすると取り出せます。店舗メニュー：有人モード（ログイン中）だとお客様画面の右上に ⚙ が出ます。返品返金・緊急出金・経費支出は店舗パスワード <b>7777</b>（ログインとは別）、取引外入金と自動釣銭機の両替は「入金」ボックスを使い、パスワード不要です。年確ルールは売り場の「年確ルール設定」から、オーナー 9001 / <b>9999</b> で商品ごとに変更できます。</li>
         </ol>
@@ -227,9 +229,15 @@ function render(): void {
   setRegion("shelf", shelfPanel(snap));
 }
 
+// MAT が鳴り始めたら呼び出し音を鳴らす（どれか 1 台でも鳴れば 1 回）
+let matWasBuzzing = false;
+
 function frame(): void {
   sim.tick(performance.now() - t0);
   snap = JSON.parse(sim.snapshot()) as Snapshot;
+  const buzzing = snap.mats.some((m) => m.buzzing);
+  if (buzzing && !matWasBuzzing) ringMat();
+  matWasBuzzing = buzzing;
   render();
 }
 
@@ -255,6 +263,8 @@ function send(cmd: Command): boolean {
   } else {
     toast(where, res.error ?? "操作できません", true);
   }
+  // スキャナーと FF 登録の音（読めたら「ピッ」、受け付けられなければ「ブッブー」）
+  if (cmd.type === "scan" || cmd.type === "register_ff") (res.ok ? beepScan : beepError)();
   frame();
   return res.ok;
 }
@@ -335,7 +345,18 @@ app.addEventListener("change", (e) => {
 
 const rulesDlg = (): HTMLDialogElement => document.getElementById("rules-dlg") as HTMLDialogElement;
 
+// ブラウザは操作があるまで音を出せないので、最初のタッチ・キー入力で音を準備する
+document.addEventListener("pointerdown", unlockAudio, { capture: true });
+document.addEventListener("keydown", unlockAudio, { capture: true });
+
 app.addEventListener("click", (e) => {
+  const snd = (e.target as Element).closest<HTMLButtonElement>("[data-sound]");
+  if (snd) {
+    setMuted(!isMuted());
+    snd.textContent = isMuted() ? "🔇 音なし" : "🔊 音あり";
+    snd.setAttribute("aria-pressed", String(!isMuted()));
+    return;
+  }
   // 有人モードでグレーの画面にタッチすると、操作をその画面に引き継ぐ
   const idle = (e.target as Element).closest<HTMLElement>(".screen.claimable[data-drop]");
   if (idle) {

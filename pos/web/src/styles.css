@@ -207,6 +207,7 @@ button.emoney { background: #0ea5e9; }
 .mat-sim ul { margin: 0; padding-left: 18px; }
 .mat-area .toast { position: static; margin-top: 8px; display: none; }
 .mat-area .toast.show { display: block; }
+.sound-toggle { margin-left: auto; font-weight: 400; }
 
 /* 売り場：スクロールしてもドラッグ元が見えるよう追従させる */
 .right { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); max-height: calc(100vh - 100px); overflow-y: auto; }
