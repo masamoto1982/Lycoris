@@ -158,6 +158,7 @@ export function attendedScreen(r: RegisterView): string {
   // 合計と会計ボタンは登録画面の最上部に常に出す（明細が増えてもスクロールで隠れない）
   const top = regTop(
     v.total,
+    itemCount(v.lines),
     paying
       ? btn("登録に戻る", { type: "back_to_registering", register: reg, side }, a("back_to_registering"))
       : btn("会計", { type: "checkout", register: reg, side }, a("checkout"), "primary"),
@@ -186,9 +187,14 @@ function pointCheck(reg: number, side: Side, st: ActionState): string {
     </div>`;
 }
 
-/** 登録画面の最上部に固定する帯：合計金額と会計ボタン */
-function regTop(total: number, action: string): string {
-  return `<div class="reg-top"><span>合計 <b class="total">${yen(total)}</b></span>${action}</div>`;
+/** 登録画面の最上部に固定する帯：左から会計ボタン・合計金額・買い物点数 */
+export function regTop(total: number, count: number, action: string): string {
+  return `<div class="reg-top">${action}<span>合計 <b class="total">${yen(total)}</b></span><span class="count"><b>${count}</b> 点</span></div>`;
+}
+
+/** 買い物点数（数量の合計） */
+export function itemCount(lines: { qty: number }[]): number {
+  return lines.reduce((n, l) => n + l.qty, 0);
 }
 
 /**
@@ -370,6 +376,7 @@ export function semiSelfScreen(r: RegisterView): string {
   // 合計とお会計ボタンは登録画面の最上部に常に出す
   const top = regTop(
     c.total,
+    itemCount(c.lines),
     c.phase === "registering"
       ? btn("お会計", { type: "checkout", register: reg, side }, a("checkout"), "primary")
       : btn("商品登録に戻る", { type: "back_to_registering", register: reg, side }, a("back_to_registering"), "ghost"),
