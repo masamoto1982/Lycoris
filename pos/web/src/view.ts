@@ -238,8 +238,21 @@ export function customerScreen(r: RegisterView, ff: Snapshot["ff_stock"] = []): 
         )
         .join("")}</div>`
     : "";
-  // セミセルフでは FF は係員が登録する（ボタンで呼び出す）
-  const ffOrder = r.mode === "semi_self" ? btn("FF（揚げ物・中華まん）を注文", { type: "ff_button", register: reg }, a("ff_button"), "ff") : "";
+  // セミセルフの店員呼び出しボタン：FF・サービス・たばこは「係員を呼ぶ」のショートカット。
+  // 呼び出しは店員が来るまで鳴り続ける
+  const callBtn = (main: string, sub: string, cmd: Command, st: ActionState, cls: string) => {
+    const off = !st.allowed;
+    return `<button class="call-btn ${cls}" data-cmd="${esc(JSON.stringify(cmd))}"${off ? ` disabled title="${esc(st.reason ?? "")}"` : ""}><b>${esc(main)}</b>${sub ? `<small>${esc(sub)}</small>` : ""}</button>`;
+  };
+  const ffOrder =
+    r.mode !== "attended"
+      ? `<div class="call-row">${[
+          r.mode === "semi_self" ? callBtn("FF", "揚げ物・中華まん", { type: "ff_button", register: reg }, a("ff_button"), "ff") : "",
+          callBtn("サービス", "代行収納・宅配便", { type: "call_staff", register: reg, topic: "service" }, a("call_staff"), "svc"),
+          callBtn("たばこ", "", { type: "call_staff", register: reg, topic: "tobacco" }, a("call_staff"), "tob"),
+          callBtn("係員を呼ぶ", "", { type: "call_staff", register: reg }, a("call_staff"), "help"),
+        ].join("")}</div>`
+      : "";
 
   if (r.last_receipt && !c.lines.length) {
     const rc = r.last_receipt;
@@ -273,8 +286,7 @@ export function customerScreen(r: RegisterView, ff: Snapshot["ff_stock"] = []): 
     return `${banners.join("")}<div class="welcome">
       <div class="big">いらっしゃいませ</div>
       <p>${self ? "商品のバーコードをスキャンしてください" : "係員が商品をお読みします"}</p>
-      ${ffMenu}${ffOrder ? `<div class="row center">${ffOrder}</div>` : ""}
-      ${r.mode !== "attended" ? `<div class="row center">${btn("係員を呼ぶ", { type: "call_staff", register: reg }, a("call_staff"), "ghost")}</div>` : ""}
+      ${ffMenu}${ffOrder}
     </div>`;
   }
 
@@ -310,11 +322,9 @@ export function customerScreen(r: RegisterView, ff: Snapshot["ff_stock"] = []): 
     c.phase === "registering"
       ? `<div class="row">
           ${self ? btn("お会計", { type: "checkout", register: reg, side: "customer" }, a("checkout"), "primary") : ""}
-          ${ffOrder}
-          ${r.mode !== "attended" ? btn("係員を呼ぶ", { type: "call_staff", register: reg }, a("call_staff"), "ghost") : ""}
-        </div>${ffMenu}`
+        </div>${ffOrder}${ffMenu}`
       : `<div class="row">${self ? btn("商品登録に戻る", { type: "back_to_registering", register: reg, side: "customer" }, a("back_to_registering"), "ghost") : ""}
-          ${r.mode !== "attended" ? btn("係員を呼ぶ", { type: "call_staff", register: reg }, a("call_staff"), "ghost") : ""}</div>`;
+          </div>${ffOrder}`;
 
   return `${banners.join("")}
     <table class="lines"><tbody>${rows}</tbody></table>

@@ -313,3 +313,13 @@ body.dragging .drop-hint { display: inline; }
 /* 歯車は両方の画面に出る。操作できない側の歯車は押せない */
 .screen.inactive .gear { pointer-events: none; opacity: .4; }
 .screen.inactive .gear { filter: grayscale(1); }
+
+/* セミセルフの店員呼び出しボタン（FF・サービス・たばこ・係員を呼ぶ） */
+.call-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 8px; margin-top: 10px; }
+.call-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 52px; padding: 6px 8px; border-radius: 10px; color: #fff; }
+.call-btn b { font-size: 15px; }
+.call-btn small { font-size: 11px; opacity: .9; }
+.call-btn.ff { background: var(--ff); }
+.call-btn.svc { background: #0f766e; }
+.call-btn.tob { background: #6d28d9; }
+.call-btn.help { background: var(--panel); color: var(--ink); border: 1px solid var(--line); }

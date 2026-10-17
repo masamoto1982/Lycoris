@@ -703,3 +703,28 @@ fn neglected_calls_ring_louder() {
     scan(&mut s, 1, "staff", "ST1001");
     assert_eq!(reg(&s, 1).ring_volume, 0.0);
 }
+
+/// セミセルフ画面の FF・サービス・たばこボタンは店員呼び出しのショートカット。
+/// 代行収納・宅配便のバーコードを直接読んでも呼び出しになる。店員が来るまで鳴り続ける。
+#[test]
+fn shortcut_buttons_call_staff() {
+    let mut s = Store::new(1, 2, 1);
+    let kinds = |s: &Store, r: u8| -> Vec<CallKind> { reg(s, r).staff.calls.iter().map(|c| c.kind).collect() };
+    ok(&mut s, json!({"type":"call_staff","register":1,"topic":"tobacco"}));
+    ok(&mut s, json!({"type":"call_staff","register":1,"topic":"service"}));
+    ok(&mut s, json!({"type":"ff_button","register":1}));
+    let k = kinds(&s, 1);
+    assert!(k.contains(&CallKind::Tobacco) && k.contains(&CallKind::Service) && k.contains(&CallKind::FastFood));
+    assert!(reg(&s, 1).ringing);
+    // 鳴らし直しの合間も呼び出しは開いたまま（店員が来るまで続く）
+    advance(&mut s, 60_000);
+    assert_eq!(kinds(&s, 1).len(), 3);
+    // 宅急便のバーコードを直接読むと、サービスの呼び出しになる
+    scan(&mut s, 2, "customer", PARCEL);
+    assert!(kinds(&s, 2).contains(&CallKind::Service));
+    // 店員が来ると、たばこ・サービスのボタン呼び出しは片付く（FF は登録するまで残る）
+    login(&mut s, 1);
+    assert_eq!(kinds(&s, 1), vec![CallKind::FastFood]);
+    // 有人モードではボタンで呼ばない
+    assert!(run(&mut s, json!({"type":"call_staff","register":1,"topic":"tobacco"})).is_err());
+}

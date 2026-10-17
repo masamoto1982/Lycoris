@@ -16,6 +16,7 @@ pub enum CallKind {
     AgeCheck,
     FastFood,
     Service,
+    Tobacco,
     CustomerHelp,
 }
 
@@ -25,6 +26,7 @@ impl CallKind {
             CallKind::AgeCheck => "年齢確認",
             CallKind::FastFood => "FF の注文",
             CallKind::Service => "サービス受付",
+            CallKind::Tobacco => "たばこ",
             CallKind::CustomerHelp => "お呼び出し",
         }
     }

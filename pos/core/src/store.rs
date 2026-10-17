@@ -92,6 +92,15 @@ impl CashOutKind {
     }
 }
 
+/// 店員呼び出しボタンのショートカット（FF は FfButton）
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CallTopic {
+    /// 代行収納・宅配便
+    Service,
+    Tobacco,
+}
+
 #[derive(Clone, Debug, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Command {
@@ -156,8 +165,11 @@ pub enum Command {
         #[serde(default)]
         method: Option<PaymentMethod>,
     },
+    /// 店員呼び出し。topic はショートカットボタン（サービス・たばこ）。省略時は「係員を呼ぶ」
     CallStaff {
         register: u8,
+        #[serde(default)]
+        topic: Option<CallTopic>,
     },
     VoidTransaction {
         register: u8,
@@ -864,10 +876,19 @@ impl Store {
                 let total = r.txn.total();
                 self.settle(register, method, total, Cash::default())
             }
-            C::CallStaff { register } => {
+            C::CallStaff { register, topic } => {
                 self.check(register, Side::Customer, Action::CallStaff)?;
-                self.call(register, CallKind::CustomerHelp, "お客様からの呼び出し");
-                done("係員をお呼びしました")
+                let (kind, detail) = match topic {
+                    Some(CallTopic::Service) => (CallKind::Service, "代行収納・宅配便"),
+                    Some(CallTopic::Tobacco) => (CallKind::Tobacco, ""),
+                    None => (CallKind::CustomerHelp, "お客様からの呼び出し"),
+                };
+                self.call(register, kind, detail);
+                done(match topic {
+                    Some(CallTopic::Service) => "係員をお呼びしました（サービス）",
+                    Some(CallTopic::Tobacco) => "係員をお呼びしました（たばこ）",
+                    None => "係員をお呼びしました",
+                })
             }
             C::VoidTransaction { register } => {
                 self.check(register, Side::Staff, Action::VoidTransaction)?;
@@ -884,7 +905,7 @@ impl Store {
                         self.restock(l.code, l.qty);
                     }
                 }
-                for k in [CallKind::AgeCheck, CallKind::FastFood, CallKind::Service] {
+                for k in [CallKind::AgeCheck, CallKind::FastFood, CallKind::Service, CallKind::Tobacco] {
                     self.calls.resolve(register, k, now);
                 }
                 if back > 0 {
@@ -1053,7 +1074,13 @@ impl Store {
             }
             // ログインで店員側が操作できるようになる（お客様の支払い中でも）
             r.txn.customer_turn = false;
+            // 店員が来たら、ボタンでの呼び出しは片付く（サービス商品の受付待ちがあれば残す）
+            let service_pending = r.txn.service_pending();
             self.calls.resolve(register, CallKind::CustomerHelp, now);
+            self.calls.resolve(register, CallKind::Tobacco, now);
+            if !service_pending {
+                self.calls.resolve(register, CallKind::Service, now);
+            }
             return done(match was {
                 _ if took_over => format!("{}さんが操作を引き継ぎました", acc.name),
                 StaffState::Locked => format!("{}さんがロックを解除しました", acc.name),
@@ -1346,7 +1373,7 @@ impl Store {
             "お支払いが完了しました".to_string()
         };
         r.last_receipt = Some(receipt);
-        for k in [CallKind::AgeCheck, CallKind::FastFood, CallKind::Service] {
+        for k in [CallKind::AgeCheck, CallKind::FastFood, CallKind::Service, CallKind::Tobacco] {
             self.calls.resolve(register, k, now);
         }
         done(msg)
