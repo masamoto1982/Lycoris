@@ -897,3 +897,22 @@ fn call_button_rings_only_while_held_and_every_press_rings() {
         assert!(!s.snapshot().mats[0].buzzing);
     }
 }
+
+/// 有人モードにしたあと（お客様画面が操作側のままでも）、ログアウトでセミセルフに戻れる。
+#[test]
+fn logout_returns_to_semi_self_even_while_customer_screen_holds() {
+    let mut s = Store::new(1, 2, 1);
+    scan(&mut s, 1, "staff", "ST1001");
+    assert_eq!(reg(&s, 1).mode, Mode::Attended);
+    assert_eq!(reg(&s, 1).active_side, Side::Customer);
+    ok(&mut s, json!({"type":"end_staff_mode","register":1}));
+    assert_eq!(reg(&s, 1).mode, Mode::SemiSelf);
+    // 取引の途中（FF 登録済み）でも戻れる
+    scan(&mut s, 1, "staff", "ST1001");
+    ok(
+        &mut s,
+        json!({"type":"register_ff","register":1,"side":"customer","code":"FF01","qty":1}),
+    );
+    ok(&mut s, json!({"type":"end_staff_mode","register":1}));
+    assert_eq!(reg(&s, 1).mode, Mode::SemiSelf);
+}

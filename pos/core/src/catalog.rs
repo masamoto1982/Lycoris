@@ -149,7 +149,13 @@ pub const CATALOG: &[Product] = &[
     ),
     p("4900000000141", "成人向け雑誌", 980, Standard10, AdultBook),
     p("4900000000158", "スクラッチくじ", 200, Standard10, Lottery),
-    p("4900000000165", "手持ち花火セット", 598, Standard10, Fireworks),
+    p(
+        "4900000000165",
+        "手持ち花火セット",
+        598,
+        Standard10,
+        Fireworks,
+    ),
     p("4900000000172", "線香花火", 220, Standard10, Fireworks),
     p("2000000000015", "レジ袋 S", 3, Standard10, Bag),
     p("2000000000022", "レジ袋 L", 5, Standard10, Bag),
@@ -161,11 +167,92 @@ pub const CATALOG: &[Product] = &[
         Standard10,
         Service,
     ),
+    // FF（バーコードなし。レジ画面下のタブから登録する）
     p("FF01", "フライドチキン", 220, Reduced8, FastFood),
     p("FF02", "からあげ 5個", 260, Reduced8, FastFood),
     p("FF03", "アメリカンドッグ", 140, Reduced8, FastFood),
     p("FF04", "コロッケ", 110, Reduced8, FastFood),
     p("FF05", "肉まん", 180, Reduced8, FastFood),
+    p("FF06", "ポテト S", 180, Reduced8, FastFood),
+    p("FF07", "メンチカツ", 160, Reduced8, FastFood),
+    p("FF08", "ハッシュポテト", 120, Reduced8, FastFood),
+    p("FF09", "ナゲット 5個", 230, Reduced8, FastFood),
+    p("FF10", "春巻き", 150, Reduced8, FastFood),
+    p("FF11", "チーズドッグ", 180, Reduced8, FastFood),
+    p("FF21", "焼きいも", 200, Reduced8, FastFood),
+    p("FF22", "いなり寿司 2個", 190, Reduced8, FastFood),
+    p("FF23", "大学いも", 250, Reduced8, FastFood),
+    p("FF24", "おはぎ 2個", 220, Reduced8, FastFood),
+    p("FF31", "ホットコーヒー R", 120, Reduced8, FastFood),
+    p("FF32", "ホットコーヒー L", 180, Reduced8, FastFood),
+    p("FF33", "カフェラテ R", 190, Reduced8, FastFood),
+    p("FF34", "ホットティー", 150, Reduced8, FastFood),
+    p("FF35", "ココア", 200, Reduced8, FastFood),
+    p("FF41", "アイスコーヒー R", 120, Reduced8, FastFood),
+    p("FF42", "アイスコーヒー L", 180, Reduced8, FastFood),
+    p("FF43", "アイスカフェラテ", 210, Reduced8, FastFood),
+    p("FF44", "フラッペ", 360, Reduced8, FastFood),
+    p("FF45", "ソフトクリーム", 300, Reduced8, FastFood),
+    p("FF51", "あんまん", 160, Reduced8, FastFood),
+    p("FF52", "ピザまん", 180, Reduced8, FastFood),
+    p("FF53", "おでん 大根", 100, Reduced8, FastFood),
+    p("FF54", "おでん たまご", 100, Reduced8, FastFood),
+];
+
+/// FF のタブ（レジ画面の下 1/3）。
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum FfTab {
+    Fried,
+    Deli,
+    Drink,
+    Cold,
+    Other,
+}
+
+impl FfTab {
+    pub fn label(self) -> &'static str {
+        match self {
+            FfTab::Fried => "揚げ物",
+            FfTab::Deli => "常温総菜",
+            FfTab::Drink => "ドリンク",
+            FfTab::Cold => "コールド",
+            FfTab::Other => "その他",
+        }
+    }
+}
+
+/// FF のタブ分けと並び順。各タブの中は売れ筋順で、先頭ページの最上部に売れ筋が来る。
+pub const FF_MENU: &[(&str, FfTab)] = &[
+    ("FF02", FfTab::Fried),
+    ("FF01", FfTab::Fried),
+    ("FF03", FfTab::Fried),
+    ("FF06", FfTab::Fried),
+    ("FF04", FfTab::Fried),
+    ("FF07", FfTab::Fried),
+    ("FF09", FfTab::Fried),
+    ("FF08", FfTab::Fried),
+    ("FF11", FfTab::Fried),
+    ("FF10", FfTab::Fried),
+    ("FF21", FfTab::Deli),
+    ("FF22", FfTab::Deli),
+    ("FF23", FfTab::Deli),
+    ("FF24", FfTab::Deli),
+    ("FF31", FfTab::Drink),
+    ("FF33", FfTab::Drink),
+    ("FF32", FfTab::Drink),
+    ("FF35", FfTab::Drink),
+    ("FF34", FfTab::Drink),
+    ("FF41", FfTab::Cold),
+    ("FF43", FfTab::Cold),
+    ("FF42", FfTab::Cold),
+    ("FF44", FfTab::Cold),
+    ("FF45", FfTab::Cold),
+    ("FF05", FfTab::Other),
+    ("FF51", FfTab::Other),
+    ("FF52", FfTab::Other),
+    ("FF53", FfTab::Other),
+    ("FF54", FfTab::Other),
 ];
 
 pub fn find(code: &str) -> Option<&'static Product> {
@@ -179,6 +266,31 @@ pub const INITIAL_FF_STOCK: &[(&str, u32)] = &[
     ("FF03", 4),
     ("FF04", 0),
     ("FF05", 5),
+    ("FF06", 6),
+    ("FF07", 3),
+    ("FF08", 5),
+    ("FF09", 4),
+    ("FF10", 2),
+    ("FF11", 3),
+    ("FF21", 6),
+    ("FF22", 4),
+    ("FF23", 3),
+    ("FF24", 2),
+    // カウンターのドリンクはカップがある限り作れる
+    ("FF31", 99),
+    ("FF32", 99),
+    ("FF33", 99),
+    ("FF34", 99),
+    ("FF35", 99),
+    ("FF41", 99),
+    ("FF42", 99),
+    ("FF43", 99),
+    ("FF44", 20),
+    ("FF45", 20),
+    ("FF51", 4),
+    ("FF52", 3),
+    ("FF53", 10),
+    ("FF54", 8),
 ];
 
 /// 読み取ったバーコードの種類。
@@ -224,6 +336,15 @@ mod tests {
         assert!(matches!(classify("2000000000015"), Scanned::Product(p) if p.category == Bag));
         assert!(matches!(classify("2100000000014"), Scanned::Product(p) if p.needs_staff));
         assert_eq!(classify("FF01"), Scanned::Unknown);
+        // FF はどれもタブに入り、在庫を持つ
+        for p in CATALOG.iter().filter(|p| p.category == Category::FastFood) {
+            assert!(FF_MENU.iter().any(|(c, _)| *c == p.code), "{}", p.code);
+            assert!(
+                INITIAL_FF_STOCK.iter().any(|(c, _)| *c == p.code),
+                "{}",
+                p.code
+            );
+        }
         assert_eq!(classify("9999"), Scanned::Unknown);
     }
 }
