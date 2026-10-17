@@ -153,19 +153,45 @@ export function staffScreen(r: RegisterView, snap: Snapshot): string {
       ${btn("ロック", { type: "lock", register: reg }, a("lock"), "ghost")}
       ${btn("ログアウト", { type: "end_staff_mode", register: reg }, a("end_staff_mode"), "ghost")}
     </div>
-    <div class="ffmenu"><span class="muted">FF 登録</span>${ffMenu}</div>
-    <details class="cashout" data-keep><summary>出金（返品返金・経費支出・緊急出金・途中集金）</summary>
-      <div class="row wrap">
-        <select data-key="co-kind-${reg}">
-          <option value="refund">返品返金</option><option value="expense">経費支出</option>
-          <option value="emergency">緊急出金</option><option value="pickup">途中集金</option>
-        </select>
-        <input type="number" inputmode="numeric" min="1" placeholder="金額" data-key="co-amt-${reg}" />
-        <input type="password" inputmode="numeric" placeholder="出金パスワード" data-key="co-pw-${reg}" autocomplete="off" />
-        <button data-form="cashout" data-reg="${reg}" ${a("cash_out").allowed ? "" : `disabled title="${esc(a("cash_out").reason)}"`}>出金</button>
-      </div>
-      <p class="muted">ログイン中でも出金のたびにパスワードが必要です。在高 ${yen(v.drawer_total)}</p>
-    </details>`;
+    <div class="ffmenu"><span class="muted">FF 登録</span>${ffMenu}</div>`;
+}
+
+// ---------------------------------------------------------------------------
+// 店舗メニュー（お客様画面の右上の歯車から。有人モードの店員だけが使う）
+// 自動釣銭機の取り出し口は売り場側にあるので、入出金の操作もお客様画面側で行う
+// ---------------------------------------------------------------------------
+
+export function storeMenu(r: RegisterView): string {
+  const v = r.staff;
+  const reg = r.id;
+  const cin = find(v.actions, "cash_in");
+  const cout = find(v.actions, "cash_out");
+  const dis = (s: ActionState) => (s.allowed ? "" : `disabled title="${esc(s.reason ?? "")}"`);
+  const drawer = v.drawer
+    .filter(([, n]) => n > 0)
+    .map(([d, n]) => `<tr><td>${d.toLocaleString()}円</td><td class="num">${n}枚</td><td class="num">${yen(d * n)}</td></tr>`)
+    .join("");
+  return `<p class="muted">レジ${reg}　担当：${esc(v.name ?? "")}${!cin.allowed && cin.reason ? `　<b class="warn">${esc(cin.reason)}</b>` : ""}</p>
+    <h3>お金を入れる <span class="muted">パスワード不要</span></h3>
+    <div class="row wrap">
+      <select data-key="mi-kind"><option value="deposit">取引外入金</option><option value="changer_refill">釣銭補充（自動釣銭機）</option></select>
+      <input type="number" inputmode="numeric" min="1" placeholder="金額" data-key="mi-amt" />
+      <button data-form="cashin" data-reg="${reg}" ${dis(cin)}>入金</button>
+    </div>
+    <h3>お金を抜く <span class="muted">店舗パスワードが必要</span></h3>
+    <div class="row wrap">
+      <select data-key="mo-kind">
+        <option value="refund">返品返金</option><option value="emergency">緊急出金</option>
+        <option value="expense">経費支出</option><option value="pickup">途中集金</option>
+        <option value="changer_collect">釣銭機回収</option>
+      </select>
+      <input type="number" inputmode="numeric" min="1" placeholder="金額" data-key="mo-amt" />
+      <input type="password" inputmode="numeric" placeholder="店舗パスワード" data-key="mo-pw" autocomplete="off" />
+      <button data-form="cashout" data-reg="${reg}" ${dis(cout)}>出金</button>
+    </div>
+    <p class="muted">ログイン中でも、お金を抜くたびにパスワードが必要です。</p>
+    <h3>自動釣銭機の在高 <span class="muted">${yen(v.drawer_total)}</span></h3>
+    <table class="lines"><tbody>${drawer}</tbody></table>`;
 }
 
 // ---------------------------------------------------------------------------

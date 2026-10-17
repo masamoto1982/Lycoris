@@ -15,6 +15,7 @@ import {
   esc,
   matPanel,
   ownerPanel,
+  storeMenu,
   shelfPanel,
   sideOf,
   simPanel,
@@ -58,6 +59,7 @@ function reset(registers: number, mats: number): void {
   snap = JSON.parse(sim.snapshot()) as Snapshot;
   buildSkeleton();
   // 閉じたら（Esc でも）オーナーのパスワードを消す
+  menuDlg()?.addEventListener("close", () => clear("mo-pw"));
   rulesDlg().addEventListener("close", () => {
     const pw = rulesDlg().querySelector<HTMLInputElement>(`[data-owner="pw"]`);
     if (pw) pw.value = "";
@@ -90,6 +92,7 @@ function buildSkeleton(): void {
         </section>
         <section class="screen customer-screen" data-drop="${r.id}:customer">
           <div class="screen-title">お客様画面<span class="drop-hint">ここに落とす＝お客様側スキャナーで読む</span></div>
+          <button type="button" class="gear" data-gear="${r.id}" aria-label="レジ${r.id}の店舗メニュー" title="店舗メニュー（有人モードの店員用）" hidden>⚙</button>
           <div data-region="cust-${r.id}"></div>
           <div class="toast" id="toast-${r.id}-customer"></div>
         </section>
@@ -128,7 +131,7 @@ function buildSkeleton(): void {
           <li>FF：セミセルフのお客様画面で「FF を注文」→ ログイン（有人）→ FF 登録 →「お渡し」→ お客様画面で「受け取りました」。</li>
           <li>宅急便・代行収納をお客様画面に落とすと係員の呼び出しになり、店員が金額を入れて受け付けます。</li>
           <li>有人モードは、取引のない状態で5分間操作がないとログアウトしてセミセルフに戻ります。残り時間はレジ名の横に出ます。</li>
-          <li>出金パスワードは <b>7777</b>（ログインとは別）。年確ルールは売り場の「年確ルール設定」から、オーナー 9001 / <b>9999</b> で商品ごとに変更できます。</li>
+          <li>店舗メニュー：有人モード（ログイン中）だとお客様画面の右上に ⚙ が出ます。返品返金・緊急出金・経費支出・途中集金・釣銭機回収は店舗パスワード <b>7777</b>（ログインとは別）、取引外入金・釣銭補充はパスワード不要です。年確ルールは売り場の「年確ルール設定」から、オーナー 9001 / <b>9999</b> で商品ごとに変更できます。</li>
         </ol>
         <p class="muted">店員：${staffList}（各レジのレジ名の右にある「店員」で選ぶとログインします。「未ログイン」でログアウト）</p>
       </section>
@@ -144,6 +147,11 @@ function buildSkeleton(): void {
       </div>
       <div class="toast" id="toast-rules"></div>
       <div data-region="owner"></div>
+    </dialog>
+    <dialog class="rules-dlg" id="menu-dlg" aria-labelledby="menu-title">
+      <div class="dlg-head"><h2 id="menu-title">店舗メニュー</h2><button class="small ghost" data-close-menu>閉じる</button></div>
+      <div class="toast" id="toast-menu"></div>
+      <div data-region="menu"></div>
     </dialog>
     <div class="drag-ghost" id="ghost" hidden></div>`;
 }
@@ -193,6 +201,9 @@ function render(): void {
     // 操作できない側の画面は表示のみ（排他）
     app.querySelector(`[data-drop="${r.id}:staff"]`)?.classList.toggle("inactive", r.active_side !== "staff");
     app.querySelector(`[data-drop="${r.id}:customer"]`)?.classList.toggle("inactive", r.active_side !== "customer");
+    // 店舗メニューの歯車は、名札でログインした店員がいる（有人モード）ときだけ出す
+    const gear = app.querySelector<HTMLButtonElement>(`[data-gear="${r.id}"]`);
+    if (gear) gear.hidden = r.staff.state !== "ready";
     const idle = r.idle_revert_in;
     setRegion(
       `mode-${r.id}`,
@@ -209,6 +220,12 @@ function render(): void {
   setRegion("owner", ownerPanel(snap));
   setRegion("audit", auditPanel(snap));
   setRegion("shelf", shelfPanel(snap));
+  const menu = menuDlg();
+  if (menu?.open) {
+    const r = snap.registers.find((x) => x.id === menuReg);
+    if (!r || r.staff.state !== "ready") menu.close();
+    else setRegion("menu", storeMenu(r));
+  }
 }
 
 function frame(): void {
@@ -233,7 +250,7 @@ function send(cmd: Command): boolean {
   sim.tick(performance.now() - t0);
   const res = JSON.parse(sim.dispatch(JSON.stringify(cmd))) as { ok: boolean; message?: string; error?: string };
   const side = sideOf(cmd);
-  const where = cmd.type === "set_product_age" ? "toast-rules" : side === "store" ? "toast-store" : `toast-${cmd.register}-${side}`;
+  const where = cmd.type === "set_product_age" ? "toast-rules" : cmd.type === "cash_in" || cmd.type === "cash_out" ? "toast-menu" : side === "store" ? "toast-store" : `toast-${cmd.register}-${side}`;
   if (res.ok) {
     if (res.message) toast(where, res.message, false);
   } else {
@@ -259,15 +276,19 @@ function form(b: HTMLElement): void {
     case "service":
       send({ type: "complete_service", register: reg, line_id: Number(b.dataset.line), amount: Number(val(`svc-${reg}-${b.dataset.line}`) || 0) });
       break;
+    case "cashin":
+      send({ type: "cash_in", register: reg, kind: val("mi-kind"), amount: Number(val("mi-amt") || 0) });
+      clear("mi-amt");
+      break;
     case "cashout":
       send({
         type: "cash_out",
         register: reg,
-        kind: val(`co-kind-${reg}`),
-        amount: Number(val(`co-amt-${reg}`) || 0),
-        password: val(`co-pw-${reg}`),
+        kind: val("mo-kind"),
+        amount: Number(val("mo-amt") || 0),
+        password: val("mo-pw"),
       });
-      clear(`co-pw-${reg}`);
+      clear("mo-pw");
       break;
   }
 }
@@ -295,12 +316,20 @@ app.addEventListener("change", (e) => {
 });
 
 const rulesDlg = (): HTMLDialogElement => document.getElementById("rules-dlg") as HTMLDialogElement;
+const menuDlg = (): HTMLDialogElement | null => document.getElementById("menu-dlg") as HTMLDialogElement | null;
+let menuReg = 0;
 
 app.addEventListener("click", (e) => {
   const b = (e.target as Element).closest("button");
   if (!b || b.disabled) return;
   if (b.hasAttribute("data-open-rules")) return rulesDlg().showModal();
   if (b.hasAttribute("data-close-rules")) return rulesDlg().close();
+  if (b.dataset.gear) {
+    menuReg = Number(b.dataset.gear);
+    menuDlg()?.showModal();
+    return render();
+  }
+  if (b.hasAttribute("data-close-menu")) return menuDlg()?.close();
   if (b.dataset.cmd) send(JSON.parse(b.dataset.cmd) as Command);
   else if (b.dataset.form) form(b);
 });

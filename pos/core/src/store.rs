@@ -36,6 +36,27 @@ pub enum CashOutKind {
     Emergency,
     /// 途中集金
     Pickup,
+    /// 自動釣銭機からの回収
+    ChangerCollect,
+}
+
+/// 取引外の入金（お金を入れる操作はパスワード不要）
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CashInKind {
+    /// 取引外入金
+    Deposit,
+    /// 自動釣銭機への釣銭補充
+    ChangerRefill,
+}
+
+impl CashInKind {
+    pub fn label(self) -> &'static str {
+        match self {
+            CashInKind::Deposit => "取引外入金",
+            CashInKind::ChangerRefill => "釣銭補充",
+        }
+    }
 }
 
 impl CashOutKind {
@@ -45,6 +66,7 @@ impl CashOutKind {
             CashOutKind::Expense => "経費支出",
             CashOutKind::Emergency => "緊急出金",
             CashOutKind::Pickup => "途中集金",
+            CashOutKind::ChangerCollect => "釣銭機回収",
         }
     }
 }
@@ -130,6 +152,11 @@ pub enum Command {
         amount: u32,
         password: String,
     },
+    CashIn {
+        register: u8,
+        kind: CashInKind,
+        amount: u32,
+    },
     AddAgeRule {
         owner_id: String,
         password: String,
@@ -179,7 +206,8 @@ impl Command {
             | C::SetMode { register, .. }
             | C::Lock { register, .. }
             | C::EndStaffMode { register, .. }
-            | C::CashOut { register, .. } => Some(*register),
+            | C::CashOut { register, .. }
+            | C::CashIn { register, .. } => Some(*register),
             _ => None,
         }
     }
@@ -771,6 +799,11 @@ impl Store {
                 amount,
                 password,
             } => self.cash_out(register, kind, amount, &password),
+            C::CashIn {
+                register,
+                kind,
+                amount,
+            } => self.cash_in(register, kind, amount),
             C::AddAgeRule {
                 owner_id,
                 password,
@@ -1115,6 +1148,27 @@ impl Store {
         }
     }
 
+    /// お金を入れる操作。抜く操作と違ってパスワードは求めない（記録は残す）
+    fn cash_in(&mut self, register: u8, kind: CashInKind, amount: u32) -> Result<Outcome, String> {
+        self.check(register, Side::Staff, Action::CashIn)?;
+        if amount == 0 {
+            return Err("金額を入力してください".into());
+        }
+        let now = self.now;
+        let r = self.reg_mut(register)?;
+        let staff = r.staff.map_or("?", |s| s.account.name);
+        r.drawer.put(amount);
+        self.audit.push(AuditEntry {
+            at: now,
+            register,
+            staff,
+            operation: kind.label(),
+            amount,
+            result: "実行".into(),
+        });
+        done(format!("{} {amount}円を入金しました", kind.label()))
+    }
+
     // ---- スナップショット ------------------------------------------------
 
     pub fn snapshot(&self) -> Snapshot {
@@ -1275,6 +1329,7 @@ impl Store {
                 calls,
                 actions: actions(Side::Staff, STAFF_ACTIONS),
                 drawer_total: r.drawer.cash.total(),
+                drawer: r.drawer.cash.0.clone(),
                 mat_down,
             },
             customer: CustomerView {
@@ -1348,6 +1403,8 @@ pub struct StaffView {
     pub calls: Vec<Call>,
     pub actions: Vec<ActionState>,
     pub drawer_total: u32,
+    /// 自動釣銭機の在高（金種, 枚数）
+    pub drawer: Vec<(u32, u32)>,
     pub mat_down: Vec<String>,
 }
 

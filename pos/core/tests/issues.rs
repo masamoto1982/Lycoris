@@ -490,3 +490,26 @@ fn idle_register_returns_to_semi_self() {
     advance(&mut s, 6 * 60_000);
     assert_eq!(reg(&s, 1).mode, Mode::Attended);
 }
+
+/// 店舗メニュー：お金を入れる操作はパスワード不要、抜く操作は店舗パスワードが要る。どちらも記録が残る。
+#[test]
+fn cash_in_needs_no_password_but_cash_out_does() {
+    let mut s = Store::new(1, 2, 1);
+    let cin = json!({"type":"cash_in","register":1,"kind":"deposit","amount":3000});
+    // 名札でログインした有人モードでだけ使える
+    assert!(run(&mut s, cin.clone()).is_err());
+    login(&mut s, 1);
+    let before = reg(&s, 1).staff.drawer_total;
+    ok(&mut s, cin);
+    ok(&mut s, json!({"type":"cash_in","register":1,"kind":"changer_refill","amount":1500}));
+    assert_eq!(reg(&s, 1).staff.drawer_total, before + 4500);
+    let out = |pw: &str| json!({"type":"cash_out","register":1,"kind":"changer_collect","amount":4500,"password":pw});
+    assert!(run(&mut s, out("")).is_err());
+    ok(&mut s, out("7777"));
+    assert_eq!(reg(&s, 1).staff.drawer_total, before);
+    let ops: Vec<_> = s.snapshot().audit.iter().map(|a| a.operation).collect();
+    assert_eq!(ops, vec!["取引外入金", "釣銭補充", "釣銭機回収", "釣銭機回収"]);
+    // 取引中は入出金できない
+    scan(&mut s, 1, "staff", ONIGIRI);
+    assert!(run(&mut s, json!({"type":"cash_in","register":1,"kind":"deposit","amount":100})).is_err());
+}

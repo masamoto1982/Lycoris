@@ -107,6 +107,7 @@ pub enum Action {
     Lock,
     EndStaffMode,
     CashOut,
+    CashIn,
 }
 
 pub const STAFF_ACTIONS: &[Action] = &[
@@ -123,6 +124,7 @@ pub const STAFF_ACTIONS: &[Action] = &[
     Action::Lock,
     Action::EndStaffMode,
     Action::CashOut,
+    Action::CashIn,
 ];
 
 pub const CUSTOMER_ACTIONS: &[Action] = &[
@@ -240,6 +242,7 @@ fn staff(action: Action, c: &Context) -> Result<(), Denial> {
         | Action::Lock
         | Action::EndStaffMode => Ok(()),
         Action::CashOut => require(!c.has_lines, "取引中は出金操作ができません"),
+        Action::CashIn => require(!c.has_lines, "取引中は入金操作ができません"),
         Action::HandOverFf => require(c.ff_waiting, "お渡し待ちの FF はありません"),
         Action::CompleteService => require(c.service_pending, "受付待ちのサービス商品はありません"),
         Action::RemoveLine | Action::VoidTransaction => require(c.has_lines, "明細がありません"),
@@ -328,7 +331,8 @@ fn customer(action: Action, c: &Context) -> Result<(), Denial> {
         | Action::SetMode
         | Action::Lock
         | Action::EndStaffMode
-        | Action::CashOut => Err("係員の操作です"),
+        | Action::CashOut
+        | Action::CashIn => Err("係員の操作です"),
     }
 }
 

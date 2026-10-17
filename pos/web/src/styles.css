@@ -290,3 +290,7 @@ body.dragging .drop-hint { display: inline; }
 .lines.rules select { font-size: 13px; padding: 3px 6px; }
 .idle { margin-left: 6px; font-size: 12px; font-weight: 400; color: var(--muted); }
 .ffmenu.center { justify-content: center; }
+/* 店舗メニューの歯車（お客様画面の右上。有人モードだけ） */
+.gear { position: absolute; top: 6px; right: 6px; z-index: 2; width: 28px; height: 28px; padding: 0; border-radius: 50%; font-size: 15px; line-height: 1; background: var(--panel); color: var(--muted); border: 1px solid var(--line); }
+.gear:hover { color: var(--ink); }
+.rules-dlg h3 { font-size: 14px; margin: 14px 0 6px; }

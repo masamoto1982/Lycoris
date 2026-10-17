@@ -72,6 +72,7 @@ export interface StaffView {
   calls: Call[];
   actions: ActionState[];
   drawer_total: number;
+  drawer: [number, number][];
   mat_down: string[];
 }
 

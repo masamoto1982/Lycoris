@@ -79,6 +79,18 @@ impl Default for Drawer {
 }
 
 impl Drawer {
+    /// 入金：金額を大きい金種から順に入れたものとして在高に足す（シミュレーション）
+    pub fn put(&mut self, amount: u32) {
+        let mut rest = amount;
+        for &d in BILLS.iter().filter(|&&d| d != 2_000).chain(COINS) {
+            let n = rest / d;
+            if n > 0 {
+                self.cash.add(d, n);
+                rest -= d * n;
+            }
+        }
+    }
+
     /// 在高から `amount` を取り出す。`for_change` のときは一万円札・二千円札を使わない。
     /// ちょうど取り出せなければ在高は変えずに Err。
     pub fn take(&mut self, amount: u32, for_change: bool) -> Result<Cash, String> {
