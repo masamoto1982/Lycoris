@@ -302,10 +302,13 @@ body.dragging .drop-hint { display: inline; }
 .menu-form { display: flex; flex-wrap: wrap; gap: 6px; }
 .menu-form input { flex: 1 1 8em; min-width: 0; }
 /* 投入口・排出口（各レジの最下段。売り場側の機器） */
-.money-io { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+/* 投入口・排出口はお客様側にしかないので、お客様画面の下にだけ置く */
+.money-io { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; margin-top: 8px; }
+.money-io-cust { grid-column: 2; min-width: 0; display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 8px; }
+.money-io-cust > * { min-width: 0; }
 .money-io .inlet { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border: 1px dashed var(--line); border-radius: 8px; }
 .money-io .inlet input { flex: 1; min-width: 0; }
 .money-io .outlet { display: flex; align-items: center; gap: 8px; justify-content: flex-start; text-align: left; padding: 6px 10px; border: 1px dashed var(--line); border-radius: 8px; background: var(--panel); color: var(--ink); }
 .money-io .outlet small { display: block; color: var(--muted); font-size: 11px; }
 .money-io .hw-label { font-size: 11px; color: var(--muted); white-space: nowrap; }
-@media (max-width: 600px) { .money-io { grid-template-columns: 1fr; } }
+@media (max-width: 760px) { .money-io { grid-template-columns: 1fr; } .money-io-cust { grid-column: 1; } }

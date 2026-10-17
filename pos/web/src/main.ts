@@ -95,12 +95,14 @@ function buildSkeleton(): void {
           <div class="toast" id="toast-${r.id}-customer"></div>
         </section>
       </div>
-      <div class="money-io">
+      <div class="money-io" aria-label="レジ${r.id}の投入口と排出口（お客様側だけにあります）">
+        <div class="money-io-cust">
         <div class="inlet"><span class="hw-label">投入口</span>
-          <input type="number" inputmode="numeric" min="1" placeholder="金額を入力" data-key="in-${r.id}" aria-label="レジ${r.id}の投入口に入れる金額" />
+          <input type="number" inputmode="numeric" min="1" placeholder="金額" data-key="in-${r.id}" aria-label="レジ${r.id}の投入口に入れる金額" />
           <button data-form="insert" data-reg="${r.id}">入れる</button>
         </div>
         <button type="button" class="outlet" data-outlet="${r.id}" aria-label="レジ${r.id}の排出口（タッチで取り出す）"><span class="hw-label">排出口</span><span data-region="outlet-${r.id}"></span></button>
+        </div>
       </div>
     </section>`,
     )
