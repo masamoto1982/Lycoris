@@ -9,7 +9,7 @@
 //!
 //! どちらが操作するかは、(運用モード, 取引の段階, 店員のログイン状態,
 //! お客様の確認待ちの有無, 画面を持っている側) から純粋関数 [`active_side`] で
-//! 一意に決まる。年確・FF 受取などお客様本人の確認が要る場面は必ずお客様側（問題5）。
+//! 一意に決まる。年確などお客様本人の確認が要る場面は必ずお客様側（問題5）。
 //! それ以外の有人モードでは、画面を持っている側が操作する。ログイン直後は
 //! お客様側が持ち、持っている側がしばらく触られていないときだけ、もう一方が
 //! タッチで引き継げる。操作中の画面が勝手に取られることはない（問題3）。
@@ -92,8 +92,8 @@ pub enum Action {
     Scan,
     RegisterFf,
     FfButton,
-    HandOverFf,
-    ConfirmFfReceipt,
+    /// FF の明細のお渡し確認チェック（入れる・外す）
+    CheckFf,
     CompleteService,
     RemoveLine,
     Checkout,
@@ -114,7 +114,7 @@ pub enum Action {
 pub const STAFF_ACTIONS: &[Action] = &[
     Action::Scan,
     Action::RegisterFf,
-    Action::HandOverFf,
+    Action::CheckFf,
     Action::CompleteService,
     Action::RemoveLine,
     Action::Checkout,
@@ -132,7 +132,7 @@ pub const CUSTOMER_ACTIONS: &[Action] = &[
     Action::Scan,
     Action::RegisterFf,
     Action::FfButton,
-    Action::ConfirmFfReceipt,
+    Action::CheckFf,
     Action::RemoveLine,
     Action::Checkout,
     Action::BackToRegistering,
@@ -152,10 +152,10 @@ pub struct Context {
     pub has_lines: bool,
     /// 会計時の年確がまだ済んでいない
     pub age_pending: bool,
-    /// 登録済みでまだお渡ししていない FF がある
+    /// お渡し確認のチェックが入っていない FF がある
     pub ff_waiting: bool,
-    /// お渡し済みで、お客様の受取確認待ちの FF がある
-    pub ff_presented: bool,
+    /// FF の明細がある
+    pub has_ff: bool,
     /// 店員の受付が済んでいないサービス商品がある
     pub service_pending: bool,
     pub method: Option<PaymentMethod>,
@@ -173,8 +173,8 @@ impl Context {
     pub fn payment_blocker(&self) -> Option<&'static str> {
         if self.age_pending {
             Some("年齢確認が済んでいません")
-        } else if self.ff_waiting || self.ff_presented {
-            Some("FF のお渡しと受取確認が済んでいません")
+        } else if self.ff_waiting {
+            Some(FF_UNCHECKED)
         } else if self.service_pending {
             Some("サービス商品の受付が済んでいません")
         } else {
@@ -184,6 +184,8 @@ impl Context {
 }
 
 pub type Denial = &'static str;
+
+const FF_UNCHECKED: Denial = "FF のお渡し確認にチェックが入っていません";
 
 /// 今、画面を操作できる側。もう一方の画面は表示だけになる。
 pub fn active_side(c: &Context) -> Side {
@@ -195,8 +197,8 @@ pub fn active_side(c: &Context) -> Side {
         // 店員が操作できない（未ログイン・ロック中）ならお客様側
         return Side::Customer;
     }
-    if c.age_pending || c.ff_presented {
-        // お客様本人の確認（年確・FF 受取）を待っている間はお客様側
+    if c.age_pending {
+        // お客様本人の年齢確認を待っている間はお客様側
         return Side::Customer;
     }
     if c.customer_turn {
@@ -237,6 +239,12 @@ pub fn permitted(side: Side, action: Action, c: &Context) -> Result<(), Denial> 
     Ok(())
 }
 
+/// お渡し確認のチェックは登録画面で付け外しする（どちらの画面からでも）
+fn check_ff(c: &Context) -> Result<(), Denial> {
+    require(c.phase == Phase::Registering, "お会計中はお渡し確認を変えられません")?;
+    require(c.has_ff, "FF の明細がありません")
+}
+
 fn require(cond: bool, reason: Denial) -> Result<(), Denial> {
     if cond {
         Ok(())
@@ -260,18 +268,18 @@ fn staff(action: Action, c: &Context) -> Result<(), Denial> {
         | Action::EndStaffMode => Ok(()),
         Action::CashOut => require(!c.has_lines, "取引中は出金操作ができません"),
         Action::CashIn => require(!c.has_lines, "取引中は入金操作ができません"),
-        Action::HandOverFf => require(c.ff_waiting, "お渡し待ちの FF はありません"),
+        Action::CheckFf => check_ff(c),
         Action::CompleteService => require(c.service_pending, "受付待ちのサービス商品はありません"),
         Action::RemoveLine | Action::VoidTransaction => require(c.has_lines, "明細がありません"),
         Action::Checkout => {
             require(!paying, "すでに会計画面です")?;
-            require(c.has_lines, "明細がありません")
+            require(c.has_lines, "明細がありません")?;
+            require(!c.ff_waiting, FF_UNCHECKED)
         }
         Action::BackToRegistering | Action::SelectPayment => {
             require(paying, "会計画面ではありません")
         }
         Action::FfButton
-        | Action::ConfirmFfReceipt
         | Action::ConfirmAge
         | Action::InsertCash
         | Action::TapEmoney
@@ -295,7 +303,7 @@ fn customer(action: Action, c: &Context) -> Result<(), Denial> {
             require(c.mode != Mode::SemiSelf, "FF は係員にお申し付けください")?;
             require(!paying, "お会計中です")
         }
-        Action::ConfirmFfReceipt => require(c.ff_presented, "お渡し中の FF はありません"),
+        Action::CheckFf => check_ff(c),
         Action::RemoveLine => {
             require(self_mode, "係員にお申し付けください")?;
             require(!paying, "お会計中です")?;
@@ -304,7 +312,8 @@ fn customer(action: Action, c: &Context) -> Result<(), Denial> {
         Action::Checkout => {
             require(self_mode, "係員がお会計に進みます")?;
             require(!paying, "すでにお会計中です")?;
-            require(c.has_lines, "商品を登録してください")
+            require(c.has_lines, "商品を登録してください")?;
+            require(!c.ff_waiting, FF_UNCHECKED)
         }
         Action::BackToRegistering => {
             require(self_mode, "係員にお申し付けください")?;
@@ -342,8 +351,7 @@ fn customer(action: Action, c: &Context) -> Result<(), Denial> {
             )
         }
         Action::CallStaff => require(c.mode != Mode::Attended, "係員が対応中です"),
-        Action::HandOverFf
-        | Action::CompleteService
+        Action::CompleteService
         | Action::VoidTransaction
         | Action::SetMode
         | Action::Lock
@@ -364,9 +372,7 @@ mod tests {
             for phase in [Phase::Registering, Phase::Paying] {
                 for has_lines in b {
                     for age_pending in b {
-                        for (ff_waiting, ff_presented) in
-                            [(false, false), (true, false), (false, true), (true, true)]
-                        {
+                        for (ff_waiting, has_ff) in [(false, false), (false, true), (true, true)] {
                             for service_pending in b {
                                 for method in
                                     [None, Some(PaymentMethod::Cash), Some(PaymentMethod::Emoney)]
@@ -382,7 +388,7 @@ mod tests {
                                             has_lines,
                                             age_pending: age_pending && phase == Phase::Paying,
                                             ff_waiting,
-                                            ff_presented,
+                                            has_ff,
                                             service_pending,
                                             method,
                                         });
@@ -412,14 +418,14 @@ mod tests {
         }
     }
 
-    /// 問題5：有人モードでお客様が操作側になるのは、本人の確認を待つときだけ。
+    /// 問題5：有人モードで店員が画面を持っていても、年確の間はお客様側。
     #[test]
     fn attended_customer_is_active_only_for_confirmations() {
         for c in contexts()
             .into_iter()
             .filter(|c| c.mode == Mode::Attended && !c.customer_turn)
         {
-            let expect = if c.age_pending || c.ff_presented {
+            let expect = if c.age_pending {
                 Side::Customer
             } else {
                 Side::Staff

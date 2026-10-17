@@ -133,7 +133,7 @@ function buildSkeleton(): void {
           <li>運用モードは名札で決まります。名札なし＝セミセルフ（お客様が自分で登録・会計）、名札あり＝有人。セルフは将来の拡張用で、いまは OFF です。</li>
           <li>セミセルフ：商品をお客様画面に落として「お会計」。缶ビールなら年確の呼び出しで MAT が鳴ります。レジ名の右の「店員」でログインすると有人モードになり、「20歳以上です」が押せます。</li>
           <li>有人：「店員」で名前を選んでログインすると、まずお客様画面が操作側になります。グレーの画面にタッチすると、操作している側が3秒触られていなければ操作を引き継げます。店員画面で「会計」します。</li>
-          <li>FF：有人モードでは店員画面からもお客様画面からも FF を登録できます。セミセルフではお客様画面の「FF を注文」で係員を呼びます。登録後は「お渡し」→ お客様画面で「受け取りました」。</li>
+          <li>FF：有人モードでは店員画面からもお客様画面からも FF を登録できます。セミセルフではお客様画面の「FF を注文」で係員を呼びます。FF の明細は個数の右のチェックボックスにお渡し確認のチェックを入れるまで、会計に進めません。</li>
           <li>宅急便・代行収納をお客様画面に落とすと係員の呼び出しになり、店員が金額を入れて受け付けます。</li>
           <li>有人モードは、取引のない状態で5分間操作がないとログアウトしてセミセルフに戻ります。残り時間はレジ名の横に出ます。</li>
           <li>お金は各レジ最下段の投入口に金額を入れて投入します。おつりや出金したお金は排出口に出て、タッチすると取り出せます。店舗メニュー：有人モード（ログイン中）だとお客様画面の右上に ⚙ が出ます。返品返金・緊急出金・経費支出は店舗パスワード <b>7777</b>（ログインとは別）、取引外入金と自動釣銭機の両替は投入口を使い、パスワード不要です。年確ルールは売り場の「年確ルール設定」から、オーナー 9001 / <b>9999</b> で商品ごとに変更できます。</li>
@@ -301,6 +301,14 @@ function form(b: HTMLElement): void {
 
 app.addEventListener("change", (e) => {
   const sel = e.target as HTMLSelectElement;
+  if (sel.dataset.ffcheck) {
+    // お渡し確認のチェック。押した画面の側からの操作になる
+    const box = sel as unknown as HTMLInputElement;
+    const [reg, line] = box.dataset.ffcheck!.split(":").map(Number);
+    const side = box.closest<HTMLElement>("[data-drop]")?.dataset.drop?.split(":")[1] ?? "staff";
+    if (!send({ type: "check_ff", register: reg, side, line_id: line, checked: box.checked })) box.checked = !box.checked;
+    return;
+  }
   if (sel.dataset.age) {
     const owner = (k: string) => app.querySelector<HTMLInputElement>(`[data-owner="${k}"]`)?.value.trim() ?? "";
     const ok = send({

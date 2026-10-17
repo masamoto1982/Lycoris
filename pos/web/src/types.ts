@@ -5,7 +5,7 @@ export type Mode = "attended" | "semi_self" | "full_self";
 export type Phase = "registering" | "paying";
 export type Method = "cash" | "emoney" | "qr";
 export type StaffState = "absent" | "locked" | "ready";
-export type FfState = "waiting" | "presented" | "received";
+export type FfState = "waiting" | "received";
 
 export interface ActionState {
   action: string;

@@ -15,7 +15,7 @@ describe("view helpers", () => {
   it("routes notices to the side that acted", () => {
     expect(sideOf({ type: "scan", register: 1, side: "customer" })).toBe("customer");
     expect(sideOf({ type: "insert_cash", register: 1 })).toBe("customer");
-    expect(sideOf({ type: "hand_over_ff", register: 1 })).toBe("staff");
+    expect(sideOf({ type: "void_transaction", register: 1 })).toBe("staff");
     expect(sideOf({ type: "set_mat_loss", percent: 30 })).toBe("store");
   });
 });

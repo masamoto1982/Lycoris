@@ -40,9 +40,18 @@ export function btn(label: string, cmd: Command, a?: ActionState, cls = ""): str
 
 const FF_LABEL: Record<FfState, string> = {
   waiting: "お渡し前",
-  presented: "お渡し中",
-  received: "受取済",
+  received: "お渡し済",
 };
+
+/**
+ * FF の明細の個数の右に置く、お渡し確認のチェックボックス。
+ * 全部にチェックが入るまで会計に進めない。どちらの画面から押したかは、押した画面で決まる
+ */
+function ffCheck(reg: number, l: { id: number; kind: string; state?: FfState }, a: ActionState): string {
+  if (l.kind !== "ff") return "";
+  const title = a.allowed ? "お渡ししたらチェック" : (a.reason ?? "");
+  return `<label class="ffcheck" title="${esc(title)}"><input type="checkbox" data-ffcheck="${reg}:${l.id}"${l.state === "received" ? " checked" : ""}${a.allowed ? "" : " disabled"} aria-label="お渡し確認" /></label>`;
+}
 
 const METHOD_LABEL: Record<string, string> = { cash: "現金", emoney: "電子マネー", qr: "QR決済" };
 
@@ -66,7 +75,7 @@ function staffLine(reg: number, l: StaffLine, v: StaffView): string {
   }
   return `<tr>
     <td>${esc(l.name)} ${tags.join(" ")}${svc}</td>
-    <td class="num">${l.qty}</td>
+    <td class="num">${l.qty}${ffCheck(reg, l, find(v.actions, "check_ff"))}</td>
     <td class="num">${l.kind === "service" && !l.done ? "—" : yen(l.amount)}</td>
     <td>${btn("取消", { type: "remove_line", register: reg, side: "staff", line_id: l.id }, remove, "small ghost")}</td>
   </tr>`;
@@ -128,7 +137,6 @@ export function staffScreen(r: RegisterView, snap: Snapshot): string {
     ${pay}
     <div class="row">
       ${paying ? btn("登録に戻る", { type: "back_to_registering", register: reg, side: "staff" }, a("back_to_registering")) : btn("会計", { type: "checkout", register: reg, side: "staff" }, a("checkout"), "primary")}
-      ${btn("お渡し", { type: "hand_over_ff", register: reg }, a("hand_over_ff"), "ff-hand")}
       ${btn("取引中止", { type: "void_transaction", register: reg }, a("void_transaction"), "ghost")}
       ${btn("ロック", { type: "lock", register: reg }, a("lock"), "ghost")}
       ${btn("ログアウト", { type: "end_staff_mode", register: reg }, a("end_staff_mode"), "ghost")}
@@ -247,25 +255,16 @@ export function customerScreen(r: RegisterView, ff: Snapshot["ff_stock"] = []): 
   if (c.staff_called) banners.push(`<div class="banner call">係員をお呼びしています。しばらくお待ちください</div>`);
   else if (r.active_side === "staff" && c.staff_present) banners.push(`<div class="banner watch">係員が操作中です。しばらくお待ちください</div>`);
 
-  const presented = c.lines.filter((l) => l.kind === "ff" && l.state === "presented");
-  const ffCard = presented.length
-    ? `<div class="card ff-card">
-        <div class="big">こちらの商品をお渡しします</div>
-        <ul>${presented.map((l) => `<li>${esc(l.name)} × ${l.qty}</li>`).join("")}</ul>
-        ${btn("受け取りました", { type: "confirm_ff_receipt", register: reg }, a("confirm_ff_receipt"), "primary big-btn")}
-      </div>`
-    : "";
-
   const rows = c.lines
     .map((l) => {
       const tag =
         l.kind === "ff"
-          ? `<span class="tag ff-${l.state}">${{ waiting: "ご用意中", presented: "お渡し中", received: "お受け取り済" }[l.state]}</span>`
+          ? `<span class="tag ff-${l.state}">${{ waiting: "ご用意中", received: "お受け取り済" }[l.state]}</span>`
           : l.kind === "service" && !l.done
             ? `<span class="tag warn">係員が受付します</span>`
             : "";
       const rm = self && c.phase === "registering" ? btn("取消", { type: "remove_line", register: reg, side: "customer", line_id: l.id }, a("remove_line"), "small ghost") : "";
-      return `<tr><td>${esc(l.name)} ${tag}</td><td class="num">${l.qty}</td><td class="num">${l.kind === "service" && !l.done ? "—" : yen(l.amount)}</td><td>${rm}</td></tr>`;
+      return `<tr><td>${esc(l.name)} ${tag}</td><td class="num">${l.qty}${ffCheck(reg, l, a("check_ff"))}</td><td class="num">${l.kind === "service" && !l.done ? "—" : yen(l.amount)}</td><td>${rm}</td></tr>`;
     })
     .join("");
 
@@ -316,7 +315,7 @@ export function customerScreen(r: RegisterView, ff: Snapshot["ff_stock"] = []): 
       : `<div class="row">${self ? btn("商品登録に戻る", { type: "back_to_registering", register: reg, side: "customer" }, a("back_to_registering"), "ghost") : ""}
           ${r.mode !== "attended" ? btn("係員を呼ぶ", { type: "call_staff", register: reg }, a("call_staff"), "ghost") : ""}</div>`;
 
-  return `${banners.join("")}${ffCard}
+  return `${banners.join("")}
     <table class="lines"><tbody>${rows}</tbody></table>
     <div class="totals"><span>合計 <b class="total">${yen(c.total)}</b></span>${c.point_card ? `<span class="muted">ポイントカード 読み取り済</span>` : ""}</div>
     ${pay}${actionsRow}`;
@@ -452,7 +451,7 @@ export function cashPanel(reg: number): string {
 /** コマンドがどちらの画面からの操作か（お知らせを出す場所を決める） */
 export function sideOf(cmd: Command): "staff" | "customer" | "store" {
   if (cmd.side === "staff" || cmd.side === "customer") return cmd.side;
-  if (["ff_button", "confirm_ff_receipt", "confirm_age", "insert_cash", "tap_emoney", "call_staff"].includes(cmd.type)) return "customer";
+  if (["ff_button", "confirm_age", "insert_cash", "tap_emoney", "call_staff"].includes(cmd.type)) return "customer";
   if (typeof cmd.register === "number") return "staff";
   return "store";
 }

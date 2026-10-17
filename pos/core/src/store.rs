@@ -111,11 +111,12 @@ pub enum Command {
     FfButton {
         register: u8,
     },
-    HandOverFf {
+    /// FF の明細のお渡し確認チェックを入れる・外す（チェックが揃うまで会計に進めない）
+    CheckFf {
         register: u8,
-    },
-    ConfirmFfReceipt {
-        register: u8,
+        side: Side,
+        line_id: u32,
+        checked: bool,
     },
     CompleteService {
         register: u8,
@@ -233,8 +234,7 @@ impl Command {
             C::Scan { register, .. }
             | C::RegisterFf { register, .. }
             | C::FfButton { register, .. }
-            | C::HandOverFf { register, .. }
-            | C::ConfirmFfReceipt { register, .. }
+            | C::CheckFf { register, .. }
             | C::CompleteService { register, .. }
             | C::RemoveLine { register, .. }
             | C::Checkout { register, .. }
@@ -263,6 +263,7 @@ impl Command {
         use Command as C;
         match self {
             C::RegisterFf { side, .. }
+            | C::CheckFf { side, .. }
             | C::RemoveLine { side, .. }
             | C::Checkout { side, .. }
             | C::BackToRegistering { side, .. }
@@ -270,14 +271,12 @@ impl Command {
             | C::Claim { side, .. } => Some(*side),
             // 店舗メニューと入出金はお客様画面で行う
             C::FfButton { .. }
-            | C::ConfirmFfReceipt { .. }
             | C::ConfirmAge { .. }
             | C::CallStaff { .. }
             | C::OpenMenu { .. }
             | C::CashOut { .. }
             | C::CashIn { .. } => Some(Side::Customer),
-            C::HandOverFf { .. }
-            | C::CompleteService { .. }
+            C::CompleteService { .. }
             | C::VoidTransaction { .. }
             | C::SetMode { .. }
             | C::Lock { .. }
@@ -305,11 +304,9 @@ fn done(msg: impl Into<String>) -> Result<Outcome, String> {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum FfState {
-    /// 登録済み・お渡し前
+    /// 登録済み・お渡し確認のチェック前
     Waiting,
-    /// お渡し済み・お客様の受取確認待ち
-    Presented,
-    /// 受取確認済み
+    /// お渡し確認のチェック済み
     Received,
 }
 
@@ -500,7 +497,7 @@ impl Register {
             has_lines: !t.lines.is_empty(),
             age_pending: t.age_pending(),
             ff_waiting: t.any_ff(FfState::Waiting),
-            ff_presented: t.any_ff(FfState::Presented),
+            has_ff: t.lines.iter().any(|l| matches!(l.kind, LineKind::Ff { .. })),
             service_pending: t.service_pending(),
             method: t.method,
             customer_turn: t.customer_turn,
@@ -719,37 +716,33 @@ impl Store {
                 self.call(register, CallKind::FastFood, "FF のご注文");
                 done("係員をお呼びしました。FF のご注文を伺います")
             }
-            C::HandOverFf { register } => {
-                self.check(register, Side::Staff, Action::HandOverFf)?;
+            C::CheckFf {
+                register,
+                side,
+                line_id,
+                checked,
+            } => {
+                self.check(register, side, Action::CheckFf)?;
                 let r = self.reg_mut(register)?;
-                for l in &mut r.txn.lines {
-                    if l.kind
-                        == (LineKind::Ff {
-                            state: FfState::Waiting,
-                        })
-                    {
-                        l.kind = LineKind::Ff {
-                            state: FfState::Presented,
-                        };
-                    }
-                }
-                done("お渡ししました。お客様画面で受取確認を待っています")
-            }
-            C::ConfirmFfReceipt { register } => {
-                self.check(register, Side::Customer, Action::ConfirmFfReceipt)?;
-                let r = self.reg_mut(register)?;
-                for l in &mut r.txn.lines {
-                    if l.kind
-                        == (LineKind::Ff {
-                            state: FfState::Presented,
-                        })
-                    {
-                        l.kind = LineKind::Ff {
-                            state: FfState::Received,
-                        };
-                    }
-                }
-                done("FF の受け取りを確認しました")
+                let l = r
+                    .txn
+                    .lines
+                    .iter_mut()
+                    .find(|l| l.id == line_id && matches!(l.kind, LineKind::Ff { .. }))
+                    .ok_or("FF の明細が見つかりません")?;
+                l.kind = LineKind::Ff {
+                    state: if checked {
+                        FfState::Received
+                    } else {
+                        FfState::Waiting
+                    },
+                };
+                let name = l.name;
+                done(if checked {
+                    format!("{name}：お渡し確認済み")
+                } else {
+                    format!("{name}：お渡し確認を外しました")
+                })
             }
             C::CompleteService {
                 register,
@@ -1127,7 +1120,7 @@ impl Store {
         );
         self.calls.resolve(register, CallKind::FastFood, now);
         done(format!(
-            "{} ×{qty} を登録しました。準備ができたら「お渡し」を押してください",
+            "{} ×{qty} を登録しました。お渡ししたらチェックを入れてください",
             p.name
         ))
     }
@@ -1201,8 +1194,8 @@ impl Store {
                 "お客様画面で店舗メニューを操作中です"
             } else if c.staff != StaffState::Ready {
                 "スタッフバーコードでログインしてください"
-            } else if c.age_pending || c.ff_presented {
-                "お客様の確認を待っています"
+            } else if c.age_pending {
+                "お客様の年齢確認を待っています"
             } else {
                 "お客様がお支払い中です"
             }

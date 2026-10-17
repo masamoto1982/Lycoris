@@ -257,15 +257,32 @@ fn fast_food_flow_in_semi_self_mode() {
         json!({"type":"checkout","register":2,"side":"customer"})
     )
     .is_err());
-    // 店員が会計に進めても、FF のお渡しが済むまで決済できない
+    // FF のお渡し確認にチェックを入れるまで、会計に進めない
+    let e = run(&mut s, json!({"type":"checkout","register":2,"side":"staff"})).unwrap_err();
+    assert!(e.contains("お渡し確認"), "{e}");
+    let ff = reg(&s, 2)
+        .staff
+        .lines
+        .iter()
+        .find(|l| l.line.code == "FF01")
+        .unwrap()
+        .line
+        .id;
+    ok(
+        &mut s,
+        json!({"type":"check_ff","register":2,"side":"staff","line_id":ff,"checked":true}),
+    );
     ok(
         &mut s,
         json!({"type":"checkout","register":2,"side":"staff"}),
     );
-    assert!(run(&mut s, json!({"type":"tap_emoney","register":2})).is_err());
-    ok(&mut s, json!({"type":"hand_over_ff","register":2}));
+    // 会計画面ではチェックを外せない
+    assert!(run(
+        &mut s,
+        json!({"type":"check_ff","register":2,"side":"staff","line_id":ff,"checked":false})
+    )
+    .is_err());
     assert_eq!(reg(&s, 2).mode, Mode::Attended, "badge keeps the register attended");
-    ok(&mut s, json!({"type":"confirm_ff_receipt","register":2}));
     // 有人モードなので支払方法は店員が選ぶ
     assert!(run(
         &mut s,
@@ -608,20 +625,24 @@ fn attended_screen_is_held_by_one_side_at_a_time() {
         &mut s,
         json!({"type":"register_ff","register":1,"side":"staff","code":"FF02","qty":1}),
     );
-    // 2 品とも「お渡し待ち」
+    // 2 品ともお渡し確認のチェック前で、会計に進めない
     let v = reg(&s, 1);
     assert_eq!(v.staff.lines.len(), 2);
-    assert!(allowed(&v, Side::Staff, Action::HandOverFf));
+    assert!(!allowed(&v, Side::Staff, Action::Checkout));
+    assert!(allowed(&v, Side::Staff, Action::CheckFf));
     assert!(run(
         &mut s,
         json!({"type":"register_ff","register":1,"side":"customer","code":"FF01","qty":1})
     )
     .is_err());
-    // お渡しするとお客様の受取確認（お客様側）。確認後は店員側のまま
-    ok(&mut s, json!({"type":"hand_over_ff","register":1}));
-    assert_eq!(reg(&s, 1).active_side, Side::Customer);
-    let e = run(&mut s, json!({"type":"claim","register":1,"side":"staff"})).unwrap_err();
-    assert!(e.contains("確認"), "{e}");
-    ok(&mut s, json!({"type":"confirm_ff_receipt","register":1}));
-    assert_eq!(reg(&s, 1).active_side, Side::Staff);
+    // 操作している側（店員）がチェックを入れる。お客様画面からは入れられない
+    let ids: Vec<u32> = v.staff.lines.iter().map(|l| l.line.id).collect();
+    let check = |id: u32, side: &str| {
+        json!({"type":"check_ff","register":1,"side":side,"line_id":id,"checked":true})
+    };
+    assert!(run(&mut s, check(ids[0], "customer")).is_err());
+    ok(&mut s, check(ids[0], "staff"));
+    assert!(!allowed(&reg(&s, 1), Side::Staff, Action::Checkout));
+    ok(&mut s, check(ids[1], "staff"));
+    ok(&mut s, json!({"type":"checkout","register":1,"side":"staff"}));
 }

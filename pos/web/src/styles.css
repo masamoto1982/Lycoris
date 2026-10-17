@@ -116,7 +116,7 @@ button.primary { font-weight: 600; }
 button.big-btn { font-size: 18px; padding: 12px 22px; }
 button.seg { background: transparent; color: inherit; border-color: currentColor; padding: 4px 10px; opacity: .7; }
 button.seg.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); opacity: 1; }
-button.ff, button.ff-hand { background: var(--ff); }
+button.ff { background: var(--ff); }
 .segs { display: inline-flex; gap: 4px; }
 
 input, select {
@@ -126,7 +126,6 @@ input, select {
 .tag { font-size: 11px; padding: 1px 6px; border-radius: 4px; background: var(--line); color: var(--ink); white-space: nowrap; }
 .tag.age { background: var(--warn-bg); color: var(--warn); }
 .tag.warn, .tag.ff-waiting { background: var(--warn-bg); color: var(--warn); }
-.tag.ff-presented { background: var(--call-bg); color: var(--call); }
 .tag.ok, .tag.ff-received { background: transparent; color: var(--ok); border: 1px solid currentColor; }
 .warn { color: var(--warn); }
 .ok { color: var(--ok); }
@@ -150,8 +149,9 @@ details summary h3 { display: inline; }
 .mirror { margin-top: 18px; }
 .card { border-radius: 10px; padding: 12px; margin: 8px 0; text-align: center; }
 .age-card { background: var(--warn-bg); color: var(--warn); }
-.ff-card { background: var(--call-bg); color: var(--call); }
-.ff-card ul { list-style: none; padding: 0; font-size: 16px; color: var(--ink); }
+.ffcheck { display: inline-flex; vertical-align: middle; margin-left: 6px; }
+.ffcheck input { width: 18px; height: 18px; accent-color: var(--ff); cursor: pointer; }
+.ffcheck input:disabled { cursor: not-allowed; }
 .change { font-size: 18px; margin: 8px 0; }
 
 .toast {
