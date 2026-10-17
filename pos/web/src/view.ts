@@ -7,6 +7,7 @@ import type {
   Command,
   CustomerView,
   FfState,
+  MenuScreen,
   RegisterView,
   Snapshot,
   StaffLine,
@@ -90,6 +91,9 @@ export function staffScreen(r: RegisterView, snap: Snapshot): string {
   const reg = r.id;
   const a = (n: string) => find(v.actions, n);
   // 店員画面には常にお客様画面の内容を映す。ログイン（名札）で操作できるようになる
+  if (r.active_side !== "staff" && r.menu) {
+    return `<div class="mirror-head"><b>お客様画面で店舗メニューを操作中</b>　${esc(MENU_LABEL[r.menu.screen])}</div>`;
+  }
   if (r.active_side !== "staff") {
     const why =
       v.state === "absent"
@@ -161,37 +165,56 @@ export function staffScreen(r: RegisterView, snap: Snapshot): string {
 // 自動釣銭機の取り出し口は売り場側にあるので、入出金の操作もお客様画面側で行う
 // ---------------------------------------------------------------------------
 
+const MENU_LABEL: Record<MenuScreen, string> = {
+  top: "メニュー",
+  refund: "返品返金",
+  emergency: "緊急出金",
+  deposit: "取引外入金",
+  expense: "経費支出",
+  changer: "自動釣銭機（両替）",
+};
+
+/** 一度に一つの画面だけを出す：一覧 → 各項目の画面 */
 export function storeMenu(r: RegisterView): string {
   const v = r.staff;
   const reg = r.id;
-  const cin = find(v.actions, "cash_in");
-  const cout = find(v.actions, "cash_out");
-  const dis = (s: ActionState) => (s.allowed ? "" : `disabled title="${esc(s.reason ?? "")}"`);
-  const drawer = v.drawer
-    .filter(([, n]) => n > 0)
-    .map(([d, n]) => `<tr><td>${d.toLocaleString()}円</td><td class="num">${n}枚</td><td class="num">${yen(d * n)}</td></tr>`)
-    .join("");
-  return `<p class="muted">レジ${reg}　担当：${esc(v.name ?? "")}${!cin.allowed && cin.reason ? `　<b class="warn">${esc(cin.reason)}</b>` : ""}</p>
-    <h3>お金を入れる <span class="muted">パスワード不要</span></h3>
-    <div class="row wrap">
-      <select data-key="mi-kind"><option value="deposit">取引外入金</option><option value="changer_refill">釣銭補充（自動釣銭機）</option></select>
-      <input type="number" inputmode="numeric" min="1" placeholder="金額" data-key="mi-amt" />
-      <button data-form="cashin" data-reg="${reg}" ${dis(cin)}>入金</button>
-    </div>
-    <h3>お金を抜く <span class="muted">店舗パスワードが必要</span></h3>
-    <div class="row wrap">
-      <select data-key="mo-kind">
-        <option value="refund">返品返金</option><option value="emergency">緊急出金</option>
-        <option value="expense">経費支出</option><option value="pickup">途中集金</option>
-        <option value="changer_collect">釣銭機回収</option>
-      </select>
-      <input type="number" inputmode="numeric" min="1" placeholder="金額" data-key="mo-amt" />
-      <input type="password" inputmode="numeric" placeholder="店舗パスワード" data-key="mo-pw" autocomplete="off" />
-      <button data-form="cashout" data-reg="${reg}" ${dis(cout)}>出金</button>
-    </div>
-    <p class="muted">ログイン中でも、お金を抜くたびにパスワードが必要です。</p>
-    <h3>自動釣銭機の在高 <span class="muted">${yen(v.drawer_total)}</span></h3>
-    <table class="lines"><tbody>${drawer}</tbody></table>`;
+  const m = r.menu!;
+  const go = (screen: MenuScreen | null, extra: Record<string, unknown> = {}) => ({ type: "open_menu", register: reg, screen, ...extra });
+  const head = (title: string) =>
+    `<div class="menu-head">${btn("‹ 戻る", go("top"), undefined, "small ghost")}<b>${esc(title)}</b></div>`;
+  switch (m.screen) {
+    case "top":
+      return `<div class="menu-head"><b>店舗メニュー</b><span class="muted">担当：${esc(v.name ?? "")}</span>${btn("閉じる", go(null), undefined, "small ghost")}</div>
+        <div class="menu-list">${(["refund", "emergency", "deposit", "expense", "changer"] as const)
+          .map((k) => btn(MENU_LABEL[k], go(k), undefined, "menu-item"))
+          .join("")}</div>`;
+    case "refund":
+    case "emergency":
+    case "expense": {
+      const cout = find(v.actions, "cash_out");
+      return `${head(MENU_LABEL[m.screen])}
+        <p class="muted">お金を抜く操作です。店舗パスワードが毎回必要で、お金は排出口に出ます。</p>
+        <div class="menu-form">
+          <input type="number" inputmode="numeric" min="1" placeholder="金額" data-key="mo-amt-${reg}" />
+          <input type="password" inputmode="numeric" placeholder="店舗パスワード" data-key="mo-pw-${reg}" autocomplete="off" />
+          <button class="primary" data-form="cashout" data-reg="${reg}" data-kind="${m.screen}" ${cout.allowed ? "" : `disabled title="${esc(cout.reason ?? "")}"`}>出金</button>
+        </div>`;
+    }
+    case "deposit":
+      return `${head(MENU_LABEL.deposit)}
+        <p>入金するお金を<b>投入口</b>に入れてください。</p>
+        <p class="muted">お金を入れる操作なのでパスワードは要りません。記録は担当者名つきで残ります。</p>`;
+    case "changer": {
+      const have = (d: number) => v.drawer.find(([x]) => x === d)?.[1] ?? 0;
+      const segs = [1000, 500, 100, 50, 10]
+        .map((d) => btn(`${d.toLocaleString()}円`, go("changer", { exchange_to: d }), undefined, `seg small ${m.exchange_to === d ? "on" : ""}`))
+        .join("");
+      return `${head(MENU_LABEL.changer)}
+        <div class="row wrap">受け取る金種 ${segs}</div>
+        <p>両替するお金を<b>投入口</b>に入れてください。同じ額を ${m.exchange_to.toLocaleString()}円 で<b>排出口</b>に出します。</p>
+        <p class="muted">釣銭機の ${m.exchange_to.toLocaleString()}円：残り ${have(m.exchange_to)} 枚　在高 ${yen(v.drawer_total)}</p>`;
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -199,6 +222,8 @@ export function storeMenu(r: RegisterView): string {
 // ---------------------------------------------------------------------------
 
 export function customerScreen(r: RegisterView, ff: Snapshot["ff_stock"] = []): string {
+  // 店員が店舗メニューを開いている間は、お客様画面にメニューを出す
+  if (r.menu) return storeMenu(r);
   const c: CustomerView = r.customer;
   const reg = r.id;
   const a = (n: string) => find(c.actions, n);

@@ -98,10 +98,15 @@ export interface RegisterView {
   mode: Mode;
   mode_label: string;
   idle_revert_in: number | null;
+  outlet: number;
+  outlet_detail: [number, number][];
+  menu: { screen: MenuScreen; exchange_to: number } | null;
   staff: StaffView;
   customer: CustomerView;
   last_receipt: Receipt | null;
 }
+
+export type MenuScreen = "top" | "refund" | "emergency" | "deposit" | "expense" | "changer";
 
 export interface AgeRule {
   id: number;

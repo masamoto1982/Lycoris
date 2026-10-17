@@ -160,6 +160,8 @@ pub struct Context {
     pub method: Option<PaymentMethod>,
     /// セミセルフで、店員が会計に進めてお客様に支払いを任せている
     pub customer_turn: bool,
+    /// 店員がお客様画面で店舗メニュー（入出金・両替）を開いている
+    pub menu_open: bool,
 }
 
 impl Context {
@@ -181,6 +183,10 @@ pub type Denial = &'static str;
 
 /// 今、画面を操作できる側。もう一方の画面は表示だけになる。
 pub fn active_side(c: &Context) -> Side {
+    if c.menu_open {
+        // 店舗メニューはお客様画面に出す（釣銭機の出し入れ口が売り場側にあるため）
+        return Side::Customer;
+    }
     if c.staff != StaffState::Ready {
         // 店員が操作できない（未ログイン・ロック中）ならお客様側
         return Side::Customer;
@@ -211,7 +217,14 @@ pub fn permitted(side: Side, action: Action, c: &Context) -> Result<(), Denial> 
         Side::Staff => staff(action, c)?,
         Side::Customer => customer(action, c)?,
     }
-    if !is_device_action(action) && active_side(c) != side {
+    // 店舗メニューの入出金は、店員がお客様画面側で行う
+    let menu_op = c.menu_open
+        && side == Side::Staff
+        && matches!(action, Action::CashIn | Action::CashOut | Action::EndStaffMode);
+    if c.menu_open && side == Side::Staff && !menu_op && !is_device_action(action) {
+        return Err("お客様画面で店舗メニューを操作中です");
+    }
+    if !menu_op && !is_device_action(action) && active_side(c) != side {
         return Err(match side {
             Side::Staff => "お客様が操作中です",
             Side::Customer => "係員が操作中です",
@@ -356,6 +369,7 @@ mod tests {
                                 {
                                     for customer_turn in b {
                                         v.push(Context {
+                                            menu_open: false,
                                             customer_turn,
                                             mode,
                                             phase,

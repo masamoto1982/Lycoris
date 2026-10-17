@@ -40,6 +40,27 @@ pub enum CashOutKind {
     ChangerCollect,
 }
 
+/// お客様画面の店舗メニュー（歯車から開く）。一度に一つの画面だけを出す
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MenuScreen {
+    /// 項目の一覧
+    Top,
+    Refund,
+    Emergency,
+    Deposit,
+    Expense,
+    /// 自動釣銭機（両替）
+    Changer,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+pub struct Menu {
+    pub screen: MenuScreen,
+    /// 両替で受け取る金種
+    pub exchange_to: u32,
+}
+
 /// 取引外の入金（お金を入れる操作はパスワード不要）
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -157,6 +178,22 @@ pub enum Command {
         kind: CashInKind,
         amount: u32,
     },
+    /// 店舗メニューを開く・画面を切り替える（None で閉じる）
+    OpenMenu {
+        register: u8,
+        screen: Option<MenuScreen>,
+        #[serde(default)]
+        exchange_to: Option<u32>,
+    },
+    /// 投入口にお金を入れる（金額で指定）。店舗メニューの入金・両替画面ならそちらに使う
+    Insert {
+        register: u8,
+        amount: u32,
+    },
+    /// 排出口のお金を取り出す
+    TakeOutlet {
+        register: u8,
+    },
     AddAgeRule {
         owner_id: String,
         password: String,
@@ -207,7 +244,10 @@ impl Command {
             | C::Lock { register, .. }
             | C::EndStaffMode { register, .. }
             | C::CashOut { register, .. }
-            | C::CashIn { register, .. } => Some(*register),
+            | C::CashIn { register, .. }
+            | C::OpenMenu { register, .. }
+            | C::Insert { register, .. }
+            | C::TakeOutlet { register, .. } => Some(*register),
             _ => None,
         }
     }
@@ -367,12 +407,19 @@ struct Register {
     last_receipt: Option<Receipt>,
     /// 最後に操作された時刻（無操作でセミセルフに戻すため）
     last_op: u64,
+    /// 排出口（売り場側）にたまっているお金。取り出すまで残る
+    outlet: Cash,
+    /// お客様画面に開いている店舗メニュー
+    menu: Option<Menu>,
 }
 
 impl Register {
     /// 運用モードは名札で決まる：名札でログイン中なら有人、いなければセミセルフ。
     /// セルフ（将来の拡張）は、有効なときに明示的に選んだ場合だけ。
     fn sync_mode(&mut self, self_mode_enabled: bool) {
+        if self.staff_state() != StaffState::Ready {
+            self.menu = None;
+        }
         self.mode = if self.staff.is_some() {
             Mode::Attended
         } else if self_mode_enabled && self.mode == Mode::FullSelf {
@@ -412,6 +459,7 @@ impl Register {
             service_pending: t.service_pending(),
             method: t.method,
             customer_turn: t.customer_turn,
+            menu_open: self.menu.is_some(),
         }
     }
 }
@@ -472,6 +520,8 @@ impl Store {
                     drawer: Drawer::default(),
                     last_receipt: None,
                     last_op: 0,
+                    outlet: Cash::default(),
+                    menu: None,
                 }
             })
             .collect();
@@ -543,6 +593,7 @@ impl Store {
             {
                 r.staff = None;
                 r.mode = Mode::SemiSelf;
+                r.menu = None;
                 r.last_op = now;
             }
         }
@@ -804,6 +855,40 @@ impl Store {
                 kind,
                 amount,
             } => self.cash_in(register, kind, amount),
+            C::OpenMenu {
+                register,
+                screen,
+                exchange_to,
+            } => {
+                let r = self.reg_mut(register)?;
+                if r.staff_state() != StaffState::Ready {
+                    return Err("店舗メニューは名札でログインした店員だけが使えます".into());
+                }
+                if screen.is_some() && !r.txn.lines.is_empty() {
+                    return Err("取引中は店舗メニューを開けません".into());
+                }
+                let to = exchange_to
+                    .or(r.menu.map(|m| m.exchange_to))
+                    .unwrap_or(1_000);
+                if !is_valid_denomination(to) {
+                    return Err("使えない金種です".into());
+                }
+                r.menu = screen.map(|screen| Menu {
+                    screen,
+                    exchange_to: to,
+                });
+                Ok(Outcome::default())
+            }
+            C::Insert { register, amount } => self.insert(register, amount),
+            C::TakeOutlet { register } => {
+                let r = self.reg_mut(register)?;
+                let total = r.outlet.total();
+                if total == 0 {
+                    return Err("排出口にお金はありません".into());
+                }
+                r.outlet = Cash::default();
+                done(format!("排出口から {total}円を取り出しました"))
+            }
             C::AddAgeRule {
                 owner_id,
                 password,
@@ -1035,9 +1120,55 @@ impl Store {
         if !is_valid_denomination(d) {
             return Err("使えない金種です".into());
         }
+        let mut c = Cash::default();
+        c.add(d, count.max(1));
+        self.pay_cash(register, c)
+    }
+
+    /// 投入口：店舗メニューの入金・両替画面が開いていればそちら、なければお会計の支払い
+    fn insert(&mut self, register: u8, amount: u32) -> Result<Outcome, String> {
+        if amount == 0 {
+            return Err("金額を入力してください".into());
+        }
+        let menu = self.reg(register).ok_or("レジがありません")?.menu;
+        match menu.map(|m| (m.screen, m.exchange_to)) {
+            Some((MenuScreen::Deposit, _)) => self.cash_in(register, CashInKind::Deposit, amount),
+            Some((MenuScreen::Changer, to)) => self.exchange(register, amount, to),
+            Some(_) => Err("この画面ではお金を受け付けません".into()),
+            None => {
+                self.check(register, Side::Customer, Action::InsertCash)?;
+                self.pay_cash(register, Cash::from_amount(amount))
+            }
+        }
+    }
+
+    /// 両替：入れた金額と同じ額を、指定の金種で排出口に出す
+    fn exchange(&mut self, register: u8, amount: u32, to: u32) -> Result<Outcome, String> {
+        self.check(register, Side::Staff, Action::CashIn)?;
+        if amount % to != 0 {
+            return Err(format!("{to}円単位で入れてください"));
+        }
+        let now = self.now;
+        let r = self.reg_mut(register)?;
+        let staff = r.staff.map_or("?", |s| s.account.name);
+        let out = r.drawer.take_exact(to, amount / to)?;
+        r.drawer.put(amount);
+        r.outlet.merge(&out);
+        self.audit.push(AuditEntry {
+            at: now,
+            register,
+            staff,
+            operation: "両替",
+            amount,
+            result: "実行".into(),
+        });
+        done(format!("{amount}円を {to}円×{} に両替しました。排出口から取り出してください", amount / to))
+    }
+
+    fn pay_cash(&mut self, register: u8, c: Cash) -> Result<Outcome, String> {
         let r = self.reg_mut(register)?;
         r.txn.method = Some(PaymentMethod::Cash);
-        r.txn.inserted.add(d, count.max(1));
+        r.txn.inserted.merge(&c);
         let paid = r.txn.inserted.total();
         let total = r.txn.total();
         if paid < total {
@@ -1075,6 +1206,8 @@ impl Store {
                 return Err(format!("{e}。係員をお呼びください"));
             }
         };
+        // おつりは排出口に出る（お客様が取り出すまで残る）
+        r.outlet.merge(&change);
         let txn = std::mem::take(&mut r.txn);
         let receipt = Receipt {
             no,
@@ -1137,9 +1270,10 @@ impl Store {
         }
         let r = self.reg_mut(register)?;
         match r.drawer.take(amount, false) {
-            Ok(_) => {
+            Ok(c) => {
+                r.outlet.merge(&c);
                 log(self, "実行".into());
-                done(format!("{} {amount}円を出金しました", kind.label()))
+                done(format!("{} {amount}円を出金しました。排出口から取り出してください", kind.label()))
             }
             Err(e) => {
                 log(self, format!("失敗：{e}"));
@@ -1307,6 +1441,9 @@ impl Store {
             active_side: active_side(&c),
             mode: r.mode,
             mode_label: r.mode.label(),
+            outlet: r.outlet.total(),
+            outlet_detail: r.outlet.0.clone(),
+            menu: r.menu,
             idle_revert_in: (r.mode != Mode::SemiSelf && r.idle())
                 .then(|| IDLE_REVERT_MS.saturating_sub(self.now.saturating_sub(r.last_op))),
             staff: StaffView {
@@ -1432,6 +1569,11 @@ pub struct RegisterView {
     pub active_side: Side,
     pub mode: Mode,
     pub mode_label: &'static str,
+    /// 排出口にたまっているお金
+    pub outlet: u32,
+    pub outlet_detail: Vec<(u32, u32)>,
+    /// お客様画面に開いている店舗メニュー
+    pub menu: Option<Menu>,
     /// セミセルフ以外で待機中なら、セミセルフに戻るまでの残り時間（ミリ秒）
     pub idle_revert_in: Option<u64>,
     pub staff: StaffView,

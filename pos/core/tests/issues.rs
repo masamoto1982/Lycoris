@@ -513,3 +513,58 @@ fn cash_in_needs_no_password_but_cash_out_does() {
     scan(&mut s, 1, "staff", ONIGIRI);
     assert!(run(&mut s, json!({"type":"cash_in","register":1,"kind":"deposit","amount":100})).is_err());
 }
+
+/// 投入口と排出口：投入口に金額を入れて支払い、おつりは排出口に出て取り出すまで残る。
+#[test]
+fn inlet_pays_and_change_waits_in_outlet() {
+    let mut s = Store::new(1, 2, 1);
+    scan(&mut s, 1, "customer", ONIGIRI);
+    // お会計前は受け付けない
+    assert!(run(&mut s, json!({"type":"insert","register":1,"amount":1000})).is_err());
+    ok(&mut s, json!({"type":"checkout","register":1,"side":"customer"}));
+    ok(&mut s, json!({"type":"insert","register":1,"amount":1000}));
+    let v = reg(&s, 1);
+    assert_eq!(v.outlet, 1000 - 160);
+    ok(&mut s, json!({"type":"take_outlet","register":1}));
+    assert_eq!(reg(&s, 1).outlet, 0);
+    assert!(run(&mut s, json!({"type":"take_outlet","register":1})).is_err());
+}
+
+/// 店舗メニューはお客様画面に一画面ずつ出す。開いている間はお客様画面側で操作し、
+/// 入金・両替は投入口、出金と両替のお金は排出口を使う。
+#[test]
+fn store_menu_uses_inlet_and_outlet() {
+    let mut s = Store::new(1, 2, 1);
+    let open = |screen: &str| json!({"type":"open_menu","register":1,"screen":screen});
+    assert!(run(&mut s, open("top")).is_err(), "only for logged-in staff");
+    login(&mut s, 1);
+    ok(&mut s, open("top"));
+    let v = reg(&s, 1);
+    assert_eq!(v.active_side, Side::Customer);
+    assert!(run(&mut s, json!({"type":"lock","register":1})).is_err(), "staff screen waits");
+    // 取引外入金：投入口に入れた金額が入金になる
+    ok(&mut s, open("deposit"));
+    let before = reg(&s, 1).staff.drawer_total;
+    ok(&mut s, json!({"type":"insert","register":1,"amount":2000}));
+    assert_eq!(reg(&s, 1).staff.drawer_total, before + 2000);
+    // 自動釣銭機：一万円を千円札に両替して排出口へ
+    ok(&mut s, json!({"type":"open_menu","register":1,"screen":"changer","exchange_to":1000}));
+    assert!(run(&mut s, json!({"type":"insert","register":1,"amount":1500})).is_err());
+    ok(&mut s, json!({"type":"insert","register":1,"amount":10000}));
+    let v = reg(&s, 1);
+    assert_eq!(v.outlet_detail, vec![(1000, 10)]);
+    assert_eq!(v.staff.drawer_total, before + 2000);
+    ok(&mut s, json!({"type":"take_outlet","register":1}));
+    // 緊急出金：パスワードが要り、お金は排出口に出る
+    ok(&mut s, open("emergency"));
+    assert!(run(&mut s, json!({"type":"cash_out","register":1,"kind":"emergency","amount":5000,"password":"x"})).is_err());
+    ok(&mut s, json!({"type":"cash_out","register":1,"kind":"emergency","amount":5000,"password":"7777"}));
+    assert_eq!(reg(&s, 1).outlet, 5000);
+    // 閉じると店員画面に戻る。ログアウトでもメニューは閉じる
+    ok(&mut s, json!({"type":"open_menu","register":1,"screen":null}));
+    assert_eq!(reg(&s, 1).active_side, Side::Staff);
+    ok(&mut s, open("top"));
+    ok(&mut s, json!({"type":"scan","register":1,"side":"staff","code":"ST1002"}));
+    ok(&mut s, json!({"type":"end_staff_mode","register":1}));
+    assert!(reg(&s, 1).menu.is_none());
+}

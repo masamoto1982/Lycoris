@@ -15,7 +15,6 @@ import {
   esc,
   matPanel,
   ownerPanel,
-  storeMenu,
   shelfPanel,
   sideOf,
   simPanel,
@@ -59,7 +58,6 @@ function reset(registers: number, mats: number): void {
   snap = JSON.parse(sim.snapshot()) as Snapshot;
   buildSkeleton();
   // 閉じたら（Esc でも）オーナーのパスワードを消す
-  menuDlg()?.addEventListener("close", () => clear("mo-pw"));
   rulesDlg().addEventListener("close", () => {
     const pw = rulesDlg().querySelector<HTMLInputElement>(`[data-owner="pw"]`);
     if (pw) pw.value = "";
@@ -97,6 +95,13 @@ function buildSkeleton(): void {
           <div class="toast" id="toast-${r.id}-customer"></div>
         </section>
       </div>
+      <div class="money-io">
+        <div class="inlet"><span class="hw-label">投入口</span>
+          <input type="number" inputmode="numeric" min="1" placeholder="金額を入力" data-key="in-${r.id}" aria-label="レジ${r.id}の投入口に入れる金額" />
+          <button data-form="insert" data-reg="${r.id}">入れる</button>
+        </div>
+        <button type="button" class="outlet" data-outlet="${r.id}" aria-label="レジ${r.id}の排出口（タッチで取り出す）"><span class="hw-label">排出口</span><span data-region="outlet-${r.id}"></span></button>
+      </div>
     </section>`,
     )
     .join("");
@@ -131,7 +136,7 @@ function buildSkeleton(): void {
           <li>FF：セミセルフのお客様画面で「FF を注文」→ ログイン（有人）→ FF 登録 →「お渡し」→ お客様画面で「受け取りました」。</li>
           <li>宅急便・代行収納をお客様画面に落とすと係員の呼び出しになり、店員が金額を入れて受け付けます。</li>
           <li>有人モードは、取引のない状態で5分間操作がないとログアウトしてセミセルフに戻ります。残り時間はレジ名の横に出ます。</li>
-          <li>店舗メニュー：有人モード（ログイン中）だとお客様画面の右上に ⚙ が出ます。返品返金・緊急出金・経費支出・途中集金・釣銭機回収は店舗パスワード <b>7777</b>（ログインとは別）、取引外入金・釣銭補充はパスワード不要です。年確ルールは売り場の「年確ルール設定」から、オーナー 9001 / <b>9999</b> で商品ごとに変更できます。</li>
+          <li>お金は各レジ最下段の投入口に金額を入れて投入します。おつりや出金したお金は排出口に出て、タッチすると取り出せます。店舗メニュー：有人モード（ログイン中）だとお客様画面の右上に ⚙ が出ます。返品返金・緊急出金・経費支出は店舗パスワード <b>7777</b>（ログインとは別）、取引外入金と自動釣銭機の両替は投入口を使い、パスワード不要です。年確ルールは売り場の「年確ルール設定」から、オーナー 9001 / <b>9999</b> で商品ごとに変更できます。</li>
         </ol>
         <p class="muted">店員：${staffList}（各レジのレジ名の右にある「店員」で選ぶとログインします。「未ログイン」でログアウト）</p>
       </section>
@@ -147,11 +152,6 @@ function buildSkeleton(): void {
       </div>
       <div class="toast" id="toast-rules"></div>
       <div data-region="owner"></div>
-    </dialog>
-    <dialog class="rules-dlg" id="menu-dlg" aria-labelledby="menu-title">
-      <div class="dlg-head"><h2 id="menu-title">店舗メニュー</h2><button class="small ghost" data-close-menu>閉じる</button></div>
-      <div class="toast" id="toast-menu"></div>
-      <div data-region="menu"></div>
     </dialog>
     <div class="drag-ghost" id="ghost" hidden></div>`;
 }
@@ -214,18 +214,18 @@ function render(): void {
     setRegion(`calls-${r.id}`, staffCalls(r, snap.now));
     setRegion(`staff-${r.id}`, staffScreen(r, snap));
     setRegion(`cust-${r.id}`, customerScreen(r, snap.ff_stock));
+    setRegion(
+      `outlet-${r.id}`,
+      r.outlet
+        ? `<b>${r.outlet.toLocaleString()}円</b><small>${r.outlet_detail.map(([d, n]) => `${d.toLocaleString()}×${n}`).join(" ")}　タッチで取り出す</small>`
+        : `<span class="muted">空</span>`,
+    );
   }
   setRegion("mats", matPanel(snap));
   setRegion("sim", simPanel(snap));
   setRegion("owner", ownerPanel(snap));
   setRegion("audit", auditPanel(snap));
   setRegion("shelf", shelfPanel(snap));
-  const menu = menuDlg();
-  if (menu?.open) {
-    const r = snap.registers.find((x) => x.id === menuReg);
-    if (!r || r.staff.state !== "ready") menu.close();
-    else setRegion("menu", storeMenu(r));
-  }
 }
 
 function frame(): void {
@@ -250,7 +250,7 @@ function send(cmd: Command): boolean {
   sim.tick(performance.now() - t0);
   const res = JSON.parse(sim.dispatch(JSON.stringify(cmd))) as { ok: boolean; message?: string; error?: string };
   const side = sideOf(cmd);
-  const where = cmd.type === "set_product_age" ? "toast-rules" : cmd.type === "cash_in" || cmd.type === "cash_out" ? "toast-menu" : side === "store" ? "toast-store" : `toast-${cmd.register}-${side}`;
+  const where = cmd.type === "set_product_age" ? "toast-rules" : ["cash_in", "cash_out", "open_menu", "insert", "take_outlet"].includes(cmd.type) ? `toast-${cmd.register}-customer` : side === "store" ? "toast-store" : `toast-${cmd.register}-${side}`;
   if (res.ok) {
     if (res.message) toast(where, res.message, false);
   } else {
@@ -276,19 +276,18 @@ function form(b: HTMLElement): void {
     case "service":
       send({ type: "complete_service", register: reg, line_id: Number(b.dataset.line), amount: Number(val(`svc-${reg}-${b.dataset.line}`) || 0) });
       break;
-    case "cashin":
-      send({ type: "cash_in", register: reg, kind: val("mi-kind"), amount: Number(val("mi-amt") || 0) });
-      clear("mi-amt");
-      break;
     case "cashout":
       send({
         type: "cash_out",
         register: reg,
-        kind: val("mo-kind"),
-        amount: Number(val("mo-amt") || 0),
-        password: val("mo-pw"),
+        kind: b.dataset.kind,
+        amount: Number(val(`mo-amt-${reg}`) || 0),
+        password: val(`mo-pw-${reg}`),
       });
-      clear("mo-pw");
+      clear(`mo-pw-${reg}`);
+      break;
+    case "insert":
+      if (send({ type: "insert", register: reg, amount: Number(val(`in-${reg}`) || 0) })) clear(`in-${reg}`);
       break;
   }
 }
@@ -316,8 +315,6 @@ app.addEventListener("change", (e) => {
 });
 
 const rulesDlg = (): HTMLDialogElement => document.getElementById("rules-dlg") as HTMLDialogElement;
-const menuDlg = (): HTMLDialogElement | null => document.getElementById("menu-dlg") as HTMLDialogElement | null;
-let menuReg = 0;
 
 app.addEventListener("click", (e) => {
   const b = (e.target as Element).closest("button");
@@ -325,11 +322,15 @@ app.addEventListener("click", (e) => {
   if (b.hasAttribute("data-open-rules")) return rulesDlg().showModal();
   if (b.hasAttribute("data-close-rules")) return rulesDlg().close();
   if (b.dataset.gear) {
-    menuReg = Number(b.dataset.gear);
-    menuDlg()?.showModal();
-    return render();
+    const reg = Number(b.dataset.gear);
+    const open = snap.registers.find((x) => x.id === reg)?.menu;
+    send({ type: "open_menu", register: reg, screen: open ? null : "top" });
+    return;
   }
-  if (b.hasAttribute("data-close-menu")) return menuDlg()?.close();
+  if (b.dataset.outlet) {
+    send({ type: "take_outlet", register: Number(b.dataset.outlet) });
+    return;
+  }
   if (b.dataset.cmd) send(JSON.parse(b.dataset.cmd) as Command);
   else if (b.dataset.form) form(b);
 });

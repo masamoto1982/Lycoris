@@ -48,6 +48,23 @@ impl Cash {
         }
     }
 
+    /// 金額を大きい金種から順に崩したもの（二千円札は使わない）。投入口に入れたお金のシミュレーション用
+    pub fn from_amount(amount: u32) -> Cash {
+        let mut c = Cash::default();
+        let mut rest = amount;
+        for &d in BILLS.iter().filter(|&&d| d != 2_000).chain(COINS) {
+            c.add(d, rest / d);
+            rest %= d;
+        }
+        c
+    }
+
+    pub fn merge(&mut self, other: &Cash) {
+        for (d, n) in &other.0 {
+            self.add(*d, *n);
+        }
+    }
+
     pub fn of(&self, d: u32) -> u32 {
         self.0.iter().find(|(x, _)| *x == d).map_or(0, |(_, n)| *n)
     }
@@ -81,14 +98,22 @@ impl Default for Drawer {
 impl Drawer {
     /// 入金：金額を大きい金種から順に入れたものとして在高に足す（シミュレーション）
     pub fn put(&mut self, amount: u32) {
-        let mut rest = amount;
-        for &d in BILLS.iter().filter(|&&d| d != 2_000).chain(COINS) {
-            let n = rest / d;
-            if n > 0 {
-                self.cash.add(d, n);
-                rest -= d * n;
-            }
-        }
+        self.cash.merge(&Cash::from_amount(amount));
+    }
+
+    /// 両替：金種 `d` を `n` 枚取り出す（足りなければ Err）
+    pub fn take_exact(&mut self, d: u32, n: u32) -> Result<Cash, String> {
+        let e = self
+            .cash
+            .0
+            .iter_mut()
+            .find(|(x, _)| *x == d)
+            .filter(|(_, have)| *have >= n)
+            .ok_or_else(|| format!("{d}円が足りません"))?;
+        e.1 -= n;
+        let mut out = Cash::default();
+        out.add(d, n);
+        Ok(out)
     }
 
     /// 在高から `amount` を取り出す。`for_change` のときは一万円札・二千円札を使わない。

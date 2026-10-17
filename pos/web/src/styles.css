@@ -294,3 +294,18 @@ body.dragging .drop-hint { display: inline; }
 .gear { position: absolute; top: 6px; right: 6px; z-index: 2; width: 28px; height: 28px; padding: 0; border-radius: 50%; font-size: 15px; line-height: 1; background: var(--panel); color: var(--muted); border: 1px solid var(--line); }
 .gear:hover { color: var(--ink); }
 .rules-dlg h3 { font-size: 14px; margin: 14px 0 6px; }
+/* お客様画面の店舗メニュー（一画面ずつ） */
+.menu-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.menu-head b { flex: 1; }
+.menu-list { display: grid; gap: 6px; }
+.menu-item { text-align: left; padding: 10px 12px; }
+.menu-form { display: flex; flex-wrap: wrap; gap: 6px; }
+.menu-form input { flex: 1 1 8em; min-width: 0; }
+/* 投入口・排出口（各レジの最下段。売り場側の機器） */
+.money-io { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+.money-io .inlet { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border: 1px dashed var(--line); border-radius: 8px; }
+.money-io .inlet input { flex: 1; min-width: 0; }
+.money-io .outlet { display: flex; align-items: center; gap: 8px; justify-content: flex-start; text-align: left; padding: 6px 10px; border: 1px dashed var(--line); border-radius: 8px; background: var(--panel); color: var(--ink); }
+.money-io .outlet small { display: block; color: var(--muted); font-size: 11px; }
+.money-io .hw-label { font-size: 11px; color: var(--muted); white-space: nowrap; }
+@media (max-width: 600px) { .money-io { grid-template-columns: 1fr; } }
