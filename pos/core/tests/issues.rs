@@ -2,7 +2,8 @@
 
 use janus_pos_core::authority::{Action, Mode, Phase, Side, StaffState};
 use janus_pos_core::calls::CallKind;
-use janus_pos_core::store::{Command, RegisterView, Store};
+use janus_pos_core::store::{Command, RegisterView, Store, REG_BUZZ_MS, REG_RERING_MS};
+use janus_pos_core::mat::{BUZZ_MS, RERING_MS};
 use serde_json::{json, Value};
 
 const ONIGIRI: &str = "4900000000011";
@@ -645,4 +646,22 @@ fn attended_screen_is_held_by_one_side_at_a_time() {
     assert!(!allowed(&reg(&s, 1), Side::Staff, Action::Checkout));
     ok(&mut s, check(ids[1], "staff"));
     ok(&mut s, json!({"type":"checkout","register":1,"side":"staff"}));
+}
+
+/// 呼び出しが開いているレジも鳴る。MAT より長く鳴り、鳴らし直しも多い。店員が来れば止まる。
+#[test]
+fn called_register_rings_longer_and_more_often_than_mat() {
+    assert!(REG_BUZZ_MS > BUZZ_MS);
+    assert!(REG_RERING_MS < RERING_MS);
+    let mut s = Store::new(1, 2, 1);
+    scan(&mut s, 1, "customer", BEER);
+    ok(&mut s, json!({"type":"checkout","register":1,"side":"customer"}));
+    assert!(reg(&s, 1).ringing);
+    assert!(!reg(&s, 2).ringing, "only the calling register rings");
+    advance(&mut s, REG_BUZZ_MS);
+    assert!(!reg(&s, 1).ringing, "pause between rings");
+    advance(&mut s, REG_RERING_MS - REG_BUZZ_MS);
+    assert!(reg(&s, 1).ringing, "snooze rings again");
+    scan(&mut s, 1, "staff", "ST1001");
+    assert!(!reg(&s, 1).ringing, "staff arrived");
 }

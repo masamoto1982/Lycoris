@@ -97,6 +97,8 @@ export interface RegisterView {
   active_side: Side;
   /** 有人モードで、グレーの画面にタッチして操作を引き継げる */
   switchable: boolean;
+  /** 店員呼び出し中でレジ本体が鳴っている（MAT より長く、鳴らし直しも多い） */
+  ringing: boolean;
   mode: Mode;
   mode_label: string;
   idle_revert_in: number | null;

@@ -546,6 +546,11 @@ fn staff_side() -> Side {
 
 /// 無操作がこの時間続くと、レジはセミセルフモードに戻って待機する
 pub const IDLE_REVERT_MS: u64 = 5 * 60 * 1000;
+/// 呼び出しが開いているレジ本体の鳴動（MAT より長く、鳴らし直しの間隔も短い）。
+/// どちらも無効にはできない
+pub const REG_BUZZ_MS: u64 = 6 * 1000;
+/// レジの鳴らし直し（スヌーズ）の周期。MAT（RERING_MS）より短く、回数が多い
+pub const REG_RERING_MS: u64 = 8 * 1000;
 /// 画面を持っている側がこの時間触られていなければ、もう一方が引き継げる
 pub const HOLD_MS: u64 = 3 * 1000;
 
@@ -1493,6 +1498,11 @@ impl Store {
         let inserted = t.inserted.total();
         let calls = self.calls.for_register(r.id);
         let staff_called = !calls.is_empty() && c.staff != StaffState::Ready;
+        // 店員が来るまで、最初の呼び出しから REG_RERING_MS ごとに REG_BUZZ_MS 鳴る
+        let ringing = staff_called
+            && calls.iter().map(|c| c.created_at).min().is_some_and(|t0| {
+                self.now.saturating_sub(t0) % REG_RERING_MS < REG_BUZZ_MS
+            });
         let staff = r.staff.map(|s| s.account);
         let mat_down = self
             .mats
@@ -1526,6 +1536,7 @@ impl Store {
         RegisterView {
             id: r.id,
             active_side: active_side(&c),
+            ringing,
             switchable: active_side(&Context { holder: Side::Staff, ..c })
                 != active_side(&Context { holder: Side::Customer, ..c }),
             mode: r.mode,
@@ -1656,6 +1667,8 @@ pub struct RegisterView {
     pub id: u8,
     /// 今、画面を操作できる側（もう一方は表示だけ）
     pub active_side: Side,
+    /// 店員呼び出し中でレジ本体が鳴っている
+    pub ringing: bool,
     /// グレーの画面にタッチして操作を引き継げる状態か（有人モードで、お客様の確認待ちなどでない）
     pub switchable: bool,
     pub mode: Mode,

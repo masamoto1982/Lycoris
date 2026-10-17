@@ -9,7 +9,7 @@
 
 import init, { PosSimulator } from "./wasm/generated/janus_pos.js";
 import type { Command, Snapshot } from "./types";
-import { beepError, beepScan, isMuted, ringMat, setMuted, unlockAudio } from "./sound";
+import { beepError, beepScan, ringMat, ringRegister, unlockAudio } from "./sound";
 import {
   auditPanel,
   esc,
@@ -71,7 +71,7 @@ function reset(registers: number, mats: number): void {
 function buildSkeleton(): void {
   const regs = snap.registers
     .map(
-      (r) => `<section class="register" aria-label="レジ${r.id}">
+      (r) => `<section class="register" data-register="${r.id}" aria-label="レジ${r.id}">
       <h2>レジ${r.id} <span data-region="mode-${r.id}"></span>
         <label class="login-sel">店員
           <select data-login="${r.id}" aria-label="レジ${r.id}の店員ログイン">
@@ -113,7 +113,7 @@ function buildSkeleton(): void {
     <article class="floor">
       <div class="left">
         <section class="mat-area" aria-label="携帯情報端末">
-          <h2>携帯情報端末（MAT） <button type="button" class="small ghost sound-toggle" data-sound aria-pressed="true">🔊 音あり</button></h2>
+          <h2>携帯情報端末（MAT）</h2>
           <div class="mat-row"><div class="mats" data-region="mats"></div><div class="mat-sim" data-region="sim"></div></div>
           <div class="toast" id="toast-store"></div>
         </section>
@@ -133,7 +133,7 @@ function buildSkeleton(): void {
           <li>有人：「店員」で名前を選んでログインすると、まずお客様画面が操作側になります。グレーの画面にタッチすると、操作している側が3秒触られていなければ操作を引き継げます。店員画面で「会計」します。</li>
           <li>FF：有人モードでは店員画面からもお客様画面からも FF を登録できます。セミセルフではお客様画面の「FF を注文」で係員を呼びます。FF の明細は個数の右のチェックボックスにお渡し確認のチェックを入れるまで、会計に進めません。</li>
           <li>宅急便・代行収納をお客様画面に落とすと係員の呼び出しになり、店員が金額を入れて受け付けます。</li>
-          <li>音が出ます：商品を登録すると「ピッ」、読めないと「ブッブー」、MAT が鳴ると呼び出し音。MAT の見出しの右のボタンで消せます（ブラウザの都合で、最初に画面のどこかに触れてから鳴ります）。</li>
+          <li>音が出ます：商品を登録すると「ピッ」、読めないと「ブッブー」。店員呼び出しでは MAT（3秒・10秒ごと）と、呼び出したレジ本体（6秒・8秒ごと）が鳴ります。呼び出し音は消せません（ブラウザの都合で、最初に画面のどこかに触れてから鳴ります）。</li>
           <li>有人モードは、取引のない状態で5分間操作がないとログアウトしてセミセルフに戻ります。残り時間はレジ名の横に出ます。</li>
           <li>お金は各レジ最下段の「入金」ボックスに金額を打ち込んで Enter で入れます。おつりや出金したお金は「出金」ボックスに金額が出て、金額をタッチすると取り出せます。店舗メニュー：有人モード（ログイン中）だとお客様画面の右上に ⚙ が出ます。返品返金・緊急出金・経費支出は店舗パスワード <b>7777</b>（ログインとは別）、取引外入金と自動釣銭機の両替は「入金」ボックスを使い、パスワード不要です。年確ルールは売り場の「年確ルール設定」から、オーナー 9001 / <b>9999</b> で商品ごとに変更できます。</li>
         </ol>
@@ -197,6 +197,7 @@ function render(): void {
       const acc = r.staff.state === "absent" ? undefined : snap.accounts.find((a) => a.name === r.staff.name);
       sel.value = acc?.barcode ?? "";
     }
+    app.querySelector(`[data-register="${r.id}"]`)?.classList.toggle("ringing", r.ringing);
     // 操作できない側の画面は表示のみ（排他）
     for (const side of ["staff", "customer"] as const) {
       const el = app.querySelector(`[data-drop="${r.id}:${side}"]`);
@@ -231,6 +232,8 @@ function render(): void {
 
 // MAT が鳴り始めたら呼び出し音を鳴らす（どれか 1 台でも鳴れば 1 回）
 let matWasBuzzing = false;
+// 呼び出し中のレジは本体も鳴る。鳴り止んだら（店員が来たら）音も止める
+const regRing = new Map<number, () => void>();
 
 function frame(): void {
   sim.tick(performance.now() - t0);
@@ -238,6 +241,14 @@ function frame(): void {
   const buzzing = snap.mats.some((m) => m.buzzing);
   if (buzzing && !matWasBuzzing) ringMat();
   matWasBuzzing = buzzing;
+  for (const r of snap.registers) {
+    const stop = regRing.get(r.id);
+    if (r.ringing && !stop) regRing.set(r.id, ringRegister());
+    else if (!r.ringing && stop) {
+      stop();
+      regRing.delete(r.id);
+    }
+  }
   render();
 }
 
@@ -350,13 +361,6 @@ document.addEventListener("pointerdown", unlockAudio, { capture: true });
 document.addEventListener("keydown", unlockAudio, { capture: true });
 
 app.addEventListener("click", (e) => {
-  const snd = (e.target as Element).closest<HTMLButtonElement>("[data-sound]");
-  if (snd) {
-    setMuted(!isMuted());
-    snd.textContent = isMuted() ? "🔇 音なし" : "🔊 音あり";
-    snd.setAttribute("aria-pressed", String(!isMuted()));
-    return;
-  }
   // 有人モードでグレーの画面にタッチすると、操作をその画面に引き継ぐ
   const idle = (e.target as Element).closest<HTMLElement>(".screen.claimable[data-drop]");
   if (idle) {
