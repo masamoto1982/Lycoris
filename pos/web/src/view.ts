@@ -104,7 +104,10 @@ export function staffScreen(r: RegisterView): string {
   const rows = [...v.lines].reverse().map((l) => staffLine(reg, l, v)).join("");
   const paying = v.phase === "paying";
 
-  const pay = paying
+  // 会計ボタンの後は、まずポイントカードの最終確認。済むと支払方法を選べる
+  const pay = paying && v.point_pending
+    ? pointCheck(reg, "staff", a("confirm_point_card"))
+    : paying
     ? `<div class="paybox">
         <div>年確：${v.required_age ? (v.age_pending ? `<b class="warn">${v.required_age}歳以上の確認待ち（お客様画面）</b>` : `<span class="ok">確認済</span>`) : "不要"}</div>
         <div>支払方法：${v.method ? METHOD_LABEL[v.method] : "未選択"}　投入 ${yen(v.inserted)}　残り <b>${yen(v.due)}</b></div>
@@ -134,6 +137,15 @@ export function staffScreen(r: RegisterView): string {
       ${btn("取引中止", { type: "void_transaction", register: reg }, a("void_transaction"), "ghost")}
       ${btn("ロック", { type: "lock", register: reg }, a("lock"), "ghost")}
       ${btn("ログアウト", { type: "end_staff_mode", register: reg }, a("end_staff_mode"), "ghost")}
+    </div>`;
+}
+
+/** 会計ボタンの後のポイントカードの最終確認。ポイントカードを読むか「なしで進む」で支払方法へ */
+function pointCheck(reg: number, side: "staff" | "customer", st: ActionState): string {
+  return `<div class="card point-card">
+      <div class="big">ポイントカードはお持ちですか？</div>
+      <p>お持ちの方は、ポイントカードを読み取ってください。読み取るとお支払い方法の選択に進みます。</p>
+      ${btn("ポイントカードなしで進む", { type: "confirm_point_card", register: reg, side }, st, "primary")}
     </div>`;
 }
 
@@ -359,21 +371,19 @@ export function customerScreen(r: RegisterView): string {
       : c.method && c.method !== "cash"
         ? `<p>財布の${METHOD_LABEL[c.method]}を、ここ（お客様側の端末）にかざしてください</p>`
         : `<p>現金を投入してください${r.mode === "attended" ? "" : "（または支払方法を選んでください）"}</p>`;
-    pay = `${age}<div class="paybox center">
+    pay = c.point_pending ? `${pointCheck(reg, "customer", a("confirm_point_card"))}${age}` : `${age}<div class="paybox center">
         <div>お支払い <b class="total">${yen(c.total)}</b></div>
         ${c.inserted ? `<div>お預かり ${yen(c.inserted)}　残り <b>${yen(c.due)}</b></div>` : ""}
         ${methods}${hint}
       </div>`;
   }
 
-  // 合計とお会計ボタンは登録画面の最上部に常に出す。有人モードではお会計は係員が行うので押せない
+  // 合計とお会計ボタンは登録画面の最上部に常に出す（有人モードでは係員がお客様画面を持っているときだけ押せる）
   const top = regTop(
     c.total,
     c.phase === "registering"
       ? btn("お会計", { type: "checkout", register: reg, side: "customer" }, a("checkout"), "primary")
-      : self
-        ? btn("商品登録に戻る", { type: "back_to_registering", register: reg, side: "customer" }, a("back_to_registering"), "ghost")
-        : "",
+      : btn("商品登録に戻る", { type: "back_to_registering", register: reg, side: "customer" }, a("back_to_registering"), "ghost"),
   );
 
   return `${top}${banners.join("")}

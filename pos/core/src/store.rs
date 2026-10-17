@@ -174,6 +174,11 @@ pub enum Command {
         #[serde(default)]
         topic: Option<CallTopic>,
     },
+    /// 会計時のポイントカードの最終確認で「ポイントカードなし」で進む
+    ConfirmPointCard {
+        register: u8,
+        side: Side,
+    },
     /// 呼び出しボタン（FF・サービス・たばこ・係員を呼ぶ）から指を離した
     ReleaseCall {
         register: u8,
@@ -268,6 +273,7 @@ impl Command {
             | C::TapEmoney { register, .. }
             | C::CallStaff { register, .. }
             | C::ReleaseCall { register }
+            | C::ConfirmPointCard { register, .. }
             | C::VoidTransaction { register, .. }
             | C::SetMode { register, .. }
             | C::Lock { register, .. }
@@ -292,6 +298,7 @@ impl Command {
             | C::Checkout { side, .. }
             | C::BackToRegistering { side, .. }
             | C::SelectPayment { side, .. }
+            | C::ConfirmPointCard { side, .. }
             | C::Claim { side, .. } => Some(*side),
             // 店舗メニューと入出金はお客様画面で行う
             C::FfButton { .. }
@@ -370,6 +377,8 @@ struct Txn {
     required_age: Option<u8>,
     age_verified: bool,
     method: Option<PaymentMethod>,
+    /// 会計ボタンの後のポイントカードの最終確認が済んだ
+    point_checked: bool,
     inserted: Cash,
     /// セミセルフで店員が会計に進め、お客様に支払いを任せている（店員が名札を読むと解除）
     customer_turn: bool,
@@ -527,6 +536,7 @@ impl Register {
                 .iter()
                 .any(|l| matches!(l.kind, LineKind::Ff { .. })),
             service_pending: t.service_pending(),
+            point_pending: t.paying && !t.point_checked,
             method: t.method,
             customer_turn: t.customer_turn,
             menu_open: self.menu.is_some(),
@@ -890,6 +900,11 @@ impl Store {
                     None => "係員をお呼びしました",
                 })
             }
+            C::ConfirmPointCard { register, side } => {
+                self.check(register, side, Action::ConfirmPointCard)?;
+                self.reg_mut(register)?.txn.point_checked = true;
+                done("ポイントカードなしで進みます。お支払い方法を選んでください")
+            }
             C::ReleaseCall { register } => {
                 self.reg_mut(register)?.pressing = false;
                 done("")
@@ -1118,6 +1133,14 @@ impl Store {
         let now = self.now;
         let r = self.reg_mut(register)?;
         r.last_receipt = None;
+        // ポイントカードの最終確認中に読まれたポイントカードは、そのまま確認済みにして支払いへ
+        if let Scanned::PointCard(no) = &scanned {
+            if r.txn.paying && !r.txn.point_checked {
+                r.txn.point_card = Some(no.clone());
+                r.txn.point_checked = true;
+                return done("ポイントカードを読みました。お支払い方法を選んでください");
+            }
+        }
         // 会計画面で読まれたら、登録画面に引き返して追加する（投入済みの現金はそのまま）
         let back = if r.txn.paying {
             r.txn.paying = false;
@@ -1224,6 +1247,8 @@ impl Store {
             .max();
         r.txn.paying = true;
         r.txn.required_age = age;
+        // 会計ボタンの後は、まずポイントカードの最終確認。読み取り済みなら確認済み
+        r.txn.point_checked = r.txn.point_card.is_some();
         // セミセルフでは、会計に進めたら支払いはお客様に任せる
         r.txn.customer_turn = r.mode == Mode::SemiSelf;
         let ready = r.staff_state() == StaffState::Ready;
@@ -1658,6 +1683,7 @@ impl Store {
                 required_age: t.required_age.filter(|_| t.paying),
                 age_verified: t.age_verified,
                 age_pending: c.age_pending,
+                point_pending: c.point_pending,
                 method: t.method,
                 inserted,
                 due: total.saturating_sub(inserted),
@@ -1675,6 +1701,7 @@ impl Store {
                 inserted,
                 due: total.saturating_sub(inserted),
                 point_card: t.point_card.is_some(),
+                point_pending: c.point_pending,
                 age_check: c.age_pending.then_some(t.required_age.unwrap_or(0)),
                 staff_called,
                 staff_present: c.staff == StaffState::Ready,
@@ -1732,6 +1759,8 @@ pub struct StaffView {
     pub required_age: Option<u8>,
     pub age_verified: bool,
     pub age_pending: bool,
+    /// ポイントカードの最終確認待ち（会計ボタンの直後）
+    pub point_pending: bool,
     pub method: Option<PaymentMethod>,
     pub inserted: u32,
     pub due: u32,
@@ -1752,6 +1781,7 @@ pub struct CustomerView {
     pub inserted: u32,
     pub due: u32,
     pub point_card: bool,
+    pub point_pending: bool,
     /// 年確中なら求める年齢
     pub age_check: Option<u8>,
     pub staff_called: bool,

@@ -101,6 +101,8 @@ pub enum Action {
     Checkout,
     BackToRegistering,
     SelectPayment,
+    /// 会計時のポイントカードの最終確認（「ポイントカードなしで進む」）
+    ConfirmPointCard,
     ConfirmAge,
     InsertCash,
     TapEmoney,
@@ -122,6 +124,7 @@ pub const STAFF_ACTIONS: &[Action] = &[
     Action::Checkout,
     Action::BackToRegistering,
     Action::SelectPayment,
+    Action::ConfirmPointCard,
     Action::VoidTransaction,
     Action::SetMode,
     Action::Lock,
@@ -139,6 +142,7 @@ pub const CUSTOMER_ACTIONS: &[Action] = &[
     Action::Checkout,
     Action::BackToRegistering,
     Action::SelectPayment,
+    Action::ConfirmPointCard,
     Action::ConfirmAge,
     Action::InsertCash,
     Action::TapEmoney,
@@ -160,6 +164,8 @@ pub struct Context {
     pub has_ff: bool,
     /// 店員の受付が済んでいないサービス商品がある
     pub service_pending: bool,
+    /// 会計に進んだが、ポイントカードの最終確認がまだ
+    pub point_pending: bool,
     pub method: Option<PaymentMethod>,
     /// セミセルフで、店員が会計に進めてお客様に支払いを任せている
     pub customer_turn: bool,
@@ -173,7 +179,9 @@ pub struct Context {
 impl Context {
     /// 決済を止めている理由（なければ None）。決済の関門はここに集める。
     pub fn payment_blocker(&self) -> Option<&'static str> {
-        if self.age_pending {
+        if self.point_pending {
+            Some(POINT_UNCONFIRMED)
+        } else if self.age_pending {
             Some("年齢確認が済んでいません")
         } else if self.ff_waiting {
             Some(FF_UNCHECKED)
@@ -188,6 +196,13 @@ impl Context {
 pub type Denial = &'static str;
 
 const FF_UNCHECKED: Denial = "FF のお渡し確認にチェックが入っていません";
+const POINT_UNCONFIRMED: Denial = "ポイントカードの確認が済んでいません";
+
+/// 会計ボタンの後のポイントカードの最終確認（どちらの画面からでも）
+fn confirm_point(c: &Context) -> Result<(), Denial> {
+    require(c.phase == Phase::Paying, "お会計前です")?;
+    require(c.point_pending, "ポイントカードの確認は済んでいます")
+}
 
 /// 今、画面を操作できる側。もう一方の画面は表示だけになる。
 pub fn active_side(c: &Context) -> Side {
@@ -286,9 +301,12 @@ fn staff(action: Action, c: &Context) -> Result<(), Denial> {
             require(c.has_lines, "明細がありません")?;
             require(!c.ff_waiting, FF_UNCHECKED)
         }
-        Action::BackToRegistering | Action::SelectPayment => {
-            require(paying, "会計画面ではありません")
+        Action::BackToRegistering => require(paying, "会計画面ではありません"),
+        Action::SelectPayment => {
+            require(paying, "会計画面ではありません")?;
+            require(!c.point_pending, POINT_UNCONFIRMED)
         }
+        Action::ConfirmPointCard => confirm_point(c),
         Action::FfButton
         | Action::ConfirmAge
         | Action::InsertCash
@@ -300,6 +318,9 @@ fn staff(action: Action, c: &Context) -> Result<(), Denial> {
 fn customer(action: Action, c: &Context) -> Result<(), Denial> {
     // セミセルフとセルフは、お客様が自分で登録・会計する（違いは FF の自己登録だけ）
     let self_mode = c.mode != Mode::Attended;
+    // 有人モードでお客様画面を持っているのは係員（ログイン直後はお客様画面が操作側）。
+    // そのときはお客様画面からも会計に進められる
+    let steer = self_mode || c.holder == Side::Customer;
     let paying = c.phase == Phase::Paying;
     match action {
         // 会計画面でも受け付け、登録画面に引き返して追加する
@@ -320,19 +341,21 @@ fn customer(action: Action, c: &Context) -> Result<(), Denial> {
             require(c.has_lines, "明細がありません")
         }
         Action::Checkout => {
-            require(self_mode, "係員がお会計に進みます")?;
+            require(steer, "係員がお会計に進みます")?;
             require(!paying, "すでにお会計中です")?;
             require(c.has_lines, "商品を登録してください")?;
             require(!c.ff_waiting, FF_UNCHECKED)
         }
         Action::BackToRegistering => {
-            require(self_mode, "係員にお申し付けください")?;
+            require(steer, "係員にお申し付けください")?;
             require(paying, "お会計中ではありません")
         }
         Action::SelectPayment => {
-            require(c.mode != Mode::Attended, "係員がお支払い方法を選びます")?;
-            require(paying, "お会計前です")
+            require(steer, "係員がお支払い方法を選びます")?;
+            require(paying, "お会計前です")?;
+            require(!c.point_pending, POINT_UNCONFIRMED)
         }
+        Action::ConfirmPointCard => confirm_point(c),
         Action::ConfirmAge => {
             require(paying && c.age_pending, "年齢確認は不要です")?;
             require(
@@ -393,6 +416,7 @@ mod tests {
                                     for customer_turn in b {
                                         v.push(Context {
                                             menu_open: false,
+                                            point_pending: false,
                                             holder: Side::Staff,
                                             customer_turn,
                                             mode,
@@ -447,7 +471,8 @@ mod tests {
         }
     }
 
-    /// 問題5：有人モードのお客様は、会計・支払方法の選択など流れを変える操作ができない。
+    /// 問題5：有人モードのお客様は、会計・支払方法の選択など流れを変える操作ができない
+    /// （係員が画面を持っているとき。係員がお客様画面を持っていればそこから会計できる）。
     #[test]
     fn customer_cannot_steer_attended_register() {
         for c in contexts().into_iter().filter(|c| c.mode == Mode::Attended) {

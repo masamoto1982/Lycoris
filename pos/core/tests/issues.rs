@@ -57,6 +57,18 @@ fn login_as(s: &mut Store, r: u8, badge: &str) {
     ok(s, json!({"type":"claim","register":r,"side":"staff"}));
 }
 
+/// 会計ボタンの後のポイントカードの最終確認（ポイントカードなしで進む）。操作側の画面で行う
+fn confirm_point(s: &mut Store, r: u8) {
+    let side = match reg(s, r).active_side {
+        Side::Staff => "staff",
+        Side::Customer => "customer",
+    };
+    ok(
+        s,
+        json!({"type":"confirm_point_card","register":r,"side":side}),
+    );
+}
+
 fn advance(s: &mut Store, ms: u64) {
     let end = s.now() + ms;
     while s.now() < end {
@@ -95,6 +107,7 @@ fn scanning_on_payment_screen_returns_to_registering() {
         &mut s,
         json!({"type":"checkout","register":1,"side":"staff"}),
     );
+    confirm_point(&mut s, 1);
     ok(
         &mut s,
         json!({"type":"insert_cash","register":1,"denomination":100,"count":1}),
@@ -107,6 +120,7 @@ fn scanning_on_payment_screen_returns_to_registering() {
         &mut s,
         json!({"type":"checkout","register":1,"side":"staff"}),
     );
+    confirm_point(&mut s, 1);
     ok(
         &mut s,
         json!({"type":"insert_cash","register":1,"denomination":500,"count":1}),
@@ -130,6 +144,7 @@ fn age_check_happens_at_checkout_and_blocks_payment() {
         &mut s,
         json!({"type":"checkout","register":1,"side":"staff"}),
     );
+    confirm_point(&mut s, 1);
     let v = reg(&s, 1);
     assert_eq!(v.customer.age_check, Some(20));
     assert!(run(
@@ -144,6 +159,7 @@ fn age_check_happens_at_checkout_and_blocks_payment() {
         &mut s,
         json!({"type":"checkout","register":1,"side":"staff"}),
     );
+    confirm_point(&mut s, 1);
     assert_eq!(reg(&s, 1).customer.age_check, None);
     ok(
         &mut s,
@@ -160,6 +176,7 @@ fn self_mode_age_check_calls_staff() {
         &mut s,
         json!({"type":"checkout","register":2,"side":"customer"}),
     );
+    confirm_point(&mut s, 2);
     assert!(s
         .snapshot()
         .calls
@@ -196,6 +213,7 @@ fn only_owner_changes_age_rules() {
         &mut s,
         json!({"type":"checkout","register":1,"side":"staff"}),
     );
+    confirm_point(&mut s, 1);
     assert_eq!(reg(&s, 1).customer.age_check, Some(20));
     assert_eq!(s.snapshot().age_rules.history.len(), 1);
 }
@@ -215,6 +233,7 @@ fn customer_cannot_take_over_attended_register() {
         &mut s,
         json!({"type":"checkout","register":1,"side":"staff"}),
     );
+    confirm_point(&mut s, 1);
     assert!(run(
         &mut s,
         json!({"type":"select_payment","register":1,"side":"customer","method":"qr"})
@@ -280,6 +299,7 @@ fn fast_food_flow_in_semi_self_mode() {
         &mut s,
         json!({"type":"checkout","register":2,"side":"staff"}),
     );
+    confirm_point(&mut s, 2);
     // 会計画面ではチェックを外せない
     assert!(run(
         &mut s,
@@ -426,6 +446,7 @@ fn staff_and_customer_screens_are_exclusive() {
         &mut s,
         json!({"type":"checkout","register":1,"side":"customer"}),
     );
+    confirm_point(&mut s, 1);
     ok(
         &mut s,
         json!({"type":"select_payment","register":1,"side":"customer","method":"qr"}),
@@ -453,6 +474,7 @@ fn staff_and_customer_screens_are_exclusive() {
         &mut s,
         json!({"type":"checkout","register":1,"side":"customer"}),
     );
+    confirm_point(&mut s, 1);
 }
 
 /// 年確ルールは売り場のどの商品にも個別に付けられる（オーナーのみ、法令は外せない）。
@@ -523,6 +545,7 @@ fn customer_registers_ff_in_self_mode() {
         &mut s,
         json!({"type":"checkout","register":2,"side":"customer"}),
     );
+    confirm_point(&mut s, 2);
     ok(
         &mut s,
         json!({"type":"insert_cash","register":2,"denomination":1000,"count":1}),
@@ -598,6 +621,7 @@ fn inlet_pays_and_change_waits_in_outlet() {
         &mut s,
         json!({"type":"checkout","register":1,"side":"customer"}),
     );
+    confirm_point(&mut s, 1);
     ok(&mut s, json!({"type":"insert","register":1,"amount":1000}));
     let v = reg(&s, 1);
     assert_eq!(v.outlet, 1000 - 160);
@@ -721,6 +745,7 @@ fn attended_screen_is_held_by_one_side_at_a_time() {
         &mut s,
         json!({"type":"checkout","register":1,"side":"staff"}),
     );
+    confirm_point(&mut s, 1);
 }
 
 /// 呼び出したレジはランプで知らせる。順番待ちはなく、後から呼んだレジもすぐ点く。
@@ -733,6 +758,7 @@ fn called_register_lamp_lights_at_once_until_staff_arrives() {
         &mut s,
         json!({"type":"checkout","register":1,"side":"customer"}),
     );
+    confirm_point(&mut s, 1);
     assert!(reg(&s, 1).lamp);
     assert!(!reg(&s, 2).lamp, "only the calling register lights");
     ok(
@@ -762,6 +788,7 @@ fn wallet_card_must_match_chosen_method() {
         &mut s,
         json!({"type":"checkout","register":1,"side":"customer"}),
     );
+    confirm_point(&mut s, 1);
     ok(
         &mut s,
         json!({"type":"select_payment","register":1,"side":"customer","method":"credit"}),
@@ -794,12 +821,14 @@ fn neglected_calls_ring_louder() {
         &mut s,
         json!({"type":"checkout","register":1,"side":"customer"}),
     );
+    confirm_point(&mut s, 1);
     advance(&mut s, 20_000);
     scan(&mut s, 2, "customer", BEER);
     ok(
         &mut s,
         json!({"type":"checkout","register":2,"side":"customer"}),
     );
+    confirm_point(&mut s, 2);
     let (r1, r2) = (reg(&s, 1), reg(&s, 2));
     assert!(
         r1.ring_volume > r2.ring_volume,
@@ -915,4 +944,63 @@ fn logout_returns_to_semi_self_even_while_customer_screen_holds() {
     );
     ok(&mut s, json!({"type":"end_staff_mode","register":1}));
     assert_eq!(reg(&s, 1).mode, Mode::SemiSelf);
+}
+
+/// 有人モードでお客様画面から FF を登録し、お渡しチェックを入れて会計できる。
+/// 会計ボタンの後はポイントカードの最終確認があり、それが済むと支払方法を選べる。
+#[test]
+fn checkout_from_held_customer_screen_then_point_card_check() {
+    let mut s = Store::new(1, 2, 1);
+    scan(&mut s, 1, "staff", "ST1001");
+    assert_eq!(reg(&s, 1).active_side, Side::Customer);
+    ok(
+        &mut s,
+        json!({"type":"register_ff","register":1,"side":"customer","code":"FF01","qty":1}),
+    );
+    let id = reg(&s, 1).customer.lines[0].id;
+    ok(
+        &mut s,
+        json!({"type":"check_ff","register":1,"side":"customer","line_id":id,"checked":true}),
+    );
+    ok(
+        &mut s,
+        json!({"type":"checkout","register":1,"side":"customer"}),
+    );
+    let v = reg(&s, 1);
+    assert_eq!(v.customer.phase, Phase::Paying);
+    assert!(v.customer.point_pending);
+    // 確認が済むまで支払方法は選べない
+    assert!(run(
+        &mut s,
+        json!({"type":"select_payment","register":1,"side":"customer","method":"cash"})
+    )
+    .is_err());
+    // 確認中にポイントカードを読めば、そのまま確認済み（登録画面には戻らない）
+    scan(&mut s, 1, "customer", "PC12345678");
+    let v = reg(&s, 1);
+    assert_eq!(v.customer.phase, Phase::Paying);
+    assert!(!v.customer.point_pending && v.customer.point_card);
+    ok(
+        &mut s,
+        json!({"type":"select_payment","register":1,"side":"customer","method":"cash"}),
+    );
+    ok(&mut s, json!({"type":"insert","register":1,"amount":500}));
+    assert_eq!(reg(&s, 1).last_receipt.unwrap().total, 220);
+
+    // ポイントカードを先に読んでいれば、確認は済んでいる
+    scan(&mut s, 1, "customer", "PC12345678");
+    ok(
+        &mut s,
+        json!({"type":"register_ff","register":1,"side":"customer","code":"FF03","qty":1}),
+    );
+    let id = reg(&s, 1).customer.lines[0].id;
+    ok(
+        &mut s,
+        json!({"type":"check_ff","register":1,"side":"customer","line_id":id,"checked":true}),
+    );
+    ok(
+        &mut s,
+        json!({"type":"checkout","register":1,"side":"customer"}),
+    );
+    assert!(!reg(&s, 1).customer.point_pending);
 }
