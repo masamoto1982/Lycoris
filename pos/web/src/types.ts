@@ -99,6 +99,10 @@ export interface RegisterView {
   switchable: boolean;
   /** 店員呼び出し中でレジ本体が鳴っている（MAT より長く、鳴らし直しも多い） */
   ringing: boolean;
+  /** 店員が来ていない呼び出しの放置時間（ms） */
+  call_waiting_ms: number | null;
+  /** 鳴動の音量 0〜1（放置が長いほど大きい） */
+  ring_volume: number;
   mode: Mode;
   mode_label: string;
   idle_revert_in: number | null;

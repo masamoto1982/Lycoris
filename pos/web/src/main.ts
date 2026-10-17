@@ -9,7 +9,7 @@
 
 import init, { PosSimulator } from "./wasm/generated/janus_pos.js";
 import type { Command, Snapshot } from "./types";
-import { beepError, beepScan, ringMat, ringRegister, unlockAudio } from "./sound";
+import { beepError, beepScan, unlockAudio, updateRings } from "./sound";
 import {
   esc,
   matPanel,
@@ -218,25 +218,16 @@ function render(): void {
   setRegion("wallet", walletPanel());
 }
 
-// MAT が鳴り始めたら呼び出し音を鳴らす（どれか 1 台でも鳴れば 1 回）
-let matWasBuzzing = false;
-// 呼び出し中のレジは本体も鳴る。鳴り止んだら（店員が来たら）音も止める
-const regRing = new Map<number, () => void>();
 
 function frame(): void {
   sim.tick(performance.now() - t0);
   snap = JSON.parse(sim.snapshot()) as Snapshot;
-  const buzzing = snap.mats.some((m) => m.buzzing);
-  if (buzzing && !matWasBuzzing) ringMat();
-  matWasBuzzing = buzzing;
-  for (const r of snap.registers) {
-    const stop = regRing.get(r.id);
-    if (r.ringing && !stop) regRing.set(r.id, ringRegister());
-    else if (!r.ringing && stop) {
-      stop();
-      regRing.delete(r.id);
-    }
-  }
+  // 呼び出し音：MAT（どれか 1 台でも鳴れば）とレジ本体。重ねずに順番に鳴らし、
+  // 音量は放置時間で決まる（MAT は最も長く待たせている呼び出しに合わせる）
+  updateRings([
+    { id: "mat", kind: "mat", ringing: snap.mats.some((m) => m.buzzing), volume: Math.max(0, ...snap.registers.map((r) => r.ring_volume)) },
+    ...snap.registers.map((r) => ({ id: `reg-${r.id}`, kind: "register" as const, ringing: r.ringing, volume: r.ring_volume })),
+  ]);
   render();
 }
 

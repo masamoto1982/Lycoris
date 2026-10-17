@@ -683,3 +683,23 @@ fn wallet_card_must_match_chosen_method() {
     assert_eq!(rc.total, 160);
     assert_eq!(rc.method, "クレジットカード");
 }
+
+/// 放置された呼び出しほど大きく鳴る。先に呼んだレジのほうが大きい。
+#[test]
+fn neglected_calls_ring_louder() {
+    use janus_pos_core::store::{ring_volume, RING_FULL_MS, RING_MIN};
+    assert_eq!(ring_volume(0), RING_MIN);
+    assert_eq!(ring_volume(RING_FULL_MS * 2), 1.0);
+    assert!(ring_volume(10_000) < ring_volume(30_000));
+    let mut s = Store::new(1, 2, 1);
+    scan(&mut s, 1, "customer", BEER);
+    ok(&mut s, json!({"type":"checkout","register":1,"side":"customer"}));
+    advance(&mut s, 20_000);
+    scan(&mut s, 2, "customer", BEER);
+    ok(&mut s, json!({"type":"checkout","register":2,"side":"customer"}));
+    let (r1, r2) = (reg(&s, 1), reg(&s, 2));
+    assert!(r1.ring_volume > r2.ring_volume, "the first caller is louder");
+    assert_eq!(r1.call_waiting_ms, Some(20_000));
+    scan(&mut s, 1, "staff", "ST1001");
+    assert_eq!(reg(&s, 1).ring_volume, 0.0);
+}

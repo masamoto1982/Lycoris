@@ -555,6 +555,17 @@ pub const IDLE_REVERT_MS: u64 = 5 * 60 * 1000;
 pub const REG_BUZZ_MS: u64 = 6 * 1000;
 /// レジの鳴らし直し（スヌーズ）の周期。MAT（RERING_MS）より短く、回数が多い
 pub const REG_RERING_MS: u64 = 8 * 1000;
+/// 放置された呼び出しほど大きく鳴らす。最初は RING_MIN、RING_FULL_MS 放置で最大
+pub const RING_MIN: f32 = 0.25;
+pub const RING_FULL_MS: u64 = 60 * 1000;
+
+/// 呼び出しの放置時間から鳴動の音量（0〜1）を決める。複数のレジが鳴っても、
+/// 先に呼んだ（長く待たせている）レジほど大きく聞こえる
+pub fn ring_volume(waiting_ms: u64) -> f32 {
+    let t = waiting_ms.min(RING_FULL_MS) as f32 / RING_FULL_MS as f32;
+    RING_MIN + (1.0 - RING_MIN) * t
+}
+
 /// 画面を持っている側がこの時間触られていなければ、もう一方が引き継げる
 pub const HOLD_MS: u64 = 3 * 1000;
 
@@ -1511,10 +1522,11 @@ impl Store {
         let calls = self.calls.for_register(r.id);
         let staff_called = !calls.is_empty() && c.staff != StaffState::Ready;
         // 店員が来るまで、最初の呼び出しから REG_RERING_MS ごとに REG_BUZZ_MS 鳴る
-        let ringing = staff_called
-            && calls.iter().map(|c| c.created_at).min().is_some_and(|t0| {
-                self.now.saturating_sub(t0) % REG_RERING_MS < REG_BUZZ_MS
-            });
+        let waiting = staff_called
+            .then(|| calls.iter().map(|c| c.created_at).min())
+            .flatten()
+            .map(|t0| self.now.saturating_sub(t0));
+        let ringing = waiting.is_some_and(|w| w % REG_RERING_MS < REG_BUZZ_MS);
         let staff = r.staff.map(|s| s.account);
         let mat_down = self
             .mats
@@ -1549,6 +1561,8 @@ impl Store {
             id: r.id,
             active_side: active_side(&c),
             ringing,
+            call_waiting_ms: waiting,
+            ring_volume: waiting.map_or(0.0, ring_volume),
             switchable: active_side(&Context { holder: Side::Staff, ..c })
                 != active_side(&Context { holder: Side::Customer, ..c }),
             mode: r.mode,
@@ -1681,6 +1695,10 @@ pub struct RegisterView {
     pub active_side: Side,
     /// 店員呼び出し中でレジ本体が鳴っている
     pub ringing: bool,
+    /// 店員が来ていない呼び出しの放置時間（最も古いもの）
+    pub call_waiting_ms: Option<u64>,
+    /// 鳴動の音量（放置が長いほど大きい。呼び出しがなければ 0）
+    pub ring_volume: f32,
     /// グレーの画面にタッチして操作を引き継げる状態か（有人モードで、お客様の確認待ちなどでない）
     pub switchable: bool,
     pub mode: Mode,
