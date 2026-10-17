@@ -19,12 +19,12 @@ describe("view helpers", () => {
     expect(sideOf({ type: "set_mat_loss", percent: 30 })).toBe("store");
   });
 
-  it("lays out the top bar as checkout, total, item count from the left", () => {
+  it("lays out the top bar as item count, total, checkout from the left", () => {
     const html = regTop(1280, 3, `<button>会計</button>`);
     const at = (t: string) => html.indexOf(t);
-    expect(at("会計")).toBeGreaterThan(-1);
-    expect(at("会計")).toBeLessThan(at("合計"));
-    expect(at("合計")).toBeLessThan(at("3</b> 点"));
+    expect(at("3</b> 点")).toBeGreaterThan(-1);
+    expect(at("3</b> 点")).toBeLessThan(at("合計"));
+    expect(at("合計")).toBeLessThan(at("<button>会計"));
   });
 
   it("counts items by quantity", () => {

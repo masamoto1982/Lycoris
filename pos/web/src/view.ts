@@ -187,9 +187,9 @@ function pointCheck(reg: number, side: Side, st: ActionState): string {
     </div>`;
 }
 
-/** 登録画面の最上部に固定する帯：左から会計ボタン・合計金額・買い物点数 */
+/** 登録画面の最上部に固定する帯：左から買い物点数・合計金額・会計ボタン */
 export function regTop(total: number, count: number, action: string): string {
-  return `<div class="reg-top">${action}<span>合計 <b class="total">${yen(total)}</b></span><span class="count"><b>${count}</b> 点</span></div>`;
+  return `<div class="reg-top"><span class="count"><b>${count}</b> 点</span><span>合計 <b class="total">${yen(total)}</b></span>${action}</div>`;
 }
 
 /** 買い物点数（数量の合計） */
