@@ -46,11 +46,9 @@ fn scan(s: &mut Store, r: u8, side: &str, code: &str) {
     );
 }
 
-/// 既定はセミセルフ。店員がセルフモードにして離れた、無人のセルフレジにする
-fn unattended_self(s: &mut Store, r: u8) {
+/// 名札（山田）を読んでログインする。ログイン中は有人モード
+fn login(s: &mut Store, r: u8) {
     scan(s, r, "staff", "ST1001");
-    ok(s, json!({"type":"set_mode","register":r,"mode":"full_self"}));
-    ok(s, json!({"type":"end_staff_mode","register":r}));
 }
 
 fn advance(s: &mut Store, ms: u64) {
@@ -65,6 +63,7 @@ fn advance(s: &mut Store, ms: u64) {
 #[test]
 fn any_barcode_is_accepted_in_any_order() {
     let mut s = Store::new(1, 2, 1);
+    login(&mut s, 1);
     scan(&mut s, 1, "staff", ONIGIRI);
     scan(&mut s, 1, "customer", "PC12345678");
     scan(&mut s, 1, "staff", "2000000000015");
@@ -84,6 +83,7 @@ fn any_barcode_is_accepted_in_any_order() {
 #[test]
 fn scanning_on_payment_screen_returns_to_registering() {
     let mut s = Store::new(1, 2, 1);
+    login(&mut s, 1);
     scan(&mut s, 1, "staff", ONIGIRI);
     ok(
         &mut s,
@@ -113,6 +113,7 @@ fn scanning_on_payment_screen_returns_to_registering() {
 #[test]
 fn age_check_happens_at_checkout_and_blocks_payment() {
     let mut s = Store::new(1, 2, 1);
+    login(&mut s, 1);
     scan(&mut s, 1, "staff", BEER);
     assert_eq!(
         reg(&s, 1).customer.age_check,
@@ -144,11 +145,10 @@ fn age_check_happens_at_checkout_and_blocks_payment() {
     );
 }
 
-/// セルフでは年確が店員呼び出しになり、店員が来るまでお客様は確認できない。
+/// セミセルフでは年確が店員呼び出しになり、店員が来るまでお客様は確認できない。
 #[test]
 fn self_mode_age_check_calls_staff() {
     let mut s = Store::new(1, 2, 1);
-    unattended_self(&mut s, 2);
     scan(&mut s, 2, "customer", BEER);
     ok(
         &mut s,
@@ -162,8 +162,9 @@ fn self_mode_age_check_calls_staff() {
     assert!(!allowed(&reg(&s, 2), Side::Customer, Action::ConfirmAge));
     scan(&mut s, 2, "staff", "ST1002");
     ok(&mut s, json!({"type":"confirm_age","register":2}));
-    // 用件が片付いたので店員操作モードは自動で終わる
-    assert_eq!(reg(&s, 2).staff.state, StaffState::Absent);
+    // 名札を読んだので有人モード。モードはログアウトか 5 分の無操作でだけ戻る
+    assert_eq!(reg(&s, 2).mode, Mode::Attended);
+    assert_eq!(reg(&s, 2).staff.state, StaffState::Ready);
     assert!(s.snapshot().calls.is_empty());
 }
 
@@ -171,6 +172,7 @@ fn self_mode_age_check_calls_staff() {
 #[test]
 fn only_owner_changes_age_rules() {
     let mut s = Store::new(1, 2, 1);
+    login(&mut s, 1);
     let add = |id: &str, pw: &str| {
         json!({"type":"add_age_rule","owner_id":id,"password":pw,
                "target":{"kind":"product","code":LOTTERY},"min_age":20})
@@ -196,10 +198,7 @@ fn only_owner_changes_age_rules() {
 #[test]
 fn customer_cannot_take_over_attended_register() {
     let mut s = Store::new(1, 2, 1);
-    ok(
-        &mut s,
-        json!({"type":"set_mode","register":1,"mode":"attended"}),
-    );
+    login(&mut s, 1);
     scan(&mut s, 1, "staff", ONIGIRI);
     assert!(run(
         &mut s,
@@ -222,11 +221,10 @@ fn customer_cannot_take_over_attended_register() {
     assert_eq!(reg(&s, 1).staff.phase, Phase::Registering);
 }
 
-/// FF：FF ボタンで呼び出し → 店員操作モードで登録 → お渡し → お客様の受取確認。
+/// FF：セミセルフの FF ボタンで呼び出し → 名札でログイン（有人）して登録 → お渡し → お客様の受取確認。
 #[test]
-fn fast_food_flow_in_self_mode() {
+fn fast_food_flow_in_semi_self_mode() {
     let mut s = Store::new(1, 2, 1);
-    unattended_self(&mut s, 2);
     scan(&mut s, 2, "customer", ONIGIRI);
     assert!(run(
         &mut s,
@@ -260,15 +258,17 @@ fn fast_food_flow_in_self_mode() {
     );
     assert!(run(&mut s, json!({"type":"tap_emoney","register":2})).is_err());
     ok(&mut s, json!({"type":"hand_over_ff","register":2}));
-    assert_eq!(
-        reg(&s, 2).staff.state,
-        StaffState::Absent,
-        "staff mode ends at hand-over"
-    );
+    assert_eq!(reg(&s, 2).mode, Mode::Attended, "badge keeps the register attended");
     ok(&mut s, json!({"type":"confirm_ff_receipt","register":2}));
+    // 有人モードなので支払方法は店員が選ぶ
+    assert!(run(
+        &mut s,
+        json!({"type":"select_payment","register":2,"side":"customer","method":"emoney"})
+    )
+    .is_err());
     ok(
         &mut s,
-        json!({"type":"select_payment","register":2,"side":"customer","method":"emoney"}),
+        json!({"type":"select_payment","register":2,"side":"staff","method":"emoney"}),
     );
     ok(&mut s, json!({"type":"tap_emoney","register":2}));
     assert_eq!(reg(&s, 2).last_receipt.unwrap().total, 160 + 440);
@@ -278,7 +278,6 @@ fn fast_food_flow_in_self_mode() {
 #[test]
 fn service_item_needs_staff() {
     let mut s = Store::new(1, 2, 1);
-    unattended_self(&mut s, 2);
     scan(&mut s, 2, "customer", PARCEL);
     assert!(s
         .snapshot()
@@ -291,7 +290,7 @@ fn service_item_needs_staff() {
         &mut s,
         json!({"type":"complete_service","register":2,"line_id":id,"amount":1200}),
     );
-    assert_eq!(reg(&s, 2).staff.state, StaffState::Absent);
+    assert_eq!(reg(&s, 2).mode, Mode::Attended);
     assert_eq!(reg(&s, 2).customer.total, 1200);
 }
 
@@ -299,7 +298,7 @@ fn service_item_needs_staff() {
 #[test]
 fn cash_out_requires_separate_password_every_time() {
     let mut s = Store::new(1, 2, 1);
-    unattended_self(&mut s, 2);
+    login(&mut s, 1);
     let co = |pw: &str| json!({"type":"cash_out","register":1,"kind":"emergency","amount":5000,"password":pw});
     assert!(
         run(&mut s, co("1111")).is_err(),
@@ -322,8 +321,6 @@ fn cash_out_requires_separate_password_every_time() {
 #[test]
 fn calls_stay_on_originating_register() {
     let mut s = Store::new(1, 4, 2);
-    unattended_self(&mut s, 2);
-    unattended_self(&mut s, 4);
     ok(&mut s, json!({"type":"call_staff","register":2}));
     ok(&mut s, json!({"type":"call_staff","register":4}));
     let snap = s.snapshot();
@@ -341,7 +338,6 @@ fn calls_stay_on_originating_register() {
 #[test]
 fn mat_rings_despite_loss_and_reports_link_down() {
     let mut s = Store::new(7, 2, 1);
-    unattended_self(&mut s, 2);
     ok(&mut s, json!({"type":"set_mat_loss","percent":60}));
     advance(&mut s, 3_000);
     ok(&mut s, json!({"type":"call_staff","register":2}));
@@ -368,50 +364,50 @@ fn mat_rings_despite_loss_and_reports_link_down() {
 #[test]
 fn customer_view_hides_staff_only_information() {
     let mut s = Store::new(1, 2, 1);
+    login(&mut s, 1);
     scan(&mut s, 1, "staff", BEER);
     scan(&mut s, 1, "staff", "PC12345678");
     let v = serde_json::to_value(reg(&s, 1)).unwrap();
     let c = v["customer"].to_string();
     assert!(!c.contains("alcohol") && !c.contains(BEER) && !c.contains("12345678"));
     assert_eq!(v["staff"]["lines"][0]["age"], 20);
-    assert_eq!(reg(&s, 1).mode, Mode::SemiSelf);
+    assert_eq!(reg(&s, 1).mode, Mode::Attended);
 }
 
-/// 画面の操作は排他：セミセルフの登録中はお客様画面が、支払い中は店員画面が操作できない。
+/// 画面の操作は排他：セミセルフ（名札なし）はお客様画面、有人（名札あり）は店員画面が操作する。
 #[test]
 fn staff_and_customer_screens_are_exclusive() {
     let mut s = Store::new(1, 2, 1);
-    scan(&mut s, 1, "customer", ONIGIRI); // スキャナーは機器なので排他の対象外
+    scan(&mut s, 1, "customer", ONIGIRI);
     let v = reg(&s, 1);
-    assert_eq!(v.active_side, Side::Staff);
-    assert!(!allowed(&v, Side::Customer, Action::CallStaff));
-    ok(
-        &mut s,
-        json!({"type":"checkout","register":1,"side":"staff"}),
-    );
-    let v = reg(&s, 1);
+    assert_eq!(v.mode, Mode::SemiSelf);
     assert_eq!(v.active_side, Side::Customer);
     assert!(run(&mut s, json!({"type":"void_transaction","register":1})).is_err());
+    ok(&mut s, json!({"type":"checkout","register":1,"side":"customer"}));
     ok(
         &mut s,
         json!({"type":"select_payment","register":1,"side":"customer","method":"qr"}),
     );
-    // 店員が名札を読む（ログインする）と、支払い中でも店員側が操作できる
+    // 店員が名札を読むと有人モードになり、支払い中でも店員側が操作する
     scan(&mut s, 1, "staff", "ST1002");
-    assert_eq!(reg(&s, 1).active_side, Side::Staff);
+    let v = reg(&s, 1);
+    assert_eq!(v.mode, Mode::Attended);
+    assert_eq!(v.active_side, Side::Staff);
+    assert!(run(
+        &mut s,
+        json!({"type":"select_payment","register":1,"side":"customer","method":"cash"})
+    )
+    .is_err());
     ok(
         &mut s,
         json!({"type":"back_to_registering","register":1,"side":"staff"}),
     );
-    ok(
-        &mut s,
-        json!({"type":"checkout","register":1,"side":"staff"}),
-    );
-    assert_eq!(reg(&s, 1).active_side, Side::Customer);
-    // 商品を読んだ場合も登録画面に戻り、店員側に戻る
-    scan(&mut s, 1, "staff", ONIGIRI);
-    assert_eq!(reg(&s, 1).active_side, Side::Staff);
-    ok(&mut s, json!({"type":"void_transaction","register":1}));
+    // ログアウトするとセミセルフに戻り、お客様が続きを操作する
+    ok(&mut s, json!({"type":"end_staff_mode","register":1}));
+    let v = reg(&s, 1);
+    assert_eq!(v.mode, Mode::SemiSelf);
+    assert_eq!(v.active_side, Side::Customer);
+    ok(&mut s, json!({"type":"checkout","register":1,"side":"customer"}));
 }
 
 /// 年確ルールは売り場のどの商品にも個別に付けられる（オーナーのみ、法令は外せない）。
@@ -437,14 +433,31 @@ fn owner_sets_age_rule_per_product() {
     assert_eq!(age(FIREWORKS), Some(18));
 }
 
-/// セルフモードでは、お客様も FF を自分で登録できる（お渡し・受取確認は不要）。
+/// 運用モードは名札で決まる。手で有人／セミセルフは選べず、セルフは機能 OFF。
+#[test]
+fn mode_follows_staff_badge() {
+    let mut s = Store::new(1, 2, 1);
+    assert!(s.snapshot().registers.iter().all(|r| r.mode == Mode::SemiSelf
+        && r.staff.state == StaffState::Absent));
+    login(&mut s, 1);
+    assert_eq!(reg(&s, 1).mode, Mode::Attended);
+    for m in ["attended", "semi_self", "full_self"] {
+        assert!(run(&mut s, json!({"type":"set_mode","register":1,"mode":m})).is_err());
+    }
+    ok(&mut s, json!({"type":"end_staff_mode","register":1}));
+    assert_eq!(reg(&s, 1).mode, Mode::SemiSelf);
+    assert!(run(&mut s, json!({"type":"set_mode","register":1,"mode":"full_self"})).is_err());
+}
+
+/// セルフモード（将来の拡張）：有効にすると、お客様が FF も自分で登録できる。
 #[test]
 fn customer_registers_ff_in_self_mode() {
     let mut s = Store::new(1, 2, 1);
     let ff = |r: u8| json!({"type":"register_ff","register":r,"side":"customer","code":"FF01","qty":1});
-    // セミセルフでは店員の操作
-    assert!(run(&mut s, ff(1)).is_err());
-    unattended_self(&mut s, 2);
+    // セミセルフでは FF は店員の登録
+    assert!(run(&mut s, ff(2)).is_err());
+    s.set_self_mode_enabled(true);
+    ok(&mut s, json!({"type":"set_mode","register":2,"mode":"full_self"}));
     ok(&mut s, ff(2));
     let v = reg(&s, 2);
     assert_eq!(v.customer.lines.len(), 1);
@@ -454,24 +467,25 @@ fn customer_registers_ff_in_self_mode() {
     assert!(reg(&s, 2).customer.lines.is_empty(), "paid and settled");
 }
 
-/// 既定はセミセルフ。ほかのモードでも 5 分間操作がなければセミセルフに戻って待機する。
+/// 名札でログインした有人モードも、5 分間操作がなければログアウトしてセミセルフに戻る。
+/// 混雑時に急に切り替わらないよう、取引中は戻さない。
 #[test]
 fn idle_register_returns_to_semi_self() {
     let mut s = Store::new(1, 2, 1);
-    assert!(s.snapshot().registers.iter().all(|r| r.mode == Mode::SemiSelf));
-    unattended_self(&mut s, 2);
+    login(&mut s, 2);
     advance(&mut s, 4 * 60_000);
     // 途中で操作があれば数え直す
-    scan(&mut s, 2, "customer", ONIGIRI);
-    ok(&mut s, json!({"type":"remove_line","register":2,"side":"customer","line_id":1}));
+    scan(&mut s, 2, "staff", ONIGIRI);
+    ok(&mut s, json!({"type":"void_transaction","register":2}));
     advance(&mut s, 4 * 60_000);
-    assert_eq!(reg(&s, 2).mode, Mode::FullSelf);
+    assert_eq!(reg(&s, 2).mode, Mode::Attended);
     advance(&mut s, 61_000);
-    assert_eq!(reg(&s, 2).mode, Mode::SemiSelf);
-    assert!(reg(&s, 2).idle_revert_in.is_none());
+    let v = reg(&s, 2);
+    assert_eq!(v.mode, Mode::SemiSelf);
+    assert_eq!(v.staff.state, StaffState::Absent);
+    assert!(v.idle_revert_in.is_none());
     // 取引中は戻さない
-    ok(&mut s, json!({"type":"scan","register":1,"side":"staff","code":"ST1001"}));
-    ok(&mut s, json!({"type":"set_mode","register":1,"mode":"attended"}));
+    login(&mut s, 1);
     scan(&mut s, 1, "staff", ONIGIRI);
     advance(&mut s, 6 * 60_000);
     assert_eq!(reg(&s, 1).mode, Mode::Attended);

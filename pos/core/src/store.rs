@@ -342,6 +342,18 @@ struct Register {
 }
 
 impl Register {
+    /// 運用モードは名札で決まる：名札でログイン中なら有人、いなければセミセルフ。
+    /// セルフ（将来の拡張）は、有効なときに明示的に選んだ場合だけ。
+    fn sync_mode(&mut self, self_mode_enabled: bool) {
+        self.mode = if self.staff.is_some() {
+            Mode::Attended
+        } else if self_mode_enabled && self.mode == Mode::FullSelf {
+            Mode::FullSelf
+        } else {
+            Mode::SemiSelf
+        };
+    }
+
     /// 取引も呼び出しもなく、待機に戻してよい状態か
     fn idle(&self) -> bool {
         self.txn.lines.is_empty() && !self.txn.paying
@@ -392,6 +404,8 @@ pub struct AuditEntry {
 
 pub struct Store {
     now: u64,
+    /// セルフモード（お客様が FF も自分で登録する）は将来の拡張用。既定は OFF
+    self_mode_enabled: bool,
     rng: Rng,
     registers: Vec<Register>,
     mats: Vec<Mat>,
@@ -421,14 +435,11 @@ impl Store {
         let mats = mats.clamp(1, MAX_MATS);
         let regs = (1..=registers)
             .map(|id| {
-                // 既定はセミセルフ。デモ用にレジ1は山田、レジ2は鈴木がログイン済み
+                // 既定はセミセルフ（名札なし）
                 Register {
                     id,
                     mode: Mode::SemiSelf,
-                    staff: (id <= 2).then(|| StaffSession {
-                        account: &ACCOUNTS[(id as usize - 1) % 2],
-                        locked: false,
-                    }),
+                    staff: None,
                     txn: Txn::default(),
                     drawer: Drawer::default(),
                     last_receipt: None,
@@ -438,6 +449,7 @@ impl Store {
             .collect();
         Store {
             now: 0,
+            self_mode_enabled: false,
             rng: Rng::new(seed),
             registers: regs,
             mats: (1..=mats).map(|i| Mat::new(&format!("MAT-{i}"))).collect(),
@@ -493,7 +505,7 @@ impl Store {
         for m in &mut self.mats {
             m.tick(now, self.bell, self.mat_loss, &mut self.rng);
         }
-        // 無操作が続いたレジは、セミセルフモードに戻って待機する
+        // 無操作が 5 分続いたら、名札のログインを外してセミセルフに戻る
         for r in &mut self.registers {
             let open = self.calls.open.iter().any(|c| c.register == r.id);
             if r.mode != Mode::SemiSelf
@@ -501,6 +513,7 @@ impl Store {
                 && !open
                 && now.saturating_sub(r.last_op) >= IDLE_REVERT_MS
             {
+                r.staff = None;
                 r.mode = Mode::SemiSelf;
                 r.last_op = now;
             }
@@ -535,7 +548,20 @@ impl Store {
                 r.last_op = now;
             }
         }
-        self.apply(cmd)
+        let res = self.apply(cmd);
+        let self_ok = self.self_mode_enabled;
+        for r in &mut self.registers {
+            r.sync_mode(self_ok);
+        }
+        res
+    }
+
+    /// セルフモード（将来の拡張）を使えるようにする
+    pub fn set_self_mode_enabled(&mut self, on: bool) {
+        self.self_mode_enabled = on;
+        for r in &mut self.registers {
+            r.sync_mode(on);
+        }
     }
 
     fn apply(&mut self, cmd: Command) -> Result<Outcome, String> {
@@ -571,7 +597,6 @@ impl Store {
                         };
                     }
                 }
-                self.maybe_end_staff_mode(register);
                 done("お渡ししました。お客様画面で受取確認を待っています")
             }
             C::ConfirmFfReceipt { register } => {
@@ -611,7 +636,6 @@ impl Store {
                 if !self.reg_mut(register)?.txn.service_pending() {
                     self.calls.resolve(register, CallKind::Service, self.now);
                 }
-                self.maybe_end_staff_mode(register);
                 done(format!("{name}を受け付けました（{amount}円）"))
             }
             C::RemoveLine {
@@ -640,7 +664,6 @@ impl Store {
                     self.calls.resolve(register, CallKind::Service, self.now);
                 }
                 if side == Side::Staff {
-                    self.maybe_end_staff_mode(register);
                 }
                 done(format!("{}を取り消しました", l.name))
             }
@@ -672,7 +695,6 @@ impl Store {
                 r.txn.age_verified = true;
                 let age = r.txn.required_age.unwrap_or(0);
                 self.calls.resolve(register, CallKind::AgeCheck, self.now);
-                self.maybe_end_staff_mode(register);
                 done(format!("{age}歳以上であることを確認しました"))
             }
             C::InsertCash {
@@ -710,7 +732,6 @@ impl Store {
                 for k in [CallKind::AgeCheck, CallKind::FastFood, CallKind::Service] {
                     self.calls.resolve(register, k, now);
                 }
-                self.maybe_end_staff_mode(register);
                 if back > 0 {
                     done(format!("取引を中止しました。投入金 {back}円を返却します"))
                 } else {
@@ -718,13 +739,19 @@ impl Store {
                 }
             }
             C::SetMode { register, mode } => {
-                self.check(register, Side::Staff, Action::SetMode)?;
-                let r = self.reg_mut(register)?;
-                if !r.txn.lines.is_empty() {
-                    return Err("取引中は運用モードを変更できません".into());
+                // 有人／セミセルフは名札で切り替わる。選べるのはセルフ（有効なときだけ）
+                if mode != Mode::FullSelf {
+                    return Err("運用モードは名札で切り替わります（名札あり＝有人、なし＝セミセルフ）".into());
                 }
-                r.mode = mode;
-                done(format!("{}モードにしました", mode.label()))
+                if !self.self_mode_enabled {
+                    return Err("セルフモードは使えません（将来の拡張用）".into());
+                }
+                let r = self.reg_mut(register)?;
+                if r.staff.is_some() || !r.txn.lines.is_empty() {
+                    return Err("ログアウトして取引のない状態で切り替えてください".into());
+                }
+                r.mode = Mode::FullSelf;
+                done("セルフモードにしました")
             }
             C::Lock { register } => {
                 self.check(register, Side::Staff, Action::Lock)?;
@@ -736,7 +763,7 @@ impl Store {
             C::EndStaffMode { register } => {
                 self.check(register, Side::Staff, Action::EndStaffMode)?;
                 self.reg_mut(register)?.staff = None;
-                done("ログアウトしました")
+                done("ログアウトしました（セミセルフモード）")
             }
             C::CashOut {
                 register,
@@ -811,22 +838,6 @@ impl Store {
         }
     }
 
-    /// セルフモードの店員操作モードは、呼ばれた用件が片付いた時点で自動で終わる。
-    /// FF はお渡しまでが店員の用件（受取確認はお客様が行う）。
-    fn maybe_end_staff_mode(&mut self, register: u8) {
-        let open = !self.calls.for_register(register).is_empty();
-        let Ok(r) = self.reg_mut(register) else {
-            return;
-        };
-        if r.mode != Mode::FullSelf || r.staff_state() != StaffState::Ready || open {
-            return;
-        }
-        let c = r.context();
-        if !(c.age_pending || c.ff_waiting || c.service_pending) {
-            r.staff = None;
-        }
-    }
-
     fn scan(&mut self, register: u8, side: Side, code: &str) -> Result<Outcome, String> {
         let scanned = catalog::classify(code);
         // スタッフバーコードは、ロック中・未ログインでも読む（ログイン・解除）
@@ -846,7 +857,7 @@ impl Store {
             return done(match was {
                 _ if took_over => format!("{}さんが操作を引き継ぎました", acc.name),
                 StaffState::Locked => format!("{}さんがロックを解除しました", acc.name),
-                _ => format!("{}さんが店員操作モードに入りました", acc.name),
+                _ => format!("{}さんがログインしました（有人モード）", acc.name),
             });
         }
         self.check(register, side, Action::Scan)?;
@@ -964,7 +975,7 @@ impl Store {
         let ready = r.staff_state() == StaffState::Ready;
         let pending = r.txn.age_pending();
         let mode = r.mode;
-        if pending && mode == Mode::FullSelf && !ready {
+        if pending && mode != Mode::Attended && !ready {
             self.calls.raise(
                 register,
                 CallKind::AgeCheck,
@@ -1057,7 +1068,6 @@ impl Store {
         for k in [CallKind::AgeCheck, CallKind::FastFood, CallKind::Service] {
             self.calls.resolve(register, k, now);
         }
-        self.maybe_end_staff_mode(register);
         done(msg)
     }
 

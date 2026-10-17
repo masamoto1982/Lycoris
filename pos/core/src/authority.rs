@@ -260,18 +260,19 @@ fn staff(action: Action, c: &Context) -> Result<(), Denial> {
 }
 
 fn customer(action: Action, c: &Context) -> Result<(), Denial> {
-    let self_mode = c.mode == Mode::FullSelf;
+    // セミセルフとセルフは、お客様が自分で登録・会計する（違いは FF の自己登録だけ）
+    let self_mode = c.mode != Mode::Attended;
     let paying = c.phase == Phase::Paying;
     match action {
         // 会計画面でも受け付け、登録画面に引き返して追加する
         Action::Scan => Ok(()),
         Action::FfButton => {
-            require(self_mode, "FF は係員にお申し付けください")?;
+            require(c.mode == Mode::SemiSelf, "FF は係員にお申し付けください")?;
             require(!paying, "お会計中です")
         }
         // セルフモードではお客様が FF を自分で登録する（ケースから自分で取る）
         Action::RegisterFf => {
-            require(self_mode, "FF は係員にお申し付けください")?;
+            require(c.mode == Mode::FullSelf, "FF は係員にお申し付けください")?;
             require(!paying, "お会計中です")
         }
         Action::ConfirmFfReceipt => require(c.ff_presented, "お渡し中の FF はありません"),

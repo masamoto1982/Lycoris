@@ -104,7 +104,7 @@ export function staffScreen(r: RegisterView, snap: Snapshot): string {
     const how =
       v.state === "ready" && (v.age_pending || v.lines.some((l) => l.kind === "ff" && l.state === "presented"))
         ? "お客様の確認が済むと操作に戻ります"
-        : "レジ名の右の「店員」でログインすると操作できます";
+        : "レジ名の右の「店員」でログインすると有人モードになり、操作できます";
     return `<div class="mirror-head"><b>${why}</b>　${how}</div>
       <div class="mirror">${customerScreen(r, snap.ff_stock)}</div>`;
   }
@@ -112,16 +112,6 @@ export function staffScreen(r: RegisterView, snap: Snapshot): string {
 
   const rows = v.lines.map((l) => staffLine(reg, l, v)).join("");
   const paying = v.phase === "paying";
-  const modeSel = (["attended", "semi_self", "full_self"] as const)
-    .map((m) =>
-      btn(
-        { attended: "有人", semi_self: "セミセルフ", full_self: "セルフ" }[m],
-        { type: "set_mode", register: reg, mode: m },
-        a("set_mode"),
-        `seg ${r.mode === m ? "on" : ""}`,
-      ),
-    )
-    .join("");
 
   const ffMenu = snap.ff_stock
     .map((f) =>
@@ -147,7 +137,6 @@ export function staffScreen(r: RegisterView, snap: Snapshot): string {
 
   return `<div class="staff-head">
       <span>店員：<b>${esc(v.name)}</b>${v.role === "owner" ? "（オーナー）" : ""}</span>
-      <span class="segs">${modeSel}</span>
     </div>
     <table class="lines"><thead><tr><th>品名</th><th>数</th><th>金額</th><th></th></tr></thead>
       <tbody>${rows || `<tr><td colspan="4" class="muted">明細はありません。どのバーコードからでも読めます</td></tr>`}</tbody></table>
@@ -187,9 +176,10 @@ export function customerScreen(r: RegisterView, ff: Snapshot["ff_stock"] = []): 
   const c: CustomerView = r.customer;
   const reg = r.id;
   const a = (n: string) => find(c.actions, n);
-  const self = r.mode === "full_self";
-  // セルフモードでは、お客様がケースから取った FF を自分で登録する
-  const ffMenu = self
+  // セミセルフ（名札なし）とセルフは、お客様が自分で登録・会計する
+  const self = r.mode !== "attended";
+  // セルフモード（将来の拡張）では、お客様がケースから取った FF も自分で登録する
+  const ffMenu = r.mode === "full_self"
     ? `<div class="ffmenu center"><span class="muted">FF（揚げ物・中華まん）</span>${ff
         .map((f) =>
           btn(
@@ -201,6 +191,8 @@ export function customerScreen(r: RegisterView, ff: Snapshot["ff_stock"] = []): 
         )
         .join("")}</div>`
     : "";
+  // セミセルフでは FF は係員が登録する（ボタンで呼び出す）
+  const ffOrder = r.mode === "semi_self" ? btn("FF（揚げ物・中華まん）を注文", { type: "ff_button", register: reg }, a("ff_button"), "ff") : "";
 
   if (r.last_receipt && !c.lines.length) {
     const rc = r.last_receipt;
@@ -243,7 +235,7 @@ export function customerScreen(r: RegisterView, ff: Snapshot["ff_stock"] = []): 
     return `${banners.join("")}<div class="welcome">
       <div class="big">いらっしゃいませ</div>
       <p>${self ? "商品のバーコードをスキャンしてください" : "係員が商品をお読みします"}</p>
-      ${ffMenu}
+      ${ffMenu}${ffOrder ? `<div class="row center">${ffOrder}</div>` : ""}
       ${r.mode !== "attended" ? `<div class="row center">${btn("係員を呼ぶ", { type: "call_staff", register: reg }, a("call_staff"), "ghost")}</div>` : ""}
     </div>`;
   }
@@ -280,6 +272,7 @@ export function customerScreen(r: RegisterView, ff: Snapshot["ff_stock"] = []): 
     c.phase === "registering"
       ? `<div class="row">
           ${self ? btn("お会計", { type: "checkout", register: reg, side: "customer" }, a("checkout"), "primary") : ""}
+          ${ffOrder}
           ${r.mode !== "attended" ? btn("係員を呼ぶ", { type: "call_staff", register: reg }, a("call_staff"), "ghost") : ""}
         </div>${ffMenu}`
       : `<div class="row">${self ? btn("商品登録に戻る", { type: "back_to_registering", register: reg, side: "customer" }, a("back_to_registering"), "ghost") : ""}
