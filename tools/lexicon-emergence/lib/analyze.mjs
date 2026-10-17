@@ -41,6 +41,39 @@ export function heldOutSplit(gen) {
   return { train: part(all.filter((r) => !r.heldOut)), heldOut: part(all.filter((r) => r.heldOut)) };
 }
 
+/**
+ * Per held-out family of one generation: correct solutions, those calling a
+ * Word the same subject also reached from a correct training solution (own or
+ * inherited), and those calling an inherited Word. Where subjects may define
+ * Words, the first all but bounds the second: in Phase 4, 1 of 858 correct
+ * held-out solutions with a lexicon reached an inherited Word its subject had
+ * not also reached in training, so a family that shares little with the
+ * training tasks even inside one subject (`series`) is out of reach of any
+ * lexicon chosen from them. Subjects who may not define Words (Phase 5's
+ * `probe`) call an inherited Word where it fits a held-out family alone, so
+ * there the bound does not hold. Null when nothing is held out.
+ */
+export function heldOutFamilies(gen) {
+  if (!gen.graded.some((x) => x.results.some((r) => r.heldOut))) return null;
+  const inheritedNames = new Set(gen.lexicon.entries.map((e) => norm(e.name)));
+  const byFamily = new Map();
+  for (const x of gen.graded) {
+    const fromTraining = new Set(x.results.filter((r) => !r.heldOut && r.correct).flatMap((r) => r.uses));
+    for (const r of x.results.filter((r) => r.heldOut)) {
+      const family = r.task.slice(0, r.task.indexOf('.'));
+      const f = byFamily.get(family) ?? { family, correct: 0, attempted: 0, shared: 0, inherited: 0 };
+      f.attempted += 1;
+      if (r.correct) {
+        f.correct += 1;
+        if (r.uses.some((n) => fromTraining.has(n))) f.shared += 1;
+        if (r.uses.some((n) => inheritedNames.has(n))) f.inherited += 1;
+      }
+      byFamily.set(family, f);
+    }
+  }
+  return [...byFamily.values()].sort((a, b) => a.family.localeCompare(b.family));
+}
+
 export async function analyze(ajisai, gens, families, models = {}) {
   const graded = gens.flatMap((g) => g.graded.map((x) => ({ ...x, condition: g.condition })));
   const words = collectWords(graded, gens.map((g) => g.lexicon));
@@ -68,7 +101,10 @@ export async function analyze(ajisai, gens, families, models = {}) {
         meanRuns: g.graded.some((x) => x.calls)
           ? +(g.graded.reduce((n, x) => n + (x.calls?.total ?? 0), 0) / g.graded.length).toFixed(1)
           : null,
+        // Own Words defined per subject: with an inherited lexicon, the ones it saved writing.
+        ownWords: g.graded.length ? +(g.graded.reduce((n, x) => n + x.definitions.length, 0) / g.graded.length).toFixed(1) : null,
         split: heldOutSplit(g),
+        heldOutFamilies: heldOutFamilies(g),
         // Correct solutions per model in this generation.
         byModel: Object.fromEntries(
           g.graded.map((x) => [modelOf(models, x.agent) ?? x.agent, `${x.results.filter((r) => r.correct).length}/${x.results.length}`]),
@@ -222,10 +258,10 @@ export function renderReport(report) {
   const out = [];
   out.push('# Lexicon-emergence run report', '');
   out.push('## Per generation', '');
-  out.push('| condition | gen | agents | lexicon | correct | mean tokens | tokens ÷ expanded | Core-equivalent (H5) |');
-  out.push('| --- | --- | --- | --- | --- | --- | --- | --- |');
+  out.push('| condition | gen | agents | lexicon | own Words / subject | correct | mean tokens | tokens ÷ expanded | Core-equivalent (H5) |');
+  out.push('| --- | --- | --- | --- | --- | --- | --- | --- | --- |');
   for (const g of report.perGeneration) {
-    out.push(`| ${g.condition} | ${g.generation} | ${g.agents} | ${g.lexiconSize} | ${g.accuracy} | ${g.meanTokens} | ${g.compression} | ${g.coreEquivalent} |`);
+    out.push(`| ${g.condition} | ${g.generation} | ${g.agents} | ${g.lexiconSize} | ${g.ownWords ?? '—'} | ${g.accuracy} | ${g.meanTokens} | ${g.compression} | ${g.coreEquivalent} |`);
   }
   if (report.perGeneration.some((g) => g.split)) {
     out.push('', '## Training and held-out tasks', '');
@@ -235,6 +271,20 @@ export function renderReport(report) {
     for (const g of report.perGeneration.filter((x) => x.split)) {
       const { train: t, heldOut: h } = g.split;
       out.push(`| ${g.condition} | ${g.generation} | ${t.correct} | ${t.compression} | ${t.reaching ?? '—'} | ${h.correct} | ${h.compression} | ${h.reaching ?? '—'} | ${h.tasksReaching ?? '—'} |`);
+    }
+  }
+  if (report.perGeneration.some((g) => g.heldOutFamilies)) {
+    out.push('', '## Held-out families: shared with training, and inherited', '');
+    out.push('Of each family\'s correct held-out solutions: "shared" call a Word their own subject also reached from a correct training solution, "inherited" call an inherited Word. Where subjects may define Words, shared all but bounds inherited from above.', '');
+    const familiesSeen = [...new Set(report.perGeneration.flatMap((g) => (g.heldOutFamilies ?? []).map((f) => f.family)))];
+    out.push(`| condition | gen | ${familiesSeen.map((f) => `${f} correct · shared · inherited`).join(' | ')} |`);
+    out.push(`| --- | --- | ${familiesSeen.map(() => '---').join(' | ')} |`);
+    for (const g of report.perGeneration.filter((x) => x.heldOutFamilies)) {
+      const cell = (name) => {
+        const f = g.heldOutFamilies.find((x) => x.family === name);
+        return f ? `${f.correct}/${f.attempted} · ${f.shared} · ${g.lexiconSize ? f.inherited : '—'}` : '—';
+      };
+      out.push(`| ${g.condition} | ${g.generation} | ${familiesSeen.map(cell).join(' | ')} |`);
     }
   }
   if (report.perGeneration.some((g) => g.byModel && Object.keys(g.byModel).length)) {

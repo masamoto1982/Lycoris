@@ -12,10 +12,10 @@ export function loadFamilies(dir, names = ['stats', 'text']) {
 }
 
 /** Every definition a submission can call: the lexicon it was given, then its own. */
-function definitionsOf(submission, lexicon) {
+function definitionsOf(definitions, lexicon) {
   const byName = new Map();
   for (const entry of lexicon?.entries ?? []) byName.set(norm(entry.name), entry);
-  for (const definition of submission.definitions ?? []) byName.set(norm(definition.name), definition);
+  for (const definition of definitions) byName.set(norm(definition.name), definition);
   return byName;
 }
 
@@ -24,9 +24,14 @@ const sameStack = (a, b) => a !== null && b !== null && JSON.stringify(a) === JS
 /**
  * `heldOut` names families whose results are marked `heldOut: true`: graded
  * like any other, but never ranking a Word for the next lexicon (Phase 4).
+ * `definitionBudget` caps how many of its own Words a submission may define
+ * (Phase 5; null is no cap): the definitions past it are dropped before
+ * grading, so a solution calling one fails, and the graded file names them.
  */
-export async function grade(ajisai, submission, lexicon, families, heldOut = []) {
-  const byName = definitionsOf(submission, lexicon);
+export async function grade(ajisai, submission, lexicon, families, heldOut = [], { definitionBudget = null } = {}) {
+  const submitted = submission.definitions ?? [];
+  const definitions = definitionBudget == null ? submitted : submitted.slice(0, definitionBudget);
+  const byName = definitionsOf(definitions, lexicon);
   const known = new Set(byName.keys());
   const bodies = new Map([...byName].map(([name, entry]) => [name, entry.body]));
   const results = [];
@@ -75,7 +80,8 @@ export async function grade(ajisai, submission, lexicon, families, heldOut = [])
     agent: submission.agent,
     generation: submission.generation,
     condition: submission.condition,
-    definitions: submission.definitions ?? [],
+    definitions,
+    ...(definitions.length < submitted.length ? { definitionsDropped: submitted.slice(definitions.length).map((d) => d.name) } : {}),
     lexiconNames: (lexicon?.entries ?? []).map((entry) => norm(entry.name)),
     results,
   };

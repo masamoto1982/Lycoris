@@ -15,7 +15,7 @@ import { prelude } from './source.mjs';
  * logs every call, so a subagent need not paste inherited definitions. The
  * tasks and the lexicon read the same every way.
  */
-export function subjectPrompt({ run, condition, generation, agent }, lexicon, families, route = 'subagent', { callBudget } = {}) {
+export function subjectPrompt({ run, condition, generation, agent }, lexicon, families, route = 'subagent', { callBudget, definitionBudget } = {}) {
   const harness = route === 'harness';
   const cli = route === 'cli';
   const genPath = `tools/lexicon-emergence/runs/${run}/${condition}/gen${generation}`;
@@ -56,8 +56,19 @@ export function subjectPrompt({ run, condition, generation, agent }, lexicon, fa
   lines.push('  that follows it and must leave exactly the requested value as the only item on the stack.');
   lines.push('  It is graded on more inputs than the example shown, so it must work for any input of the kind');
   lines.push('  described.');
-  lines.push(`- You may define your own Words. Every name must start with \`${agent}.\` (for example`);
-  lines.push(`  \`${agent}.MEAN\`). Definitions made in this round may be offered to later agents.`);
+  if (definitionBudget === 0) {
+    // Phase 5: what an inherited lexicon is worth when it is the only way to
+    // name a sub-computation.
+    lines.push('- In this round you may not define Words of your own. Write every solution with Core Words');
+    lines.push(`  ${lexicon.entries.length > 0 ? 'and the inherited Words below' : 'only'}; leave \`definitions\` empty. Any definition you submit is ignored`);
+    lines.push('  when grading, so a solution that calls one fails.');
+  } else {
+    lines.push(`- You may define your own Words. Every name must start with \`${agent}.\` (for example`);
+    lines.push(`  \`${agent}.MEAN\`). Definitions made in this round may be offered to later agents.`);
+    if (definitionBudget != null) {
+      lines.push(`  Only the first ${definitionBudget} definitions in your list count; any after them are ignored when grading.`);
+    }
+  }
   lines.push('');
 
   if (lexicon.entries.length > 0) {
@@ -112,14 +123,18 @@ export function subjectPrompt({ run, condition, generation, agent }, lexicon, fa
     lines.push('```json');
     lines.push('{');
     lines.push(`  "agent": "${agent}", "generation": ${generation}, "condition": "${condition}",`);
-    lines.push(`  "definitions": [ { "name": "${agent}.EXAMPLE", "body": "code inside the brackets", "note": "what it does, one line" } ],`);
+    lines.push(definitionBudget === 0
+      ? '  "definitions": [],'
+      : `  "definitions": [ { "name": "${agent}.EXAMPLE", "body": "code inside the brackets", "note": "what it does, one line" } ],`);
     lines.push('  "solutions": { "<task id>": "code that follows the input" }');
     lines.push('}');
     lines.push('```');
   }
   lines.push('');
-  lines.push('`body` is the code that goes between `[` and `]` in `[ body ] \'NAME\' DEF`. List definitions so that each');
-  lines.push('comes after any of your own Words it calls. Solutions may call your Words and the inherited Words.');
+  if (definitionBudget !== 0) {
+    lines.push('`body` is the code that goes between `[` and `]` in `[ body ] \'NAME\' DEF`. List definitions so that each');
+    lines.push('comes after any of your own Words it calls. Solutions may call your Words and the inherited Words.');
+  }
   if (callBudget === 0) return `${lines.join('\n')}\n`;
   lines.push(`Before ${harness ? 'submitting' : 'writing the file'}, run each solution through \`compute\` exactly as it will be graded: the`);
   lines.push(harness || cli

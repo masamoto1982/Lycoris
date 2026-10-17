@@ -3,7 +3,7 @@
 //
 //   node cli.mjs prompt  <run> <condition> <gen> <agent>   subject prompt for one agent
 //   node cli.mjs grade   <run> <condition> <gen>           grade every submission of a generation
-//   node cli.mjs evolve  <run> <condition> <gen> <K> [--rule uses|reinvention|breadth]
+//   node cli.mjs evolve  <run> <condition> <gen> <K> [--rule uses|reinvention|breadth|families]
 //                                                          choose generation gen+1's lexicon (K may be
 //                                                          Infinity for C-open; --into <condition> writes
 //                                                          it into another condition's gen+1)
@@ -24,7 +24,9 @@
 // each subject letter ran on ("models": { "A": "opus", … }), for grading and for the report,
 // and may cap how many times each subject may run code ("callBudget": n, or per condition
 // { "default": 0, "runs": null }, null meaning unlimited). The cap is stated in the cli route's
-// prompt, and `compute` refuses a subject's run past it. "rotation" (Phase 4, lib/rotation.mjs)
+// prompt, and `compute` refuses a subject's run past it. "definitionBudget" (Phase 5), shaped the
+// same, caps how many Words of its own a subject may define: the prompt states it and `grade`
+// drops the definitions past it. "rotation" (Phase 4, lib/rotation.mjs)
 // replaces "families": { "train": [[…], […]], "heldOut": […], "fixed": [<condition>, …] } —
 // generation g trains on train[g mod n] (a fixed condition on train[0]) and also solves the
 // held-out families, whose results never rank a Word for the next lexicon.
@@ -94,13 +96,16 @@ const designOf = (name) => {
   return url && existsSync(url) ? readJson(url) : {};
 };
 const design = designOf(run);
-// "callBudget" is a number for every condition of a run, or an object keyed by
-// condition with an optional "default"; null or absent means unlimited.
-const budgetFor = (conditionName) => {
-  const b = design.callBudget;
+// "callBudget" and "definitionBudget" are each a number for every condition of
+// a run, or an object keyed by condition with an optional "default"; null or
+// absent means unlimited.
+const perCondition = (key, conditionName) => {
+  const b = design[key];
   if (b !== null && typeof b === 'object') return b[conditionName] !== undefined ? b[conditionName] : (b.default ?? null);
   return b ?? null;
 };
+const budgetFor = (conditionName) => perCondition('callBudget', conditionName);
+const definitionBudgetFor = (conditionName) => perCondition('definitionBudget', conditionName);
 // The families one condition's generation solves, and which of them are held out.
 const familiesFor = (conditionName, generation) => {
   const names = familyNames(design, conditionName, generation);
@@ -111,11 +116,12 @@ async function gradeGeneration(ajisai, dir, conditionName, generation) {
   const lexicon = lexiconOf(dir);
   const { families, heldOut } = familiesFor(conditionName, generation);
   for (const submission of readAll(new URL('submissions/', dir))) {
-    const graded = await grade(ajisai, submission, lexicon, families, heldOut);
+    const graded = await grade(ajisai, submission, lexicon, families, heldOut, { definitionBudget: definitionBudgetFor(conditionName) });
     graded.calls = auditCalls(dir, submission.agent);
     writeJson(new URL(`graded/${submission.agent}.json`, dir), graded);
     const correct = graded.results.filter((r) => r.correct).length;
-    console.log(`${submission.agent}: ${correct}/${graded.results.length} correct`);
+    const dropped = graded.definitionsDropped ? ` (${graded.definitionsDropped.length} definition(s) past the budget dropped)` : '';
+    console.log(`${submission.agent}: ${correct}/${graded.results.length} correct${dropped}`);
   }
 }
 
@@ -229,6 +235,7 @@ if (command === 'prompt') {
   process.stdout.write(
     subjectPrompt({ run, condition, generation: Number(gen), agent: arg }, lexiconOf(genDir(run, condition, gen)), familiesFor(condition, gen).families, options.route, {
       callBudget: budgetFor(condition),
+      definitionBudget: definitionBudgetFor(condition),
     }),
   );
 } else if (command === 'prepare') {
