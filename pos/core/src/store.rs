@@ -562,11 +562,6 @@ fn staff_side() -> Side {
 
 /// 無操作がこの時間続くと、レジはセミセルフモードに戻って待機する
 pub const IDLE_REVERT_MS: u64 = 5 * 60 * 1000;
-/// 呼び出しが開いているレジ本体の鳴動（MAT より長く、鳴らし直しの間隔も短い）。
-/// どちらも無効にはできない
-pub const REG_BUZZ_MS: u64 = 6 * 1000;
-/// レジの鳴らし直し（スヌーズ）の周期。MAT（RERING_MS）より短く、回数が多い
-pub const REG_RERING_MS: u64 = 8 * 1000;
 /// 放置された呼び出しほど大きく鳴らす。最初は RING_MIN、RING_FULL_MS 放置で最大
 pub const RING_MIN: f32 = 0.25;
 pub const RING_FULL_MS: u64 = 60 * 1000;
@@ -1548,12 +1543,10 @@ impl Store {
         let inserted = t.inserted.total();
         let calls = self.calls.for_register(r.id);
         let staff_called = !calls.is_empty() && c.staff != StaffState::Ready;
-        // 店員が来るまで、最初の呼び出しから REG_RERING_MS ごとに REG_BUZZ_MS 鳴る
         let waiting = staff_called
             .then(|| calls.iter().map(|c| c.created_at).min())
             .flatten()
             .map(|t0| self.now.saturating_sub(t0));
-        let ringing = waiting.is_some_and(|w| w % REG_RERING_MS < REG_BUZZ_MS);
         let staff = r.staff.map(|s| s.account);
         let mat_down = self
             .mats
@@ -1587,7 +1580,7 @@ impl Store {
         RegisterView {
             id: r.id,
             active_side: active_side(&c),
-            ringing,
+            lamp: waiting.is_some(),
             call_waiting_ms: waiting,
             ring_volume: waiting.map_or(0.0, ring_volume),
             switchable: active_side(&Context { holder: Side::Staff, ..c })
@@ -1720,8 +1713,9 @@ pub struct RegisterView {
     pub id: u8,
     /// 今、画面を操作できる側（もう一方は表示だけ）
     pub active_side: Side,
-    /// 店員呼び出し中でレジ本体が鳴っている
-    pub ringing: bool,
+    /// レジ本体の呼び出しランプ。店員が来るまで点きっぱなし（音は MAT だけ。
+    /// 呼び出しは順番待ちにせず、どれも発生した瞬間から知らせる）
+    pub lamp: bool,
     /// 店員が来ていない呼び出しの放置時間（最も古いもの）
     pub call_waiting_ms: Option<u64>,
     /// 鳴動の音量（放置が長いほど大きい。呼び出しがなければ 0）

@@ -2,8 +2,7 @@
 
 use janus_pos_core::authority::{Action, Mode, Phase, Side, StaffState};
 use janus_pos_core::calls::CallKind;
-use janus_pos_core::store::{Command, RegisterView, Store, REG_BUZZ_MS, REG_RERING_MS};
-use janus_pos_core::mat::{BUZZ_MS, RERING_MS};
+use janus_pos_core::store::{Command, RegisterView, Store};
 use serde_json::{json, Value};
 
 const ONIGIRI: &str = "4900000000011";
@@ -648,22 +647,22 @@ fn attended_screen_is_held_by_one_side_at_a_time() {
     ok(&mut s, json!({"type":"checkout","register":1,"side":"staff"}));
 }
 
-/// 呼び出しが開いているレジも鳴る。MAT より長く鳴り、鳴らし直しも多い。店員が来れば止まる。
+/// 呼び出したレジはランプで知らせる。順番待ちはなく、後から呼んだレジもすぐ点く。
+/// 店員が来るまで点きっぱなしで、来れば消える。
 #[test]
-fn called_register_rings_longer_and_more_often_than_mat() {
-    assert!(REG_BUZZ_MS > BUZZ_MS);
-    assert!(REG_RERING_MS < RERING_MS);
+fn called_register_lamp_lights_at_once_until_staff_arrives() {
     let mut s = Store::new(1, 2, 1);
     scan(&mut s, 1, "customer", BEER);
     ok(&mut s, json!({"type":"checkout","register":1,"side":"customer"}));
-    assert!(reg(&s, 1).ringing);
-    assert!(!reg(&s, 2).ringing, "only the calling register rings");
-    advance(&mut s, REG_BUZZ_MS);
-    assert!(!reg(&s, 1).ringing, "pause between rings");
-    advance(&mut s, REG_RERING_MS - REG_BUZZ_MS);
-    assert!(reg(&s, 1).ringing, "snooze rings again");
+    assert!(reg(&s, 1).lamp);
+    assert!(!reg(&s, 2).lamp, "only the calling register lights");
+    ok(&mut s, json!({"type":"call_staff","register":2,"topic":"tobacco"}));
+    assert!(reg(&s, 2).lamp, "a second call is not queued behind the first");
+    advance(&mut s, 30_000);
+    assert!(reg(&s, 1).lamp && reg(&s, 2).lamp, "stays lit while waiting");
     scan(&mut s, 1, "staff", "ST1001");
-    assert!(!reg(&s, 1).ringing, "staff arrived");
+    assert!(!reg(&s, 1).lamp, "staff arrived");
+    assert!(reg(&s, 2).lamp);
 }
 
 /// 財布のクレジットカードで払う。選んだ支払方法と違うカードをかざしても通らない。
@@ -715,7 +714,7 @@ fn shortcut_buttons_call_staff() {
     ok(&mut s, json!({"type":"ff_button","register":1}));
     let k = kinds(&s, 1);
     assert!(k.contains(&CallKind::Tobacco) && k.contains(&CallKind::Service) && k.contains(&CallKind::FastFood));
-    assert!(reg(&s, 1).ringing);
+    assert!(reg(&s, 1).lamp);
     // 鳴らし直しの合間も呼び出しは開いたまま（店員が来るまで続く）
     advance(&mut s, 60_000);
     assert_eq!(kinds(&s, 1).len(), 3);

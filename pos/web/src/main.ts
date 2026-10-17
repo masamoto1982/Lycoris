@@ -9,7 +9,7 @@
 
 import init, { PosSimulator } from "./wasm/generated/janus_pos.js";
 import type { Command, Snapshot } from "./types";
-import { beepError, beepScan, unlockAudio, updateRings } from "./sound";
+import { beepError, beepScan, ringMat, unlockAudio } from "./sound";
 import {
   esc,
   matPanel,
@@ -71,7 +71,7 @@ function buildSkeleton(): void {
   const regs = snap.registers
     .map(
       (r) => `<section class="register" data-register="${r.id}" aria-label="レジ${r.id}">
-      <h2>レジ${r.id} <span data-region="mode-${r.id}"></span>
+      <h2>レジ${r.id} <span class="lamp" data-lamp="${r.id}" role="img" aria-label="レジ${r.id}の呼び出しランプ"></span><span data-region="mode-${r.id}"></span>
         <label class="login-sel">店員
           <select data-login="${r.id}" aria-label="レジ${r.id}の店員ログイン">
             <option value="">未ログイン</option>
@@ -186,7 +186,14 @@ function render(): void {
       const acc = r.staff.state === "absent" ? undefined : snap.accounts.find((a) => a.name === r.staff.name);
       sel.value = acc?.barcode ?? "";
     }
-    app.querySelector(`[data-register="${r.id}"]`)?.classList.toggle("ringing", r.ringing);
+    // 呼び出しランプ：店員が来るまで点灯し、放置が長いほど速く点滅する
+    const lamp = app.querySelector<HTMLElement>(`[data-lamp="${r.id}"]`);
+    if (lamp) {
+      const on = r.lamp;
+      lamp.classList.toggle("on", on);
+      lamp.style.setProperty("--blink", `${(1.4 - 1.1 * r.ring_volume).toFixed(2)}s`);
+      lamp.title = on ? `呼び出し中（${Math.floor((r.call_waiting_ms ?? 0) / 1000)}秒）` : "呼び出しランプ";
+    }
     // 操作できない側の画面は表示のみ（排他）
     for (const side of ["staff", "customer"] as const) {
       const el = app.querySelector(`[data-drop="${r.id}:${side}"]`);
@@ -219,15 +226,16 @@ function render(): void {
 }
 
 
+let matRings = 0;
+
 function frame(): void {
   sim.tick(performance.now() - t0);
   snap = JSON.parse(sim.snapshot()) as Snapshot;
-  // 呼び出し音：MAT（どれか 1 台でも鳴れば）とレジ本体。重ねずに順番に鳴らし、
-  // 音量は放置時間で決まる（MAT は最も長く待たせている呼び出しに合わせる）
-  updateRings([
-    { id: "mat", kind: "mat", ringing: snap.mats.some((m) => m.buzzing), volume: Math.max(0, ...snap.registers.map((r) => r.ring_volume)) },
-    ...snap.registers.map((r) => ({ id: `reg-${r.id}`, kind: "register" as const, ringing: r.ringing, volume: r.ring_volume })),
-  ]);
+  // MAT が鳴動を受けた瞬間に鳴らす（新しい呼び出し・鳴らし直しのたび。順番待ちにはしない）。
+  // 音量は最も長く待たせている呼び出しで決まる
+  const rings = snap.mats.reduce((n, m) => n + m.rings, 0);
+  if (rings > matRings) ringMat(Math.max(0, ...snap.registers.map((r) => r.ring_volume)));
+  matRings = rings;
   render();
 }
 

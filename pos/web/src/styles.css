@@ -206,9 +206,11 @@ button.emoney { background: #0ea5e9; }
 .mat-area h2 { margin: 0; }
 .mat-area .toast { position: static; margin-top: 8px; display: none; }
 .mat-area .toast.show { display: block; }
-.register.ringing { animation: reg-ring .6s ease-in-out infinite alternate; }
-@keyframes reg-ring { from { box-shadow: 0 0 0 0 transparent; } to { box-shadow: 0 0 0 4px var(--call); } }
-@media (prefers-reduced-motion: reduce) { .register.ringing { animation: none; box-shadow: 0 0 0 4px var(--call); } }
+/* レジ本体の呼び出しランプ（音ではなく光で知らせる）。放置が長いほど速く点滅（--blink） */
+.lamp { width: 16px; height: 16px; border-radius: 50%; background: var(--line); border: 2px solid var(--line); flex: none; }
+.lamp.on { background: #f59e0b; border-color: #b45309; box-shadow: 0 0 10px 3px rgba(245, 158, 11, .7); animation: lamp-blink var(--blink, 1s) steps(2, jump-none) infinite; }
+@keyframes lamp-blink { 50% { background: #fde68a; box-shadow: none; } }
+@media (prefers-reduced-motion: reduce) { .lamp.on { animation: none; } }
 
 /* 売り場：スクロールしてもドラッグ元が見えるよう追従させる */
 .right-col { display: grid; gap: 16px; min-width: 0; position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); max-height: calc(100vh - 24px); overflow-y: auto; }
