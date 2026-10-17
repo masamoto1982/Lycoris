@@ -103,7 +103,7 @@ function buildSkeleton(): void {
   const staffList = snap.accounts.map((a) => `${esc(a.name)}`).join("・");
   app.innerHTML = `
     <header class="top">
-      <h1>The ideal POS system</h1>
+      <h1>Real POS</h1>
       <p class="muted">右の売り場から商品をつかんで、レジの店員画面かお客様画面に落とすと、その側のスキャナーで読んだことになります。</p>
     </header>
     <article class="floor">
