@@ -9,8 +9,7 @@ use serde::{Deserialize, Serialize};
 use crate::age_rules::{AgeRules, RuleTarget};
 use crate::auth::{self, Authenticator, Role, ACCOUNTS};
 use crate::authority::{
-    active_side, permitted, Action, Context, Mode, PaymentMethod, Phase, Side, StaffState,
-    CUSTOMER_ACTIONS, STAFF_ACTIONS,
+    active_side, permitted, Action, Context, Mode, PaymentMethod, Phase, Side, StaffState, ACTIONS,
 };
 use crate::calls::{Call, CallKind, Calls, ResolvedCall};
 use crate::cash::{is_valid_denomination, Cash, Drawer};
@@ -152,8 +151,11 @@ pub enum Command {
         side: Side,
         method: PaymentMethod,
     },
+    /// 年齢確認ボタン。お客様側の画面からしか押せない（押した画面を side で伝える）
     ConfirmAge {
         register: u8,
+        #[serde(default = "customer_side")]
+        side: Side,
     },
     InsertCash {
         register: u8,
@@ -302,7 +304,6 @@ impl Command {
             | C::Claim { side, .. } => Some(*side),
             // 店舗メニューと入出金はお客様画面で行う
             C::FfButton { .. }
-            | C::ConfirmAge { .. }
             | C::CallStaff { .. }
             | C::OpenMenu { .. }
             | C::CashOut { .. }
@@ -579,6 +580,10 @@ pub struct Store {
     receipts: u32,
 }
 
+fn customer_side() -> Side {
+    Side::Customer
+}
+
 fn staff_side() -> Side {
     Side::Staff
 }
@@ -699,6 +704,15 @@ impl Store {
             .ok_or_else(|| format!("レジ{id}はありません"))
     }
 
+    /// 画面を指定しないコマンド（店舗メニュー・呼び出しボタンなど）は、操作側の画面からの操作
+    fn check_active(&self, register: u8, action: Action) -> Result<(), String> {
+        let r = self
+            .reg(register)
+            .ok_or_else(|| format!("レジ{register}はありません"))?;
+        let c = r.context();
+        permitted(active_side(&c), action, &c).map_err(String::from)
+    }
+
     fn check(&self, register: u8, side: Side, action: Action) -> Result<(), String> {
         let r = self
             .reg(register)
@@ -752,7 +766,7 @@ impl Store {
                 qty,
             } => self.register_ff(register, side, &code, qty),
             C::FfButton { register } => {
-                self.check(register, Side::Customer, Action::FfButton)?;
+                self.check_active(register, Action::FfButton)?;
                 self.call(register, CallKind::FastFood, "FF のご注文");
                 self.press(register)?;
                 done("係員をお呼びしました。FF のご注文を伺います")
@@ -790,7 +804,7 @@ impl Store {
                 line_id,
                 amount,
             } => {
-                self.check(register, Side::Staff, Action::CompleteService)?;
+                self.check_active(register, Action::CompleteService)?;
                 let r = self.reg_mut(register)?;
                 let l = r
                     .txn
@@ -857,8 +871,8 @@ impl Store {
                 r.txn.method = Some(method);
                 done(format!("{}を選びました", method.label()))
             }
-            C::ConfirmAge { register } => {
-                self.check(register, Side::Customer, Action::ConfirmAge)?;
+            C::ConfirmAge { register, side } => {
+                self.check(register, side, Action::ConfirmAge)?;
                 let r = self.reg_mut(register)?;
                 r.txn.age_verified = true;
                 let age = r.txn.required_age.unwrap_or(0);
@@ -886,7 +900,7 @@ impl Store {
                 self.settle(register, method, total, Cash::default())
             }
             C::CallStaff { register, topic } => {
-                self.check(register, Side::Customer, Action::CallStaff)?;
+                self.check_active(register, Action::CallStaff)?;
                 let (kind, detail) = match topic {
                     Some(CallTopic::Service) => (CallKind::Service, "代行収納・宅配便"),
                     Some(CallTopic::Tobacco) => (CallKind::Tobacco, ""),
@@ -910,7 +924,7 @@ impl Store {
                 done("")
             }
             C::VoidTransaction { register } => {
-                self.check(register, Side::Staff, Action::VoidTransaction)?;
+                self.check_active(register, Action::VoidTransaction)?;
                 let now = self.now;
                 let r = self.reg_mut(register)?;
                 let txn = std::mem::take(&mut r.txn);
@@ -957,14 +971,14 @@ impl Store {
                 done("セルフモードにしました")
             }
             C::Lock { register } => {
-                self.check(register, Side::Staff, Action::Lock)?;
+                self.check_active(register, Action::Lock)?;
                 if let Some(s) = &mut self.reg_mut(register)?.staff {
                     s.locked = true;
                 }
                 done("画面をロックしました（スタッフバーコードで解除）")
             }
             C::EndStaffMode { register } => {
-                self.check(register, Side::Staff, Action::EndStaffMode)?;
+                self.check_active(register, Action::EndStaffMode)?;
                 let r = self.reg_mut(register)?;
                 r.staff = None;
                 r.menu = None;
@@ -1338,7 +1352,7 @@ impl Store {
 
     /// 両替：入れた金額と同じ額を、指定の金種で排出口に出す
     fn exchange(&mut self, register: u8, amount: u32, to: u32) -> Result<Outcome, String> {
-        self.check(register, Side::Staff, Action::CashIn)?;
+        self.check_active(register, Action::CashIn)?;
         if amount % to != 0 {
             return Err(format!("{to}円単位で入れてください"));
         }
@@ -1446,7 +1460,7 @@ impl Store {
         amount: u32,
         password: &str,
     ) -> Result<Outcome, String> {
-        self.check(register, Side::Staff, Action::CashOut)?;
+        self.check_active(register, Action::CashOut)?;
         let now = self.now;
         let staff = self
             .reg(register)
@@ -1489,7 +1503,7 @@ impl Store {
 
     /// お金を入れる操作。抜く操作と違ってパスワードは求めない（記録は残す）
     fn cash_in(&mut self, register: u8, kind: CashInKind, amount: u32) -> Result<Outcome, String> {
-        self.check(register, Side::Staff, Action::CashIn)?;
+        self.check_active(register, Action::CashIn)?;
         if amount == 0 {
             return Err("金額を入力してください".into());
         }
@@ -1600,9 +1614,13 @@ impl Store {
     fn register_view(&self, r: &Register) -> RegisterView {
         let c = r.context();
         let t = &r.txn;
+        // どちらの画面にも同じボタンが並ぶ。押せるのは操作側の画面
+        let c_side = active_side(&c);
         let actions = |side: Side, list: &[Action]| {
             list.iter()
                 .map(|&a| {
+                    // 年齢確認ボタンだけは、どちらが操作側でもお客様側の画面で押す
+                    let side = if a == Action::ConfirmAge { Side::Customer } else { side };
                     let res = permitted(side, a, &c);
                     ActionState {
                         action: a,
@@ -1689,7 +1707,7 @@ impl Store {
                 due: total.saturating_sub(inserted),
                 payment_blocker: c.payment_blocker(),
                 calls,
-                actions: actions(Side::Staff, STAFF_ACTIONS),
+                actions: actions(c_side, ACTIONS),
                 drawer_total: r.drawer.cash.total(),
                 drawer: r.drawer.cash.0.clone(),
                 mat_down,
@@ -1707,7 +1725,7 @@ impl Store {
                 staff_present: c.staff == StaffState::Ready,
                 method: t.method,
                 payment_blocker: c.payment_blocker(),
-                actions: actions(Side::Customer, CUSTOMER_ACTIONS),
+                actions: actions(c_side, ACTIONS),
             },
             last_receipt: r.last_receipt.clone(),
         }

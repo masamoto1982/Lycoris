@@ -296,7 +296,9 @@ function toast(where: string, text: string, error: boolean): void {
 function send(cmd: Command): boolean {
   sim.tick(performance.now() - t0);
   const res = JSON.parse(sim.dispatch(JSON.stringify(cmd))) as { ok: boolean; message?: string; error?: string };
-  const side = sideOf(cmd);
+  // 画面を指定しないコマンドの知らせは、そのレジの操作側の画面に出す
+  const active = typeof cmd.register === "number" && !cmd.side ? snap.registers.find((x) => x.id === cmd.register)?.active_side : undefined;
+  const side = sideOf(cmd) === "store" ? "store" : (active ?? sideOf(cmd));
   const where = cmd.type === "set_product_age" ? "toast-rules" : ["cash_in", "cash_out", "open_menu", "insert", "take_outlet"].includes(cmd.type) ? `toast-${cmd.register}-customer` : side === "store" ? "toast-store" : `toast-${cmd.register}-${side}`;
   if (res.ok) {
     if (res.message) toast(where, res.message, false);
@@ -392,7 +394,8 @@ document.addEventListener("keydown", unlockAudio, { capture: true });
 app.addEventListener("click", (e) => {
   // 有人モードでグレーの画面にタッチすると、操作をその画面に引き継ぐ
   const idle = (e.target as Element).closest<HTMLElement>(".screen.claimable[data-drop]");
-  if (idle) {
+  // 年齢確認ボタンは操作側でなくても押せる（例外）ので、引き継ぎにはしない
+  if (idle && !(e.target as Element).closest(".age-card")) {
     const [reg, side] = idle.dataset.drop!.split(":");
     send({ type: "claim", register: Number(reg), side });
     return;
@@ -422,7 +425,12 @@ app.addEventListener("click", (e) => {
     send({ type: "take_outlet", register: Number(b.dataset.outlet) });
     return;
   }
-  if (b.dataset.cmd) send(JSON.parse(b.dataset.cmd) as Command);
+  if (b.dataset.cmd) {
+    const cmd = JSON.parse(b.dataset.cmd) as Command;
+    // 年齢確認は、押した画面（お客様側だけ受け付ける）をコアに伝える
+    if (cmd.type === "confirm_age") cmd.side = b.closest<HTMLElement>("[data-drop]")?.dataset.drop?.split(":")[1] ?? "customer";
+    send(cmd);
+  }
   else if (b.dataset.form) form(b);
 });
 

@@ -287,9 +287,13 @@ body.dragging .drop-hint { display: inline; }
 
 /* 操作できない側の画面（排他）：表示は続けるが、ボタンは押せない */
 .banner.watch { background: var(--line); color: var(--ink); }
-.screen.inactive [data-region] { filter: grayscale(1); opacity: .55; }
+.screen.inactive [data-region] > * { filter: grayscale(1); opacity: .55; }
 .screen.inactive [data-region] button, .screen.inactive [data-region] input,
 .screen.inactive [data-region] select, .screen.inactive [data-region] summary { pointer-events: none; }
+/* 例外：年齢確認ボタンはお客様側の画面でだけ、どちらが操作側でも押せる。係員側では押せない */
+.customer-screen.inactive [data-region] > .age-card { filter: none; opacity: 1; }
+.customer-screen.inactive [data-region] .age-card button { pointer-events: auto; }
+.staff-screen .age-card button { pointer-events: none; opacity: .45; }
 .screen.inactive::after {
   content: ""; position: absolute; inset: 0; background: var(--line); opacity: .25; pointer-events: none; border-radius: inherit;
 }

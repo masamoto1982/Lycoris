@@ -31,12 +31,15 @@ fn reg(s: &Store, id: u8) -> RegisterView {
         .unwrap()
 }
 
+/// その画面でボタンが押せるか。両画面に同じボタンが並び、押せるのは操作側の画面だけ
 fn allowed(v: &RegisterView, side: Side, a: Action) -> bool {
-    let list = match side {
-        Side::Staff => &v.staff.actions,
-        Side::Customer => &v.customer.actions,
-    };
-    list.iter().find(|x| x.action == a).unwrap().allowed
+    v.active_side == side
+        && v.staff
+            .actions
+            .iter()
+            .find(|x| x.action == a)
+            .unwrap()
+            .allowed
 }
 
 fn scan(s: &mut Store, r: u8, side: &str, code: &str) {
@@ -644,10 +647,6 @@ fn store_menu_uses_inlet_and_outlet() {
     ok(&mut s, open("top"));
     let v = reg(&s, 1);
     assert_eq!(v.active_side, Side::Customer);
-    assert!(
-        run(&mut s, json!({"type":"lock","register":1})).is_err(),
-        "staff screen waits"
-    );
     // 取引外入金：投入口に入れた金額が入金になる
     ok(&mut s, open("deposit"));
     let before = reg(&s, 1).staff.drawer_total;
@@ -1003,4 +1002,53 @@ fn checkout_from_held_customer_screen_then_point_card_check() {
         json!({"type":"checkout","register":1,"side":"customer"}),
     );
     assert!(!reg(&s, 1).customer.point_pending);
+}
+
+/// 店員側・お客様側の区別はない。有人モードでは操作側の画面なら取引中止もロックもできる。
+/// 年齢確認ボタンはお客様側の画面にだけ効く（年確待ちの間はお客様側が操作側になる）。
+#[test]
+fn either_screen_can_operate_except_age_confirmation() {
+    let mut s = Store::new(1, 2, 1);
+    scan(&mut s, 1, "staff", "ST1001");
+    assert_eq!(reg(&s, 1).active_side, Side::Customer);
+    scan(&mut s, 1, "customer", BEER);
+    assert!(allowed(
+        &reg(&s, 1),
+        Side::Customer,
+        Action::VoidTransaction
+    ));
+    ok(
+        &mut s,
+        json!({"type":"checkout","register":1,"side":"customer"}),
+    );
+    confirm_point(&mut s, 1);
+    let v = reg(&s, 1);
+    assert!(v.staff.age_pending);
+    assert_eq!(v.active_side, Side::Customer);
+    assert!(allowed(&v, Side::Customer, Action::ConfirmAge));
+    assert!(!allowed(&v, Side::Staff, Action::ConfirmAge));
+    ok(&mut s, json!({"type":"confirm_age","register":1}));
+    // 取引中止もお客様側の画面から（操作側なので）できる
+    ok(&mut s, json!({"type":"void_transaction","register":1}));
+    ok(&mut s, json!({"type":"lock","register":1}));
+    assert_eq!(reg(&s, 1).staff.state, StaffState::Locked);
+}
+
+/// 係員が画面を持ったまま会計しても、年齢確認ボタンはお客様側の画面で押せる。
+/// 係員側の画面からは押せず、操作側の画面も切り替わらない。
+#[test]
+fn age_button_works_only_on_customer_screen_while_staff_holds() {
+    let mut s = Store::new(1, 2, 1);
+    login(&mut s, 1);
+    scan(&mut s, 1, "staff", BEER);
+    ok(&mut s, json!({"type":"checkout","register":1,"side":"staff"}));
+    confirm_point(&mut s, 1);
+    let v = reg(&s, 1);
+    assert!(v.staff.age_pending);
+    assert_eq!(v.active_side, Side::Staff);
+    let e = run(&mut s, json!({"type":"confirm_age","register":1,"side":"staff"})).unwrap_err();
+    assert!(e.contains("お客様側"), "{e}");
+    ok(&mut s, json!({"type":"confirm_age","register":1,"side":"customer"}));
+    assert!(!reg(&s, 1).staff.age_pending);
+    assert_eq!(reg(&s, 1).active_side, Side::Staff);
 }

@@ -150,7 +150,10 @@ impl AgeRules {
     ) -> Result<(), String> {
         let p = catalog::find(code).ok_or("商品が見つかりません")?;
         if let Some(l) = self.legal_age_for(code, p.category) {
-            return Err(format!("{}は法令どおり{l}歳以上で固定です（変更できません）", p.name));
+            return Err(format!(
+                "{}は法令どおり{l}歳以上で固定です（変更できません）",
+                p.name
+            ));
         }
         if let Some(a) = min_age {
             if !(1..=99).contains(&a) {
@@ -188,7 +191,10 @@ impl AgeRules {
         if let RuleTarget::Product { code } = &target {
             let p = catalog::find(code).ok_or("商品が見つかりません")?;
             if self.legal_age_for(code, p.category).is_some() {
-                return Err(format!("{}は法令どおりで固定です（変更できません）", p.name));
+                return Err(format!(
+                    "{}は法令どおりで固定です（変更できません）",
+                    p.name
+                ));
             }
         }
         if self.rules.iter().any(|r| r.target == target) {
