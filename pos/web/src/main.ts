@@ -11,7 +11,6 @@ import init, { PosSimulator } from "./wasm/generated/lycoris_pos.js";
 import type { Command, Snapshot } from "./types";
 import {
   auditPanel,
-  cashPanel,
   customerScreen,
   esc,
   matPanel,
@@ -95,7 +94,6 @@ function buildSkeleton(): void {
           <div class="toast" id="toast-${r.id}-customer"></div>
         </section>
       </div>
-      <div class="hw"><span class="hw-label">紙幣・硬貨の投入口／電子マネー端末（お客様側）</span>${cashPanel(r.id)}</div>
     </section>`,
     )
     .join("");
@@ -126,7 +124,7 @@ function buildSkeleton(): void {
         <ol class="help">
           <li>運用モードは名札で決まります。名札なし＝セミセルフ（お客様が自分で登録・会計）、名札あり＝有人。セルフは将来の拡張用で、いまは OFF です。</li>
           <li>セミセルフ：商品をお客様画面に落として「お会計」。缶ビールなら年確の呼び出しで MAT が鳴ります。レジ名の右の「店員」でログインすると有人モードになり、「20歳以上です」が押せます。</li>
-          <li>有人：「店員」で名前を選んでログインし、商品を店員画面に落として「会計」。お客様は投入口に現金を入れるか端末にタッチします。</li>
+          <li>有人：「店員」で名前を選んでログインし、商品を店員画面に落として「会計」します。</li>
           <li>FF：セミセルフのお客様画面で「FF を注文」→ ログイン（有人）→ FF 登録 →「お渡し」→ お客様画面で「受け取りました」。</li>
           <li>宅急便・代行収納をお客様画面に落とすと係員の呼び出しになり、店員が金額を入れて受け付けます。</li>
           <li>有人モードは、取引のない状態で5分間操作がないとログアウトしてセミセルフに戻ります。残り時間はレジ名の横に出ます。</li>
