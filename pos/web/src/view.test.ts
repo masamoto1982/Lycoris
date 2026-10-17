@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { btn, esc, sideOf } from "./view";
+import { btn, esc, itemCount, regTop, sideOf } from "./view";
 
 describe("view helpers", () => {
   it("escapes HTML", () => {
@@ -17,5 +17,18 @@ describe("view helpers", () => {
     expect(sideOf({ type: "insert_cash", register: 1 })).toBe("customer");
     expect(sideOf({ type: "void_transaction", register: 1 })).toBe("staff");
     expect(sideOf({ type: "set_mat_loss", percent: 30 })).toBe("store");
+  });
+
+  it("lays out the top bar as item count, total, checkout from the left", () => {
+    const html = regTop(1280, 3, `<button>会計</button>`);
+    const at = (t: string) => html.indexOf(t);
+    expect(at("3</b> 点")).toBeGreaterThan(-1);
+    expect(at("3</b> 点")).toBeLessThan(at("合計"));
+    expect(at("合計")).toBeLessThan(at("<button>会計"));
+  });
+
+  it("counts items by quantity", () => {
+    expect(itemCount([])).toBe(0);
+    expect(itemCount([{ qty: 2 }, { qty: 1 }])).toBe(3);
   });
 });

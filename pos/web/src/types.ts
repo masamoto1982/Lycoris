@@ -65,6 +65,7 @@ export interface StaffView {
   required_age: number | null;
   age_verified: boolean;
   age_pending: boolean;
+  point_pending: boolean;
   method: Method | null;
   inserted: number;
   due: number;
@@ -83,6 +84,7 @@ export interface CustomerView {
   inserted: number;
   due: number;
   point_card: boolean;
+  point_pending: boolean;
   age_check: number | null;
   staff_called: boolean;
   staff_present: boolean;

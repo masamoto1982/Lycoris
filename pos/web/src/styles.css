@@ -112,7 +112,7 @@ button { touch-action: manipulation; }
 .ff-arrows { flex: none; width: 28px; display: flex; flex-direction: column; justify-content: space-between; gap: 4px; }
 .ff-arrow { flex: 1; max-height: 48%; padding: 0; font-size: 12px; background: var(--panel); color: var(--ink); border: 1px solid var(--line); }
 .ff-grid { flex: 1; min-width: 0; min-height: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-auto-rows: minmax(0, 1fr); gap: 4px; }
-.ff-item { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0; padding: 2px 4px; font-size: 12px; line-height: 1.2; min-width: 0; overflow: hidden; background: var(--ff); color: #fff; }
+.ff-item { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0; padding: 2px 4px; font-size: 11px; line-height: 1.15; word-break: keep-all; min-width: 0; overflow: hidden; background: var(--ff); color: #fff; }
 .ff-item small { font-size: 10px; opacity: .9; }
 .ff-item.soldout { background: var(--line); color: var(--muted); }
 /* 店員画面とお客様画面は同じ内容・同じ見た目。操作している側だけ色がつく */
@@ -124,6 +124,9 @@ button { touch-action: manipulation; }
 .lines td, .lines th { padding: 4px 4px; border-bottom: 1px solid var(--line); vertical-align: top; }
 .num { text-align: right; white-space: nowrap; }
 
+.reg-top { position: sticky; top: -8px; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: -8px -12px 6px; padding: 6px 12px; background: var(--cust-bg); border-bottom: 1px solid var(--line); }
+.reg-top .total { font-size: 22px; }
+.reg-top .count b { font-size: 18px; }
 .totals { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; margin-bottom: 8px; }
 .total { font-size: 20px; }
 
@@ -176,6 +179,8 @@ details summary h3 { display: inline; }
 .big { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
 .mirror { margin-top: 18px; }
 .card { border-radius: 10px; padding: 12px; margin: 8px 0; text-align: center; }
+.point-card { text-align: center; }
+.point-card .big { font-size: 18px; font-weight: 700; }
 .age-card { background: var(--warn-bg); color: var(--warn); }
 .ffcheck { display: inline-flex; vertical-align: middle; margin-left: 6px; }
 .ffcheck input { width: 18px; height: 18px; accent-color: var(--ff); cursor: pointer; }
@@ -283,9 +288,13 @@ body.dragging .drop-hint { display: inline; }
 
 /* 操作できない側の画面（排他）：表示は続けるが、ボタンは押せない */
 .banner.watch { background: var(--line); color: var(--ink); }
-.screen.inactive [data-region] { filter: grayscale(1); opacity: .55; }
+.screen.inactive [data-region] > * { filter: grayscale(1); opacity: .55; }
 .screen.inactive [data-region] button, .screen.inactive [data-region] input,
 .screen.inactive [data-region] select, .screen.inactive [data-region] summary { pointer-events: none; }
+/* 例外：年齢確認ボタンはお客様側の画面でだけ、どちらが操作側でも押せる。係員側では押せない */
+.customer-screen.inactive [data-region] > .age-card { filter: none; opacity: 1; }
+.customer-screen.inactive [data-region] .age-card button { pointer-events: auto; }
+.staff-screen .age-card button { pointer-events: none; opacity: .45; }
 .screen.inactive::after {
   content: ""; position: absolute; inset: 0; background: var(--line); opacity: .25; pointer-events: none; border-radius: inherit;
 }

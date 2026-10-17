@@ -1,21 +1,20 @@
 //! 操作権のモデル（問題3・5への対策）。
 //!
-//! 店員画面とお客様画面は、内部的には一つの買い物画面（情報空間）を両者が
-//! 見ているもの。**画面の操作は排他**で、店員が操作しているあいだお客様画面は
-//! 操作できず、お客様が操作しているあいだ店員画面は操作できない。
+//! レジには画面が二つ（店員側・お客様側）あるが、**画面ごとの役割の区別はない**。
+//! 二つの画面は一つの買い物画面（情報空間）を同じ内容で映し、操作は排他：
+//! どちらかが操作されているあいだ、もう一方は操作できない。
 //!
-//! 店員画面には常にお客様画面の内容が映り、店員はログイン（名札のスキャン）
-//! することで操作できるようになる。
+//! 何ができるかは **モード** だけで決まる。名札でログインした係員がいれば有人モード、
+//! いなければセミセルフモード（[`rules`]）。どちらの画面から操作するかは関係ない。
+//! 唯一の例外は会計時の年齢確認ボタンで、お客様本人が押すものなのでお客様側の
+//! 画面からしか押せない（問題5）。
 //!
-//! どちらが操作するかは、(運用モード, 取引の段階, 店員のログイン状態,
-//! お客様の確認待ちの有無, 画面を持っている側) から純粋関数 [`active_side`] で
-//! 一意に決まる。年確などお客様本人の確認が要る場面は必ずお客様側（問題5）。
-//! それ以外の有人モードでは、画面を持っている側が操作する。ログイン直後は
-//! お客様側が持ち、持っている側がしばらく触られていないときだけ、もう一方が
-//! タッチで引き継げる。操作中の画面が勝手に取られることはない（問題3）。
+//! どちらの画面が操作側かは純粋関数 [`active_side`] で一意に決まる。店舗メニューは
+//! お客様側、セミセルフ（係員なし）もお客様側。有人モードでは画面を
+//! 持っている側が操作し、ログイン直後はお客様側が持つ。持っている側がしばらく
+//! 触られていないときだけ、もう一方がタッチで引き継げる（問題3）。
 //!
-//! スキャナー・現金投入口・電子マネー端末は画面ではない（機器）ので排他の対象外。
-//! バーコードはいつでも読め、会計画面で読めば登録画面に戻る。
+//! スキャナー・現金投入口・電子マネー端末・名札は画面ではない（機器）ので排他の対象外。
 //!
 //! 画面のボタンも [`permitted`] の結果から作り、コアは同じ関数で各操作を検証する。
 //! 「画面に見えているから操作できる」という状態は生まれない。
@@ -25,9 +24,9 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Mode {
-    /// 有人：店員が登録と会計を行い、お客様は現金投入・カード・確認操作だけ
+    /// 有人：名札でログインした係員がいる
     Attended,
-    /// セミセルフ：店員が登録し、お客様が支払方法を選んで支払う
+    /// セミセルフ：係員なし。お客様が登録して支払う（FF・サービス・たばこは係員を呼ぶ）
     SemiSelf,
     /// セルフ：お客様が登録から支払いまで行い、店員は MAT の呼び出しで駆けつける
     FullSelf,
@@ -101,6 +100,8 @@ pub enum Action {
     Checkout,
     BackToRegistering,
     SelectPayment,
+    /// 会計時のポイントカードの最終確認（「ポイントカードなしで進む」）
+    ConfirmPointCard,
     ConfirmAge,
     InsertCash,
     TapEmoney,
@@ -113,36 +114,28 @@ pub enum Action {
     CashIn,
 }
 
-pub const STAFF_ACTIONS: &[Action] = &[
+/// 画面のボタンになる操作。どちらの画面にも同じボタンが並ぶ（店員画面・お客様画面の区別はない）
+pub const ACTIONS: &[Action] = &[
     Action::Scan,
     Action::RegisterFf,
+    Action::FfButton,
     Action::CheckFf,
     Action::CompleteService,
     Action::RemoveLine,
     Action::Checkout,
     Action::BackToRegistering,
     Action::SelectPayment,
+    Action::ConfirmPointCard,
+    Action::ConfirmAge,
+    Action::InsertCash,
+    Action::TapEmoney,
+    Action::CallStaff,
     Action::VoidTransaction,
     Action::SetMode,
     Action::Lock,
     Action::EndStaffMode,
     Action::CashOut,
     Action::CashIn,
-];
-
-pub const CUSTOMER_ACTIONS: &[Action] = &[
-    Action::Scan,
-    Action::RegisterFf,
-    Action::FfButton,
-    Action::CheckFf,
-    Action::RemoveLine,
-    Action::Checkout,
-    Action::BackToRegistering,
-    Action::SelectPayment,
-    Action::ConfirmAge,
-    Action::InsertCash,
-    Action::TapEmoney,
-    Action::CallStaff,
 ];
 
 /// 判定に必要な取引の状態。
@@ -160,6 +153,8 @@ pub struct Context {
     pub has_ff: bool,
     /// 店員の受付が済んでいないサービス商品がある
     pub service_pending: bool,
+    /// 会計に進んだが、ポイントカードの最終確認がまだ
+    pub point_pending: bool,
     pub method: Option<PaymentMethod>,
     /// セミセルフで、店員が会計に進めてお客様に支払いを任せている
     pub customer_turn: bool,
@@ -173,7 +168,9 @@ pub struct Context {
 impl Context {
     /// 決済を止めている理由（なければ None）。決済の関門はここに集める。
     pub fn payment_blocker(&self) -> Option<&'static str> {
-        if self.age_pending {
+        if self.point_pending {
+            Some(POINT_UNCONFIRMED)
+        } else if self.age_pending {
             Some("年齢確認が済んでいません")
         } else if self.ff_waiting {
             Some(FF_UNCHECKED)
@@ -188,6 +185,13 @@ impl Context {
 pub type Denial = &'static str;
 
 const FF_UNCHECKED: Denial = "FF のお渡し確認にチェックが入っていません";
+const POINT_UNCONFIRMED: Denial = "ポイントカードの確認が済んでいません";
+
+/// 会計ボタンの後のポイントカードの最終確認（どちらの画面からでも）
+fn confirm_point(c: &Context) -> Result<(), Denial> {
+    require(c.phase == Phase::Paying, "お会計前です")?;
+    require(c.point_pending, "ポイントカードの確認は済んでいます")
+}
 
 /// 今、画面を操作できる側。もう一方の画面は表示だけになる。
 pub fn active_side(c: &Context) -> Side {
@@ -197,10 +201,6 @@ pub fn active_side(c: &Context) -> Side {
     }
     if c.staff != StaffState::Ready {
         // 店員が操作できない（未ログイン・ロック中）ならお客様側
-        return Side::Customer;
-    }
-    if c.age_pending {
-        // お客様本人の年齢確認を待っている間はお客様側
         return Side::Customer;
     }
     if c.customer_turn {
@@ -222,28 +222,35 @@ pub fn is_device_action(action: Action) -> bool {
     )
 }
 
+/// 操作できるかどうか。
+///
+/// 何ができるかは **モード（有人・セミセルフ）** だけで決まり、どちらの画面かは関係ない。
+/// 二つの画面は同じ内容を映し、操作は排他（操作側の画面だけが押せる）。
+/// 唯一の例外は会計時の年齢確認ボタンで、これはお客様側の画面からしか押せない。
 pub fn permitted(side: Side, action: Action, c: &Context) -> Result<(), Denial> {
-    match side {
-        Side::Staff => staff(action, c)?,
-        Side::Customer => customer(action, c)?,
+    rules(action, c)?;
+    if action == Action::ConfirmAge {
+        // 例外：年齢確認ボタンはお客様本人が押すもの。お客様側の画面からだけ、
+        // どちらの画面が操作側でも押せる
+        return if side == Side::Customer {
+            Ok(())
+        } else {
+            Err("年齢確認はお客様側の画面で押していただきます")
+        };
     }
-    // 店舗メニューの入出金は、店員がお客様画面側で行う
-    let menu_op = c.menu_open
-        && side == Side::Staff
-        && matches!(
-            action,
-            Action::CashIn | Action::CashOut | Action::EndStaffMode
-        );
-    if c.menu_open && side == Side::Staff && !menu_op && !is_device_action(action) {
-        return Err("お客様画面で店舗メニューを操作中です");
-    }
-    if !menu_op && !is_device_action(action) && active_side(c) != side {
-        return Err(match side {
-            Side::Staff => "お客様が操作中です",
-            Side::Customer => "係員が操作中です",
-        });
+    if !is_device_action(action) && active_side(c) != side {
+        return Err("もう一方の画面で操作中です");
     }
     Ok(())
+}
+
+/// モードごとの操作の可否（画面の区別なし）
+pub fn rules(action: Action, c: &Context) -> Result<(), Denial> {
+    if c.mode == Mode::Attended {
+        attended(action, c)
+    } else {
+        semi_self(action, c)
+    }
 }
 
 /// お渡し確認のチェックは登録画面で付け外しする（どちらの画面からでも）
@@ -263,114 +270,113 @@ fn require(cond: bool, reason: Denial) -> Result<(), Denial> {
     }
 }
 
-fn staff(action: Action, c: &Context) -> Result<(), Denial> {
-    match c.staff {
-        StaffState::Absent => return Err("スタッフバーコードでログインしてください"),
-        StaffState::Locked => return Err("画面ロック中です（スタッフバーコードで解除）"),
-        StaffState::Ready => {}
+/// 支払いの操作（現金投入・カードをかざす）の共通の関門
+fn pay_action(action: Action, c: &Context) -> Result<(), Denial> {
+    require(c.phase == Phase::Paying, "お会計前です")?;
+    if let Some(r) = c.payment_blocker() {
+        return Err(r);
     }
+    if action == Action::InsertCash {
+        require(
+            matches!(c.method, None | Some(PaymentMethod::Cash)),
+            "現金以外のお支払いが選ばれています",
+        )
+    } else {
+        require(
+            matches!(
+                c.method,
+                Some(PaymentMethod::Emoney | PaymentMethod::Qr | PaymentMethod::Credit)
+            ),
+            "キャッシュレスの支払方法が選ばれていません",
+        )
+    }
+}
+
+/// 有人モード（名札でログインした係員がいる）
+fn attended(action: Action, c: &Context) -> Result<(), Denial> {
     let paying = c.phase == Phase::Paying;
+    if c.staff == StaffState::Locked
+        && !matches!(
+            action,
+            Action::Scan | Action::EndStaffMode | Action::InsertCash | Action::TapEmoney
+        )
+    {
+        return Err("画面ロック中です（スタッフバーコードで解除）");
+    }
     match action {
-        Action::Scan
-        | Action::RegisterFf
-        | Action::SetMode
-        | Action::Lock
-        | Action::EndStaffMode => Ok(()),
+        Action::Scan | Action::SetMode | Action::Lock | Action::EndStaffMode => Ok(()),
+        Action::RegisterFf => require(!paying, "お会計中です"),
         Action::CashOut => require(!c.has_lines, "取引中は出金操作ができません"),
         Action::CashIn => require(!c.has_lines, "取引中は入金操作ができません"),
         Action::CheckFf => check_ff(c),
         Action::CompleteService => require(c.service_pending, "受付待ちのサービス商品はありません"),
-        Action::RemoveLine | Action::VoidTransaction => require(c.has_lines, "明細がありません"),
+        Action::RemoveLine => {
+            require(!paying, "お会計中です")?;
+            require(c.has_lines, "明細がありません")
+        }
+        Action::VoidTransaction => require(c.has_lines, "明細がありません"),
         Action::Checkout => {
             require(!paying, "すでに会計画面です")?;
             require(c.has_lines, "明細がありません")?;
             require(!c.ff_waiting, FF_UNCHECKED)
         }
-        Action::BackToRegistering | Action::SelectPayment => {
-            require(paying, "会計画面ではありません")
+        Action::BackToRegistering => require(paying, "会計画面ではありません"),
+        Action::SelectPayment => {
+            require(paying, "会計画面ではありません")?;
+            require(!c.point_pending, POINT_UNCONFIRMED)
         }
-        Action::FfButton
-        | Action::ConfirmAge
-        | Action::InsertCash
-        | Action::TapEmoney
-        | Action::CallStaff => Err("お客様側の操作です"),
+        Action::ConfirmPointCard => confirm_point(c),
+        Action::ConfirmAge => require(paying && c.age_pending, "年齢確認は不要です"),
+        Action::InsertCash | Action::TapEmoney => pay_action(action, c),
+        Action::FfButton => Err("FF はタブから登録します"),
+        Action::CallStaff => Err("係員が対応中です"),
     }
 }
 
-fn customer(action: Action, c: &Context) -> Result<(), Denial> {
-    // セミセルフとセルフは、お客様が自分で登録・会計する（違いは FF の自己登録だけ）
-    let self_mode = c.mode != Mode::Attended;
+/// セミセルフモード（名札なし。お客様が登録して支払う）。セルフ（将来）は FF も自分で登録する
+fn semi_self(action: Action, c: &Context) -> Result<(), Denial> {
     let paying = c.phase == Phase::Paying;
     match action {
         // 会計画面でも受け付け、登録画面に引き返して追加する
         Action::Scan => Ok(()),
         Action::FfButton => {
-            require(c.mode == Mode::SemiSelf, "FF は係員にお申し付けください")?;
+            require(c.mode == Mode::SemiSelf, "FF はタブから登録してください")?;
             require(!paying, "お会計中です")
         }
-        // セルフモードではお客様が自分で取った FF を、有人モードでは係員がお客様画面から登録する
         Action::RegisterFf => {
-            require(c.mode != Mode::SemiSelf, "FF は係員にお申し付けください")?;
+            require(c.mode == Mode::FullSelf, "FF は係員にお申し付けください")?;
             require(!paying, "お会計中です")
         }
         Action::CheckFf => check_ff(c),
         Action::RemoveLine => {
-            require(self_mode, "係員にお申し付けください")?;
             require(!paying, "お会計中です")?;
             require(c.has_lines, "明細がありません")
         }
         Action::Checkout => {
-            require(self_mode, "係員がお会計に進みます")?;
             require(!paying, "すでにお会計中です")?;
             require(c.has_lines, "商品を登録してください")?;
             require(!c.ff_waiting, FF_UNCHECKED)
         }
-        Action::BackToRegistering => {
-            require(self_mode, "係員にお申し付けください")?;
-            require(paying, "お会計中ではありません")
-        }
+        Action::BackToRegistering => require(paying, "お会計中ではありません"),
         Action::SelectPayment => {
-            require(c.mode != Mode::Attended, "係員がお支払い方法を選びます")?;
-            require(paying, "お会計前です")
+            require(paying, "お会計前です")?;
+            require(!c.point_pending, POINT_UNCONFIRMED)
         }
+        Action::ConfirmPointCard => confirm_point(c),
+        // 年確は係員が来て（名札でログインして有人モードになって）から
         Action::ConfirmAge => {
             require(paying && c.age_pending, "年齢確認は不要です")?;
-            require(
-                !self_mode || c.staff == StaffState::Ready,
-                "係員が向かっています。しばらくお待ちください",
-            )
+            Err("係員が向かっています。しばらくお待ちください")
         }
-        Action::InsertCash => {
-            require(paying, "お会計前は投入できません")?;
-            if let Some(r) = c.payment_blocker() {
-                return Err(r);
-            }
-            require(
-                matches!(c.method, None | Some(PaymentMethod::Cash)),
-                "現金以外のお支払いが選ばれています",
-            )
-        }
-        Action::TapEmoney => {
-            require(paying, "お会計前です")?;
-            if let Some(r) = c.payment_blocker() {
-                return Err(r);
-            }
-            require(
-                matches!(
-                    c.method,
-                    Some(PaymentMethod::Emoney | PaymentMethod::Qr | PaymentMethod::Credit)
-                ),
-                "キャッシュレスの支払方法が選ばれていません",
-            )
-        }
-        Action::CallStaff => require(c.mode != Mode::Attended, "係員が対応中です"),
+        Action::InsertCash | Action::TapEmoney => pay_action(action, c),
+        Action::CallStaff => Ok(()),
         Action::CompleteService
         | Action::VoidTransaction
         | Action::SetMode
         | Action::Lock
         | Action::EndStaffMode
         | Action::CashOut
-        | Action::CashIn => Err("係員の操作です"),
+        | Action::CashIn => Err("係員の操作です（名札でログインしてください）"),
     }
 }
 
@@ -393,6 +399,7 @@ mod tests {
                                     for customer_turn in b {
                                         v.push(Context {
                                             menu_open: false,
+                                            point_pending: false,
                                             holder: Side::Staff,
                                             customer_turn,
                                             mode,
@@ -416,48 +423,62 @@ mod tests {
         v
     }
 
-    /// 画面の操作は排他：同じ状態で両方の画面が操作できることはない。
+    /// 画面の操作は排他：同じ状態で両方の画面が操作できることはない（年齢確認ボタンを除く）。
     #[test]
     fn screens_are_mutually_exclusive() {
         for c in contexts() {
             let any = |side: Side, list: &[Action]| {
-                list.iter()
-                    .any(|&a| !is_device_action(a) && permitted(side, a, &c).is_ok())
+                list.iter().any(|&a| {
+                    // 年齢確認ボタンは唯一の例外（お客様側だけで押せる）
+                    !is_device_action(a)
+                        && a != Action::ConfirmAge
+                        && permitted(side, a, &c).is_ok()
+                })
             };
             assert!(
-                !(any(Side::Staff, STAFF_ACTIONS) && any(Side::Customer, CUSTOMER_ACTIONS)),
+                !(any(Side::Staff, ACTIONS) && any(Side::Customer, ACTIONS)),
                 "{c:?}"
             );
         }
     }
 
-    /// 問題5：有人モードで店員が画面を持っていても、年確の間はお客様側。
+    /// 問題5：有人モードで係員が画面を持っていても、年確ボタンはお客様側の画面で押せる
+    /// （係員の画面からは押せない）。操作側の画面は年確で切り替わらない。
     #[test]
-    fn attended_customer_is_active_only_for_confirmations() {
+    fn age_confirmation_is_pressed_on_the_customer_side() {
         for c in contexts()
             .into_iter()
-            .filter(|c| c.mode == Mode::Attended && !c.customer_turn)
+            .filter(|c| c.mode == Mode::Attended && !c.customer_turn && c.age_pending)
         {
-            let expect = if c.age_pending {
-                Side::Customer
-            } else {
-                Side::Staff
-            };
-            assert_eq!(active_side(&c), expect);
+            assert_eq!(active_side(&c), Side::Staff);
+            assert!(permitted(Side::Customer, Action::ConfirmAge, &c).is_ok());
+            assert!(permitted(Side::Staff, Action::ConfirmAge, &c).is_err());
         }
     }
 
-    /// 問題5：有人モードのお客様は、会計・支払方法の選択など流れを変える操作ができない。
+    /// 画面の区別はない：操作側の画面なら、どちらでも同じことができる。
+    /// 例外は年齢確認ボタンだけで、お客様側からしか押せない。
     #[test]
-    fn customer_cannot_steer_attended_register() {
-        for c in contexts().into_iter().filter(|c| c.mode == Mode::Attended) {
-            for a in [
-                Action::Checkout,
-                Action::SelectPayment,
-                Action::BackToRegistering,
-                Action::RemoveLine,
-            ] {
-                assert!(permitted(Side::Customer, a, &c).is_err(), "{a:?}");
+    fn both_screens_can_do_the_same_except_age_confirmation() {
+        for base in contexts() {
+            for holder in [Side::Staff, Side::Customer] {
+                let c = Context { holder, ..base };
+                let active = active_side(&c);
+                for &a in ACTIONS {
+                    for side in [Side::Staff, Side::Customer] {
+                        let expect = rules(a, &c).is_ok()
+                            && if a == Action::ConfirmAge {
+                                side == Side::Customer
+                            } else {
+                                is_device_action(a) || side == active
+                            };
+                        assert_eq!(
+                            permitted(side, a, &c).is_ok(),
+                            expect,
+                            "{a:?} {side:?} {c:?}"
+                        );
+                    }
+                }
             }
         }
     }
@@ -482,8 +503,13 @@ mod tests {
                 staff: StaffState::Locked,
                 ..c
             };
-            for &a in STAFF_ACTIONS {
-                assert!(permitted(Side::Staff, a, &locked).is_err());
+            for &a in ACTIONS
+                .iter()
+                .filter(|&&a| !is_device_action(a) && a != Action::EndStaffMode)
+            {
+                if c.mode == Mode::Attended {
+                    assert!(permitted(Side::Staff, a, &locked).is_err(), "{a:?}");
+                }
             }
         }
     }
