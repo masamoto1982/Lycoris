@@ -100,7 +100,8 @@ export function staffScreen(r: RegisterView): string {
   const v = r.staff;
   const reg = r.id;
   const a = (n: string) => find(v.actions, n);
-  const rows = v.lines.map((l) => staffLine(reg, l, v)).join("");
+  // 新しく登録した商品ほど上に出す
+  const rows = [...v.lines].reverse().map((l) => staffLine(reg, l, v)).join("");
   const paying = v.phase === "paying";
 
   const pay = paying
@@ -114,23 +115,31 @@ export function staffScreen(r: RegisterView): string {
       </div>`
     : "";
 
-  return `<div class="staff-head">
+  // 合計と会計ボタンは登録画面の最上部に常に出す（明細が増えてもスクロールで隠れない）
+  const top = regTop(
+    v.total,
+    paying
+      ? btn("登録に戻る", { type: "back_to_registering", register: reg, side: "staff" }, a("back_to_registering"))
+      : btn("会計", { type: "checkout", register: reg, side: "staff" }, a("checkout"), "primary"),
+  );
+  return `${top}
+    <div class="staff-head">
       <span>店員：<b>${esc(v.name)}</b>${v.role === "owner" ? "（オーナー）" : ""}</span>
-    </div>
-    <table class="lines"><thead><tr><th>品名</th><th>数</th><th>金額</th><th></th></tr></thead>
-      <tbody>${rows || `<tr><td colspan="4" class="muted">明細はありません。どのバーコードからでも読めます</td></tr>`}</tbody></table>
-    <div class="totals">
-      <span>合計 <b class="total">${yen(v.total)}</b></span>
-      <span class="muted">内税 8% ${yen(v.tax8)} / 10% ${yen(v.tax10)}</span>
-      <span class="muted">${v.point_card ? "ポイントカード 読み取り済" : "ポイントカードなし"}</span>
+      <span class="muted">内税 8% ${yen(v.tax8)} / 10% ${yen(v.tax10)}　${v.point_card ? "ポイントカード 読み取り済" : "ポイントカードなし"}</span>
     </div>
     ${pay}
+    <table class="lines"><thead><tr><th>品名</th><th>数</th><th>金額</th><th></th></tr></thead>
+      <tbody>${rows || `<tr><td colspan="4" class="muted">明細はありません。どのバーコードからでも読めます</td></tr>`}</tbody></table>
     <div class="row">
-      ${paying ? btn("登録に戻る", { type: "back_to_registering", register: reg, side: "staff" }, a("back_to_registering")) : btn("会計", { type: "checkout", register: reg, side: "staff" }, a("checkout"), "primary")}
       ${btn("取引中止", { type: "void_transaction", register: reg }, a("void_transaction"), "ghost")}
       ${btn("ロック", { type: "lock", register: reg }, a("lock"), "ghost")}
       ${btn("ログアウト", { type: "end_staff_mode", register: reg }, a("end_staff_mode"), "ghost")}
     </div>`;
+}
+
+/** 登録画面の最上部に固定する帯：合計金額と会計ボタン */
+function regTop(total: number, action: string): string {
+  return `<div class="reg-top"><span>合計 <b class="total">${yen(total)}</b></span>${action}</div>`;
 }
 
 /**
@@ -306,7 +315,9 @@ export function customerScreen(r: RegisterView): string {
   if (c.staff_called) banners.push(`<div class="banner call">係員をお呼びしています。しばらくお待ちください</div>`);
   else if (r.active_side === "staff" && c.staff_present) banners.push(`<div class="banner watch">係員が操作中です。しばらくお待ちください</div>`);
 
-  const rows = c.lines
+  // 新しく登録した商品ほど上に出す
+  const rows = [...c.lines]
+    .reverse()
     .map((l) => {
       const tag =
         l.kind === "ff"
@@ -320,7 +331,8 @@ export function customerScreen(r: RegisterView): string {
     .join("");
 
   if (!c.lines.length) {
-    return `${banners.join("")}<div class="welcome">
+    const empty = regTop(0, btn("お会計", { type: "checkout", register: reg, side: "customer" }, a("checkout"), "primary"));
+    return `${empty}${banners.join("")}<div class="welcome">
       <div class="big">いらっしゃいませ</div>
       <p>${self ? "商品のバーコードをスキャンしてください" : "係員が商品をお読みします"}</p>
     </div>`;
@@ -354,18 +366,20 @@ export function customerScreen(r: RegisterView): string {
       </div>`;
   }
 
-  const actionsRow =
+  // 合計とお会計ボタンは登録画面の最上部に常に出す。有人モードではお会計は係員が行うので押せない
+  const top = regTop(
+    c.total,
     c.phase === "registering"
-      ? `<div class="row">
-          ${self ? btn("お会計", { type: "checkout", register: reg, side: "customer" }, a("checkout"), "primary") : ""}
-        </div>`
-      : `<div class="row">${self ? btn("商品登録に戻る", { type: "back_to_registering", register: reg, side: "customer" }, a("back_to_registering"), "ghost") : ""}
-          </div>`;
+      ? btn("お会計", { type: "checkout", register: reg, side: "customer" }, a("checkout"), "primary")
+      : self
+        ? btn("商品登録に戻る", { type: "back_to_registering", register: reg, side: "customer" }, a("back_to_registering"), "ghost")
+        : "",
+  );
 
-  return `${banners.join("")}
+  return `${top}${banners.join("")}
+    ${pay}
     <table class="lines"><tbody>${rows}</tbody></table>
-    <div class="totals"><span>合計 <b class="total">${yen(c.total)}</b></span>${c.point_card ? `<span class="muted">ポイントカード 読み取り済</span>` : ""}</div>
-    ${pay}${actionsRow}`;
+    ${c.point_card ? `<div class="totals"><span class="muted">ポイントカード 読み取り済</span></div>` : ""}`;
 }
 
 // ---------------------------------------------------------------------------
