@@ -15,6 +15,7 @@ import {
   matPanel,
   ownerPanel,
   shelfPanel,
+  walletPanel,
   sideOf,
   sharedScreen,
 } from "./view";
@@ -93,7 +94,7 @@ function buildSkeleton(): void {
         </section>
       </div>
       <div class="money-io" aria-label="レジ${r.id}の投入口と排出口（お客様側だけにあります）">
-        <div class="money-io-cust">
+        <div class="money-io-cust" data-cash-drop="${r.id}">
         <input class="inlet" type="text" inputmode="numeric" autocomplete="off" placeholder="入金" data-key="in-${r.id}" data-inlet="${r.id}" aria-label="レジ${r.id}の投入口（金額を入れてEnter）" />
         <button type="button" class="outlet" data-outlet="${r.id}" aria-label="レジ${r.id}の排出口（金額をタッチで取り出す）"><span data-region="outlet-${r.id}"></span></button>
         </div>
@@ -116,10 +117,16 @@ function buildSkeleton(): void {
         </section>
         ${regs}
       </div>
-      <aside class="right" aria-label="売り場">
-        <h2>売り場 <button class="small ghost rules-open" data-open-rules aria-haspopup="dialog">年確ルール設定</button></h2>
-        <div data-region="shelf"></div>
-      </aside>
+      <div class="right-col">
+        <aside class="right" aria-label="売り場">
+          <h2>売り場 <button class="small ghost rules-open" data-open-rules aria-haspopup="dialog">年確ルール設定</button></h2>
+          <div data-region="shelf"></div>
+        </aside>
+        <aside class="right wallet" aria-label="財布">
+          <h2>財布</h2>
+          <div data-region="wallet"></div>
+        </aside>
+      </div>
     </article>
     <footer class="bottom">
       <p class="copyright"><a href="https://github.com/masamoto1982" target="_blank" rel="noopener">© 2026 masamoto yamashiro</a></p>
@@ -208,6 +215,7 @@ function render(): void {
   setRegion("mats", matPanel(snap));
   setRegion("owner", ownerPanel(snap));
   setRegion("shelf", shelfPanel(snap));
+  setRegion("wallet", walletPanel());
 }
 
 // MAT が鳴り始めたら呼び出し音を鳴らす（どれか 1 台でも鳴れば 1 回）
@@ -255,7 +263,7 @@ function send(cmd: Command): boolean {
     toast(where, res.error ?? "操作できません", true);
   }
   // スキャナーと FF 登録の音（読めたら「ピッ」、受け付けられなければ「ブッブー」）
-  if (cmd.type === "scan" || cmd.type === "register_ff") (res.ok ? beepScan : beepError)();
+  if (["scan", "register_ff", "tap_emoney"].includes(cmd.type)) (res.ok ? beepScan : beepError)();
   frame();
   return res.ok;
 }
@@ -372,10 +380,11 @@ app.addEventListener("click", (e) => {
 
 function setupDrag(): void {
   const ghost = document.getElementById("ghost")!;
-  let drag: { code: string; label: string; x: number; y: number; moved: boolean; id: number } | null = null;
+  // code：レジで読むもの（商品・ポイントカード）、wallet：お金（cash:金額）とかざす決済（pay:方法）
+  let drag: { code?: string; wallet?: string; label: string; x: number; y: number; moved: boolean; id: number } | null = null;
   let over: Element | null = null;
 
-  const target = (x: number, y: number): Element | null => document.elementFromPoint(x, y)?.closest("[data-drop]") ?? null;
+  const target = (x: number, y: number): Element | null => document.elementFromPoint(x, y)?.closest("[data-drop], [data-cash-drop]") ?? null;
   const highlight = (el: Element | null) => {
     if (over === el) return;
     over?.classList.remove("drop-over");
@@ -390,10 +399,10 @@ function setupDrag(): void {
   };
 
   app.addEventListener("pointerdown", (e) => {
-    const b = (e.target as Element).closest<HTMLElement>("[data-code]");
+    const b = (e.target as Element).closest<HTMLElement>("[data-code], [data-wallet]");
     if (!b || e.button !== 0) return;
     e.preventDefault();
-    drag = { code: b.dataset.code!, label: b.querySelector(".item-name")?.textContent ?? "", x: e.clientX, y: e.clientY, moved: false, id: e.pointerId };
+    drag = { code: b.dataset.code, wallet: b.dataset.wallet, label: b.querySelector(".item-name")?.textContent ?? "", x: e.clientX, y: e.clientY, moved: false, id: e.pointerId };
   });
 
   window.addEventListener("pointermove", (e) => {
@@ -415,12 +424,19 @@ function setupDrag(): void {
     const t = target(e.clientX, e.clientY);
     end();
     if (!d.moved) {
-      toast("toast-store", "商品はドラッグして、レジの店員画面かお客様画面に落としてください", false);
+      toast("toast-store", "ドラッグして、レジの店員画面・お客様画面（お金は入金ボックスにも）に落としてください", false);
       return;
     }
     if (!t) return;
-    const [reg, side] = (t as HTMLElement).dataset.drop!.split(":");
-    send({ type: "scan", register: Number(reg), side, code: d.code });
+    const el = t as HTMLElement;
+    // 入金ボックスの周り（お客様側）に落としたときは、お客様側として扱う
+    const [reg, side] = el.dataset.drop ? el.dataset.drop.split(":") : [el.dataset.cashDrop!, "customer"];
+    const register = Number(reg);
+    if (d.code) return void send({ type: "scan", register, side, code: d.code });
+    const [kind, value] = d.wallet!.split(":");
+    // お金は投入口（お客様側にしかない）へ、決済はお客様側の端末にかざす
+    if (kind === "cash") send({ type: "insert", register, amount: Number(value) });
+    else send({ type: "tap_emoney", register, method: value });
   });
 
   window.addEventListener("pointercancel", end);

@@ -18,6 +18,7 @@
   --call: #7c3aed;
   --call-bg: #ede9fe;
   --ff: #ea580c;
+  --bill-bg: #eef6ee; --bill-line: #b7d7b7; --coin-bg: #f7f1e3; --coin-line: #dcc9a0; --pay-bg: #eaf1fe; --pay-line: #bcd0f7;
   color-scheme: light;
 }
 
@@ -28,6 +29,7 @@
     --ink: #e5e7eb;
     --muted: #9ca3af;
     --line: #2a2f38;
+    --bill-bg: #17261a; --bill-line: #2f5536; --coin-bg: #2a2416; --coin-line: #5c4c2a; --pay-bg: #172036; --pay-line: #2c4475;
     --accent: #3b82f6;
     --staff-bg: #111827;
     --staff-line: #2a3342;
@@ -48,6 +50,7 @@
   --ink: #e5e7eb;
   --muted: #9ca3af;
   --line: #2a2f38;
+    --bill-bg: #17261a; --bill-line: #2f5536; --coin-bg: #2a2416; --coin-line: #5c4c2a; --pay-bg: #172036; --pay-line: #2c4475;
   --accent: #3b82f6;
   --staff-bg: #111827;
   --staff-line: #2a3342;
@@ -208,8 +211,8 @@ button.emoney { background: #0ea5e9; }
 @media (prefers-reduced-motion: reduce) { .register.ringing { animation: none; box-shadow: 0 0 0 4px var(--call); } }
 
 /* 売り場：スクロールしてもドラッグ元が見えるよう追従させる */
-.right { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); max-height: calc(100vh - 100px); overflow-y: auto; }
-@media (max-width: 900px) { .right { position: static; max-height: none; } }
+.right-col { display: grid; gap: 16px; min-width: 0; position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); max-height: calc(100vh - 24px); overflow-y: auto; }
+@media (max-width: 900px) { .right-col { position: static; max-height: none; } }
 .shelf + .shelf { margin-top: 6px; }
 .shelf h3 { margin: 0 0 4px; font-size: 12px; color: var(--muted); font-weight: 600; letter-spacing: .04em; }
 .items { display: flex; flex-wrap: wrap; gap: 4px; }
@@ -225,6 +228,9 @@ button.emoney { background: #0ea5e9; }
 .item.staff { background: var(--staff-bg); color: var(--staff-ink); border-color: var(--staff-line); }
 .item.staff .item-sub { color: #9ca3af; }
 .item.card { background: var(--call-bg); color: var(--call); }
+.item.bill { background: var(--bill-bg); border-color: var(--bill-line); }
+.item.coin { background: var(--coin-bg); border-color: var(--coin-line); border-radius: 999px; }
+.item.pay { background: var(--pay-bg); border-color: var(--pay-line); }
 
 /* ドロップ先 */
 .drop-hint { display: none; margin-left: 8px; letter-spacing: 0; }

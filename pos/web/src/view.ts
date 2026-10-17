@@ -53,7 +53,8 @@ function ffCheck(reg: number, l: { id: number; kind: string; state?: FfState }, 
   return `<label class="ffcheck" title="${esc(title)}"><input type="checkbox" data-ffcheck="${reg}:${l.id}"${l.state === "received" ? " checked" : ""}${a.allowed ? "" : " disabled"} aria-label="お渡し確認" /></label>`;
 }
 
-const METHOD_LABEL: Record<string, string> = { cash: "現金", emoney: "電子マネー", qr: "QR決済" };
+const METHOD_LABEL: Record<string, string> = { cash: "現金", emoney: "電子マネー", qr: "バーコード決済", credit: "クレジットカード" };
+const METHODS = ["cash", "emoney", "qr", "credit"] as const;
 
 // ---------------------------------------------------------------------------
 // 店員画面
@@ -118,7 +119,7 @@ export function staffScreen(r: RegisterView, snap: Snapshot): string {
         <div>年確：${v.required_age ? (v.age_pending ? `<b class="warn">${v.required_age}歳以上の確認待ち（お客様画面）</b>` : `<span class="ok">確認済</span>`) : "不要"}</div>
         <div>支払方法：${v.method ? METHOD_LABEL[v.method] : "未選択"}　投入 ${yen(v.inserted)}　残り <b>${yen(v.due)}</b></div>
         ${v.payment_blocker ? `<div class="warn">決済できません：${esc(v.payment_blocker)}</div>` : ""}
-        <div class="row">${(["cash", "emoney", "qr"] as const)
+        <div class="row wrap">${METHODS
           .map((m) => btn(METHOD_LABEL[m], { type: "select_payment", register: reg, side: "staff", method: m }, a("select_payment"), `seg ${v.method === m ? "on" : ""}`))
           .join("")}</div>
       </div>`
@@ -289,14 +290,14 @@ export function customerScreen(r: RegisterView, ff: Snapshot["ff_stock"] = []): 
           </div>`
         : "";
     const methods = a("select_payment").allowed
-      ? `<div class="row center">${(["cash", "emoney", "qr"] as const)
+      ? `<div class="row center wrap">${METHODS
           .map((m) => btn(METHOD_LABEL[m], { type: "select_payment", register: reg, side: "customer", method: m }, a("select_payment"), `seg ${c.method === m ? "on" : ""}`))
           .join("")}</div>`
       : "";
     const hint = c.payment_blocker
       ? `<p class="muted">${esc(c.payment_blocker)}</p>`
-      : c.method === "emoney" || c.method === "qr"
-        ? `<p>端末にタッチしてください</p>`
+      : c.method && c.method !== "cash"
+        ? `<p>財布の${METHOD_LABEL[c.method]}を、ここ（お客様側の端末）にかざしてください</p>`
         : `<p>現金を投入してください${r.mode === "attended" ? "" : "（または支払方法を選んでください）"}</p>`;
     pay = `${age}<div class="paybox center">
         <div>お支払い <b class="total">${yen(c.total)}</b></div>
@@ -404,17 +405,30 @@ export function shelfPanel(s: Snapshot): string {
       .map((p) => item(p.code, p.name, `${p.price ? yen(p.price) : "金額は受付時"}${p.age ? ` ・<b>年確${p.age}</b>` : ""}`))
       .join("")}</div></div>`;
   }).join("");
-  const cards =
-    item("PC12345678", "ポイントカード", "お客様のカード", "card");
-  return `${groups}<div class="shelf"><h3>カード</h3><div class="items">${cards}</div></div>`;
+  return groups;
 }
 
-export function cashPanel(reg: number): string {
-  const denoms = [10000, 5000, 2000, 1000, 500, 100, 50, 10, 5, 1];
-  return `<div class="row wrap">${denoms
-    .map((d) => `<button class="cash ${d >= 1000 ? "bill" : "coin"}" data-cmd="${esc(JSON.stringify({ type: "insert_cash", register: reg, denomination: d, count: 1 }))}">${d.toLocaleString()}</button>`)
-    .join("")}
-    <button class="emoney" data-cmd="${esc(JSON.stringify({ type: "tap_emoney", register: reg }))}">📶 端末にタッチ</button></div>`;
+// ---------------------------------------------------------------------------
+// 財布（お客様の持ち物）。レジに落とすと、お金は投入口へ、カードは読み取り・端末へ
+// 実在のサービス名は使わない
+// ---------------------------------------------------------------------------
+
+function walletItem(key: string, name: string, sub: string, cls: string): string {
+  return `<button type="button" class="item ${cls}" data-wallet="${esc(key)}" aria-label="${esc(name)}をドラッグ">
+    <span class="item-name">${esc(name)}</span><span class="item-sub">${sub}</span></button>`;
+}
+
+export function walletPanel(): string {
+  const bills = [10000, 5000, 2000, 1000].map((d) => walletItem(`cash:${d}`, `${d.toLocaleString()}円`, "紙幣", "bill"));
+  const coins = [500, 100, 50, 10, 5, 1].map((d) => walletItem(`cash:${d}`, `${d}円`, "硬貨", "coin"));
+  const cards = [
+    item("PC12345678", "ポイントカード", "レジで読む", "card"),
+    walletItem("pay:qr", "バーコード決済", "スマホ", "pay"),
+    walletItem("pay:credit", "クレジットカード", "端末にかざす", "pay"),
+    walletItem("pay:emoney", "電子マネー", "端末にかざす", "pay"),
+  ];
+  const group = (label: string, xs: string[]) => `<div class="shelf"><h3>${label}</h3><div class="items">${xs.join("")}</div></div>`;
+  return group("紙幣", bills) + group("硬貨", coins) + group("カード・スマホ", cards);
 }
 
 /** コマンドがどちらの画面からの操作か（お知らせを出す場所を決める） */

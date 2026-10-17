@@ -665,3 +665,21 @@ fn called_register_rings_longer_and_more_often_than_mat() {
     scan(&mut s, 1, "staff", "ST1001");
     assert!(!reg(&s, 1).ringing, "staff arrived");
 }
+
+/// 財布のクレジットカードで払う。選んだ支払方法と違うカードをかざしても通らない。
+#[test]
+fn wallet_card_must_match_chosen_method() {
+    let mut s = Store::new(1, 2, 1);
+    scan(&mut s, 1, "customer", ONIGIRI);
+    ok(&mut s, json!({"type":"checkout","register":1,"side":"customer"}));
+    ok(
+        &mut s,
+        json!({"type":"select_payment","register":1,"side":"customer","method":"credit"}),
+    );
+    let e = run(&mut s, json!({"type":"tap_emoney","register":1,"method":"emoney"})).unwrap_err();
+    assert!(e.contains("クレジットカードが選ばれています"), "{e}");
+    ok(&mut s, json!({"type":"tap_emoney","register":1,"method":"credit"}));
+    let rc = reg(&s, 1).last_receipt.unwrap();
+    assert_eq!(rc.total, 160);
+    assert_eq!(rc.method, "クレジットカード");
+}

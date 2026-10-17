@@ -149,8 +149,12 @@ pub enum Command {
         denomination: u32,
         count: u32,
     },
+    /// 財布のカード・スマホを端末にかざす（電子マネー・バーコード決済・クレジットカード）。
+    /// 選ばれた支払方法と違うものをかざすと受け付けない（省略時は選ばれた方法）
     TapEmoney {
         register: u8,
+        #[serde(default)]
+        method: Option<PaymentMethod>,
     },
     CallStaff {
         register: u8,
@@ -834,10 +838,18 @@ impl Store {
                 denomination,
                 count,
             } => self.insert_cash(register, denomination, count),
-            C::TapEmoney { register } => {
+            C::TapEmoney { register, method } => {
                 self.check(register, Side::Customer, Action::TapEmoney)?;
                 let r = self.reg_mut(register)?;
-                let method = r.txn.method.unwrap_or(PaymentMethod::Emoney);
+                let chosen = r.txn.method.unwrap_or(PaymentMethod::Emoney);
+                if let Some(m) = method.filter(|&m| m != chosen) {
+                    return Err(format!(
+                        "{}が選ばれています（{}は使えません）",
+                        chosen.label(),
+                        m.label()
+                    ));
+                }
+                let method = chosen;
                 let total = r.txn.total();
                 self.settle(register, method, total, Cash::default())
             }

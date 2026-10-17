@@ -65,6 +65,7 @@ pub enum PaymentMethod {
     Cash,
     Emoney,
     Qr,
+    Credit,
 }
 
 impl PaymentMethod {
@@ -72,7 +73,8 @@ impl PaymentMethod {
         match self {
             PaymentMethod::Cash => "現金",
             PaymentMethod::Emoney => "電子マネー",
-            PaymentMethod::Qr => "QR決済",
+            PaymentMethod::Qr => "バーコード決済",
+            PaymentMethod::Credit => "クレジットカード",
         }
     }
 }
@@ -346,8 +348,11 @@ fn customer(action: Action, c: &Context) -> Result<(), Denial> {
                 return Err(r);
             }
             require(
-                matches!(c.method, Some(PaymentMethod::Emoney | PaymentMethod::Qr)),
-                "電子マネー/QR が選ばれていません",
+                matches!(
+                    c.method,
+                    Some(PaymentMethod::Emoney | PaymentMethod::Qr | PaymentMethod::Credit)
+                ),
+                "キャッシュレスの支払方法が選ばれていません",
             )
         }
         Action::CallStaff => require(c.mode != Mode::Attended, "係員が対応中です"),
