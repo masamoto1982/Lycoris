@@ -200,10 +200,6 @@ export function itemsPanel(r: RegisterView, snap: Snapshot, ui: FfUi): string {
   const tabs = FF_TABS.map(
     ([k, label]) => `<button type="button" class="ff-tab ${k === ui.tab ? "on" : ""}" data-fftab="${reg}:${k}" aria-pressed="${k === ui.tab}">${label}</button>`,
   ).join("");
-  const pager =
-    pages > 1
-      ? `<span class="ff-pager"><button type="button" class="small ghost" data-ffpage="${reg}:-1"${page === 0 ? " disabled" : ""} aria-label="前のページ">‹</button><span class="muted">${page + 1}/${pages}</span><button type="button" class="small ghost" data-ffpage="${reg}:1"${page >= pages - 1 ? " disabled" : ""} aria-label="次のページ">›</button></span>`
-      : "";
   const grid = items
     .slice(page * FF_PER_PAGE, (page + 1) * FF_PER_PAGE)
     .map((f) =>
@@ -215,7 +211,14 @@ export function itemsPanel(r: RegisterView, snap: Snapshot, ui: FfUi): string {
       ).replace("</button>", `<small>${f.stock > 0 ? (r.mode === "attended" ? `残${f.stock}` : yen(f.price)) : "売り切れ"}</small></button>`),
     )
     .join("");
-  return `<div class="ff-tabs" role="tablist">${tabs}${pager}</div><div class="ff-grid">${grid}</div>`;
+  // ページ送りの上下矢印はページの右端。上（前）・下（次）に隠れたページがあるときだけ出す
+  const arrows =
+    pages > 1
+      ? `<div class="ff-arrows">${
+          page > 0 ? `<button type="button" class="ff-arrow" data-ffpage="${reg}:-1" aria-label="前のページ">▲</button>` : "<span></span>"
+        }${page < pages - 1 ? `<button type="button" class="ff-arrow" data-ffpage="${reg}:1" aria-label="次のページ">▼</button>` : "<span></span>"}</div>`
+      : "";
+  return `<div class="ff-tabs" role="tablist">${tabs}</div><div class="ff-page"><div class="ff-grid">${grid}</div>${arrows}</div>`;
 }
 
 // ---------------------------------------------------------------------------

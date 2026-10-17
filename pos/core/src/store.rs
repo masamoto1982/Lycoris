@@ -303,8 +303,7 @@ impl Command {
             C::CompleteService { .. }
             | C::VoidTransaction { .. }
             | C::SetMode { .. }
-            | C::Lock { .. }
-            | C::EndStaffMode { .. } => Some(Side::Staff),
+            | C::Lock { .. } => Some(Side::Staff),
             _ => None,
         }
     }
@@ -951,7 +950,9 @@ impl Store {
             }
             C::EndStaffMode { register } => {
                 self.check(register, Side::Staff, Action::EndStaffMode)?;
-                self.reg_mut(register)?.staff = None;
+                let r = self.reg_mut(register)?;
+                r.staff = None;
+                r.menu = None;
                 done("ログアウトしました（セミセルフモード）")
             }
             C::CashOut {

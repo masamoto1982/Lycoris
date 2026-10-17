@@ -216,7 +216,9 @@ pub fn active_side(c: &Context) -> Side {
 pub fn is_device_action(action: Action) -> bool {
     matches!(
         action,
-        Action::Scan | Action::InsertCash | Action::TapEmoney
+        // ログアウト（名札を外す）も画面の操作ではない。ログイン直後はお客様画面が
+        // 操作側なので、画面の排他で止めるとセミセルフに戻れなくなる
+        Action::Scan | Action::InsertCash | Action::TapEmoney | Action::EndStaffMode
     )
 }
 
@@ -228,7 +230,10 @@ pub fn permitted(side: Side, action: Action, c: &Context) -> Result<(), Denial> 
     // 店舗メニューの入出金は、店員がお客様画面側で行う
     let menu_op = c.menu_open
         && side == Side::Staff
-        && matches!(action, Action::CashIn | Action::CashOut | Action::EndStaffMode);
+        && matches!(
+            action,
+            Action::CashIn | Action::CashOut | Action::EndStaffMode
+        );
     if c.menu_open && side == Side::Staff && !menu_op && !is_device_action(action) {
         return Err("お客様画面で店舗メニューを操作中です");
     }
@@ -243,7 +248,10 @@ pub fn permitted(side: Side, action: Action, c: &Context) -> Result<(), Denial> 
 
 /// お渡し確認のチェックは登録画面で付け外しする（どちらの画面からでも）
 fn check_ff(c: &Context) -> Result<(), Denial> {
-    require(c.phase == Phase::Registering, "お会計中はお渡し確認を変えられません")?;
+    require(
+        c.phase == Phase::Registering,
+        "お会計中はお渡し確認を変えられません",
+    )?;
     require(c.has_ff, "FF の明細がありません")
 }
 
