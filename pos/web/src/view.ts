@@ -328,32 +328,11 @@ export function customerScreen(r: RegisterView, ff: Snapshot["ff_stock"] = []): 
 export function matPanel(s: Snapshot): string {
   return s.mats
     .map(
-      (m) => `<div class="mat ${m.buzzing ? "buzz" : ""} ${m.link_ok ? "" : "down"}">
-        <div class="bell">🔔</div>
-        <div class="mat-id">${esc(m.id)}</div>
-        <div class="mat-state">${m.link_ok ? (m.buzzing ? "鳴動中" : "待機") : "MAT不通"}</div>
+      (m) => `<div class="mat ${m.buzzing ? "buzz" : ""}">
+        <span class="bell">🔔</span><span class="mat-id">${esc(m.id)}</span><span class="mat-state">${m.buzzing ? "鳴動中" : "待機"}</span>
       </div>`,
     )
     .join("");
-}
-
-export function simPanel(s: Snapshot): string {
-  const links = s.mat_links
-    .map((l, i) => {
-      const off = s.mats[i]?.offline ?? false;
-      return `<div class="row wrap">${esc(l.id)}：${l.link_ok ? "通信OK" : "<b class='warn'>不通</b>"}　送信${l.sent} 再送${l.retries} 鳴動${s.mats[i]?.rings ?? 0}回
-        ${btn(off ? "電源を戻す" : "電源断/圏外にする", { type: "set_mat_offline", mat: i, offline: !off }, undefined, "small ghost")}</div>`;
-    })
-    .join("");
-  const loss = [0, 30, 60, 90]
-    .map((p) => btn(`${p}%`, { type: "set_mat_loss", percent: p }, undefined, `seg small ${s.mat_loss === p ? "on" : ""}`))
-    .join("");
-  const calls = s.calls.length
-    ? s.calls.map((c) => `<li>レジ${c.register}：${esc(c.label)}（${secs(s.now, c.created_at)}）</li>`).join("")
-    : `<li class="muted">なし</li>`;
-  return `<div class="row wrap">MAT 通信ロス：${loss}</div>${links}
-    <div class="muted">未対応（店員がまだ来ていない）呼び出し ${s.bell.open_calls} 件。残っている間は ${10} 秒ごとに鳴らし直します。</div>
-    <h4>開いている呼び出し（シミュレーター表示）</h4><ul>${calls}</ul>`;
 }
 
 const AGE_CHOICES = [15, 18, 20];
@@ -390,16 +369,6 @@ export function ownerPanel(s: Snapshot): string {
   return `<table class="lines rules"><thead><tr><th>商品</th><th>法令</th><th>店舗ルール</th><th class="num">会計時の年確</th></tr></thead>
     <tbody>${rows}</tbody></table>
     <h4>変更履歴</h4><ul>${hist}</ul>`;
-}
-
-export function auditPanel(s: Snapshot): string {
-  if (!s.audit.length) return `<p class="muted">出金操作の記録はまだありません</p>`;
-  return `<table class="lines"><thead><tr><th>時刻</th><th>レジ</th><th>操作者</th><th>操作</th><th>金額</th><th>結果</th></tr></thead><tbody>
-    ${s.audit
-      .slice()
-      .reverse()
-      .map((e) => `<tr><td>${Math.floor(e.at / 1000)}秒</td><td>${e.register}</td><td>${esc(e.staff)}</td><td>${esc(e.operation)}</td><td class="num">${yen(e.amount)}</td><td>${esc(e.result)}</td></tr>`)
-      .join("")}</tbody></table>`;
 }
 
 // ---------------------------------------------------------------------------

@@ -11,13 +11,11 @@ import init, { PosSimulator } from "./wasm/generated/janus_pos.js";
 import type { Command, Snapshot } from "./types";
 import { beepError, beepScan, ringMat, ringRegister, unlockAudio } from "./sound";
 import {
-  auditPanel,
   esc,
   matPanel,
   ownerPanel,
   shelfPanel,
   sideOf,
-  simPanel,
   sharedScreen,
 } from "./view";
 
@@ -104,7 +102,6 @@ function buildSkeleton(): void {
     )
     .join("");
 
-  const staffList = snap.accounts.map((a) => `${esc(a.name)}`).join("・");
   app.innerHTML = `
     <header class="top">
       <h1>Janus POS</h1>
@@ -114,7 +111,7 @@ function buildSkeleton(): void {
       <div class="left">
         <section class="mat-area" aria-label="携帯情報端末">
           <h2>携帯情報端末（MAT）</h2>
-          <div class="mat-row"><div class="mats" data-region="mats"></div><div class="mat-sim" data-region="sim"></div></div>
+          <div class="mats" data-region="mats"></div>
           <div class="toast" id="toast-store"></div>
         </section>
         ${regs}
@@ -125,21 +122,6 @@ function buildSkeleton(): void {
       </aside>
     </article>
     <footer class="bottom">
-      <section>
-        <h3>試し方</h3>
-        <ol class="help">
-          <li>運用モードは名札で決まります。名札なし＝セミセルフ（お客様が自分で登録・会計）、名札あり＝有人。セルフは将来の拡張用で、いまは OFF です。</li>
-          <li>セミセルフ：商品をお客様画面に落として「お会計」。缶ビールなら年確の呼び出しで MAT が鳴ります。レジ名の右の「店員」でログインすると有人モードになり、「20歳以上です」が押せます。</li>
-          <li>有人：「店員」で名前を選んでログインすると、まずお客様画面が操作側になります。グレーの画面にタッチすると、操作している側が3秒触られていなければ操作を引き継げます。店員画面で「会計」します。</li>
-          <li>FF：有人モードでは店員画面からもお客様画面からも FF を登録できます。セミセルフではお客様画面の「FF を注文」で係員を呼びます。FF の明細は個数の右のチェックボックスにお渡し確認のチェックを入れるまで、会計に進めません。</li>
-          <li>宅急便・代行収納をお客様画面に落とすと係員の呼び出しになり、店員が金額を入れて受け付けます。</li>
-          <li>音が出ます：商品を登録すると「ピッ」、読めないと「ブッブー」。店員呼び出しでは MAT（3秒・10秒ごと）と、呼び出したレジ本体（6秒・8秒ごと）が鳴ります。呼び出し音は消せません（ブラウザの都合で、最初に画面のどこかに触れてから鳴ります）。</li>
-          <li>有人モードは、取引のない状態で5分間操作がないとログアウトしてセミセルフに戻ります。残り時間はレジ名の横に出ます。</li>
-          <li>お金は各レジ最下段の「入金」ボックスに金額を打ち込んで Enter で入れます。おつりや出金したお金は「出金」ボックスに金額が出て、金額をタッチすると取り出せます。店舗メニュー：有人モード（ログイン中）だとお客様画面の右上に ⚙ が出ます。返品返金・緊急出金・経費支出は店舗パスワード <b>7777</b>（ログインとは別）、取引外入金と自動釣銭機の両替は「入金」ボックスを使い、パスワード不要です。年確ルールは売り場の「年確ルール設定」から、オーナー 9001 / <b>9999</b> で商品ごとに変更できます。</li>
-        </ol>
-        <p class="muted">店員：${staffList}（各レジのレジ名の右にある「店員」で選ぶとログインします。「未ログイン」でログアウト）</p>
-      </section>
-      <details><summary>出金の記録</summary><div data-region="audit"></div></details>
       <p class="copyright"><a href="https://github.com/masamoto1982" target="_blank" rel="noopener">© 2026 masamoto yamashiro</a></p>
     </footer>
     <dialog class="rules-dlg" id="rules-dlg" aria-labelledby="rules-title">
@@ -224,9 +206,7 @@ function render(): void {
     );
   }
   setRegion("mats", matPanel(snap));
-  setRegion("sim", simPanel(snap));
   setRegion("owner", ownerPanel(snap));
-  setRegion("audit", auditPanel(snap));
   setRegion("shelf", shelfPanel(snap));
 }
 

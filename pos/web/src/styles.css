@@ -168,15 +168,13 @@ button.cash.coin { background: #fde68a; color: #78350f; border-radius: 999px; }
 button.emoney { background: #0ea5e9; }
 
 
-.mats { display: flex; gap: 10px; flex-wrap: wrap; }
-.mat { width: 96px; border-radius: 14px; padding: 10px 6px; text-align: center; border: 2px solid var(--line); }
-.mat .bell { font-size: 28px; }
+.mats { display: flex; gap: 8px; flex-wrap: wrap; }
+.mat { display: inline-flex; align-items: center; gap: 8px; border-radius: 10px; padding: 4px 12px; border: 2px solid var(--line); }
+.mat .bell { font-size: 18px; display: inline-block; }
 .mat-id { font-weight: 600; }
 .mat-state { font-size: 12px; color: var(--muted); }
 .mat.buzz { border-color: var(--call); background: var(--call-bg); }
 .mat.buzz .bell { animation: ring .25s infinite alternate; }
-.mat.down { border-color: var(--danger); background: var(--danger-bg); }
-.mat.down .mat-state { color: var(--danger); font-weight: 700; }
 @keyframes ring { from { transform: rotate(-18deg); } to { transform: rotate(18deg); } }
 @media (prefers-reduced-motion: reduce) { .mat.buzz .bell { animation: none; } }
 
@@ -200,11 +198,9 @@ button.emoney { background: #0ea5e9; }
 .hw-label { font-size: 12px; color: var(--muted); }
 .hw .row { margin: 0; }
 
-.mat-area { position: relative; }
-.mat-row { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
-.mat-sim { flex: 1; min-width: 240px; font-size: 13px; }
-.mat-sim h4 { margin: 8px 0 2px; font-size: 13px; }
-.mat-sim ul { margin: 0; padding-left: 18px; }
+/* MAT は 1 行に収める（MAT とレジ 2 台が一画面に入るように） */
+.mat-area { position: relative; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding-block: 8px; }
+.mat-area h2 { margin: 0; }
 .mat-area .toast { position: static; margin-top: 8px; display: none; }
 .mat-area .toast.show { display: block; }
 .register.ringing { animation: reg-ring .6s ease-in-out infinite alternate; }
@@ -242,11 +238,7 @@ body.dragging .drop-hint { display: inline; }
   box-shadow: 0 6px 18px rgba(0, 0, 0, .25);
 }
 
-.bottom { border-top: 1px solid var(--line); background: var(--panel); padding-block: 12px 24px; display: grid; gap: 8px; }
-.bottom h3 { margin: 0 0 4px; font-size: 14px; }
-.bottom summary { font-weight: 600; }
-.help { padding-left: 18px; margin: 0; }
-.help li { margin-bottom: 4px; }
+.bottom { border-top: 1px solid var(--line); background: var(--panel); padding-block: 8px; }
 
 /* ドラッグ中に文字が選択されないようにする（入力欄は除く） */
 .floor { user-select: none; -webkit-user-select: none; }
