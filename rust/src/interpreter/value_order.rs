@@ -32,37 +32,39 @@ pub(crate) fn order_indices(items: &[Value]) -> Result<Option<Vec<usize>>> {
     if domain == Some(OrderedDomain::Number) && holds_point(items.iter())? {
         return Ok(None);
     }
-    let absent = items.iter().filter(|item| item.is_nil()).count();
-
-    // The present elements, in source order: the NILs are set aside rather
-    // than compared, so the comparator only ever sees one ordered domain.
-    let mut perm: Vec<usize> = Vec::with_capacity(items.len());
-    let mut nils: Vec<usize> = Vec::with_capacity(absent);
-    for (index, item) in items.iter().enumerate() {
-        if item.is_nil() {
-            nils.push(index);
-        } else {
-            perm.push(index);
-        }
-    }
-    match domain {
+    let is_nil = |i: usize| items[i].is_nil();
+    let perm = match domain {
         // Strings compare by their bytes, which is their order; no `Value`
         // dispatch per probe.
-        Some(OrderedDomain::Text) => perm.sort_by(|&i, &j| {
+        Some(OrderedDomain::Text) => nulls_last_order(items.len(), is_nil, |i, j| {
             let (Some(a), Some(b)) = (items[i].as_text(), items[j].as_text()) else {
                 unreachable!("the pass above admitted only Strings");
             };
             crate::interpreter::comparison::text_order(a, b)
         }),
-        _ => perm.sort_by(|&i, &j| {
+        _ => nulls_last_order(items.len(), is_nil, |i, j| {
             compare_for_sort(&items[i], &items[j])
                 .ok()
                 .flatten()
                 .unwrap_or(std::cmp::Ordering::Equal)
         }),
-    }
-    perm.extend(nils);
+    };
     Ok(Some(perm))
+}
+
+/// The permutation of `0..len` that puts the present indices first, in the
+/// stable order `cmp` sorts them to, then every index `is_nil` names, in its
+/// own order. The NILs are set aside rather than compared, so `cmp` only ever
+/// sees one ordered domain.
+fn nulls_last_order(
+    len: usize,
+    is_nil: impl Fn(usize) -> bool,
+    mut cmp: impl FnMut(usize, usize) -> std::cmp::Ordering,
+) -> Vec<usize> {
+    let (mut perm, nils): (Vec<usize>, Vec<usize>) = (0..len).partition(|&i| !is_nil(i));
+    perm.sort_by(|&i, &j| cmp(i, j));
+    perm.extend(nils);
+    perm
 }
 
 /// The one ordered domain the present elements share, `None` when there are
@@ -148,3 +150,7 @@ pub(crate) fn compare_for_sort(a: &Value, b: &Value) -> Result<Option<std::cmp::
         )
     })
 }
+
+#[cfg(kani)]
+#[path = "value_order_proofs.rs"]
+mod proofs;

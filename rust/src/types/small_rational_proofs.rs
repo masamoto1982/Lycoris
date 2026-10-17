@@ -47,11 +47,6 @@ fn is_normalized((n, d): Pair) -> bool {
     d > 0 && euclid(n, d) == 1
 }
 
-/// `a` and `b` are the same rational: `an · bd = bn · ad`.
-fn same_value((an, ad): (i128, i128), (bn, bd): (i128, i128)) -> bool {
-    an * bd == bn * ad
-}
-
 fn wide((n, d): Pair) -> (i128, i128) {
     (i128::from(n), i128::from(d))
 }
@@ -61,7 +56,7 @@ fn narrow((n, d): Pair) -> (i32, i32) {
     (n as i32, d as i32)
 }
 
-/// [`same_value`] for small pairs.
+/// `a` and `b` are the same rational: `an · bd = bn · ad`.
 fn same_small_value((an, ad): (i32, i32), (bn, bd): (i32, i32)) -> bool {
     an * bd == bn * ad
 }

@@ -62,10 +62,13 @@ restating the kernel, so it can disagree with it.
 | `rust/src/interpreter/truth_ops_proofs.rs` | The `AND` table and `NOT` lane rule of LANG.VALUES.TRUTH: `AND` is the meet of F < U < T (so a bounded semilattice), `NOT` the order-reversing involution fixing UNKNOWN, and De Morgan gives the join | Whole-range (the three codes) |
 | `rust/src/types/small_rational_proofs.rs` | The machine-word rational kernels (`small_rational`): the wasm32 multiply, rounding, the order, the integer routes of `add` and `mul`, the gcd's power-of-two shortcut | Whole-range (every `i64`) |
 | `rust/src/types/small_rational_proofs.rs` | Stein's gcd against Euclid's; `add`, `mul` and `div` answering the exact value in lowest terms over a positive denominator; the order agreeing with equality of normalized pairs | Small-scope (halves under 2⁴, gcd operands under 2⁶) |
+| `rust/src/types/small_divisor_proofs.rs` | The reciprocal every one-word division by `small_divisor` (and `fraction_word_term`'s running sum) starts from: for a normalized divisor it fits a word and is Möller and Granlund's, stated by its bounds | Whole-range (every normalized `u64`) |
+| `rust/src/interpreter/value_order_proofs.rs` | The placement rule of LANG.VALUES.ORDER that `SORT` and `ORDER` answer (`nulls_last_order`): a permutation with the present elements ascending and stable, then every NIL in its own order | Small-scope (every Vector of up to four elements, every pattern of NILs, every order with ties on the rest) |
 
-In `TRACEABILITY_MATRIX.md` the rational harnesses are `AQ-VER-001-T`, under
-AQ-REQ-001, and the truth-table harnesses are listed among the verification
-without a requirement ID.
+In `TRACEABILITY_MATRIX.md` the rational harnesses are `AQ-VER-001-T` and the
+one-word reciprocal harness `AQ-VER-001-U`, both under AQ-REQ-001; the
+truth-table and order harnesses are listed among the verification without a
+requirement ID.
 
 ## Adding a harness
 
@@ -75,6 +78,17 @@ without a requirement ID.
 - Prefer a whole-range harness; when the subject loops, bound the input, set
   `#[kani::unwind]` just high enough, and say in the doc comment what the
   bound covers.
+- Keep the subject narrow. A `Value`, or anything that may reach a
+  `BigInt` or a formatted error message, gives the solver more paths than it
+  finishes: factor the logic worth proving into a function over plain data
+  (as `nulls_last_order` is), and prove that.
+- Give a harness concrete lengths. A symbolic length hands the solver every
+  branch the standard library has for long inputs; run each length, and each
+  pattern that decides one, as its own concrete case, and keep the contents
+  symbolic.
+- Identities between products of two 64-bit words are out of reach: neither
+  the SAT solver nor Z3 decided `div_two_by_one`'s within an hour. Prove what
+  such a step relies on instead, and leave the step to the property tests.
 - Keep each harness to a few minutes of solver time (the slowest today,
   `add_is_the_normalized_sum`, takes about eight): CI runs them all on every
   pull request. Most of a small-scope harness's formula is its specification;
