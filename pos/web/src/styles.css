@@ -87,13 +87,8 @@ button { touch-action: manipulation; }
 
 .screen { position: relative; border-radius: 10px; padding: 10px 12px 52px; min-height: 280px; min-width: 0; overflow: hidden; }
 .screen-title { font-size: 11px; letter-spacing: .08em; opacity: .7; margin-bottom: 6px; }
-.staff-screen { background: var(--staff-bg); color: var(--staff-ink); }
-.staff-screen .muted { color: #9ca3af; }
-.staff-screen .tag.ok, .staff-screen .tag.ff-received { color: #34d399; }
-.staff-screen .ok { color: #34d399; }
-.staff-screen .warn, .staff-screen .tag.age, .staff-screen .tag.warn, .staff-screen .tag.ff-waiting { color: #fbbf24; }
-.staff-screen .tag.age, .staff-screen .tag.warn, .staff-screen .tag.ff-waiting { background: #3a2c0a; }
-.staff-screen .lines td, .staff-screen .lines th { border-color: var(--staff-line); }
+/* 店員画面とお客様画面は同じ内容・同じ見た目。操作している側だけ色がつく */
+.staff-screen { background: var(--cust-bg); border: 1px solid var(--line); }
 .customer-screen { background: var(--cust-bg); border: 1px solid var(--line); }
 
 .lines { width: 100%; border-collapse: collapse; margin: 4px 0 8px; }
@@ -127,7 +122,6 @@ button.ff, button.ff-hand { background: var(--ff); }
 input, select {
   padding: 6px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); min-width: 0;
 }
-.staff-screen input, .staff-screen select { background: #0b1220; color: var(--staff-ink); border-color: var(--staff-line); }
 
 .tag { font-size: 11px; padding: 1px 6px; border-radius: 4px; background: var(--line); color: var(--ink); white-space: nowrap; }
 .tag.age { background: var(--warn-bg); color: var(--warn); }
@@ -261,7 +255,6 @@ body.dragging .drop-hint { display: inline; }
 
 /* 操作できない側の画面（排他）：表示は続けるが、ボタンは押せない */
 .banner.watch { background: var(--line); color: var(--ink); }
-.staff-screen .banner.watch { background: var(--staff-line); color: var(--staff-ink); }
 .screen.inactive [data-region] { filter: grayscale(1); opacity: .55; }
 .screen.inactive [data-region] button, .screen.inactive [data-region] input,
 .screen.inactive [data-region] select, .screen.inactive [data-region] summary { pointer-events: none; }
@@ -312,3 +305,6 @@ body.dragging .drop-hint { display: inline; }
 .money-io .outlet small { display: block; color: var(--muted); font-size: 11px; }
 .money-io .hw-label { font-size: 11px; color: var(--muted); white-space: nowrap; }
 @media (max-width: 760px) { .money-io { grid-template-columns: 1fr; } .money-io-cust { grid-column: 1; } }
+/* 歯車は両方の画面に出る。操作できない側の歯車は押せない */
+.screen.inactive .gear { pointer-events: none; opacity: .4; }
+.screen.inactive .gear { filter: grayscale(1); }

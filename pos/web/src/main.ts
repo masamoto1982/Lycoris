@@ -11,15 +11,13 @@ import init, { PosSimulator } from "./wasm/generated/janus_pos.js";
 import type { Command, Snapshot } from "./types";
 import {
   auditPanel,
-  customerScreen,
   esc,
   matPanel,
   ownerPanel,
   shelfPanel,
   sideOf,
   simPanel,
-  staffCalls,
-  staffScreen,
+  sharedScreen,
 } from "./view";
 
 declare global {
@@ -84,7 +82,7 @@ function buildSkeleton(): void {
       <div class="screens">
         <section class="screen staff-screen" data-drop="${r.id}:staff">
           <div class="screen-title">店員画面<span class="drop-hint">ここに落とす＝店員側スキャナーで読む</span></div>
-          <div data-region="calls-${r.id}"></div>
+          <button type="button" class="gear" data-gear="${r.id}" aria-label="レジ${r.id}の店舗メニュー（店員画面）" title="店舗メニュー" hidden>⚙</button>
           <div data-region="staff-${r.id}"></div>
           <div class="toast" id="toast-${r.id}-staff"></div>
         </section>
@@ -204,8 +202,7 @@ function render(): void {
     app.querySelector(`[data-drop="${r.id}:staff"]`)?.classList.toggle("inactive", r.active_side !== "staff");
     app.querySelector(`[data-drop="${r.id}:customer"]`)?.classList.toggle("inactive", r.active_side !== "customer");
     // 店舗メニューの歯車は、名札でログインした店員がいる（有人モード）ときだけ出す
-    const gear = app.querySelector<HTMLButtonElement>(`[data-gear="${r.id}"]`);
-    if (gear) gear.hidden = r.staff.state !== "ready";
+    app.querySelectorAll<HTMLButtonElement>(`[data-gear="${r.id}"]`).forEach((g) => (g.hidden = r.staff.state !== "ready"));
     const idle = r.idle_revert_in;
     setRegion(
       `mode-${r.id}`,
@@ -213,9 +210,10 @@ function render(): void {
         idle !== null ? `<span class="idle" title="5分間操作がないとセミセルフに戻って待機します">無操作であと ${Math.floor(idle / 60000)}:${String(Math.floor((idle % 60000) / 1000)).padStart(2, "0")} でセミセルフに戻ります</span>` : ""
       }`,
     );
-    setRegion(`calls-${r.id}`, staffCalls(r, snap.now));
-    setRegion(`staff-${r.id}`, staffScreen(r, snap));
-    setRegion(`cust-${r.id}`, customerScreen(r, snap.ff_stock));
+    // 両方の画面に同じ内容を出す。色がつくのは操作している側だけ
+    const shared = sharedScreen(r, snap);
+    setRegion(`staff-${r.id}`, shared);
+    setRegion(`cust-${r.id}`, shared);
     setRegion(
       `outlet-${r.id}`,
       r.outlet
@@ -266,14 +264,17 @@ function send(cmd: Command): boolean {
 // イベント（委譲。描き直しでボタンが入れ替わっても取りこぼさない）
 // ---------------------------------------------------------------------------
 
-const val = (key: string): string => app.querySelector<HTMLInputElement>(`[data-key="${key}"]`)?.value.trim() ?? "";
+// 両方の画面に同じ入力欄があるので、押したボタンのある画面（操作している側）の欄を読む
+let scope: ParentNode = app;
+const val = (key: string): string => scope.querySelector<HTMLInputElement>(`[data-key="${key}"]`)?.value.trim() ?? "";
 const clear = (key: string): void => {
-  const el = app.querySelector<HTMLInputElement>(`[data-key="${key}"]`);
+  const el = scope.querySelector<HTMLInputElement>(`[data-key="${key}"]`);
   if (el) el.value = "";
 };
 
 function form(b: HTMLElement): void {
   const reg = Number(b.dataset.reg);
+  scope = b.closest("[data-drop]") ?? app;
   switch (b.dataset.form) {
     case "service":
       send({ type: "complete_service", register: reg, line_id: Number(b.dataset.line), amount: Number(val(`svc-${reg}-${b.dataset.line}`) || 0) });

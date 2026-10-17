@@ -90,30 +90,6 @@ export function staffScreen(r: RegisterView, snap: Snapshot): string {
   const v = r.staff;
   const reg = r.id;
   const a = (n: string) => find(v.actions, n);
-  // 店員画面には常にお客様画面の内容を映す。ログイン（名札）で操作できるようになる
-  if (r.active_side !== "staff" && r.menu) {
-    return `<div class="mirror-head"><b>お客様画面で店舗メニューを操作中</b>　${esc(MENU_LABEL[r.menu.screen])}</div>`;
-  }
-  if (r.active_side !== "staff") {
-    const why =
-      v.state === "absent"
-        ? "店員未ログイン"
-        : v.state === "locked"
-          ? "ロック中"
-          : v.age_pending
-            ? "お客様の年齢確認待ち"
-            : v.lines.some((l) => l.kind === "ff" && l.state === "presented")
-              ? "お客様の FF 受取確認待ち"
-              : "お客様のお支払い中";
-    const how =
-      v.state === "ready" && (v.age_pending || v.lines.some((l) => l.kind === "ff" && l.state === "presented"))
-        ? "お客様の確認が済むと操作に戻ります"
-        : "レジ名の右の「店員」でログインすると有人モードになり、操作できます";
-    return `<div class="mirror-head"><b>${why}</b>　${how}</div>
-      <div class="mirror">${customerScreen(r, snap.ff_stock)}</div>`;
-  }
-
-
   const rows = v.lines.map((l) => staffLine(reg, l, v)).join("");
   const paying = v.phase === "paying";
 
@@ -147,7 +123,7 @@ export function staffScreen(r: RegisterView, snap: Snapshot): string {
     <div class="totals">
       <span>合計 <b class="total">${yen(v.total)}</b></span>
       <span class="muted">内税 8% ${yen(v.tax8)} / 10% ${yen(v.tax10)}</span>
-      <span class="muted">${v.point_card ? `ポイントカード ${esc(v.point_card)}` : "ポイントカードなし"}</span>
+      <span class="muted">${v.point_card ? "ポイントカード 読み取り済" : "ポイントカードなし"}</span>
     </div>
     ${pay}
     <div class="row">
@@ -158,6 +134,15 @@ export function staffScreen(r: RegisterView, snap: Snapshot): string {
       ${btn("ログアウト", { type: "end_staff_mode", register: reg }, a("end_staff_mode"), "ghost")}
     </div>
     <div class="ffmenu"><span class="muted">FF 登録</span>${ffMenu}</div>`;
+}
+
+/**
+ * 店員画面とお客様画面は、まったく同じ内容を映す（情報空間は一つ）。
+ * 内容は「いま操作している側」の画面で、もう一方は同じものをグレーで表示するだけ。
+ */
+export function sharedScreen(r: RegisterView, snap: Snapshot): string {
+  const body = r.active_side === "staff" ? staffScreen(r, snap) : customerScreen(r, snap.ff_stock);
+  return staffCalls(r, snap.now) + body;
 }
 
 // ---------------------------------------------------------------------------
