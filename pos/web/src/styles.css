@@ -1,0 +1,329 @@
+:root {
+  --bg: #f4f5f7;
+  --panel: #ffffff;
+  --ink: #1d2330;
+  --muted: #6b7280;
+  --line: #e2e5ea;
+  --accent: #2563eb;
+  --accent-ink: #ffffff;
+  --staff-bg: #1f2937;
+  --staff-ink: #f3f4f6;
+  --staff-line: #374151;
+  --cust-bg: #fffdf7;
+  --warn: #b45309;
+  --warn-bg: #fef3c7;
+  --danger: #b91c1c;
+  --danger-bg: #fee2e2;
+  --ok: #047857;
+  --call: #7c3aed;
+  --call-bg: #ede9fe;
+  --ff: #ea580c;
+  --bill-bg: #eef6ee; --bill-line: #b7d7b7; --coin-bg: #f7f1e3; --coin-line: #dcc9a0; --pay-bg: #eaf1fe; --pay-line: #bcd0f7;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1115;
+    --panel: #181b21;
+    --ink: #e5e7eb;
+    --muted: #9ca3af;
+    --line: #2a2f38;
+    --bill-bg: #17261a; --bill-line: #2f5536; --coin-bg: #2a2416; --coin-line: #5c4c2a; --pay-bg: #172036; --pay-line: #2c4475;
+    --accent: #3b82f6;
+    --staff-bg: #111827;
+    --staff-line: #2a3342;
+    --cust-bg: #1d1b16;
+    --warn: #fbbf24;
+    --warn-bg: #3a2c0a;
+    --danger: #f87171;
+    --danger-bg: #3b1212;
+    --ok: #34d399;
+    --call: #c4b5fd;
+    --call-bg: #2b2145;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1115;
+  --panel: #181b21;
+  --ink: #e5e7eb;
+  --muted: #9ca3af;
+  --line: #2a2f38;
+    --bill-bg: #17261a; --bill-line: #2f5536; --coin-bg: #2a2416; --coin-line: #5c4c2a; --pay-bg: #172036; --pay-line: #2c4475;
+  --accent: #3b82f6;
+  --staff-bg: #111827;
+  --staff-line: #2a3342;
+  --cust-bg: #1d1b16;
+  --warn: #fbbf24;
+  --warn-bg: #3a2c0a;
+  --danger: #f87171;
+  --danger-bg: #3b1212;
+  --ok: #34d399;
+  --call: #c4b5fd;
+  --call-bg: #2b2145;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 14px/1.5 system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif;
+}
+button, input, select { font: inherit; }
+/* タッチの遅延をなくす（問題1） */
+button { touch-action: manipulation; }
+
+.top {
+  padding-block: 12px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  border-bottom: 1px solid var(--line); background: var(--panel);
+}
+
+
+.mode { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: var(--line); }
+.mode-full_self { background: var(--call-bg); color: var(--call); }
+
+.screens { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 760px) { .screens { grid-template-columns: 1fr; } }
+
+.screen { position: relative; border-radius: 10px; padding: 10px 12px 52px; min-height: 280px; min-width: 0; overflow: hidden; }
+.screen-title { font-size: 11px; letter-spacing: .08em; opacity: .7; margin-bottom: 6px; }
+/* 店員画面とお客様画面は同じ内容・同じ見た目。操作している側だけ色がつく */
+.staff-screen { background: var(--cust-bg); border: 1px solid var(--line); }
+.customer-screen { background: var(--cust-bg); border: 1px solid var(--line); }
+
+.lines { width: 100%; border-collapse: collapse; margin: 4px 0 8px; }
+.lines th { text-align: left; font-weight: 500; font-size: 12px; opacity: .7; }
+.lines td, .lines th { padding: 4px 4px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.num { text-align: right; white-space: nowrap; }
+
+.totals { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; margin-bottom: 8px; }
+.total { font-size: 20px; }
+
+.row { display: flex; gap: 6px; align-items: center; margin: 6px 0; }
+.row.wrap { flex-wrap: wrap; }
+.row.center, .center { justify-content: center; text-align: center; }
+
+button {
+  border: 1px solid transparent; border-radius: 8px; padding: 8px 12px; cursor: pointer;
+  background: var(--accent); color: var(--accent-ink);
+}
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button:disabled { opacity: .35; cursor: not-allowed; }
+button.ghost { background: transparent; color: inherit; border-color: currentColor; opacity: .85; }
+button.ghost:disabled { opacity: .3; }
+button.small { padding: 3px 8px; font-size: 12px; }
+button.primary { font-weight: 600; }
+button.big-btn { font-size: 18px; padding: 12px 22px; }
+button.seg { background: transparent; color: inherit; border-color: currentColor; padding: 4px 10px; opacity: .7; }
+button.seg.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); opacity: 1; }
+button.ff { background: var(--ff); }
+.segs { display: inline-flex; gap: 4px; }
+
+input, select {
+  padding: 6px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); min-width: 0;
+}
+
+.tag { font-size: 11px; padding: 1px 6px; border-radius: 4px; background: var(--line); color: var(--ink); white-space: nowrap; }
+.tag.age { background: var(--warn-bg); color: var(--warn); }
+.tag.warn, .tag.ff-waiting { background: var(--warn-bg); color: var(--warn); }
+.tag.ok, .tag.ff-received { background: transparent; color: var(--ok); border: 1px solid currentColor; }
+.warn { color: var(--warn); }
+.ok { color: var(--ok); }
+.muted { color: var(--muted); }
+
+.banner { border-radius: 8px; padding: 6px 10px; margin-bottom: 6px; font-weight: 600; }
+.banner.call { background: var(--call-bg); color: var(--call); }
+.banner.info { background: var(--line); }
+.banner.danger { background: var(--danger-bg); color: var(--danger); }
+
+.staff-head { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 6px; align-items: center; }
+.paybox { border: 1px dashed currentColor; border-radius: 8px; padding: 8px; margin: 6px 0; }
+.svc { display: flex; gap: 4px; margin-top: 4px; }
+.svc input { width: 7em; }
+details summary { cursor: pointer; margin-top: 6px; }
+details summary h3 { display: inline; }
+.ffmenu button.ff { background: var(--ff); }
+
+.locked, .welcome, .thanks { text-align: center; padding: 40px 8px; }
+.big { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+.mirror { margin-top: 18px; }
+.card { border-radius: 10px; padding: 12px; margin: 8px 0; text-align: center; }
+.age-card { background: var(--warn-bg); color: var(--warn); }
+.ffcheck { display: inline-flex; vertical-align: middle; margin-left: 6px; }
+.ffcheck input { width: 18px; height: 18px; accent-color: var(--ff); cursor: pointer; }
+.ffcheck input:disabled { cursor: not-allowed; }
+.change { font-size: 18px; margin: 8px 0; }
+
+.toast {
+  position: absolute; left: 10px; right: 10px; bottom: 8px; padding: 8px 10px; border-radius: 8px;
+  background: #111827; color: #fff; opacity: 0; transform: translateY(6px); pointer-events: none;
+  transition: opacity .15s, transform .15s; font-size: 13px;
+}
+.toast.show { opacity: .95; transform: none; }
+.toast.error { background: var(--danger); }
+
+button.cash { min-width: 56px; color: var(--ink); }
+button.cash.bill { background: #d1fae5; color: #065f46; }
+button.cash.coin { background: #fde68a; color: #78350f; border-radius: 999px; }
+button.emoney { background: #0ea5e9; }
+
+
+.mats { display: flex; gap: 8px; flex-wrap: wrap; }
+.mat { display: inline-flex; align-items: center; gap: 8px; border-radius: 10px; padding: 4px 12px; border: 2px solid var(--line); }
+.mat .bell { font-size: 18px; display: inline-block; }
+.mat-id { font-weight: 600; }
+.mat-state { font-size: 12px; color: var(--muted); }
+.mat.buzz { border-color: var(--call); background: var(--call-bg); }
+.mat.buzz .bell { animation: ring .25s infinite alternate; }
+@keyframes ring { from { transform: rotate(-18deg); } to { transform: rotate(18deg); } }
+@media (prefers-reduced-motion: reduce) { .mat.buzz .bell { animation: none; } }
+
+.loading, .error { padding: 24px; }
+.error { color: var(--danger); }
+
+/* ---- 画面構成：ヘッダー／アーティクル（左 2/3・右 1/3）／フッター ---- */
+.top h1 { font-size: 18px; margin: 0; }
+.top p { margin: 2px 0 0; }
+.floor, .bottom {
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.floor { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 16px; padding-block: 16px; align-items: start; }
+@media (max-width: 900px) { .floor { grid-template-columns: 1fr; } }
+.left { display: grid; gap: 16px; min-width: 0; }
+.register, .mat-area, .right {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px; min-width: 0;
+}
+.register h2, .mat-area h2, .right h2 { margin: 0 0 8px; font-size: 16px; display: flex; gap: 8px; align-items: center; }
+.hw { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; margin-top: 10px; }
+.hw-label { font-size: 12px; color: var(--muted); }
+.hw .row { margin: 0; }
+
+/* MAT は 1 行に収める（MAT とレジ 2 台が一画面に入るように） */
+.mat-area { position: relative; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding-block: 8px; }
+.mat-area h2 { margin: 0; }
+.mat-area .toast { position: static; margin-top: 8px; display: none; }
+.mat-area .toast.show { display: block; }
+/* レジ本体の呼び出しランプ（音ではなく光で知らせる）。放置が長いほど速く点滅（--blink） */
+.lamp { width: 16px; height: 16px; border-radius: 50%; background: var(--line); border: 2px solid var(--line); flex: none; }
+.lamp.on { background: #f59e0b; border-color: #b45309; box-shadow: 0 0 10px 3px rgba(245, 158, 11, .7); animation: lamp-blink var(--blink, 1s) steps(2, jump-none) infinite; }
+@keyframes lamp-blink { 50% { background: #fde68a; box-shadow: none; } }
+@media (prefers-reduced-motion: reduce) { .lamp.on { animation: none; } }
+
+/* 売り場：スクロールしてもドラッグ元が見えるよう追従させる */
+.right-col { display: grid; gap: 16px; min-width: 0; position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); max-height: calc(100vh - 24px); overflow-y: auto; }
+@media (max-width: 900px) { .right-col { position: static; max-height: none; } }
+.shelf + .shelf { margin-top: 6px; }
+.shelf h3 { margin: 0 0 4px; font-size: 12px; color: var(--muted); font-weight: 600; letter-spacing: .04em; }
+.items { display: flex; flex-wrap: wrap; gap: 4px; }
+.item {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 0; text-align: left;
+  background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 8px;
+  padding: 3px 8px; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none;
+}
+.item:hover { border-color: var(--accent); }
+.item-name { font-weight: 600; font-size: 12px; }
+.item-sub { font-size: 11px; color: var(--muted); }
+.item-sub b { color: var(--warn); font-weight: 600; }
+.item.staff { background: var(--staff-bg); color: var(--staff-ink); border-color: var(--staff-line); }
+.item.staff .item-sub { color: #9ca3af; }
+.item.card { background: var(--call-bg); color: var(--call); }
+.item.bill { background: var(--bill-bg); border-color: var(--bill-line); }
+.item.coin { background: var(--coin-bg); border-color: var(--coin-line); border-radius: 999px; }
+.item.pay { background: var(--pay-bg); border-color: var(--pay-line); }
+
+/* ドロップ先 */
+.drop-hint { display: none; margin-left: 8px; letter-spacing: 0; }
+body.dragging, body.dragging * { cursor: grabbing !important; }
+body.dragging .screen { outline: 2px dashed var(--muted); outline-offset: -2px; }
+body.dragging .drop-hint { display: inline; }
+.screen.drop-over { outline: 3px solid var(--accent) !important; outline-offset: -3px; }
+.drag-ghost {
+  position: fixed; left: 0; top: 0; z-index: 10; pointer-events: none;
+  background: var(--accent); color: var(--accent-ink); padding: 6px 10px; border-radius: 8px; font-weight: 600;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .25);
+}
+
+.bottom { border-top: 1px solid var(--line); background: var(--panel); padding-block: 8px; }
+
+/* ドラッグ中に文字が選択されないようにする（入力欄は除く） */
+.floor { user-select: none; -webkit-user-select: none; }
+.floor input, .floor select { user-select: text; -webkit-user-select: text; }
+.ffmenu { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin: 6px 0; }
+.copyright { margin: 8px 0 0; text-align: center; font-size: 12px; }
+.copyright a { color: var(--muted); }
+.copyright a:hover { color: var(--accent); }
+
+/* 操作できない側の画面（排他）：表示は続けるが、ボタンは押せない */
+.banner.watch { background: var(--line); color: var(--ink); }
+.screen.inactive [data-region] { filter: grayscale(1); opacity: .55; }
+.screen.inactive [data-region] button, .screen.inactive [data-region] input,
+.screen.inactive [data-region] select, .screen.inactive [data-region] summary { pointer-events: none; }
+.screen.inactive::after {
+  content: ""; position: absolute; inset: 0; background: var(--line); opacity: .25; pointer-events: none; border-radius: inherit;
+}
+.screen-title::after { content: ""; }
+.screen.inactive .screen-title::after { content: "　表示のみ"; font-weight: 700; }
+.screen.claimable { cursor: pointer; }
+.screen.claimable .screen-title::after { content: "　表示のみ（タッチで操作を引き継ぐ）"; }
+
+/* 店員画面に映すお客様画面の内容 */
+.mirror-head { font-size: 13px; padding: 6px 8px; border-radius: 6px; background: var(--staff-line); margin-bottom: 8px; }
+.mirror { background: var(--cust-bg); color: var(--ink); border-radius: 8px; padding: 8px 10px; }
+.mirror .muted { color: var(--muted); }
+.login-sel { margin-left: auto; display: inline-flex; gap: 6px; align-items: center; font-size: 13px; font-weight: 500; color: var(--muted); }
+.login-sel select { font-size: 13px; padding: 4px 8px; }
+
+/* 年確ルール設定（売り場タイトルの右端から開く） */
+.rules-open { margin-left: auto; }
+.rules-dlg { width: min(720px, calc(100vw - 32px)); max-height: calc(100vh - 48px); border: 1px solid var(--line); border-radius: 12px; background: var(--panel); color: var(--ink); padding: 16px; }
+.rules-dlg::backdrop { background: rgba(0, 0, 0, .45); }
+.rules-dlg .dlg-head { display: flex; align-items: center; gap: 8px; }
+.rules-dlg .dlg-head h2 { margin: 0; font-size: 16px; flex: 1; }
+.rules-dlg .toast { position: sticky; top: 0; z-index: 1; margin: 6px 0; }
+.rules-dlg .toast:not(.show) { display: none; }
+.lines.rules tr.grp th { text-align: left; padding-top: 10px; color: var(--muted); font-size: 12px; }
+.lines.rules select { font-size: 13px; padding: 3px 6px; }
+.idle { margin-left: 6px; font-size: 12px; font-weight: 400; color: var(--muted); }
+.ffmenu.center { justify-content: center; }
+/* 店舗メニューの歯車（お客様画面の右上。有人モードだけ） */
+.gear { position: absolute; top: 6px; right: 6px; z-index: 2; width: 28px; height: 28px; padding: 0; border-radius: 50%; font-size: 15px; line-height: 1; background: var(--panel); color: var(--muted); border: 1px solid var(--line); }
+.gear:hover { color: var(--ink); }
+.rules-dlg h3 { font-size: 14px; margin: 14px 0 6px; }
+/* お客様画面の店舗メニュー（一画面ずつ） */
+.menu-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.menu-head b { flex: 1; }
+.menu-list { display: grid; gap: 6px; }
+.menu-item { text-align: left; padding: 10px 12px; }
+.menu-form { display: flex; flex-wrap: wrap; gap: 6px; }
+.menu-form input { flex: 1 1 8em; min-width: 0; }
+/* 投入口・排出口（各レジの最下段。売り場側の機器） */
+/* 投入口・排出口はお客様側にしかないので、お客様画面の下にだけ置く */
+.money-io { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; margin-top: 8px; }
+.money-io-cust { grid-column: 2; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+.money-io-cust > * { min-width: 0; }
+/* 投入口・排出口はただの箱。中に「入金」「出金」のプレースホルダー */
+.money-io .inlet, .money-io .outlet {
+  height: 40px; padding: 0 12px; border: 1px solid var(--line); border-radius: 8px;
+  background: var(--panel); color: var(--ink); font: inherit; font-size: 16px; text-align: right;
+}
+.money-io .outlet { display: flex; align-items: center; justify-content: flex-end; }
+.money-io .inlet::placeholder, .money-io .outlet .placeholder { color: var(--muted); font-weight: 400; }
+@media (max-width: 760px) { .money-io { grid-template-columns: 1fr; } .money-io-cust { grid-column: 1; } }
+/* 歯車は両方の画面に出る。操作できない側の歯車は押せない */
+.screen.inactive .gear { pointer-events: none; opacity: .4; }
+.screen.inactive .gear { filter: grayscale(1); }
+
+/* セミセルフの店員呼び出しボタン（FF・サービス・たばこ・係員を呼ぶ） */
+.call-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 8px; margin-top: 10px; }
+.call-btn { touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.call-btn.pressing { filter: brightness(.8); transform: translateY(1px); box-shadow: inset 0 2px 6px rgba(0,0,0,.35); }
+.call-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 52px; padding: 6px 8px; border-radius: 10px; color: #fff; }
+.call-btn b { font-size: 15px; }
+.call-btn small { font-size: 11px; opacity: .9; }
+.call-btn.ff { background: var(--ff); }
+.call-btn.svc { background: #0f766e; }
+.call-btn.tob { background: #6d28d9; }
+.call-btn.help { background: var(--panel); color: var(--ink); border: 1px solid var(--line); }
