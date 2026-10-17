@@ -1,8 +1,8 @@
 {
-  "name": "lycoris-pos",
+  "name": "janus-pos",
   "version": "0.1.0",
   "private": true,
-  "description": "Lycoris - コンビニ向けセミセルフ POS レジのシミュレーター",
+  "description": "Janus POS - コンビニ向けセミセルフ POS レジのシミュレーター",
   "type": "module",
   "scripts": {
     "build:wasm": "bash ./scripts/rebuild-wasm.sh",

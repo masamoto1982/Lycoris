@@ -1,8 +1,8 @@
 //! 新型レジで報告された問題と、壁打ちで決めた仕様を、シナリオで検証する。
 
-use lycoris_pos_core::authority::{Action, Mode, Phase, Side, StaffState};
-use lycoris_pos_core::calls::CallKind;
-use lycoris_pos_core::store::{Command, RegisterView, Store};
+use janus_pos_core::authority::{Action, Mode, Phase, Side, StaffState};
+use janus_pos_core::calls::CallKind;
+use janus_pos_core::store::{Command, RegisterView, Store};
 use serde_json::{json, Value};
 
 const ONIGIRI: &str = "4900000000011";

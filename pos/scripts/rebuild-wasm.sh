@@ -16,10 +16,10 @@ if ! command -v wasm-pack >/dev/null 2>&1; then
 fi
 
 cd "${pos_root}/core"
-wasm-pack build --target web --release --out-dir "${scratch_dir}" --out-name lycoris_pos --no-opt -- --features wasm
+wasm-pack build --target web --release --out-dir "${scratch_dir}" --out-name janus_pos --no-opt -- --features wasm
 
 mkdir -p "${out_dir}"
-for f in lycoris_pos.js lycoris_pos.d.ts lycoris_pos_bg.wasm lycoris_pos_bg.wasm.d.ts; do
+for f in janus_pos.js janus_pos.d.ts janus_pos_bg.wasm janus_pos_bg.wasm.d.ts; do
   cp "${scratch_dir}/${f}" "${out_dir}/${f}"
 done
 echo "rebuild-wasm: refreshed ${out_dir}"

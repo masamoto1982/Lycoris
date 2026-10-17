@@ -7,7 +7,7 @@
 // - 買い物は、右の売り場から商品をレジの画面へドラッグ＆ドロップして再現する。
 //   店員画面に落とせば店員側スキャナー、お客様画面に落とせばお客様側スキャナーで読んだことになる。
 
-import init, { PosSimulator } from "./wasm/generated/lycoris_pos.js";
+import init, { PosSimulator } from "./wasm/generated/janus_pos.js";
 import type { Command, Snapshot } from "./types";
 import {
   auditPanel,
@@ -26,7 +26,7 @@ import {
 declare global {
   interface Window {
     /** 単一 HTML 版でだけ埋め込まれる WASM 本体（base64） */
-    __LYCORIS_WASM_B64__?: string;
+    __JANUS_WASM_B64__?: string;
   }
 }
 
@@ -45,7 +45,7 @@ function bytesFromB64(b64: string): Uint8Array {
 }
 
 async function boot(): Promise<void> {
-  const b64 = window.__LYCORIS_WASM_B64__;
+  const b64 = window.__JANUS_WASM_B64__;
   await init(b64 ? { module_or_path: bytesFromB64(b64) } : undefined);
   reset(2, 1);
   setupDrag();
@@ -104,7 +104,7 @@ function buildSkeleton(): void {
   const staffList = snap.accounts.map((a) => `${esc(a.name)}`).join("・");
   app.innerHTML = `
     <header class="top">
-      <h1>Real POS</h1>
+      <h1>Janus POS</h1>
       <p class="muted">右の売り場から商品をつかんで、レジの店員画面かお客様画面に落とすと、その側のスキャナーで読んだことになります。</p>
     </header>
     <article class="floor">
