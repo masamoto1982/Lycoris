@@ -194,6 +194,11 @@ pub enum Command {
     TakeOutlet {
         register: u8,
     },
+    /// 有人モードで、グレーの画面にタッチして操作を引き継ぐ
+    Claim {
+        register: u8,
+        side: Side,
+    },
     AddAgeRule {
         owner_id: String,
         password: String,
@@ -247,7 +252,36 @@ impl Command {
             | C::CashIn { register, .. }
             | C::OpenMenu { register, .. }
             | C::Insert { register, .. }
-            | C::TakeOutlet { register, .. } => Some(*register),
+            | C::TakeOutlet { register, .. }
+            | C::Claim { register, .. } => Some(*register),
+            _ => None,
+        }
+    }
+
+    /// どちらの画面が触られたか（機器の操作と店舗全体の操作は None）
+    fn screen(&self) -> Option<Side> {
+        use Command as C;
+        match self {
+            C::RegisterFf { side, .. }
+            | C::RemoveLine { side, .. }
+            | C::Checkout { side, .. }
+            | C::BackToRegistering { side, .. }
+            | C::SelectPayment { side, .. }
+            | C::Claim { side, .. } => Some(*side),
+            // 店舗メニューと入出金はお客様画面で行う
+            C::FfButton { .. }
+            | C::ConfirmFfReceipt { .. }
+            | C::ConfirmAge { .. }
+            | C::CallStaff { .. }
+            | C::OpenMenu { .. }
+            | C::CashOut { .. }
+            | C::CashIn { .. } => Some(Side::Customer),
+            C::HandOverFf { .. }
+            | C::CompleteService { .. }
+            | C::VoidTransaction { .. }
+            | C::SetMode { .. }
+            | C::Lock { .. }
+            | C::EndStaffMode { .. } => Some(Side::Staff),
             _ => None,
         }
     }
@@ -411,6 +445,17 @@ struct Register {
     outlet: Cash,
     /// お客様画面に開いている店舗メニュー
     menu: Option<Menu>,
+    /// 有人モードで画面を持っている側
+    holder: Side,
+    /// 各画面が最後に触られた時刻（[店員, お客様]）
+    touched: [Option<u64>; 2],
+}
+
+fn slot(side: Side) -> usize {
+    match side {
+        Side::Staff => 0,
+        Side::Customer => 1,
+    }
 }
 
 impl Register {
@@ -460,6 +505,7 @@ impl Register {
             method: t.method,
             customer_turn: t.customer_turn,
             menu_open: self.menu.is_some(),
+            holder: self.holder,
         }
     }
 }
@@ -503,6 +549,8 @@ fn staff_side() -> Side {
 
 /// 無操作がこの時間続くと、レジはセミセルフモードに戻って待機する
 pub const IDLE_REVERT_MS: u64 = 5 * 60 * 1000;
+/// 画面を持っている側がこの時間触られていなければ、もう一方が引き継げる
+pub const HOLD_MS: u64 = 3 * 1000;
 
 impl Store {
     /// 基本構成はレジ 2 台・MAT 1 台。レジは 10 台、MAT は 5 台まで増やせる。
@@ -522,6 +570,8 @@ impl Store {
                     last_op: 0,
                     outlet: Cash::default(),
                     menu: None,
+                    holder: Side::Customer,
+                    touched: [None, None],
                 }
             })
             .collect();
@@ -627,7 +677,14 @@ impl Store {
                 r.last_op = now;
             }
         }
+        let screen = cmd.screen().zip(cmd.register());
         let res = self.apply(cmd);
+        if let (Ok(_), Some((side, id))) = (&res, screen) {
+            let now = self.now;
+            if let Ok(r) = self.reg_mut(id) {
+                r.touched[slot(side)] = Some(now);
+            }
+        }
         let self_ok = self.self_mode_enabled;
         for r in &mut self.registers {
             r.sync_mode(self_ok);
@@ -741,8 +798,6 @@ impl Store {
                 let r = self.reg_mut(register)?;
                 if !r.txn.service_pending() {
                     self.calls.resolve(register, CallKind::Service, self.now);
-                }
-                if side == Side::Staff {
                 }
                 done(format!("{}を取り消しました", l.name))
             }
@@ -889,6 +944,7 @@ impl Store {
                 r.outlet = Cash::default();
                 done(format!("排出口から {total}円を取り出しました"))
             }
+            C::Claim { register, side } => self.claim(register, side),
             C::AddAgeRule {
                 owner_id,
                 password,
@@ -969,6 +1025,11 @@ impl Store {
                 account: acc,
                 locked: false,
             });
+            // ログイン直後はお客様画面が操作側。支払い中の引き継ぎなら店員側
+            if was == StaffState::Absent || took_over {
+                r.holder = if took_over { Side::Staff } else { Side::Customer };
+                r.touched = [None, None];
+            }
             // ログインで店員側が操作できるようになる（お客様の支払い中でも）
             r.txn.customer_turn = false;
             self.calls.resolve(register, CallKind::CustomerHelp, now);
@@ -1046,8 +1107,8 @@ impl Store {
             r.txn.method = None;
             r.txn.customer_turn = false;
         }
-        if side == Side::Customer {
-            // お客様が自分で取った FF。お渡し・受取確認はない
+        if side == Side::Customer && r.mode == Mode::FullSelf {
+            // セルフモードでお客様が自分で取った FF。お渡し・受取確認はない
             r.txn.push(
                 p,
                 qty,
@@ -1126,6 +1187,39 @@ impl Store {
     }
 
     /// 投入口：店舗メニューの入金・両替画面が開いていればそちら、なければお会計の支払い
+    /// グレーの画面にタッチして操作を引き継ぐ。持っている側がしばらく
+    /// 触られていないときだけ。お客様の確認待ちなどはお客様側のまま
+    fn claim(&mut self, register: u8, side: Side) -> Result<Outcome, String> {
+        let now = self.now;
+        let r = self.reg_mut(register)?;
+        let c = r.context();
+        if active_side(&c) == side {
+            return Ok(Outcome::default());
+        }
+        if active_side(&Context { holder: side, ..c }) != side {
+            return Err(if c.menu_open {
+                "お客様画面で店舗メニューを操作中です"
+            } else if c.staff != StaffState::Ready {
+                "スタッフバーコードでログインしてください"
+            } else if c.age_pending || c.ff_presented {
+                "お客様の確認を待っています"
+            } else {
+                "お客様がお支払い中です"
+            }
+            .into());
+        }
+        let other = r.touched[slot(r.holder)];
+        if other.is_some_and(|t| now.saturating_sub(t) < HOLD_MS) {
+            return Err(match r.holder {
+                Side::Staff => "係員側の画面が操作中です",
+                Side::Customer => "お客様側の画面が操作中です",
+            }
+            .into());
+        }
+        r.holder = side;
+        Ok(Outcome::default())
+    }
+
     fn insert(&mut self, register: u8, amount: u32) -> Result<Outcome, String> {
         if amount == 0 {
             return Err("金額を入力してください".into());
@@ -1439,6 +1533,8 @@ impl Store {
         RegisterView {
             id: r.id,
             active_side: active_side(&c),
+            switchable: active_side(&Context { holder: Side::Staff, ..c })
+                != active_side(&Context { holder: Side::Customer, ..c }),
             mode: r.mode,
             mode_label: r.mode.label(),
             outlet: r.outlet.total(),
@@ -1567,6 +1663,8 @@ pub struct RegisterView {
     pub id: u8,
     /// 今、画面を操作できる側（もう一方は表示だけ）
     pub active_side: Side,
+    /// グレーの画面にタッチして操作を引き継げる状態か（有人モードで、お客様の確認待ちなどでない）
+    pub switchable: bool,
     pub mode: Mode,
     pub mode_label: &'static str,
     /// 排出口にたまっているお金

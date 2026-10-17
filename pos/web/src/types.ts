@@ -95,6 +95,8 @@ export interface RegisterView {
   id: number;
   /** 今、画面を操作できる側（もう一方は表示だけ） */
   active_side: Side;
+  /** 有人モードで、グレーの画面にタッチして操作を引き継げる */
+  switchable: boolean;
   mode: Mode;
   mode_label: string;
   idle_revert_in: number | null;

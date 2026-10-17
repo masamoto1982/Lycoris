@@ -214,12 +214,14 @@ export function customerScreen(r: RegisterView, ff: Snapshot["ff_stock"] = []): 
   const a = (n: string) => find(c.actions, n);
   // セミセルフ（名札なし）とセルフは、お客様が自分で登録・会計する
   const self = r.mode !== "attended";
-  // セルフモード（将来の拡張）では、お客様がケースから取った FF も自分で登録する
-  const ffMenu = r.mode === "full_self"
-    ? `<div class="ffmenu center"><span class="muted">FF（揚げ物・中華まん）</span>${ff
+  // セルフモード（将来の拡張）では、お客様がケースから取った FF も自分で登録する。
+  // 有人モードでは、係員がお客様画面からも FF を登録できる（お渡しは係員）
+  const attended = r.mode === "attended";
+  const ffMenu = r.mode === "full_self" || attended
+    ? `<div class="ffmenu center"><span class="muted">${attended ? "FF 登録" : "FF（揚げ物・中華まん）"}</span>${ff
         .map((f) =>
           btn(
-            `${f.name} ${yen(f.price)}`,
+            attended ? `${f.name}（残${f.stock}）` : `${f.name} ${yen(f.price)}`,
             { type: "register_ff", register: reg, side: "customer", code: f.code, qty: 1 },
             f.stock > 0 ? a("register_ff") : { action: "register_ff", allowed: false, reason: "売り切れです" },
             "small ff",

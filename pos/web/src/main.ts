@@ -132,8 +132,8 @@ function buildSkeleton(): void {
         <ol class="help">
           <li>運用モードは名札で決まります。名札なし＝セミセルフ（お客様が自分で登録・会計）、名札あり＝有人。セルフは将来の拡張用で、いまは OFF です。</li>
           <li>セミセルフ：商品をお客様画面に落として「お会計」。缶ビールなら年確の呼び出しで MAT が鳴ります。レジ名の右の「店員」でログインすると有人モードになり、「20歳以上です」が押せます。</li>
-          <li>有人：「店員」で名前を選んでログインし、商品を店員画面に落として「会計」します。</li>
-          <li>FF：セミセルフのお客様画面で「FF を注文」→ ログイン（有人）→ FF 登録 →「お渡し」→ お客様画面で「受け取りました」。</li>
+          <li>有人：「店員」で名前を選んでログインすると、まずお客様画面が操作側になります。グレーの画面にタッチすると、操作している側が3秒触られていなければ操作を引き継げます。店員画面で「会計」します。</li>
+          <li>FF：有人モードでは店員画面からもお客様画面からも FF を登録できます。セミセルフではお客様画面の「FF を注文」で係員を呼びます。登録後は「お渡し」→ お客様画面で「受け取りました」。</li>
           <li>宅急便・代行収納をお客様画面に落とすと係員の呼び出しになり、店員が金額を入れて受け付けます。</li>
           <li>有人モードは、取引のない状態で5分間操作がないとログアウトしてセミセルフに戻ります。残り時間はレジ名の横に出ます。</li>
           <li>お金は各レジ最下段の投入口に金額を入れて投入します。おつりや出金したお金は排出口に出て、タッチすると取り出せます。店舗メニュー：有人モード（ログイン中）だとお客様画面の右上に ⚙ が出ます。返品返金・緊急出金・経費支出は店舗パスワード <b>7777</b>（ログインとは別）、取引外入金と自動釣銭機の両替は投入口を使い、パスワード不要です。年確ルールは売り場の「年確ルール設定」から、オーナー 9001 / <b>9999</b> で商品ごとに変更できます。</li>
@@ -199,8 +199,12 @@ function render(): void {
       sel.value = acc?.barcode ?? "";
     }
     // 操作できない側の画面は表示のみ（排他）
-    app.querySelector(`[data-drop="${r.id}:staff"]`)?.classList.toggle("inactive", r.active_side !== "staff");
-    app.querySelector(`[data-drop="${r.id}:customer"]`)?.classList.toggle("inactive", r.active_side !== "customer");
+    for (const side of ["staff", "customer"] as const) {
+      const el = app.querySelector(`[data-drop="${r.id}:${side}"]`);
+      el?.classList.toggle("inactive", r.active_side !== side);
+      // 有人モードでは、グレーの画面にタッチして操作を引き継げる
+      el?.classList.toggle("claimable", r.active_side !== side && r.switchable);
+    }
     // 店舗メニューの歯車は、名札でログインした店員がいる（有人モード）ときだけ出す
     app.querySelectorAll<HTMLButtonElement>(`[data-gear="${r.id}"]`).forEach((g) => (g.hidden = r.staff.state !== "ready"));
     const idle = r.idle_revert_in;
@@ -320,6 +324,13 @@ app.addEventListener("change", (e) => {
 const rulesDlg = (): HTMLDialogElement => document.getElementById("rules-dlg") as HTMLDialogElement;
 
 app.addEventListener("click", (e) => {
+  // 有人モードでグレーの画面にタッチすると、操作をその画面に引き継ぐ
+  const idle = (e.target as Element).closest<HTMLElement>(".screen.claimable[data-drop]");
+  if (idle) {
+    const [reg, side] = idle.dataset.drop!.split(":");
+    send({ type: "claim", register: Number(reg), side });
+    return;
+  }
   const b = (e.target as Element).closest("button");
   if (!b || b.disabled) return;
   if (b.hasAttribute("data-open-rules")) return rulesDlg().showModal();

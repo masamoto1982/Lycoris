@@ -46,9 +46,15 @@ fn scan(s: &mut Store, r: u8, side: &str, code: &str) {
     );
 }
 
-/// 名札（山田）を読んでログインする。ログイン中は有人モード
+/// 名札（山田）を読んでログインし、店員画面にタッチして操作を引き継ぐ。
+/// ログイン中は有人モード（ログイン直後はお客様画面が操作側）
 fn login(s: &mut Store, r: u8) {
-    scan(s, r, "staff", "ST1001");
+    login_as(s, r, "ST1001");
+}
+
+fn login_as(s: &mut Store, r: u8, badge: &str) {
+    scan(s, r, "staff", badge);
+    ok(s, json!({"type":"claim","register":r,"side":"staff"}));
 }
 
 fn advance(s: &mut Store, ms: u64) {
@@ -232,7 +238,7 @@ fn fast_food_flow_in_semi_self_mode() {
     )
     .is_err());
     ok(&mut s, json!({"type":"ff_button","register":2}));
-    scan(&mut s, 2, "staff", "ST1001");
+    login_as(&mut s, 2, "ST1001");
     ok(
         &mut s,
         json!({"type":"register_ff","register":2,"code":"FF01","qty":2}),
@@ -284,7 +290,7 @@ fn service_item_needs_staff() {
         .calls
         .iter()
         .any(|c| c.kind == CallKind::Service));
-    scan(&mut s, 2, "staff", "ST1001");
+    login_as(&mut s, 2, "ST1001");
     let id = reg(&s, 2).staff.lines[0].line.id;
     ok(
         &mut s,
@@ -328,7 +334,7 @@ fn calls_stay_on_originating_register() {
     assert!(snap.registers[0].staff.calls.is_empty());
     assert!(snap.registers[2].staff.calls.is_empty());
     // 後から来たレジ4を先に片付けても、レジ2は残る
-    scan(&mut s, 4, "staff", "ST1002");
+    login_as(&mut s, 4, "ST1002");
     let snap = s.snapshot();
     assert_eq!(snap.calls.len(), 1);
     assert_eq!(snap.calls[0].register, 2);
@@ -567,4 +573,55 @@ fn store_menu_uses_inlet_and_outlet() {
     ok(&mut s, json!({"type":"scan","register":1,"side":"staff","code":"ST1002"}));
     ok(&mut s, json!({"type":"end_staff_mode","register":1}));
     assert!(reg(&s, 1).menu.is_none());
+}
+
+/// 有人モード：ログイン直後はお客様画面が操作側。FF はどちらの画面からも登録でき、
+/// 操作している画面が触られていなければ、もう一方がタッチで引き継ぐ。
+#[test]
+fn attended_screen_is_held_by_one_side_at_a_time() {
+    let mut s = Store::new(1, 2, 1);
+    scan(&mut s, 1, "staff", "ST1001");
+    let v = reg(&s, 1);
+    assert_eq!(v.mode, Mode::Attended);
+    assert_eq!(v.active_side, Side::Customer);
+    assert!(allowed(&v, Side::Customer, Action::RegisterFf));
+    assert!(!allowed(&v, Side::Staff, Action::RegisterFf));
+    // お客様画面から FF を登録（係員がお渡しする）
+    ok(
+        &mut s,
+        json!({"type":"register_ff","register":1,"side":"customer","code":"FF01","qty":1}),
+    );
+    assert!(reg(&s, 1).staff.calls.is_empty());
+    // お客様画面を触った直後は、店員画面から引き継げない
+    let e = run(&mut s, json!({"type":"claim","register":1,"side":"staff"})).unwrap_err();
+    assert!(e.contains("操作中"), "{e}");
+    assert!(run(
+        &mut s,
+        json!({"type":"register_ff","register":1,"side":"staff","code":"FF02","qty":1})
+    )
+    .is_err());
+    // しばらく触られなければ、店員画面にタッチして引き継ぐ
+    advance(&mut s, 3_000);
+    ok(&mut s, json!({"type":"claim","register":1,"side":"staff"}));
+    assert_eq!(reg(&s, 1).active_side, Side::Staff);
+    ok(
+        &mut s,
+        json!({"type":"register_ff","register":1,"side":"staff","code":"FF02","qty":1}),
+    );
+    // 2 品とも「お渡し待ち」
+    let v = reg(&s, 1);
+    assert_eq!(v.staff.lines.len(), 2);
+    assert!(allowed(&v, Side::Staff, Action::HandOverFf));
+    assert!(run(
+        &mut s,
+        json!({"type":"register_ff","register":1,"side":"customer","code":"FF01","qty":1})
+    )
+    .is_err());
+    // お渡しするとお客様の受取確認（お客様側）。確認後は店員側のまま
+    ok(&mut s, json!({"type":"hand_over_ff","register":1}));
+    assert_eq!(reg(&s, 1).active_side, Side::Customer);
+    let e = run(&mut s, json!({"type":"claim","register":1,"side":"staff"})).unwrap_err();
+    assert!(e.contains("確認"), "{e}");
+    ok(&mut s, json!({"type":"confirm_ff_receipt","register":1}));
+    assert_eq!(reg(&s, 1).active_side, Side::Staff);
 }
