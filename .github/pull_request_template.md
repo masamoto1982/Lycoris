@@ -20,6 +20,7 @@
 - [ ] `cargo test --all-targets --verbose` (in `rust/`)
 - [ ] `npm run check`, if applicable
 - [ ] `cargo llvm-cov --branch --workspace`, if applicable
+- [ ] `cargo kani` (in `rust/`), if a proved kernel changed
 - [ ] MC/DC-like checklist reviewed for modified boolean logic
 - [ ] Release checklist impact considered
 

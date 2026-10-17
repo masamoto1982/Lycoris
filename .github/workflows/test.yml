@@ -517,3 +517,27 @@ jobs:
       - name: Run WASM boundary tests
         working-directory: rust/wasm-tests
         run: wasm-pack test --node
+
+  formal-verification:
+    name: Formal Verification (Kani)
+    runs-on: ubuntu-latest
+    # Bounded model checking of the harnesses under `cfg(kani)`
+    # (docs/quality/FORMAL_VERIFICATION.md). Each passing harness is a proof
+    # over every input it names, which the sampled property tests are not.
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      # Kani pins its own nightly toolchain and solvers; the version is
+      # pinned here so a Kani release cannot change what is proved.
+      - name: Install Kani
+        run: |
+          cargo install --locked kani-verifier --version 0.68.0
+          cargo kani setup
+
+      - name: Prove every harness
+        working-directory: rust
+        run: cargo kani --jobs --output-format terse

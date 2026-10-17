@@ -54,6 +54,16 @@ Define minimum verification evidence required for Ajisai changes.
   (`scripts/coverage-summary.mjs`), and the `rust-coverage` and `ts-coverage`
   artifacts hold the LCOV and HTML reports.
 
+## Formal Verification
+- `cargo kani` (run in `rust/`) proves the bounded-model-checking harnesses
+  under `cfg(kani)`: every input a harness names, not a sample of them. It is
+  blocking, in the `formal-verification` job of `.github/workflows/test.yml`.
+  Installation, the two kinds of harness and how to add one are in
+  `FORMAL_VERIFICATION.md`.
+- A change to a kernel a harness proves (`rust/src/types/small_rational.rs`,
+  the lane tables of `rust/src/interpreter/truth_ops.rs`) runs its harnesses
+  locally before review: `cargo kani --harness <name>`.
+
 ## Level-Based Evidence Expectations
 - **QL-A**
   - Baseline checks + targeted semantic/regression tests.
