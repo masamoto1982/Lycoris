@@ -65,6 +65,11 @@ wasm = [
   "dep:wasm-bindgen-futures", "dep:console_error_panic_hook", "dep:web-sys",
 ]
 
+# `cfg(kani)` is set by `cargo kani`, which compiles the bounded-model-checking
+# harnesses (docs/quality/FORMAL_VERIFICATION.md); a plain build never sees it.
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ["cfg(kani)"] }
+
 [dev-dependencies]
 tokio = { version = "1.0", features = ["macros", "rt-multi-thread"] }
 proptest = "1"

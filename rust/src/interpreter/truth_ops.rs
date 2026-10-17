@@ -73,12 +73,19 @@ pub(crate) fn negate(value: &mut Value) -> bool {
         return false;
     };
     for code in Arc::make_mut(column).codes_mut() {
-        // FALSE (0) and TRUE (1) differ in the low bit alone.
-        if *code < UNKNOWN {
-            *code ^= 1;
-        }
+        *code = negate_code(*code);
     }
     true
+}
+
+/// One lane of `NOT`. FALSE (0) and TRUE (1) differ in the low bit alone.
+#[inline]
+fn negate_code(code: u8) -> u8 {
+    if code < UNKNOWN {
+        code ^ 1
+    } else {
+        code
+    }
 }
 
 /// The strong Kleene conjunction, `CONJUNCTION[3 * a + b]`. Where the law
@@ -238,3 +245,7 @@ fn is_container(value: &Value) -> bool {
             | ValueData::Truths(_)
     )
 }
+
+#[cfg(kani)]
+#[path = "truth_ops_proofs.rs"]
+mod proofs;

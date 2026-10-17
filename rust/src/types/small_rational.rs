@@ -310,3 +310,7 @@ pub(crate) fn div_total(a: Pair, b: Pair) -> Option<Pair> {
 pub(crate) fn order_total(a: Pair, b: Pair) -> Option<Ordering> {
     (a.1 != 0 && b.1 != 0).then(|| order(a, b))
 }
+
+#[cfg(kani)]
+#[path = "small_rational_proofs.rs"]
+mod proofs;
