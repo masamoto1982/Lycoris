@@ -186,7 +186,7 @@ export function storeMenu(r: RegisterView): string {
     case "expense": {
       const cout = find(v.actions, "cash_out");
       return `${head(MENU_LABEL[m.screen])}
-        <p class="muted">お金を抜く操作です。店舗パスワードが毎回必要で、お金は排出口に出ます。</p>
+        <p class="muted">お金を抜く操作です。店舗パスワードが毎回必要で、お金は下の「出金」ボックスに出ます。</p>
         <div class="menu-form">
           <input type="number" inputmode="numeric" min="1" placeholder="金額" data-key="mo-amt-${reg}" />
           <input type="password" inputmode="numeric" placeholder="店舗パスワード" data-key="mo-pw-${reg}" autocomplete="off" />
@@ -195,7 +195,7 @@ export function storeMenu(r: RegisterView): string {
     }
     case "deposit":
       return `${head(MENU_LABEL.deposit)}
-        <p>入金するお金を<b>投入口</b>に入れてください。</p>
+        <p>入金する金額を下の<b>「入金」ボックス</b>に入れて Enter を押してください。</p>
         <p class="muted">お金を入れる操作なのでパスワードは要りません。記録は担当者名つきで残ります。</p>`;
     case "changer": {
       const have = (d: number) => v.drawer.find(([x]) => x === d)?.[1] ?? 0;
@@ -204,7 +204,7 @@ export function storeMenu(r: RegisterView): string {
         .join("");
       return `${head(MENU_LABEL.changer)}
         <div class="row wrap">受け取る金種 ${segs}</div>
-        <p>両替するお金を<b>投入口</b>に入れてください。同じ額を ${m.exchange_to.toLocaleString()}円 で<b>排出口</b>に出します。</p>
+        <p>両替する金額を<b>「入金」ボックス</b>に入れて Enter を押してください。同じ額を ${m.exchange_to.toLocaleString()}円 で<b>「出金」ボックス</b>に出します。</p>
         <p class="muted">釣銭機の ${m.exchange_to.toLocaleString()}円：残り ${have(m.exchange_to)} 枚　在高 ${yen(v.drawer_total)}</p>`;
     }
   }

@@ -932,10 +932,10 @@ impl Store {
                 let r = self.reg_mut(register)?;
                 let total = r.outlet.total();
                 if total == 0 {
-                    return Err("排出口にお金はありません".into());
+                    return Err("出金ボックスにお金はありません".into());
                 }
                 r.outlet = Cash::default();
-                done(format!("排出口から {total}円を取り出しました"))
+                done(format!("{total}円を取り出しました"))
             }
             C::Claim { register, side } => self.claim(register, side),
             C::AddAgeRule {
@@ -1249,7 +1249,7 @@ impl Store {
             amount,
             result: "実行".into(),
         });
-        done(format!("{amount}円を {to}円×{} に両替しました。排出口から取り出してください", amount / to))
+        done(format!("{amount}円を {to}円×{} に両替しました。出金ボックスから取り出してください", amount / to))
     }
 
     fn pay_cash(&mut self, register: u8, c: Cash) -> Result<Outcome, String> {
@@ -1360,7 +1360,7 @@ impl Store {
             Ok(c) => {
                 r.outlet.merge(&c);
                 log(self, "実行".into());
-                done(format!("{} {amount}円を出金しました。排出口から取り出してください", kind.label()))
+                done(format!("{} {amount}円を出金しました。出金ボックスから取り出してください", kind.label()))
             }
             Err(e) => {
                 log(self, format!("失敗：{e}"));

@@ -95,11 +95,8 @@ function buildSkeleton(): void {
       </div>
       <div class="money-io" aria-label="レジ${r.id}の投入口と排出口（お客様側だけにあります）">
         <div class="money-io-cust">
-        <div class="inlet"><span class="hw-label">投入口</span>
-          <input type="number" inputmode="numeric" min="1" placeholder="金額" data-key="in-${r.id}" aria-label="レジ${r.id}の投入口に入れる金額" />
-          <button data-form="insert" data-reg="${r.id}">入れる</button>
-        </div>
-        <button type="button" class="outlet" data-outlet="${r.id}" aria-label="レジ${r.id}の排出口（タッチで取り出す）"><span class="hw-label">排出口</span><span data-region="outlet-${r.id}"></span></button>
+        <input class="inlet" type="text" inputmode="numeric" autocomplete="off" placeholder="入金" data-key="in-${r.id}" data-inlet="${r.id}" aria-label="レジ${r.id}の投入口（金額を入れてEnter）" />
+        <button type="button" class="outlet" data-outlet="${r.id}" aria-label="レジ${r.id}の排出口（金額をタッチで取り出す）"><span data-region="outlet-${r.id}"></span></button>
         </div>
       </div>
     </section>`,
@@ -136,7 +133,7 @@ function buildSkeleton(): void {
           <li>FF：有人モードでは店員画面からもお客様画面からも FF を登録できます。セミセルフではお客様画面の「FF を注文」で係員を呼びます。FF の明細は個数の右のチェックボックスにお渡し確認のチェックを入れるまで、会計に進めません。</li>
           <li>宅急便・代行収納をお客様画面に落とすと係員の呼び出しになり、店員が金額を入れて受け付けます。</li>
           <li>有人モードは、取引のない状態で5分間操作がないとログアウトしてセミセルフに戻ります。残り時間はレジ名の横に出ます。</li>
-          <li>お金は各レジ最下段の投入口に金額を入れて投入します。おつりや出金したお金は排出口に出て、タッチすると取り出せます。店舗メニュー：有人モード（ログイン中）だとお客様画面の右上に ⚙ が出ます。返品返金・緊急出金・経費支出は店舗パスワード <b>7777</b>（ログインとは別）、取引外入金と自動釣銭機の両替は投入口を使い、パスワード不要です。年確ルールは売り場の「年確ルール設定」から、オーナー 9001 / <b>9999</b> で商品ごとに変更できます。</li>
+          <li>お金は各レジ最下段の「入金」ボックスに金額を打ち込んで Enter で入れます。おつりや出金したお金は「出金」ボックスに金額が出て、金額をタッチすると取り出せます。店舗メニュー：有人モード（ログイン中）だとお客様画面の右上に ⚙ が出ます。返品返金・緊急出金・経費支出は店舗パスワード <b>7777</b>（ログインとは別）、取引外入金と自動釣銭機の両替は「入金」ボックスを使い、パスワード不要です。年確ルールは売り場の「年確ルール設定」から、オーナー 9001 / <b>9999</b> で商品ごとに変更できます。</li>
         </ol>
         <p class="muted">店員：${staffList}（各レジのレジ名の右にある「店員」で選ぶとログインします。「未ログイン」でログアウト）</p>
       </section>
@@ -220,9 +217,7 @@ function render(): void {
     setRegion(`cust-${r.id}`, shared);
     setRegion(
       `outlet-${r.id}`,
-      r.outlet
-        ? `<b>${r.outlet.toLocaleString()}円</b><small>${r.outlet_detail.map(([d, n]) => `${d.toLocaleString()}×${n}`).join(" ")}　タッチで取り出す</small>`
-        : `<span class="muted">空</span>`,
+      r.outlet ? `<b title="${r.outlet_detail.map(([d, n]) => `${d.toLocaleString()}円×${n}`).join(" ")}">${r.outlet.toLocaleString()}円</b>` : `<span class="placeholder">出金</span>`,
     );
   }
   setRegion("mats", matPanel(snap));
@@ -293,11 +288,20 @@ function form(b: HTMLElement): void {
       });
       clear(`mo-pw-${reg}`);
       break;
-    case "insert":
-      if (send({ type: "insert", register: reg, amount: Number(val(`in-${reg}`) || 0) })) clear(`in-${reg}`);
-      break;
   }
 }
+
+// 投入口：数字だけを受け付け、Enter で入れる
+app.addEventListener("input", (e) => {
+  const el = e.target as HTMLInputElement;
+  if (el.dataset.inlet) el.value = el.value.replace(/[^0-9０-９]/g, "");
+});
+app.addEventListener("keydown", (e) => {
+  const el = e.target as HTMLInputElement;
+  if (!el.dataset?.inlet || e.key !== "Enter" || e.isComposing) return;
+  const amount = Number(el.value.replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0)) || 0);
+  if (send({ type: "insert", register: Number(el.dataset.inlet), amount })) el.value = "";
+});
 
 app.addEventListener("change", (e) => {
   const sel = e.target as HTMLSelectElement;
