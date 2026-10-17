@@ -1,0 +1,5 @@
+node_modules/
+dist/
+core/target/
+core/Cargo.lock
+web/src/wasm/generated/

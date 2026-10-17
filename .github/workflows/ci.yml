@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  pos:
+    name: Janus POS
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Rust (with wasm target)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Rust tests
+        working-directory: pos/core
+        run: cargo test --verbose
+
+      - name: Cache wasm-pack
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/wasm-pack
+          key: ${{ runner.os }}-wasm-pack-0.13.1
+
+      - name: Install wasm-pack
+        run: bash ./scripts/install-wasm-pack.sh
+
+      - name: Build WASM bundle
+        run: bash ./pos/scripts/rebuild-wasm.sh
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        working-directory: pos
+        run: npm install
+
+      - name: Vitest
+        working-directory: pos
+        run: npm test
+
+      - name: Typecheck and build
+        working-directory: pos
+        run: npm run build
