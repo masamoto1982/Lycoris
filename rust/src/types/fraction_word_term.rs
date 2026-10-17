@@ -21,7 +21,7 @@
 //! the two equal.
 
 use super::fraction::{Fraction, FractionRepr};
-use super::small_divisor::{div_two_by_one, div_word, gcd_word};
+use super::small_divisor::{div_two_by_one, div_word, gcd_word, reciprocal};
 use num_bigint::{BigInt, BigUint, Sign};
 use num_traits::Zero;
 
@@ -43,11 +43,9 @@ impl Divisor {
         debug_assert!(d != 0);
         let shift = d.leading_zeros();
         let normalized = d << shift;
-        let reciprocal =
-            ((u128::MAX - (u128::from(normalized) << 64)) / u128::from(normalized)) as u64;
         Self {
             normalized,
-            reciprocal,
+            reciprocal: reciprocal(normalized),
             shift,
         }
     }

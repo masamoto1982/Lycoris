@@ -49,6 +49,13 @@ pub(crate) fn div_two_by_one(u1: u64, u0: u64, d: u64, v: u64) -> (u64, u64) {
     (quotient, remainder)
 }
 
+/// The reciprocal `⌊(2¹²⁸ − 1) / d⌋ − 2⁶⁴` of a normalized `d` (top bit set),
+/// which [`div_two_by_one`] takes.
+#[inline]
+pub(crate) fn reciprocal(normalized: u64) -> u64 {
+    ((u128::MAX - (u128::from(normalized) << 64)) / u128::from(normalized)) as u64
+}
+
 /// Walk `magnitude` shifted left by the divisor's normalizing shift, most
 /// significant digit first, handing each digit to `step` with the running
 /// remainder; answers the final remainder, shifted back.
@@ -57,7 +64,7 @@ fn walk(magnitude: &BigUint, d: u64, mut step: impl FnMut(u64, u64) -> u64) -> u
     debug_assert!(d != 0);
     let shift = d.leading_zeros();
     let normalized = d << shift;
-    let reciprocal = ((u128::MAX - (u128::from(normalized) << 64)) / u128::from(normalized)) as u64;
+    let reciprocal = reciprocal(normalized);
     let mut digits = magnitude.iter_u64_digits().rev();
     let mut remainder = 0u64;
     let mut take = |x: u64, remainder: u64| -> u64 {
@@ -139,3 +146,7 @@ pub(crate) fn quotient(a: &BigInt, d: &BigInt) -> BigInt {
 #[cfg(test)]
 #[path = "small_divisor_tests.rs"]
 mod small_divisor_tests;
+
+#[cfg(kani)]
+#[path = "small_divisor_proofs.rs"]
+mod proofs;
