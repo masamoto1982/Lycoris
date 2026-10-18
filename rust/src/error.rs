@@ -1,4 +1,5 @@
 use crate::diagnostic_hint::{reported_domain, unknown_word_hint, usage_hint};
+use crate::interpreter::tensor_ops::aligned_dim;
 use std::fmt;
 
 pub type Result<T> = std::result::Result<T, AjisaiError>;
@@ -312,7 +313,12 @@ impl AjisaiError {
     /// One condition for every alignment a Word performs — lifting, pairing
     /// keys with values, zipping rows — so a length that differs is
     /// `shapeMismatch` whichever Word noticed it.
+    ///
+    /// `axis` counts the right-aligned axes of the two shapes, so the lengths
+    /// reported are the ones that met there, not `left[axis]` and
+    /// `right[axis]`: for `[2, 3]` against `[4]` axis 1 is 3 and 4.
     pub fn shape_mismatch(left: &[usize], right: &[usize], axis: usize) -> Self {
+        let rank = left.len().max(right.len());
         AjisaiError::declared(
             "shapeMismatch",
             format!(
@@ -320,8 +326,8 @@ impl AjisaiError {
                 left,
                 right,
                 axis,
-                left.get(axis).copied().unwrap_or(1),
-                right.get(axis).copied().unwrap_or(1)
+                aligned_dim(left, rank, axis),
+                aligned_dim(right, rank, axis)
             ),
         )
     }

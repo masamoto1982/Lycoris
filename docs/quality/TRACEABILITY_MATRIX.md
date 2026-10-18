@@ -64,6 +64,16 @@ Kani harness in `rust/src/interpreter/value_order_proofs.rs`: on every Vector
 of up to four elements and every pattern of NILs, the present elements come
 first, ascending and stable, and every NIL after them in its own order.
 
+The broadcast every element-wise binary Word performs over two Tensors
+(`LANG.COLLECTIONS.LIFT`, `rust/src/interpreter/tensor_ops.rs`) is proved by
+the Kani harnesses in `rust/src/interpreter/tensor_ops_proofs.rs` on every rank
+up to 2 and every length up to 3: the shapes meet by NumPy's rule, a refusal
+names the first aligned axis that does not meet, each operand's lane is found
+in bounds, and the flat and the multi-dimensional index are inverse. The work
+meter (`LANG.MACHINE.LIMITS`, `rust/src/interpreter/runtime_limits.rs`) is
+proved never to undercharge by those in
+`rust/src/interpreter/runtime_limits_proofs.rs`.
+
 The termination argument (`LANG.DICTIONARY.ACYCLIC`, `LANG.SOURCE.CODE`,
 `spec/termination.json`) is verified by `rust/tests/termination_laws.rs`:
 every witness runs as the argument says, and a property over random programs

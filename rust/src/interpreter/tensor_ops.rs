@@ -156,21 +156,31 @@ pub(crate) fn project_broadcast_index(
     projected
 }
 
+/// The length `shape` has on `axis` of a `rank`-axis broadcast: shapes are
+/// right-aligned, NumPy-style, and an axis a shorter shape lacks is 1.
+pub(crate) fn aligned_dim(shape: &[usize], rank: usize, axis: usize) -> usize {
+    match (axis + shape.len()).checked_sub(rank) {
+        Some(own) => shape[own],
+        None => 1,
+    }
+}
+
 pub(crate) fn broadcast_shape(a: &[usize], b: &[usize]) -> Result<Vec<usize>> {
+    // Report the axis, not just the two shapes. It is an index into the
+    // *aligned* rank (shapes are right-aligned, NumPy-style), which is the
+    // axis a reader counts when they look at the value.
+    broadcast_dims(a, b).map_err(|axis| AjisaiError::shape_mismatch(a, b, axis))
+}
+
+/// The shape two shapes broadcast to, or the aligned axis where they meet
+/// with two lengths that differ and neither is 1.
+fn broadcast_dims(a: &[usize], b: &[usize]) -> std::result::Result<Vec<usize>, usize> {
     let rank: usize = a.len().max(b.len());
     let mut out: Vec<usize> = vec![1; rank];
 
-    for i in 0..rank {
-        let a_dim = if i >= rank - a.len() {
-            a[i - (rank - a.len())]
-        } else {
-            1
-        };
-        let b_dim = if i >= rank - b.len() {
-            b[i - (rank - b.len())]
-        } else {
-            1
-        };
+    for (i, slot) in out.iter_mut().enumerate() {
+        let a_dim = aligned_dim(a, rank, i);
+        let b_dim = aligned_dim(b, rank, i);
         if a_dim == b_dim || a_dim == 1 || b_dim == 1 {
             // A length-1 axis takes the *other* axis's length, which is not
             // its maximum when the other one is empty: `max` read
@@ -179,12 +189,9 @@ pub(crate) fn broadcast_shape(a: &[usize], b: &[usize]) -> Result<Vec<usize>> {
             // zero-lane tensor — a panic, which is no outcome at all and so
             // outside LANG.FAILURE.TRICHOTOMY entirely. Stretching a
             // one-element axis over an empty one yields an empty axis.
-            out[i] = if a_dim == 1 { b_dim } else { a_dim };
+            *slot = if a_dim == 1 { b_dim } else { a_dim };
         } else {
-            // Report the axis, not just the two shapes. `i` is an index into
-            // the *aligned* rank (shapes are right-aligned, NumPy-style), which
-            // is the axis a reader counts when they look at the value.
-            return Err(AjisaiError::shape_mismatch(a, b, i));
+            return Err(i);
         }
     }
 
@@ -450,3 +457,7 @@ where
     let result_tensor = FlatTensor::from_shape_and_data(tensor.shape, result_data)?;
     Ok(result_tensor.to_value())
 }
+
+#[cfg(kani)]
+#[path = "tensor_ops_proofs.rs"]
+mod proofs;

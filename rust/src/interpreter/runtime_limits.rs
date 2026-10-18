@@ -458,3 +458,7 @@ mod tests {
         assert!(err.to_string().contains("exceeds the limit"));
     }
 }
+
+#[cfg(kani)]
+#[path = "runtime_limits_proofs.rs"]
+mod proofs;
