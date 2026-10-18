@@ -144,15 +144,9 @@ enum Found {
 /// order is `Unordered`. The NILs after them are never searched: an absence
 /// equals nothing, as SQL's `= NULL` matches no row.
 fn lower_bound(sorted: &Elements<'_>, present: usize, key: &Value) -> Result<Found> {
-    let (mut lo, mut hi) = (0usize, present);
-    while lo < hi {
-        let mid = lo + (hi - lo) / 2;
-        match compare_for_sort(&sorted.get(mid), key)? {
-            Some(std::cmp::Ordering::Less) => lo = mid + 1,
-            Some(_) => hi = mid,
-            None => return Ok(Found::Unordered),
-        }
-    }
+    let Some(lo) = partition_point(present, |mid| compare_for_sort(&sorted.get(mid), key))? else {
+        return Ok(Found::Unordered);
+    };
     if lo == present {
         // An empty vector asks nothing of the key; a key with no order is
         // still answered as one, so `[ ] 0/0 BSEARCH` and `[ 1 ] 0/0 BSEARCH`
@@ -167,6 +161,25 @@ fn lower_bound(sorted: &Elements<'_>, present: usize, key: &Value) -> Result<Fou
         Some(_) => Ok(Found::Absent),
         None => Ok(Found::Unordered),
     }
+}
+
+/// The first of positions `0..present` that `order` does not place below the
+/// key, by halving, for `order` ascending over them; `None` when `order` meets
+/// a pair it cannot place.
+fn partition_point<E>(
+    present: usize,
+    mut order: impl FnMut(usize) -> std::result::Result<Option<std::cmp::Ordering>, E>,
+) -> std::result::Result<Option<usize>, E> {
+    let (mut lo, mut hi) = (0usize, present);
+    while lo < hi {
+        let mid = lo + (hi - lo) / 2;
+        match order(mid)? {
+            Some(std::cmp::Ordering::Less) => lo = mid + 1,
+            Some(_) => hi = mid,
+            None => return Ok(None),
+        }
+    }
+    Ok(Some(lo))
 }
 
 /// `BSEARCH ( [ sorted ] [ keys ] -> [ indices ] )`: the index of each key in
@@ -264,6 +277,10 @@ fn bsearch_answer(interp: &mut Interpreter, sorted: &Value, keys: &Value) -> Res
         None => lane(keys)?,
     })
 }
+
+#[cfg(kani)]
+#[path = "search_ops_proofs.rs"]
+mod proofs;
 
 #[cfg(test)]
 mod tests {

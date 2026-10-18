@@ -69,12 +69,16 @@ restating the kernel, so it can disagree with it.
 | `rust/src/interpreter/lane_lift_proofs.rs` | LANG.COLLECTIONS.LIFT's alignment, shared by the lift and the truth-column connectives: one lane sets no extent (`vector_extent`), and the operands' extents meet in the one width they share or a refusal naming the first two that differ (`common_extent`), whatever their order | Whole-range (`vector_extent`); small-scope (every sequence of up to four operands, each a scalar or up to three lanes) |
 | `rust/src/types/truth_column_proofs.rs` | The truth column's packing rule (`pack_codes`): a flat Vector packs exactly when every lane is a truth value or one shared NIL, each lane's code is its own, and the NIL kept is the first | Small-scope (every sequence of up to four lanes, NILs of two absences) |
 | `rust/src/tokenizer_proofs.rs` | The canonical lexical grammar (`spec/grammar.json`): the numeric grammar (`is_number_bytes`) is a finite automaton written from `numericGrammar`'s EBNF; a string literal closes at its first quote that whitespace or the end follows (`closing_quote`); and the cuts `string_literal_pieces` makes (`literal_cuts`) fall after every such quote and nowhere else | Small-scope (every byte string up to six bytes; every text up to four characters over quote, space, line break and other) |
+| `rust/src/interpreter/value_extraction_helpers_proofs.rs` | The index rule `GET`, `PUT` and the other positional Words read through (`normalize_index`): a non-negative index counts from the front and a negative one from the back, and the answer is a position inside the Vector exactly when the index names one | Whole-range (every `i64` index, every length) |
+| `rust/src/interpreter/vector_ops/split_proofs.rs` | The split `TAKE` and `DROP` share (`compute_take_bounds`, `compute_drop_bounds`): past the end exactly when `|count|` exceeds the length, otherwise two in-bounds slices that are each other's complement, priced at the elements they copy | Whole-range (every `i64` count, `i64::MIN` included, every length) |
+| `rust/src/interpreter/search_ops_proofs.rs` | `BSEARCH`'s halving (`partition_point`): over an ascending sequence it answers how many elements lie below the key, so the element there decides the search; it asks only in bounds and at most ⌊log₂ n⌋ + 1 times; an unplaceable pair or a comparison error stops it | Small-scope (every ascending sequence of up to five elements, duplicates included, every key) |
 
 In `TRACEABILITY_MATRIX.md` the rational harnesses are `AQ-VER-001-T` and the
 one-word reciprocal harness `AQ-VER-001-U`, both under AQ-REQ-001; the
 tokenizer harnesses are `AQ-VER-002-J`, under AQ-REQ-002; the
-truth-table, truth-column, order, alignment, broadcast and work-meter
-harnesses are listed among the verification without a requirement ID.
+truth-table, truth-column, order, alignment, broadcast, work-meter, index,
+split and search harnesses are listed among the verification without a
+requirement ID.
 
 ## Adding a harness
 
@@ -104,6 +108,12 @@ harnesses are listed among the verification without a requirement ID.
   Factor a scan over `(usize, char)` items, as `closing_quote` and
   `literal_cuts` are, feed it characters from the few kinds its rule tells
   apart, and return an iterator rather than a `Vec` the proof must grow.
+- A walk over a symbolic graph is out of reach. `find_reference_cycle`, the
+  DEF-time check LANG.DICTIONARY.ACYCLIC rests on, was factored over any
+  graph and any reached-from map; with a `HashMap` the solver did not leave
+  the hash table's probing, and with an array map on three names it ran out
+  of memory converting the formula. The check stays with
+  `rust/tests/termination_laws.rs` and `dependents_index_tests`.
 - A `Vec` comparison is a `memcmp` over its bytes, eight a `usize` lane, so a
   harness that compares two short Vecs needs an unwinding bound of `8 · len + 1`.
 - Keep each harness to a few minutes of solver time (the slowest today,

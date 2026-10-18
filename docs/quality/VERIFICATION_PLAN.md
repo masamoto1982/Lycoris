@@ -65,6 +65,7 @@ Define minimum verification evidence required for Ajisai changes.
   `rust/src/interpreter/tensor_ops.rs`, `rust/src/interpreter/runtime_limits.rs`,
   `rust/src/interpreter/lane_lift.rs`, `rust/src/types/truth_column.rs`,
   the numeric grammar and string-literal scans of `rust/src/tokenizer.rs`,
+  `normalize_index`, the `TAKE`/`DROP` split, `BSEARCH`'s `partition_point`,
   the lane tables of `rust/src/interpreter/truth_ops.rs`) runs its harnesses
   locally before review: `cargo kani --harness <name>`.
 

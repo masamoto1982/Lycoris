@@ -80,6 +80,13 @@ the truth-column connectives share (`common_extent` and `vector_extent` in
 (`LANG.VALUES.TRUTH`, `rust/src/types/truth_column.rs`) by
 `rust/src/types/truth_column_proofs.rs`.
 
+Three rules the interpreter's positional and search Words read through are
+proved by Kani harnesses as well: the index rule (`normalize_index`,
+`rust/src/interpreter/value_extraction_helpers_proofs.rs`), the split `TAKE`
+and `DROP` share (`rust/src/interpreter/vector_ops/split_proofs.rs`), and
+`BSEARCH`'s halving (`partition_point`,
+`rust/src/interpreter/search_ops_proofs.rs`).
+
 The termination argument (`LANG.DICTIONARY.ACYCLIC`, `LANG.SOURCE.CODE`,
 `spec/termination.json`) is verified by `rust/tests/termination_laws.rs`:
 every witness runs as the argument says, and a property over random programs
