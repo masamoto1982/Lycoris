@@ -61,26 +61,14 @@ impl TruthColumn {
     /// The column `lanes` are, when each is a Boolean or one NIL
     /// shared by every NIL among them — the same reason and detail.
     pub(crate) fn pack(lanes: &[Value]) -> Option<Self> {
-        let mut unknown: Option<&Value> = None;
-        let mut codes = Vec::with_capacity(lanes.len());
-        for lane in lanes {
-            codes.push(match &lane.data {
-                ValueData::Boolean(false) => FALSE,
-                ValueData::Boolean(true) => TRUE,
-                ValueData::Nil(_) => {
-                    match unknown {
-                        None => unknown = Some(lane),
-                        Some(first) if first.absence_metadata() == lane.absence_metadata() => {}
-                        Some(_) => return None,
-                    }
-                    UNKNOWN
-                }
-                _ => return None,
-            });
-        }
+        let (codes, first_nil) = pack_codes(lanes.iter().map(|lane| match &lane.data {
+            ValueData::Boolean(truth) => PackLane::Truth(*truth),
+            ValueData::Nil(_) => PackLane::Nil(lane.absence_metadata()),
+            _ => PackLane::Other,
+        }))?;
         Some(Self {
             codes,
-            unknown: unknown.cloned(),
+            unknown: first_nil.map(|index| lanes[index].clone()),
         })
     }
 
@@ -121,6 +109,43 @@ impl TruthColumn {
         Value::from_vector(self.to_values())
     }
 }
+
+/// One lane as [`TruthColumn::pack`] reads it: a truth value, a NIL with what
+/// tells it apart from another NIL, or anything else.
+enum PackLane<K> {
+    Truth(bool),
+    Nil(K),
+    Other,
+}
+
+/// The codes of `lanes` and the index of the first NIL among them, when every
+/// lane is a truth value or a NIL and every NIL has the first one's key.
+fn pack_codes<K: PartialEq>(
+    lanes: impl ExactSizeIterator<Item = PackLane<K>>,
+) -> Option<(Vec<u8>, Option<usize>)> {
+    let mut first_nil: Option<(usize, K)> = None;
+    let mut codes = Vec::with_capacity(lanes.len());
+    for (index, lane) in lanes.enumerate() {
+        codes.push(match lane {
+            PackLane::Truth(false) => FALSE,
+            PackLane::Truth(true) => TRUE,
+            PackLane::Nil(key) => {
+                match &first_nil {
+                    None => first_nil = Some((index, key)),
+                    Some((_, first)) if *first == key => {}
+                    Some(_) => return None,
+                }
+                UNKNOWN
+            }
+            PackLane::Other => return None,
+        });
+    }
+    Some((codes, first_nil.map(|(index, _)| index)))
+}
+
+#[cfg(kani)]
+#[path = "truth_column_proofs.rs"]
+mod proofs;
 
 #[cfg(test)]
 mod tests {

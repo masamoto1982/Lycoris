@@ -72,7 +72,13 @@ names the first aligned axis that does not meet, each operand's lane is found
 in bounds, and the flat and the multi-dimensional index are inverse. The work
 meter (`LANG.MACHINE.LIMITS`, `rust/src/interpreter/runtime_limits.rs`) is
 proved never to undercharge by those in
-`rust/src/interpreter/runtime_limits_proofs.rs`.
+`rust/src/interpreter/runtime_limits_proofs.rs`, which also prove that every
+ceiling allows its limit and refuses one past it. The alignment the lift and
+the truth-column connectives share (`common_extent` and `vector_extent` in
+`rust/src/interpreter/lane_lift.rs`) is proved by
+`rust/src/interpreter/lane_lift_proofs.rs`, and the truth column's packing rule
+(`LANG.VALUES.TRUTH`, `rust/src/types/truth_column.rs`) by
+`rust/src/types/truth_column_proofs.rs`.
 
 The termination argument (`LANG.DICTIONARY.ACYCLIC`, `LANG.SOURCE.CODE`,
 `spec/termination.json`) is verified by `rust/tests/termination_laws.rs`:
