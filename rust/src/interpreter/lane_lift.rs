@@ -48,8 +48,7 @@ impl<'a> Lanes<'a> {
     fn extent(&self) -> Option<usize> {
         match self {
             Lanes::Scalar(_) => None,
-            Lanes::Vector(items) if items.len() == 1 => None,
-            Lanes::Vector(items) => Some(items.len()),
+            Lanes::Vector(items) => vector_extent(items.len()),
         }
     }
 
@@ -64,6 +63,29 @@ impl<'a> Lanes<'a> {
             Lanes::Vector(items) => &items[index],
         }
     }
+}
+
+/// The extent a Vector of `len` lanes sets on the lifted axis: none when it
+/// holds one lane, which is reused across whatever length the others set.
+pub(crate) fn vector_extent(len: usize) -> Option<usize> {
+    (len != 1).then_some(len)
+}
+
+/// The extent the operands set together: `None` when none sets one, or the
+/// first width set and the first that disagrees with it. `truth_ops` aligns
+/// its columns by the same rule.
+pub(crate) fn common_extent(
+    extents: impl IntoIterator<Item = Option<usize>>,
+) -> std::result::Result<Option<usize>, (usize, usize)> {
+    let mut width = None;
+    for extent in extents.into_iter().flatten() {
+        match width {
+            None => width = Some(extent),
+            Some(w) if w == extent => {}
+            Some(w) => return Err((w, extent)),
+        }
+    }
+    Ok(width)
 }
 
 /// Apply `scalar` to the aligned lanes of `operands`, every operand lifted.
@@ -195,15 +217,8 @@ pub(crate) fn lift_lanes_dyn(
         .map(|(v, l)| if *l { Lanes::of(v) } else { Lanes::Scalar(v) })
         .collect();
 
-    let mut extent: Option<usize> = None;
-    for lane in lanes.iter() {
-        let Some(len) = lane.extent() else { continue };
-        match extent {
-            None => extent = Some(len),
-            Some(width) if width == len => {}
-            Some(width) => return Err(AjisaiError::shape_mismatch(&[width], &[len], 0)),
-        }
-    }
+    let extent = common_extent(lanes.iter().map(Lanes::extent))
+        .map_err(|(width, len)| AjisaiError::shape_mismatch(&[width], &[len], 0))?;
 
     let Some(width) = extent else {
         // No operand is a Vector with an extent to pair. A single lane still
@@ -300,3 +315,7 @@ mod tests {
         assert!(checked > 20, "the flat loop answered only {checked} pairs");
     }
 }
+
+#[cfg(kani)]
+#[path = "lane_lift_proofs.rs"]
+mod proofs;

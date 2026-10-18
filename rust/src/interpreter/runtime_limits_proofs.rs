@@ -1,5 +1,6 @@
-//! LANG.MACHINE.LIMITS's work meter, proved never to undercharge by bounded
-//! model checking.
+//! LANG.MACHINE.LIMITS's work meter, proved never to undercharge, and its
+//! ceilings, proved to refuse exactly past their limits, by bounded model
+//! checking.
 //!
 //! `cargo kani` (docs/quality/FORMAL_VERIFICATION.md) checks each harness for
 //! every input its `kani::any()` values can take. The meter is a safety
@@ -12,7 +13,11 @@
 //! free 64-bit words is beyond the solver).
 
 use super::WORK_LIMB_BITS;
-use super::{binary_numeric_work, broadcast_numeric_work, work_limbs, ElementCost, OperandWork};
+use super::{
+    binary_numeric_work, broadcast_numeric_work, work_limbs, ElementCost, OperandWork,
+    ResourceLimit, RuntimeLimits,
+};
+use crate::error::AjisaiError;
 
 fn any_work() -> OperandWork {
     OperandWork {
@@ -139,4 +144,70 @@ fn comparison_sort_covers_the_worst_case() {
         width: 1,
     };
     assert!(one.comparison_sort(count) >= n.saturating_mul(ceil_log2));
+}
+
+fn any_limits() -> RuntimeLimits {
+    RuntimeLimits {
+        max_materialized_elements: kani::any(),
+        max_source_bytes: kani::any(),
+        max_numeric_literal_digits: kani::any(),
+        max_numeric_work: kani::any(),
+        max_collection_work: kani::any(),
+        max_bigint_bits: kani::any(),
+        max_algebraic_terms: kani::any(),
+        max_nesting_depth: kani::any(),
+    }
+}
+
+/// The refusal `check` answers: the resource named, its limit, and what was
+/// observed.
+fn refusal(check: crate::error::Result<()>) -> Option<(ResourceLimit, u64, Option<u64>)> {
+    match check {
+        Ok(()) => None,
+        Err(AjisaiError::ResourceLimitExceeded {
+            resource,
+            limit,
+            observed,
+            progress: None,
+        }) => Some((resource, limit, observed)),
+        Err(_) => panic!("a ceiling refuses with resourceLimitExceeded"),
+    }
+}
+
+/// Every ceiling allows its limit itself and refuses one past it, naming its
+/// own resource, its limit and the size observed; and an algebraic result
+/// is held to its term count before its width.
+#[kani::proof]
+fn every_ceiling_refuses_exactly_past_its_limit() {
+    let limits = any_limits();
+    let (n, bits): (usize, u64) = (kani::any(), kani::any());
+    let past = |observed: usize, limit: usize, resource| {
+        (observed > limit).then_some((resource, limit as u64, Some(observed as u64)))
+    };
+    assert_eq!(
+        refusal(limits.check_source_bytes(n)),
+        past(n, limits.max_source_bytes, ResourceLimit::SourceBytes)
+    );
+    assert_eq!(
+        refusal(limits.check_nesting_depth(n)),
+        past(n, limits.max_nesting_depth, ResourceLimit::NestingDepth)
+    );
+    assert_eq!(
+        refusal(limits.check_numeric_literal_digits(n)),
+        past(
+            n,
+            limits.max_numeric_literal_digits,
+            ResourceLimit::NumericLiteralDigits
+        )
+    );
+    let too_wide = (bits > limits.max_bigint_bits).then_some((
+        ResourceLimit::BigintBits,
+        limits.max_bigint_bits,
+        Some(bits),
+    ));
+    assert_eq!(refusal(limits.check_bigint_bits(bits)), too_wide);
+    assert_eq!(
+        refusal(limits.check_algebraic_size(n, bits)),
+        past(n, limits.max_algebraic_terms, ResourceLimit::AlgebraicTerms).or(too_wide)
+    );
 }

@@ -10,6 +10,7 @@
 use std::borrow::Cow;
 use std::sync::Arc;
 
+use crate::interpreter::lane_lift::{common_extent, vector_extent};
 use crate::interpreter::logic::compute_selection;
 use crate::types::truth_column::{FALSE, TRUE, UNKNOWN};
 use crate::types::{TruthColumn, Value, ValueData};
@@ -38,8 +39,8 @@ impl<'a> Truths<'a> {
     /// truth value, or a column one lane long (LANG.COLLECTIONS.LIFT).
     fn extent(&self) -> Option<usize> {
         match self {
-            Truths::Column(column) if column.len() != 1 => Some(column.len()),
-            _ => None,
+            Truths::Column(column) => vector_extent(column.len()),
+            Truths::Lane(..) => None,
         }
     }
 
@@ -98,19 +99,6 @@ const CONJUNCTION: [u8; 9] = [
     FALSE, UNKNOWN, UNKNOWN, // UNKNOWN ∧ _
 ];
 
-/// The extent two or more operands set together, or `None` when two disagree.
-fn common_extent(extents: &[Option<usize>]) -> Option<Option<usize>> {
-    let mut width = None;
-    for extent in extents.iter().flatten() {
-        match width {
-            None => width = Some(*extent),
-            Some(w) if w == *extent => {}
-            Some(_) => return None,
-        }
-    }
-    Some(width)
-}
-
 /// `AND` when either operand is a column and both read as codes.
 pub(crate) fn conjoin(a: &Value, b: &Value) -> Option<Value> {
     if !matches!(a.data, ValueData::Truths(_) | ValueData::Vector(_))
@@ -125,7 +113,7 @@ pub(crate) fn conjoin(a: &Value, b: &Value) -> Option<Value> {
         (Some(x), Some(y)) if x.absence_metadata() != y.absence_metadata() => return None,
         (x, y) => x.or(y).cloned(),
     };
-    let width = common_extent(&[a.extent(), b.extent()])?.unwrap_or(1);
+    let width = common_extent([a.extent(), b.extent()]).ok()?.unwrap_or(1);
     let codes = (0..width)
         .map(|i| CONJUNCTION[usize::from(3 * a.code(i) + b.code(i))])
         .collect();
@@ -154,9 +142,9 @@ impl<'a> Candidate<'a> {
 
     fn extent(&self) -> Option<usize> {
         match self {
-            Candidate::Lanes(lanes) if lanes.len() != 1 => Some(lanes.len()),
-            Candidate::Column(column) if column.len() != 1 => Some(column.len()),
-            _ => None,
+            Candidate::Lanes(lanes) => vector_extent(lanes.len()),
+            Candidate::Column(column) => vector_extent(column.len()),
+            Candidate::Leaf(_) => None,
         }
     }
 
@@ -187,7 +175,7 @@ pub(crate) fn select(when_true: &Value, when_false: &Value, mask: &Value) -> Opt
     let width = column.len();
     // A one-lane mask is reused across the candidates' extent; the lifted
     // law sizes that answer, and answers an empty mask.
-    if width < 2 || common_extent(&[Some(width), t.extent(), f.extent()])? != Some(width) {
+    if width < 2 || common_extent([Some(width), t.extent(), f.extent()]).ok()? != Some(width) {
         return None;
     }
     if let Some(dense) = select_numbers(&t, &f, column.codes()) {

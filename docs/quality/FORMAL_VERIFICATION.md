@@ -65,12 +65,14 @@ restating the kernel, so it can disagree with it.
 | `rust/src/types/small_divisor_proofs.rs` | The reciprocal every one-word division by `small_divisor` (and `fraction_word_term`'s running sum) starts from: for a normalized divisor it fits a word and is Möller and Granlund's, stated by its bounds | Whole-range (every normalized `u64`) |
 | `rust/src/interpreter/value_order_proofs.rs` | The placement rule of LANG.VALUES.ORDER that `SORT` and `ORDER` answer (`nulls_last_order`): a permutation with the present elements ascending and stable, then every NIL in its own order | Small-scope (every Vector of up to four elements, every pattern of NILs, every order with ties on the rest) |
 | `rust/src/interpreter/tensor_ops_proofs.rs` | The index algebra of LANG.COLLECTIONS.LIFT's broadcast (`tensor_ops`): `aligned_dim` reads a shape from the right; `broadcast_dims` is NumPy's rule, names the first axis that does not meet and is symmetric; `project_broadcast_index` lands in the operand; `ravel_index` and `unravel_index` are inverse over row-major strides | Small-scope (every rank up to 2, every length up to 3) |
-| `rust/src/interpreter/runtime_limits_proofs.rs` | The work meter of LANG.MACHINE.LIMITS (`runtime_limits`) never undercharges: limbs cover every bit, joining measures is a commutative monoid, a sort is priced at no less than `n⌈log₂n⌉`, the operand order does not move a price, nothing is free, and a wider operand or more lanes is never cheaper | Whole-range for the linear laws; small-scope where two measures multiply (down to 16 lanes and four limbs for the monotone one) |
+| `rust/src/interpreter/runtime_limits_proofs.rs` | The work meter of LANG.MACHINE.LIMITS (`runtime_limits`) never undercharges, and every ceiling allows its limit and refuses one past it, naming its resource, limit and observation: limbs cover every bit, joining measures is a commutative monoid, a sort is priced at no less than `n⌈log₂n⌉`, the operand order does not move a price, nothing is free, and a wider operand or more lanes is never cheaper | Whole-range for the linear laws; small-scope where two measures multiply (down to 16 lanes and four limbs for the monotone one) |
+| `rust/src/interpreter/lane_lift_proofs.rs` | LANG.COLLECTIONS.LIFT's alignment, shared by the lift and the truth-column connectives: one lane sets no extent (`vector_extent`), and the operands' extents meet in the one width they share or a refusal naming the first two that differ (`common_extent`), whatever their order | Whole-range (`vector_extent`); small-scope (every sequence of up to four operands, each a scalar or up to three lanes) |
+| `rust/src/types/truth_column_proofs.rs` | The truth column's packing rule (`pack_codes`): a flat Vector packs exactly when every lane is a truth value or one shared NIL, each lane's code is its own, and the NIL kept is the first | Small-scope (every sequence of up to four lanes, NILs of two absences) |
 
 In `TRACEABILITY_MATRIX.md` the rational harnesses are `AQ-VER-001-T` and the
 one-word reciprocal harness `AQ-VER-001-U`, both under AQ-REQ-001; the
-truth-table, order, broadcast and work-meter harnesses are listed among the
-verification without a requirement ID.
+truth-table, truth-column, order, alignment, broadcast and work-meter
+harnesses are listed among the verification without a requirement ID.
 
 ## Adding a harness
 
