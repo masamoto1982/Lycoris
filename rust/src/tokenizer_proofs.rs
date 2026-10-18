@@ -20,7 +20,7 @@
 use super::{closing_quote, is_number_bytes, literal_cuts};
 
 /// The longest lexeme the numeric harness takes.
-const NUMBER_LEN: usize = 6;
+const NUMBER_LEN: usize = 7;
 
 /// The longest text the string harnesses take.
 const TEXT_LEN: usize = 4;
@@ -77,7 +77,7 @@ fn accepts(bytes: &[u8]) -> bool {
 /// The tokenizer's numeric grammar is the specification's, on every byte
 /// string up to [`NUMBER_LEN`] bytes — multi-byte characters' bytes included.
 #[kani::proof]
-#[kani::unwind(8)]
+#[kani::unwind(9)]
 fn number_lexemes_are_the_numeric_grammar() {
     let bytes: [u8; NUMBER_LEN] = kani::any();
     for len in 0..=NUMBER_LEN {

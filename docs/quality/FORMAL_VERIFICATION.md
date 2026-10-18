@@ -23,7 +23,7 @@ Kani pins its own nightly toolchain and solver, so it is installed apart from
 the project's stable toolchain:
 
 ```sh
-cargo install --locked kani-verifier
+cargo install --locked kani-verifier --version 0.68.0   # the version CI pins
 cargo kani setup
 ```
 
@@ -61,17 +61,24 @@ restating the kernel, so it can disagree with it.
 |---|---|---|
 | `rust/src/interpreter/truth_ops_proofs.rs` | The `AND` table and `NOT` lane rule of LANG.VALUES.TRUTH: `AND` is the meet of F < U < T (so a bounded semilattice), `NOT` the order-reversing involution fixing UNKNOWN, and De Morgan gives the join | Whole-range (the three codes) |
 | `rust/src/types/small_rational_proofs.rs` | The machine-word rational kernels (`small_rational`): the wasm32 multiply, rounding, the order, the integer routes of `add` and `mul`, the gcd's power-of-two shortcut | Whole-range (every `i64`) |
-| `rust/src/types/small_rational_proofs.rs` | Stein's gcd against Euclid's; `add`, `mul` and `div` answering the exact value in lowest terms over a positive denominator; the order agreeing with equality of normalized pairs | Small-scope (halves under 2⁴, gcd operands under 2⁶) |
+| `rust/src/types/small_rational_proofs.rs` | Stein's gcd against Euclid's; `add`, `mul` and `div` answering the exact value in lowest terms over a positive denominator; the order agreeing with equality of normalized pairs | Small-scope (halves under 2⁴, gcd operands under 2⁶, and for the gcd's remainder shortcut a larger operand past 2¹⁶ times the smaller) |
 | `rust/src/types/small_divisor_proofs.rs` | The reciprocal every one-word division by `small_divisor` (and `fraction_word_term`'s running sum) starts from: for a normalized divisor it fits a word and is Möller and Granlund's, stated by its bounds | Whole-range (every normalized `u64`) |
 | `rust/src/interpreter/value_order_proofs.rs` | The placement rule of LANG.VALUES.ORDER that `SORT` and `ORDER` answer (`nulls_last_order`): a permutation with the present elements ascending and stable, then every NIL in its own order | Small-scope (every Vector of up to four elements, every pattern of NILs, every order with ties on the rest) |
 | `rust/src/interpreter/tensor_ops_proofs.rs` | The index algebra of LANG.COLLECTIONS.LIFT's broadcast (`tensor_ops`): `aligned_dim` reads a shape from the right; `broadcast_dims` is NumPy's rule, names the first axis that does not meet and is symmetric; `project_broadcast_index` lands in the operand; `ravel_index` and `unravel_index` are inverse over row-major strides | Small-scope (every rank up to 2, every length up to 3) |
 | `rust/src/interpreter/runtime_limits_proofs.rs` | The work meter of LANG.MACHINE.LIMITS (`runtime_limits`) never undercharges, and every ceiling allows its limit and refuses one past it, naming its resource, limit and observation: limbs cover every bit, joining measures is a commutative monoid, a sort is priced at no less than `n⌈log₂n⌉`, the operand order does not move a price, nothing is free, and a wider operand or more lanes is never cheaper | Whole-range for the linear laws; small-scope where two measures multiply (down to 16 lanes and four limbs for the monotone one) |
 | `rust/src/interpreter/lane_lift_proofs.rs` | LANG.COLLECTIONS.LIFT's alignment, shared by the lift and the truth-column connectives: one lane sets no extent (`vector_extent`), and the operands' extents meet in the one width they share or a refusal naming the first two that differ (`common_extent`), whatever their order | Whole-range (`vector_extent`); small-scope (every sequence of up to four operands, each a scalar or up to three lanes) |
 | `rust/src/types/truth_column_proofs.rs` | The truth column's packing rule (`pack_codes`): a flat Vector packs exactly when every lane is a truth value or one shared NIL, each lane's code is its own, and the NIL kept is the first | Small-scope (every sequence of up to four lanes, NILs of two absences) |
-| `rust/src/tokenizer_proofs.rs` | The canonical lexical grammar (`spec/grammar.json`): the numeric grammar (`is_number_bytes`) is a finite automaton written from `numericGrammar`'s EBNF; a string literal closes at its first quote that whitespace or the end follows (`closing_quote`); and the cuts `string_literal_pieces` makes (`literal_cuts`) fall after every such quote and nowhere else | Small-scope (every byte string up to six bytes; every text up to four characters over quote, space, line break and other) |
-| `rust/src/interpreter/value_extraction_helpers_proofs.rs` | The index rule `GET`, `PUT` and the other positional Words read through (`normalize_index`): a non-negative index counts from the front and a negative one from the back, and the answer is a position inside the Vector exactly when the index names one | Whole-range (every `i64` index, every length) |
-| `rust/src/interpreter/vector_ops/split_proofs.rs` | The split `TAKE` and `DROP` share (`compute_take_bounds`, `compute_drop_bounds`): past the end exactly when `|count|` exceeds the length, otherwise two in-bounds slices that are each other's complement, priced at the elements they copy | Whole-range (every `i64` count, `i64::MIN` included, every length) |
+| `rust/src/tokenizer_proofs.rs` | The canonical lexical grammar (`spec/grammar.json`): the numeric grammar (`is_number_bytes`) is a finite automaton written from `numericGrammar`'s EBNF; a string literal closes at its first quote that whitespace or the end follows (`closing_quote`); and the cuts `string_literal_pieces` makes (`literal_cuts`) fall after every such quote and nowhere else | Small-scope (every byte string up to seven bytes, the shortest lexeme with sign, fraction and signed exponent; every text up to four characters over quote, space, line break and other) |
+| `rust/src/interpreter/value_extraction_helpers_proofs.rs` | The index rule `GET`, `PUT` and the other positional Words read through (`normalize_index`): a non-negative index counts from the front and a negative one from the back, and the answer is a position inside the Vector exactly when the index names one | Whole-range (every `i64` index, every length a Vector can have, up to `isize::MAX`) |
+| `rust/src/interpreter/vector_ops/split_proofs.rs` | The split `TAKE` and `DROP` share (`compute_take_bounds`, `compute_drop_bounds`): past the end exactly when `|count|` exceeds the length, otherwise two in-bounds slices that are each other's complement, priced at the elements they copy | Whole-range (every `i64` count, `i64::MIN` included, every length a Vector can have, up to `isize::MAX`) |
 | `rust/src/interpreter/search_ops_proofs.rs` | `BSEARCH`'s halving (`partition_point`): over an ascending sequence it answers how many elements lie below the key, so the element there decides the search; it asks only in bounds and at most ⌊log₂ n⌋ + 1 times; an unplaceable pair or a comparison error stops it | Small-scope (every ascending sequence of up to five elements, duplicates included, every key) |
+
+What the small scope does not reach is said here so it is not mistaken for
+proved: `add`'s 128-bit fraction route and `div`'s widened fallback answer
+only once a cross product leaves a word, which no operand under 2⁴ does, and
+proving them would mean identities between 64-bit products (see below); they
+stay with the property tests. Every harness runs on the 64-bit host, so a
+narrowing from `i64` to `usize` is proved for a 64-bit `usize`, not wasm32's.
 
 In `TRACEABILITY_MATRIX.md` the rational harnesses are `AQ-VER-001-T` and the
 one-word reciprocal harness `AQ-VER-001-U`, both under AQ-REQ-001; the

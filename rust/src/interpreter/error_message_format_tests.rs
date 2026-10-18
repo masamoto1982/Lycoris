@@ -150,3 +150,9 @@ async fn a_shape_mismatch_across_ranks_names_the_aligned_lengths() {
         "{message}"
     );
 }
+
+#[test]
+fn a_shape_mismatch_past_the_rank_reports_rather_than_panics() {
+    let message = crate::error::AjisaiError::shape_mismatch(&[2], &[3], 1).to_string();
+    assert!(message.contains("axis 1 is 1 and 1"), "{message}");
+}
