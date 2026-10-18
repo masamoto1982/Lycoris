@@ -319,18 +319,29 @@ pub(crate) fn is_string_token_content(content: &str) -> bool {
 /// literal: `a' b` is `a'` and ` b`.
 pub(crate) fn string_literal_pieces(text: &str) -> Vec<String> {
     let mut pieces = Vec::new();
-    let mut current = String::new();
-    let mut chars = text.chars().peekable();
-    while let Some(c) = chars.next() {
-        current.push(c);
-        if c == '\'' && chars.peek().is_some_and(|next| next.is_whitespace()) {
-            pieces.push(std::mem::take(&mut current));
-        }
+    let mut start = 0;
+    for end in literal_cuts(text.char_indices()) {
+        pieces.push(text[start..end].to_string());
+        start = end;
     }
-    if !current.is_empty() {
-        pieces.push(current);
+    if start < text.len() {
+        pieces.push(text[start..].to_string());
     }
     pieces
+}
+
+/// The offsets just past every quote among `chars` that whitespace follows:
+/// where `string_literal_pieces` cuts.
+fn literal_cuts(chars: impl Iterator<Item = (usize, char)>) -> impl Iterator<Item = usize> {
+    let mut chars = chars.peekable();
+    std::iter::from_fn(move || {
+        while let Some((at, c)) = chars.next() {
+            if c == '\'' && chars.peek().is_some_and(|&(_, next)| next.is_whitespace()) {
+                return Some(at + c.len_utf8());
+            }
+        }
+        None
+    })
 }
 
 /// The content of the string literal `text` opens with its quote, or `None`
@@ -343,14 +354,20 @@ pub(crate) fn string_literal_pieces(text: &str) -> Vec<String> {
 /// quotes included, is content.
 fn string_literal_content(text: &str) -> Option<&str> {
     let body = text.strip_prefix('\'')?;
-    let mut chars = body.char_indices().peekable();
+    closing_quote(body.char_indices()).map(|at| &body[..at])
+}
+
+/// Where the first quote among `chars` that closes a literal stands: the
+/// first one followed by whitespace or the end of input.
+fn closing_quote(chars: impl Iterator<Item = (usize, char)>) -> Option<usize> {
+    let mut chars = chars.peekable();
     while let Some((at, c)) = chars.next() {
         if c == '\''
             && chars
                 .peek()
                 .is_none_or(|&(_, next)| is_string_close_delimiter(next))
         {
-            return Some(&body[..at]);
+            return Some(at);
         }
     }
     None
@@ -396,12 +413,17 @@ pub(crate) fn denoted_digit_count(lexeme: &str) -> u64 {
 }
 
 fn parse_number_from_string(s: &str) -> Option<Token> {
+    is_number_bytes(s.as_bytes()).then(|| Token::number(s))
+}
+
+/// Whether `chars` is a whole lexeme of the numeric grammar
+/// (`spec/grammar.json`, `numericGrammar`).
+fn is_number_bytes(chars: &[u8]) -> bool {
     // The numeric grammar is ASCII, so it reads bytes: a byte of a
     // multi-byte character is never a digit, a sign, a point, an `e` or a
     // `/`, and stops a number exactly where that character would.
-    let chars = s.as_bytes();
     if chars.is_empty() {
-        return None;
+        return false;
     }
 
     let mut i = 0;
@@ -410,7 +432,7 @@ fn parse_number_from_string(s: &str) -> Option<Token> {
         // The sign must be followed by a digit; otherwise the token is a name,
         // not a number. This is what leaves a bare `-` an ordinary name.
         if chars.len() == 1 || !chars[i + 1].is_ascii_digit() {
-            return None;
+            return false;
         }
         i += 1;
     }
@@ -421,7 +443,7 @@ fn parse_number_from_string(s: &str) -> Option<Token> {
     // the character allocatable as a symbol later without a second breaking
     // change to the numeric language.
     if i >= chars.len() || !chars[i].is_ascii_digit() {
-        return None;
+        return false;
     }
 
     while i < chars.len() && chars[i].is_ascii_digit() {
@@ -432,24 +454,20 @@ fn parse_number_from_string(s: &str) -> Option<Token> {
         i += 1;
 
         if i >= chars.len() || !chars[i].is_ascii_digit() {
-            return None;
+            return false;
         }
         while i < chars.len() && chars[i].is_ascii_digit() {
             i += 1;
         }
 
-        if i == chars.len() {
-            return Some(Token::number(s));
-        } else {
-            return None;
-        }
+        return i == chars.len();
     }
 
     if i < chars.len() && chars[i] == b'.' {
         i += 1;
         // At least one digit after the point: `5.` and `5.e3` are not numbers.
         if i >= chars.len() || !chars[i].is_ascii_digit() {
-            return None;
+            return false;
         }
         while i < chars.len() && chars[i].is_ascii_digit() {
             i += 1;
@@ -462,16 +480,16 @@ fn parse_number_from_string(s: &str) -> Option<Token> {
             i += 1;
         }
         if i >= chars.len() || !chars[i].is_ascii_digit() {
-            return None;
+            return false;
         }
         while i < chars.len() && chars[i].is_ascii_digit() {
             i += 1;
         }
     }
 
-    if i == chars.len() {
-        Some(Token::number(s))
-    } else {
-        None
-    }
+    i == chars.len()
 }
+
+#[cfg(kani)]
+#[path = "tokenizer_proofs.rs"]
+mod proofs;

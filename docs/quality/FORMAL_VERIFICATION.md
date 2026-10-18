@@ -68,9 +68,11 @@ restating the kernel, so it can disagree with it.
 | `rust/src/interpreter/runtime_limits_proofs.rs` | The work meter of LANG.MACHINE.LIMITS (`runtime_limits`) never undercharges, and every ceiling allows its limit and refuses one past it, naming its resource, limit and observation: limbs cover every bit, joining measures is a commutative monoid, a sort is priced at no less than `n⌈log₂n⌉`, the operand order does not move a price, nothing is free, and a wider operand or more lanes is never cheaper | Whole-range for the linear laws; small-scope where two measures multiply (down to 16 lanes and four limbs for the monotone one) |
 | `rust/src/interpreter/lane_lift_proofs.rs` | LANG.COLLECTIONS.LIFT's alignment, shared by the lift and the truth-column connectives: one lane sets no extent (`vector_extent`), and the operands' extents meet in the one width they share or a refusal naming the first two that differ (`common_extent`), whatever their order | Whole-range (`vector_extent`); small-scope (every sequence of up to four operands, each a scalar or up to three lanes) |
 | `rust/src/types/truth_column_proofs.rs` | The truth column's packing rule (`pack_codes`): a flat Vector packs exactly when every lane is a truth value or one shared NIL, each lane's code is its own, and the NIL kept is the first | Small-scope (every sequence of up to four lanes, NILs of two absences) |
+| `rust/src/tokenizer_proofs.rs` | The canonical lexical grammar (`spec/grammar.json`): the numeric grammar (`is_number_bytes`) is a finite automaton written from `numericGrammar`'s EBNF; a string literal closes at its first quote that whitespace or the end follows (`closing_quote`); and the cuts `string_literal_pieces` makes (`literal_cuts`) fall after every such quote and nowhere else | Small-scope (every byte string up to six bytes; every text up to four characters over quote, space, line break and other) |
 
 In `TRACEABILITY_MATRIX.md` the rational harnesses are `AQ-VER-001-T` and the
 one-word reciprocal harness `AQ-VER-001-U`, both under AQ-REQ-001; the
+tokenizer harnesses are `AQ-VER-002-J`, under AQ-REQ-002; the
 truth-table, truth-column, order, alignment, broadcast and work-meter
 harnesses are listed among the verification without a requirement ID.
 
@@ -96,6 +98,12 @@ harnesses are listed among the verification without a requirement ID.
   minutes. Prove what such a step relies on instead, and leave the step to the
   property tests; where a law compares two products (a price is monotone),
   bound the factors to a few bits each.
+- Text is the costliest input. A `str` built from symbolic bytes hands the
+  solver the UTF-8 validator, `format!` its formatting machinery, and
+  `char::is_whitespace` the Unicode table; each ran out of memory or time.
+  Factor a scan over `(usize, char)` items, as `closing_quote` and
+  `literal_cuts` are, feed it characters from the few kinds its rule tells
+  apart, and return an iterator rather than a `Vec` the proof must grow.
 - A `Vec` comparison is a `memcmp` over its bytes, eight a `usize` lane, so a
   harness that compares two short Vecs needs an unwinding bound of `8 · len + 1`.
 - Keep each harness to a few minutes of solver time (the slowest today,
