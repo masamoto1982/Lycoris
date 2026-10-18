@@ -10,7 +10,8 @@ use super::normalize_index;
 /// A non-negative index counts from the front and a negative one from the
 /// back (`-1` the last element); the answer is a position inside the Vector
 /// exactly when the index names one, for every index and every length — the
-/// narrowing to `usize` loses nothing on either word size.
+/// narrowing to `usize` loses nothing. Kani runs on the 64-bit host, so this
+/// is proved for a 64-bit `usize`; wasm32's rests on the same code.
 #[kani::proof]
 fn normalize_index_counts_from_either_end() {
     let index: i64 = kani::any();

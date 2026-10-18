@@ -157,12 +157,15 @@ pub(crate) fn project_broadcast_index(
 }
 
 /// The length `shape` has on `axis` of a `rank`-axis broadcast: shapes are
-/// right-aligned, NumPy-style, and an axis a shorter shape lacks is 1.
+/// right-aligned, NumPy-style, and an axis a shorter shape lacks is 1. An
+/// axis past the rank reads as 1 too rather than panicking, since
+/// `AjisaiError::shape_mismatch` reports through this whatever axis it is
+/// handed.
 pub(crate) fn aligned_dim(shape: &[usize], rank: usize, axis: usize) -> usize {
-    match (axis + shape.len()).checked_sub(rank) {
-        Some(own) => shape[own],
-        None => 1,
-    }
+    (axis + shape.len())
+        .checked_sub(rank)
+        .and_then(|own| shape.get(own).copied())
+        .unwrap_or(1)
 }
 
 pub(crate) fn broadcast_shape(a: &[usize], b: &[usize]) -> Result<Vec<usize>> {

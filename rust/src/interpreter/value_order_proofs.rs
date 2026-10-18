@@ -8,8 +8,9 @@
 //! the answer stays aligned.
 //!
 //! The harness takes every Vector of up to [`LANES`] elements, every pattern
-//! of NILs among them and every order on the present ones with ties (a key per
-//! element from a range small enough that ties are common). What the
+//! of NILs among them and every order on the present ones, ties included (a
+//! key per element from as many values as there are lanes, so every strict
+//! order occurs as well as every pattern of ties). What the
 //! comparator itself answers for two numbers is `small_rational::order` on
 //! machine-word pairs, proved over every `i64` in `small_rational_proofs`; a
 //! `Value` is too wide a type for the solver to take whole, so the order
@@ -32,7 +33,7 @@ const LANES: usize = 4;
 #[kani::unwind(33)]
 fn nulls_last_order_is_the_stable_nulls_last_sort() {
     let keys: [u8; LANES] = kani::any();
-    kani::assume(keys.iter().all(|&k| k < 3));
+    kani::assume(keys.iter().all(|&k| usize::from(k) < LANES));
     for len in 0..=LANES {
         for mask in 0..1u8 << len {
             let nil: [bool; LANES] = std::array::from_fn(|i| mask >> i & 1 == 1);

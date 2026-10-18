@@ -164,6 +164,22 @@ fn binary_gcd_is_euclid() {
     assert_eq!(binary_gcd_u64(a, b), u64::from(euclid(a as u16, b as u16)));
 }
 
+/// The remainder shortcut, which [`binary_gcd_is_euclid`]'s operands are too
+/// narrow to take: for a larger operand past `b · 2¹⁶`, built as `q · b + r`
+/// so the specification needs no division, the gcd is `gcd(b, r)`.
+#[kani::proof]
+#[kani::unwind(14)]
+fn binary_gcd_takes_the_remainder_of_a_lopsided_pair() {
+    let bound = 1u64 << GCD_SCOPE_BITS;
+    let (q, b, r): (u64, u64, u64) = (kani::any(), kani::any(), kani::any());
+    kani::assume(b < bound && r < b && q < 1 << 17);
+    let a = q * b + r;
+    kani::assume(a >> 16 > b);
+    let expected = u64::from(euclid(b as u16, r as u16));
+    assert_eq!(binary_gcd_u64(a, b), expected);
+    assert_eq!(binary_gcd_u64(b, a), expected);
+}
+
 /// `a ± b` answers, and answers the exact value in lowest terms.
 #[kani::proof]
 #[kani::unwind(14)]
