@@ -4,6 +4,8 @@
 
 pub mod structure;
 
+#[cfg(kani)]
+mod split_proofs;
 #[cfg(test)]
 mod tests;
 

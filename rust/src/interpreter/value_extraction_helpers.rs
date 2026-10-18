@@ -228,3 +228,7 @@ mod tests {
         assert_eq!(extract_position_from_value(&negative).unwrap(), i64::MIN);
     }
 }
+
+#[cfg(kani)]
+#[path = "value_extraction_helpers_proofs.rs"]
+mod proofs;
