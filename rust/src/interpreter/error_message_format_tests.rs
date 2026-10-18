@@ -132,3 +132,21 @@ async fn every_declared_error_names_its_word_once_and_its_operand_by_domain() {
         failures.join("\n")
     );
 }
+
+/// A `shapeMismatch` between shapes of different ranks names the lengths that
+/// met on the right-aligned axis. It used to index each shape by the aligned
+/// axis itself, so `[2, 3]` against `[4]` read "axis 1 is 3 and 1, and
+/// neither is 1".
+#[tokio::test]
+async fn a_shape_mismatch_across_ranks_names_the_aligned_lengths() {
+    let mut interp = Interpreter::new();
+    let error = interp
+        .execute("[ [ 1 2 3 ] [ 4 5 6 ] ] [ 1 2 3 4 ] ADD")
+        .await
+        .expect_err("[2, 3] and [4] do not align");
+    let message = error.to_string();
+    assert!(
+        message.contains("axis 1 is 3 and 4, and neither is 1"),
+        "{message}"
+    );
+}

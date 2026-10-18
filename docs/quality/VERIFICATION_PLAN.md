@@ -62,6 +62,7 @@ Define minimum verification evidence required for Ajisai changes.
   `FORMAL_VERIFICATION.md`.
 - A change to a kernel a harness proves (`rust/src/types/small_rational.rs`,
   `rust/src/types/small_divisor.rs`, `rust/src/interpreter/value_order.rs`,
+  `rust/src/interpreter/tensor_ops.rs`, `rust/src/interpreter/runtime_limits.rs`,
   the lane tables of `rust/src/interpreter/truth_ops.rs`) runs its harnesses
   locally before review: `cargo kani --harness <name>`.
 
