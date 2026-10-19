@@ -77,6 +77,7 @@ Ajisai is built from ten concepts and nothing else.
 | Build for the browser | `npm run build` |
 | Build the desktop app (Tauri) | `npm run tauri:build` |
 | Run the Rust test suite | `cargo test --all-targets` (in `rust/`) |
+| Prove the formal-verification harnesses | `cargo kani` (in `rust/`; setup and scope in [docs/quality/FORMAL_VERIFICATION.md](docs/quality/FORMAL_VERIFICATION.md)) |
 
 The MCP server for AI agents lives in [`tools/mcp-server/`](tools/mcp-server/README.md#install-and-connect).
 
