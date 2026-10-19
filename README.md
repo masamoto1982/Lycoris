@@ -4,33 +4,30 @@
 
 # Ajisai
 
-Ajisai is an AI-first, vector-oriented dataflow language for auditable, exact vector computation with machine-readable contracts. Fractions and the Vector data structure carry the central role.
+Ajisai is a stack-based, vector-oriented dataflow language whose true user is AI. Numbers are never rounded, dividing by zero never stops a program, and truth is three-valued, as in SQL. There is nowhere to write a type; rigor lives in the machine-readable contracts the Words carry.
+
+```
+[ 1 2 3 ] [ 1 0 2 ] DIV    # [ 1/1 1/0 3/2 ]
+```
+
+## What Ajisai can do
+
+- **Exact arithmetic.** Integers and decimals alike are exact rationals, and `SQRT` keeps its results as algebraic irrationals. There is no choosing between float, double and decimal.
+- **Division that never stops.** Dividing by zero answers a point over zero, `1/0` or `0/0`, which is a number. In a vector computation only the element divided by zero is affected.
+- **Vector computation without loops.** Arithmetic Words lift over vectors automatically, and `SELECT` branches element by element. Collections are processed with `MAP`, `FILTER` and `FOLD`.
+- **Failure with a reason.** An operation that cannot produce a value answers a `NIL` carrying its reason, and that `NIL` flows on downstream. Evaluation stops only when the operation or the shape of its input is itself wrong, or when a program exceeds the limits the host can support.
+- **Checking before running.** Every Word carries a contract stating what it takes and how many, whether it is pure, and what it returns when it cannot produce a value. User-defined Words are checked against these contracts before anything runs.
+- **Use from AI.** Through the [MCP server](tools/mcp-server/README.md#install-and-connect), an AI can run Ajisai code and check its contracts.
 
 ## Why Ajisai
 
-I built Ajisai for two reasons. The first is that I had given up partway on learning every programming language I ever tried. The second is that I did not want to build something with a language — I wanted to build the tool itself.
+I had given up partway on every programming language I tried, and I wanted to build the tool itself rather than something with it. **Forth** showed me that a language is allowed to be that small. I still wanted the rigor of types without writing them, so Ajisai carries that rigor in contracts on the Words instead of annotations on values.
 
-What changed things for me was **Forth**: stack-oriented minimalism, pared back as far as it goes. Stripped of syntactic noise, it left the act of computation exposed, and it taught me that a language is allowed to be that small.
+**AI** made the design practical. With AI writing the code alongside me, a language needs no syntactic sugar for human convenience; it can hold nothing but strict machine-readable rules and plain dataflow.
 
-But I work in a world where manuals and established procedure matter, and I could not bring myself to give up the rigor of types. That left me with a sharp contradiction: I wanted types to matter, and I did not want to write them.
+The arithmetic is not new: it is Carlström's *wheel of fractions* over the integers. What Ajisai adds is that every contract says, before anything runs, whether the code can reach a point over zero (`field=closed` or `field=leaving`).
 
-The answer was to carry that rigor in **machine-readable contracts on the words** rather than in annotations on values. Every Core Word states what it takes and how many, whether it is pure, and what it returns when it cannot produce a value; a user definition can carry the same kind of declaration, checked against those contracts before anything runs. There is nowhere in the language for a programmer to write a type — and the checking stays, on the side of the words.
-
-Numbers follow the same principle. Write an integer or a decimal and the value is an exact rational either way, with `SQRT` extending the field out to algebraic irrationals. Nothing is rounded. The question of float versus double versus decimal does not exist here.
-
-Division by zero follows from the same two choices, and it is the part of the design I like best. Every number is a pair of integers taken up to a nonzero factor — `2/4`, `1/2` and `-1/-2` are one number — written in lowest terms over a non-negative denominator, and division is total: it is multiplication by the reciprocal, and every pair has one. `1 0 DIV` is neither a trap nor an exception nor an absence but a number, `1/0`. Because the gcd of `n` and `0` is `|n|`, and the factor `-1` relates `1/0` and `-1/0`, every pair over zero reduces to one of exactly two — `1/0`, one unsigned point at infinity, and `0/0` — so `100 0 DIV` and `-5 0 DIV` are both `1/0` for the same reason `4/2` is `2/1`, and `1/0` is a literal as `1/2` is. The two points compute by the same pair formulas as everything else: `1/0 5 ADD` is `1/0`, `1 1/0 DIV` is `0`, `1/0 1/0 ADD` is `0/0`, and the reciprocal of the reciprocal of every number, the points included, is that number. Element-wise, a zero divisor marks exactly its own element: `[ 1 2 3 ] [ 1 0 2 ] DIV` is `[ 1 1/0 3/2 ]`, and every Word after it computes with the point by the same formulas. The price any arithmetic pays for letting division be total is paid here too, in the open: at the two points, and nowhere else, the laws of a field that mention zero give way — `0 1/0 MUL` is `0/0`, not `0`; `1/0 1/0 SUB` is `0/0`, not `0`; and distributivity fails there — and the machine does not restore them by special case. Neither point has a place in the order — `1/0` has no sign to put it above or below anything, and `0/0` absorbs everything it meets — so an order asked of one is the one question arithmetic cannot answer, and the one place the two sides of the design meet: `0/0 1 LT` projects a reasoned absence, which reads as *unknown* in truth position (`NIL-REASON` says `'domainMiss'`), while `0/0 0/0 EQ` is `TRUE` because identity is denotation and `0/0 NIL?` is `FALSE` because `0/0` is a number: only the question of its order is absent. Absence itself stays what it was — the answer of a partial Word such as `-1 SQRT` — and the same two Words recover it: `-1 SQRT 'S' BIND 0 S S NIL? SELECT` is `0`. What all this buys is that in element-wise work the failure of one element costs one element: one zero among a million divisors costs one lane of storage and one lane of work, never the vector, and nothing is ever stored that is not a number. Words that decide over a whole collection say plainly what they do with an element they cannot decide: `FILTER` keeps the elements its predicate calls true and nothing else, so `[ 1 0/0 2 ] [ 0 GT ] FILTER` is `[ 1 2 ]`, exactly as an SQL WHERE clause drops a row whose condition is unknown; and a Word whose one answer depends on the order of every element — `SORT`, `ORDER`, `BSEARCH` — has no answer when one element has no order, and says so with `domainMiss` rather than placing it somewhere. An absent element is another matter — not a number without an order but no value at all — so `SORT` and `ORDER` set every `NIL` aside and place it last, as an SQL ORDER BY places its NULLs, and `UNIQUE`, `TALLY` and `GROUP` gather every `NIL` under one key whatever its reason, as SQL's DISTINCT and GROUP BY gather every NULL: `[ 3 NIL 1 ] SORT` is `[ 1 3 NIL ]`. Strings are ordered too, by Unicode scalar value — SQL's binary collation — so `'abc' 'abd' LT` is `TRUE`.
-
-None of that arithmetic is new, and it is worth saying whose it is. It is Carlström's *wheel of fractions* over the integers: pairs taken up to a nonzero factor, one unsigned point at infinity, and a bottom element `⊥` that is Ajisai's `0/0`, with the rules above — `1/0 1/0 ADD` and `0 1/0 MUL` both `0/0`, `0/0` absorbing every operation, `1 1/0 DIV` zero — read off the same pair formulas. Every wheel axiom holds, the reciprocal's involution included. Anderson's transreal arithmetic totalizes division over the same pairs but keeps a signed `∞` and `−∞`, which buys an order at infinity and costs the involution; Ajisai takes the wheel's side and gives up order at the two points instead.
-
-What Ajisai adds is not the arithmetic but what it lets a program know before it runs. The two points are literals a program can write, identity is denotation (so `0/0 0/0 EQ` is `TRUE`), and an order asked of a point is a reasoned absence rather than a comparison defined to be false, so `SELECT` given it chooses neither candidate instead of silently choosing a branch. Above all, the contract of every Word and of every user definition says, before anything executes, whether that code can reach a point over zero from operands that hold none — `field=closed` or `field=leaving`, with the calls that leave named. That is an abstract interpretation over the four shapes a number takes around zero, and it is what makes the price of total division readable in advance: inside `closed` code fed finite numbers every law of the field holds, and a `leaving` boundary is exactly where it stops.
-
-Branching followed the same logic. `SELECT` takes the two candidate values and the truth that chooses between them, and nothing else: the candidates are values the program has already built, so a branch evaluates nothing and skips nothing. That is only affordable because Ajisai has no recursion and no unbounded loop — no Word reaches itself through the dictionary, no block runs a copy of itself, and every arm is finite by construction — and because a partial Word answers what it cannot compute with a reasoned absence rather than a raise, so computing the arm that loses costs a value, never a crash. The choice is made element by element, so one `SELECT` branches a whole vector without a loop, and its cost is the sum of what it was handed rather than something only running can discover. An *unknown* lane chooses neither candidate and answers its own absence, reason and all — never a guess.
-
-What made this uncompromising design practical was **AI**. Now that AI can read intent and act as a real partner in development, there is no need to dress a language up in syntactic sugar for human convenience. Taking an AI-first premise — a new kind of intelligence writing the code alongside me — I became convinced that a language could hold nothing but strict machine-readable rules and leave everything else to plain dataflow.
-
-Exact numbers, and a stack to carry them. When that shape settled, the picture in my mind was water poured into a vessel. What fills it is water alone, never rounded; yet there is no limit to the shapes of the ripples AI and I spread across its surface.
-
-As it happens, a flower takes its scientific name from the Greek for "water vessel": the hydrangea — *ajisai*. I began the work in June, in the middle of Japan's rainy season. Ajisai is the language I built with that picture in mind.
+I began the work in June, in Japan's rainy season. Watching the rain, I pictured fractions poured into a vessel called a Vector: one substance inside, never rounded, and rich ripples on its surface. The hydrangea — *ajisai* in Japanese — takes its scientific name, *Hydrangea*, from the Greek for "water vessel".
 
 ## Status
 
@@ -41,21 +38,6 @@ As it happens, a flower takes its scientific name from the Greek for "water vess
 <tr><td>Specification</td><td>Generated from the semantic sources in <code>spec/</code> — see <a href="spec/README.md"><code>spec/README.md</code></a></td></tr>
 <tr><td>Compatibility promise</td><td>From 1.0.0. Until then a breaking change raises the specification version, and <code>npm run check:spec-version</code> refuses one that does not</td></tr>
 </table>
-
-## Ten concepts
-
-Ajisai is built from ten concepts and nothing else.
-
-1. Exact arithmetic with no rounding over reduced pairs of integers, closed under division as a wheel of fractions: `1/0` and `0/0` are the two numbers over zero, every pair over zero reduces to one of them, and `SQRT` extends the field to algebraic irrationals. Equality decides everywhere; order decides everywhere but at the two points.
-2. Three outcomes: a value, a reasoned absence, or an error — with SQL's three-valued truth (`TRUE`, `FALSE`, and *unknown*, which a `NIL` reads as, its reason saying why), and a program may declare either failing outcome itself.
-3. A stack of values, and vectors of values, text and Records included — element-wise lifting follows a vector's shape, which a program can read and rewrite.
-4. Code is a vector, evaluated only when a Word asks for it — and branching is not one of those Words.
-5. One consumption rule: a Word consumes what it reads, and `BIND` names a value for reuse.
-6. A two-tier dictionary — sealed Core, user-defined User — with content-addressed identity that a program can ask for.
-7. A machine-readable contract for every Word, readable from inside the language.
-8. A pre-execution check of user declarations (`#:contract DOUBLE inputs=1 outputs=1 …`) against those contracts, run by `check` and by `compute` before anything executes.
-9. One host protocol, which is the only way anything outside the language observes it.
-10. An executable conformance corpus that decides whether an implementation is Ajisai.
 
 ## Documentation
 
