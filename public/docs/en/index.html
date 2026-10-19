@@ -1483,7 +1483,7 @@ FILTER</code></td>
                     <ul class="ref-list">
                         <li><strong>Axis alignment</strong>: two Vectors are aligned axis by axis, starting from the innermost.</li>
                         <li><strong>Stretching length-1 axes</strong>: an axis the shorter Vector does not reach is taken to have length 1, and a length-1 axis is reused to match the other side's length. <code>[ 1 2 3 ] [ 10 ] MUL</code> is <code>[ 10/1 20/1 30/1 ]</code>, and <code>[ [ 1 2 ] [ 3 4 ] ] [ 10 20 ] MUL</code> is <code>[ [ 10/1 40/1 ] [ 30/1 80/1 ] ]</code>.</li>
-                        <li><strong>Shape mismatch</strong>: when axis lengths differ and neither is 1, it is an error. <code>[ 1 2 3 ] [ 10 20 ] MUL</code> cannot align lengths 3 and 2, so it is an error.</li>
+                        <li><strong>Shape mismatch</strong>: when axis lengths differ and neither is 1, it is an error. <code>[ 1 2 3 ] [ 10 20 ] MUL</code> cannot align lengths 3 and 2, so it is an error. The message names the axis, counted after aligning from the innermost, and the two lengths that met there: for <code>[ [ 1 2 3 ] [ 4 5 6 ] ] [ 1 2 3 4 ] ADD</code> it is axis 1, lengths 3 and 4.</li>
                         <li><strong>Scalars</strong>: a scalar needs no axes. It combines with every element, however the Vector is nested, ragged ones included.</li>
                         <li><strong>Rectangularity</strong>: two <em>Vectors</em> can broadcast against each other only when both are rectangular, that is, when every axis has a uniform length.</li>
                     </ul>

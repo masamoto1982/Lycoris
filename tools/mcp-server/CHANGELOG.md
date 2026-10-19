@@ -25,6 +25,10 @@ Specification: 1.0.0-beta.3.
 
 - **The quickstart is less than half its size.** `ajisai://guide/quickstart` was 79 KB, most of it every Word's full summary; it is now about 37 KB, with a one-line index of the Words by family. The full summaries are where they already were, `word_contract` and `ajisai://contracts`.
 
+### Fixed
+
+- **A `shapeMismatch` across ranks names the lengths that met.** The message's axis counts the right-aligned axes, but the two lengths it reported were read from the left: `[ [ 1 2 3 ] [ 4 5 6 ] ] [ 1 2 3 4 ] ADD` said `axis 1 is 3 and 1` and now says `axis 1 is 3 and 4`. Operands of one rank, the quickstart's example among them, read as before; the category and `error.word` do not change.
+
 ### Added
 
 - **`words` on `compute`, `check` and `infer_contracts`.** Name phrasebook User Words — a remainder, a mean, a disjunction and others — and their definitions, with those of the phrasebook Words they call and their verified `#:contract` lines, run before `source`. The result's `prelude` names each Word added with its content digest, error lines still count from the caller's first line, and the Words count against `sourceBytes`. A name the phrasebook does not hold is `invalidRequest` with the nearest names. Nothing persists between calls.
