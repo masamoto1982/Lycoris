@@ -12,7 +12,7 @@ Ajisai is a stack-based, vector-oriented dataflow language whose true user is AI
 
 ## What Ajisai can do
 
-- **Exact arithmetic.** Integers and decimals alike are exact rationals, and `SQRT` keeps its results as algebraic irrationals. There is no choosing between float, double and decimal.
+- **Exact arithmetic.** Integers and decimals alike are exact rationals, and `SQRT` keeps its results as algebraic irrationals. There is no choosing between float, double and decimal. `0.1 0.2 ADD 0.3 EQ` is `TRUE`, and a sum or a product is one value in whatever order its operands are taken, points over zero included, so reordering or regrouping a `FOLD` never changes its answer.
 - **Division that never stops.** Dividing by zero answers a point over zero, `1/0` or `0/0`, which is a number. In a vector computation only the element divided by zero is affected.
 - **Vector computation without loops.** Arithmetic Words lift over vectors automatically, and `SELECT` branches element by element. Collections are processed with `MAP`, `FILTER` and `FOLD`.
 - **Failure with a reason.** An operation that cannot produce a value answers a `NIL` carrying its reason, and that `NIL` flows on downstream. Evaluation stops only when the operation or the shape of its input is itself wrong, or when a program exceeds the limits the host can support.

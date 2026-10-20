@@ -13,9 +13,12 @@
 //!    and `{0/0}` — so the numbers form a Clifford monoid over the shapes;
 //! 3. the shape of a sum is the Boolean-fraction sum `(ad ∨ bc, bd)`, exact
 //!    except where two F operands cancel to `0`;
-//! 4. every axiom of a wheel holds at every point, the reciprocal's
-//!    involution and its respect for products included;
-//! 5. the distributive law fails only with `1/0` as the multiplier.
+//! 4. every axiom of a wheel holds at every point, the commutative monoids
+//!    of addition and multiplication, the reciprocal's involution and its
+//!    respect for products included;
+//! 5. the distributive law fails only with `1/0` as the multiplier;
+//! 6. so a sum or a product does not depend on the order its operands are
+//!    taken in, the points over zero included.
 
 use crate::interpreter::Interpreter;
 use crate::types::{Value, ValueData};
@@ -154,6 +157,8 @@ async fn every_wheel_axiom_holds_at_every_point() {
         for y in SAMPLE {
             for z in SAMPLE {
                 let laws = [
+                    ("x+y = y+x", format!("{x} {y} ADD  {y} {x} ADD EQ")),
+                    ("xy = yx", format!("{x} {y} MUL  {y} {x} MUL EQ")),
                     (
                         "x+(y+z) = (x+y)+z",
                         format!("{x} {y} {z} ADD ADD  {x} {y} ADD {z} ADD EQ"),
@@ -221,4 +226,72 @@ async fn distribution_fails_only_under_the_point_at_infinity() {
         }
     }
     assert!(failures > 0, "the distributive law does give way at 1/0");
+}
+
+/// Every way to choose `k` of `items`, keeping their order.
+fn selections<'a>(items: &[&'a str], k: usize) -> Vec<Vec<&'a str>> {
+    if k == 0 {
+        return vec![Vec::new()];
+    }
+    let mut out = Vec::new();
+    for (i, head) in items.iter().enumerate() {
+        for mut tail in selections(&items[i + 1..], k - 1) {
+            tail.insert(0, *head);
+            out.push(tail);
+        }
+    }
+    out
+}
+
+/// Every ordering of `items`.
+fn orderings<'a>(items: &[&'a str]) -> Vec<Vec<&'a str>> {
+    if items.len() <= 1 {
+        return vec![items.to_vec()];
+    }
+    let mut out = Vec::new();
+    for i in 0..items.len() {
+        let mut rest = items.to_vec();
+        let head = rest.remove(i);
+        for mut tail in orderings(&rest) {
+            tail.insert(0, head);
+            out.push(tail);
+        }
+    }
+    out
+}
+
+/// `a b WORD c WORD …`: the operands combined left to right, as a FOLD does.
+fn chain(word: &str, operands: &[&str]) -> String {
+    operands[1..]
+        .iter()
+        .fold(operands[0].to_string(), |code, x| {
+            format!("{code} {x} {word}")
+        })
+}
+
+/// Law 6 follows from law 4, and is the one a reader of exact arithmetic
+/// leans on: where rounded arithmetic answers a sum differently in each
+/// order, a sum or a product here is one value in every order — so a FOLD of
+/// `ADD` or `MUL` may be reordered or regrouped without changing its answer,
+/// even once it has met a point over zero. Every ordering of every
+/// four-operand selection of the sample is compared, as a chain and, for
+/// operands a Vector literal can hold, as a FOLD over that Vector.
+#[tokio::test]
+async fn a_sum_or_product_does_not_depend_on_operand_order() {
+    for (word, unit) in [("ADD", "0"), ("MUL", "1")] {
+        for selection in selections(SAMPLE, 4) {
+            let all = orderings(&selection);
+            let first = chain(word, &all[0]);
+            let literal = selection.iter().all(|x| !x.contains(' '));
+            for other in &all[1..] {
+                let law = format!("{first}  {} EQ", chain(word, other));
+                assert!(holds(&law).await, "{word} must not depend on order: {law}");
+                if literal {
+                    let fold = format!("[ {} ] {unit} [ {word} ] FOLD", other.join(" "));
+                    let law = format!("{first}  {fold} EQ");
+                    assert!(holds(&law).await, "FOLD must not depend on order: {law}");
+                }
+            }
+        }
+    }
 }
