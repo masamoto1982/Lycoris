@@ -178,10 +178,11 @@ async fn the_estimate_tracks_the_real_size() {
     );
 }
 
-/// Eighteen 256-term algebraic values, refused by the work meter.
+/// Nineteen 256-term algebraic values, refused by the work meter at the
+/// twentieth (each costs 524,560 of the profile's 10,000,000 units).
 const REPEATED_CASCADE: &str = "[ 2 SQRT 3 SQRT ADD 5 SQRT 7 SQRT ADD MUL 11 SQRT 13 SQRT ADD MUL \
 17 SQRT 19 SQRT ADD MUL 23 SQRT 29 SQRT ADD MUL 31 SQRT 37 SQRT ADD MUL 41 SQRT 43 SQRT ADD MUL \
-47 SQRT 53 SQRT ADD MUL ] 'C' DEF C C C C C C C C C C C C C C C C C C C";
+47 SQRT 53 SQRT ADD MUL ] 'C' DEF C C C C C C C C C C C C C C C C C C C C";
 
 #[tokio::test]
 async fn eliding_an_algebraic_value_drops_the_part_that_is_large() {

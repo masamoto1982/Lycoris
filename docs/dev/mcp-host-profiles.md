@@ -150,7 +150,7 @@ at their prior values (mostly) or a differently-reasoned one:**
 - `algebraicTerms` moved (100,000 → 10,000) for the same reason it moved on
   the MCP side once before: the old value stopped being *live* once
   `numericWork` shrank below what it needs — the doubling that first exceeds
-  100,000 terms costs 520,124,416 units (a fixed cost from the pricing
+  100,000 terms costs 520,099,280 units (a fixed cost from the pricing
   formula, independent of which host measured the floor rate), which is over
   even the current, WASM-calibrated 311,190,000 budget, so `numericWork`
   would always answer first and the term ceiling would never fire
@@ -258,7 +258,7 @@ different defect:
   decision the language says is unobservable. It is now charged at one entry
   for every shape, priced as lanes × limb-multiply units.
 - `algebraicTerms` was declared at 4,096, which the work budget could not pay
-  to reach: the doubling that first exceeds it costs 16,799,744 units against
+  to reach: the doubling that first exceeds it costs 16,780,400 units against
   10,000,000, so `numericWork` always answered first. Lowered to 512, and
   `rust/src/agent/profile_liveness_tests.rs` now fails the build if any size
   ceiling is declared past what the work budget can reach.
@@ -270,6 +270,18 @@ different defect:
   by name in 164 ms, and no source program reaches the clock any more — so
   `wallTimeMs` moved to `hostGate`, exercised against a backend built with a
   1 ms deadline.
+- An algebraic sum was priced per term with `ALGEBRAIC_PAIR_UNITS`, the
+  constant measured on products. One shape of sum ran *below* the floor: one
+  whose every addend splits a composite radical (`√(p₁p₂) + √(p₃p₄) + …` then
+  `√p₁`, `√p₃`, …) charged 51,880 units/ms natively, a tenth of the other
+  paths, because each addition refined the whole basis and rebased every term.
+  Rebuilding the sum (`rust/src/types/exact/algebraic_sum.rs`) to refine and
+  rebase only what a merge actually splits took that shape to 3.4M units/ms
+  and made every other sum an order of magnitude cheaper still, so the sum got
+  its own constant, `ALGEBRAIC_SUM_TERM_UNITS` = 256: the dearest sum measured
+  (`work_meter_calibration.rs`, `wasm-profile-calibration.mjs`) charges about
+  1.5× the native floor and 3.5× the WASM one. The MCP `numericWork` boundary
+  pair moved from 18/19 cascades to 19/20 with it.
 
 What the work meters charge is documented where it is charged: the doc
 comments in `rust/src/interpreter/collection_meter.rs` carry the collection

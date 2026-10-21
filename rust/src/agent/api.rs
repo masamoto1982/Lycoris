@@ -28,7 +28,7 @@ pub const LOCAL_AGENT_RUNTIME_LIMITS: RuntimeLimits = RuntimeLimits {
     // readable at all. It is also *live*: the doubling that crosses it charges
     // 2,113,536 units, a fifth of `max_numeric_work`, so this ceiling names
     // itself instead of being pre-empted. At 4,096 it could not — the doubling
-    // that would first exceed it costs 16,799,744 against a 10,000,000 budget,
+    // that would first exceed it costs 16,780,400 against a 10,000,000 budget,
     // so `numericWork` always answered first and this limit was a claim rather
     // than a control. See `profile_liveness_tests`.
     max_algebraic_terms: 512,

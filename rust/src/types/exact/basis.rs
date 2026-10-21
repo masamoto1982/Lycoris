@@ -74,11 +74,69 @@ impl Basis {
     /// GCD-free basis over which every monomial of either side (and every
     /// extra radicand) decomposes.
     pub(crate) fn merged(a: &Basis, b: &Basis, extra: &[BigInt]) -> Basis {
+        if extra.is_empty() {
+            return Self::merged_where_tangled(a, b);
+        }
         let mut inputs: Vec<BigInt> = Vec::with_capacity(a.0.len() + b.0.len() + extra.len());
         inputs.extend(a.0.iter().cloned());
         inputs.extend(b.0.iter().cloned());
         inputs.extend(extra.iter().cloned());
         Self::build(inputs)
+    }
+
+    /// The common refinement of two bases, refining only what needs it.
+    ///
+    /// An element of either basis that is equal or coprime to every element
+    /// of the other is already coprime to everything the merge can produce:
+    /// its own basis is pairwise coprime, so it shares no factor with any
+    /// element that does tangle, nor with the pieces refining those yields.
+    /// Only the tangled elements go through `build`, and the rest are kept as
+    /// they are — for a sum gaining a new prime that is all of them, and the
+    /// merge costs `|a|·|b|` gcds instead of the refinement's search over
+    /// every pair of the union.
+    fn merged_where_tangled(a: &Basis, b: &Basis) -> Basis {
+        let mut tangled_a = vec![false; a.0.len()];
+        let mut tangled_b = vec![false; b.0.len()];
+        for (i, x) in a.0.iter().enumerate() {
+            for (j, y) in b.0.iter().enumerate() {
+                if x != y && !balanced_bigint_gcd(x, y).is_one() {
+                    tangled_a[i] = true;
+                    tangled_b[j] = true;
+                }
+            }
+        }
+        let mut elems = Vec::with_capacity(a.0.len() + b.0.len());
+        let mut tangled = Vec::new();
+        for (e, t) in a.0.iter().zip(tangled_a).chain(b.0.iter().zip(tangled_b)) {
+            if t {
+                tangled.push(e.clone());
+            } else {
+                elems.push(e.clone());
+            }
+        }
+        if !tangled.is_empty() {
+            elems.extend(Self::build(tangled).0);
+        }
+        elems.sort();
+        elems.dedup();
+        Basis(elems)
+    }
+
+    /// The elements of `self` that `other` does not have, as a basis: the
+    /// elements a merge made, read off the merge and one operand's basis.
+    pub(crate) fn without(&self, other: &Basis) -> Basis {
+        Basis(
+            self.0
+                .iter()
+                .filter(|e| !other.contains(e))
+                .cloned()
+                .collect(),
+        )
+    }
+
+    /// Whether `e` is one of this basis's elements.
+    pub(crate) fn contains(&self, e: &BigInt) -> bool {
+        self.0.binary_search(e).is_ok()
     }
 
     /// √n as `outside · √monomial` over this basis: factor n into

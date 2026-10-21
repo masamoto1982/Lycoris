@@ -92,14 +92,79 @@ fn algebraic_product(factors: usize) -> String {
     source
 }
 
+/// `√1 + √2 + … + √n`, folded: the sum a program writes, where each addend
+/// is a new prime or already decomposes over the sum's basis, so every
+/// addition takes a shortcut of `algebraic_sum.rs`.
+fn algebraic_sum(n: usize) -> String {
+    format!("1 {n} RANGE SQRT 0 [ ADD ] FOLD")
+}
+
+/// The first `count` primes.
+fn primes(count: usize) -> Vec<u64> {
+    let mut found: Vec<u64> = Vec::with_capacity(count);
+    let mut candidate = 2u64;
+    while found.len() < count {
+        if found
+            .iter()
+            .take_while(|p| *p * *p <= candidate)
+            .all(|p| !candidate.is_multiple_of(*p))
+        {
+            found.push(candidate);
+        }
+        candidate += 1;
+    }
+    found
+}
+
+/// The dearest addition there is, as `(setup, source)`: the setup leaves
+/// `√(p₁p₂) + √(p₃p₄) + …`, whose basis holds each product whole, and the
+/// source adds `√p₁`, `√p₃`, … one at a time. Each addend shares a factor
+/// with one basis element and decomposes over none, so neither shortcut
+/// applies: every addition refines the merged basis from scratch and rebases
+/// every term of the sum over it.
+fn refining_sum(pairs: usize) -> (String, String) {
+    let primes = primes(2 * pairs);
+    let mut setup = String::from("0");
+    let mut source = String::new();
+    for pair in primes.chunks(2) {
+        setup.push_str(&format!(" {} {} MUL SQRT ADD", pair[0], pair[1]));
+        source.push_str(&format!(" {} SQRT ADD", pair[0]));
+    }
+    (setup, source)
+}
+
+/// The dearest addition there is when every monomial shares the element
+/// being split, as `(setup, source)`: the setup leaves `√(C·q₁) + √(C·q₂) +
+/// …` with `C` the product of the first `splits` primes, whose basis holds
+/// `C` whole and whose every monomial contains it; the source adds `√p₁`,
+/// `√p₂`, … for the primes of `C`, each splitting one more prime off `C` and
+/// so carrying every term of the sum over to the new basis.
+fn shared_split_sum(splits: usize, terms: usize) -> (String, String) {
+    let primes = primes(splits + terms);
+    let c: String = primes[..splits]
+        .iter()
+        .map(|p| p.to_string())
+        .collect::<Vec<_>>()
+        .join(" ");
+    let product = format!("{c}{}", " MUL".repeat(splits - 1));
+    let mut setup = String::from("0");
+    for q in &primes[splits..] {
+        setup.push_str(&format!(" {product} {q} MUL SQRT ADD"));
+    }
+    let source: String = primes[..splits]
+        .iter()
+        .map(|p| format!(" {p} SQRT ADD"))
+        .collect();
+    (setup, source)
+}
+
 /// Steps per millisecond for a dispatch-bound loop: no `Fraction` wider than
 /// a machine word, no algebraic term, nothing any other meter prices.
 /// `executionSteps` is the *only* ceiling such a path can ever reach — the
 /// same role `dense tensor lanes` plays for `numericWork`. Two shapes,
 /// because dispatch cost is not uniform: a flat arithmetic loop is cheap,
-/// and a user-word call (dictionary lookup, frame push) is dearer —
-/// `DOWN_PROBE` in `cli/step_limit_tests.rs` is exactly this second shape,
-/// and it is the one that sets the floor.
+/// and a user-word call (dictionary lookup, frame push) is dearer — the
+/// second shape, and the one that sets the floor.
 ///
 /// **Native, not what `DEFAULT_MAX_EXECUTION_STEPS` is sized against.** The
 /// 2026-08-14 host-profile derivation calibrated that constant here first,
@@ -131,14 +196,14 @@ fn add_loop(reps: usize) -> String {
     format!("1{}", " 7 ADD".repeat(reps))
 }
 
-/// A trampolined tail-recursive countdown, same construction as
-/// `cli::step_limit_tests::DOWN_PROBE`: every iteration is a user-word call
-/// (dictionary lookup, guard check, frame push) rather than a bare
-/// arithmetic op, so it prices dispatch overhead the flat loop cannot see.
-fn down_probe(n: usize) -> String {
-    format!(
-        "{{\n{{ [ 0 ] GT | [ 1 ] SUB DOWN }}\n{{ IDLE | [ 'done' ] }} COND\n}} 'DOWN' DEF\n{n} DOWN"
-    )
+/// `n` User Word calls, one per element of a MAP: every iteration is a
+/// dictionary lookup and a frame push rather than a bare arithmetic op, so it
+/// prices dispatch overhead the flat loop cannot see. (This was a
+/// tail-recursive countdown until the dictionary became acyclic; a Word can
+/// no longer call itself, and a MAP over a Word is now the shape that calls a
+/// Word most often.)
+fn word_calls(n: usize) -> String {
+    format!("[ 1 ADD ] 'STEP' DEF 1 {n} RANGE [ STEP ] MAP")
 }
 
 fn main() {
@@ -157,13 +222,13 @@ fn main() {
         // limb-multiply.
         measure(
             "scalar wide MUL x20 (4096-digit)".into(),
-            &format!("{{ {wide} MUL }} 'M' DEF 1{}", " M".repeat(20)),
+            &format!("[ {wide} MUL ] 'M' DEF 1{}", " M".repeat(20)),
         ),
         // Rational addition: cross-multiply plus gcd, and measurably dearer
         // than the multiplication above at the same width.
         measure(
             "scalar wide ADD x200 (4096-digit)".into(),
-            &format!("{{ {wide} ADD }} 'W' DEF 1{}", " W".repeat(200)),
+            &format!("[ {wide} ADD ] 'W' DEF 1{}", " W".repeat(200)),
         ),
         // Dense `i64` lanes: one charged unit per lane, and a lane here is a
         // machine-word add inside a tensor kernel. This is the *floor* path —
@@ -186,6 +251,26 @@ fn main() {
             "algebraic cascade (4 two-radical factors)".into(),
             &algebraic_product(4),
         ),
+        measure(
+            "algebraic sum (fold of SQRT 1..400)".into(),
+            &algebraic_sum(400),
+        ),
+        {
+            let (setup, source) = refining_sum(150);
+            measure_after_setup(
+                "algebraic sum, refining (150 splits)".into(),
+                &setup,
+                &source,
+            )
+        },
+        {
+            let (setup, source) = shared_split_sum(40, 150);
+            measure_after_setup(
+                "algebraic sum, shared split (40 x 150 terms)".into(),
+                &setup,
+                &source,
+            )
+        },
     ];
     println!(
         "{:<46} {:>13} {:>9} {:>13}",
@@ -263,11 +348,11 @@ fn main() {
         println!("{label:<24} {steps:>10} {run_millis:>9.1} {rate:>12.0}");
     }
     for n in [50_000usize, 200_000, 1_000_000] {
-        let (steps, run_millis, rate) = steps_per_ms(&down_probe(n));
+        let (steps, run_millis, rate) = steps_per_ms(&word_calls(n));
         floor = floor.min(rate);
         println!(
             "{:<24} {steps:>10} {run_millis:>9.1} {rate:>12.0}",
-            "DOWN trampoline"
+            "User Word in MAP"
         );
     }
     println!("\nfloor: {floor:.0} steps/ms on this container, this build.");

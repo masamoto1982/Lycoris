@@ -64,6 +64,23 @@ pub fn work_limbs(bits: u64) -> u64 {
 /// representation changes.
 pub const ALGEBRAIC_PAIR_UNITS: u64 = 1_024;
 
+/// What one term of an algebraic *sum* costs, in limb-multiply units.
+///
+/// A sum does not multiply term pairs; it merges two term maps, refining the
+/// basis only where the operands' radicals share a factor and carrying a term
+/// over only where its monomial holds a radical the merge split
+/// (`types/exact/algebraic_sum.rs`). It was priced with
+/// [`ALGEBRAIC_PAIR_UNITS`] per term until that path was rebuilt, and then ran
+/// an order of magnitude cheaper per unit than every other path, so a sum the
+/// host could finish in milliseconds was refused for `numericWork`.
+///
+/// Measured like its partner, and kept a power of two: chosen so the dearest
+/// sum there is — one whose every addend splits a radical that every monomial
+/// of the sum shares — still charges no slower than the floor path the host
+/// profiles are derived from, with margin, on native and on WASM
+/// (`examples/work_meter_calibration.rs`, `scripts/wasm-profile-calibration.mjs`).
+pub const ALGEBRAIC_SUM_TERM_UNITS: u64 = 256;
+
 /// The work a binary exact-arithmetic operation of these two operand widths
 /// costs, in limb-multiply units.
 ///

@@ -16,7 +16,7 @@
 //! "stop multiplying surds like that" are different instructions.
 //!
 //! `max_algebraic_terms` was 4,096 under the MCP profile and violated it. The
-//! doubling that would first exceed 4,096 terms charges 16,799,744 units
+//! doubling that would first exceed 4,096 terms charges 16,780,400 units
 //! against a 10,000,000 budget, so `numericWork` answered every time and the
 //! term ceiling had never fired in its life. That went unnoticed through
 //! three rounds of external review because nothing checked it. This is what
@@ -93,7 +93,7 @@ fn mcp_profile() -> Profile {
         bigint_bits_over: 20,     // > 262,144 bits
         bigint_bits_under: 19,    // < 262,144 bits
         cumulative_cascade_factors: 8,
-        cumulative_cascade_reps: 19,
+        cumulative_cascade_reps: 20, // 524,560 units each
         collection_vector_max: 99_998,
         collection_reps_to_cross: 6,
     }
@@ -122,7 +122,7 @@ fn playground_profile() -> Profile {
         bigint_bits_over: 74,      // > 1,000,000 bits
         bigint_bits_under: 73,     // < 1,000,000 bits
         cumulative_cascade_factors: 8,
-        cumulative_cascade_reps: 580,
+        cumulative_cascade_reps: 594, // 524,560 units each
         collection_vector_max: 999_997,
         collection_reps_to_cross: 42,
     }
