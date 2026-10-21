@@ -56,12 +56,21 @@ fn main() {
                 .trim_matches('\'')
                 .to_string()
         });
+        // Untimed: the value's content identity, which another build of
+        // Ajisai (exact-bench-wasm.mjs) checks its own answer against without
+        // having to display it.
+        let (interp, _) = time_after_setup("", &format!("{source} DIGEST"));
+        let digest = interp.get_stack()[0]
+            .to_string()
+            .trim_matches('\'')
+            .to_string();
         if !as_json {
             println!("{name:<14} n={n:<7} {best:>10.2} ms");
         }
-        rows.push(
-            json!({ "name": name, "n": n, "ms": best, "answer": answer, "decimal": decimal }),
-        );
+        rows.push(json!({
+            "name": name, "n": n, "ms": best,
+            "answer": answer, "decimal": decimal, "digest": digest,
+        }));
     }
     if as_json {
         println!("{}", Value::Array(rows));
