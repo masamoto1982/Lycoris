@@ -823,12 +823,12 @@
    "id": "ceiling-numeric-work",
    "category": "resourceLimit",
    "prompts": {
-    "en": "Multiply eight two-radical sums together and then repeat that whole product nineteen times.",
-    "ja": "2 根号の和 8 個の積を作り、その積全体をさらに 19 回繰り返してください。"
+    "en": "Multiply eight two-radical sums together and then repeat that whole product twenty times.",
+    "ja": "2 根号の和 8 個の積を作り、その積全体をさらに 20 回繰り返してください。"
    },
    "expectedTool": "compute",
    "arguments": {
-    "source": "[ 2 SQRT 3 SQRT ADD 5 SQRT 7 SQRT ADD MUL 11 SQRT 13 SQRT ADD MUL 17 SQRT 19 SQRT ADD MUL 23 SQRT 29 SQRT ADD MUL 31 SQRT 37 SQRT ADD MUL 41 SQRT 43 SQRT ADD MUL 47 SQRT 53 SQRT ADD MUL ] 'C' DEF C C C C C C C C C C C C C C C C C C C"
+    "source": "[ 2 SQRT 3 SQRT ADD 5 SQRT 7 SQRT ADD MUL 11 SQRT 13 SQRT ADD MUL 17 SQRT 19 SQRT ADD MUL 23 SQRT 29 SQRT ADD MUL 31 SQRT 37 SQRT ADD MUL 41 SQRT 43 SQRT ADD MUL 47 SQRT 53 SQRT ADD MUL ] 'C' DEF C C C C C C C C C C C C C C C C C C C C"
    },
    "expect": {
     "/status": "error",
