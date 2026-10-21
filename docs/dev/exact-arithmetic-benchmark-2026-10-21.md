@@ -6,46 +6,63 @@ Status: non-canonical. 観察ノート。ある日の一台の機械での測定
 
 ## 何を比べたか
 
-同じ厳密な値を、五つの系がそれぞれ自分の型で計算する。比べたのは Ajisai（ネイティブの
-リリースビルド）、FLINT 3.0.1（C、`-O2`）、python-flint 0.9.0、SymPy 1.14.0（地の型は
-python-flint）、Python 3.13 の `fractions.Fraction` である。畳み込みはどれも左から順に
-行う。ランナーは各系の答えを Ajisai の表示（`p/q`、`[ a b ]`、`1/1+sqrt(2)`）で突き合わせ、
-答えが違う系には時間を出さない。今回は全ケースで全系の答えが一致した。FLINT の Calcium
-（`ca`）は平方根の和を正規形で出せないので、そのケースは小数部の先頭 25 桁で照合した。
+同じ厳密な値を、六つの系がそれぞれ自分の型で計算する。比べたのは Ajisai（ネイティブの
+リリースビルドと、同じエンジンを WebAssembly にしたもの）、FLINT 3.0.1（C、`-O2`）、
+python-flint 0.9.0、SymPy 1.14.0（地の型は python-flint）、Python 3.13 の
+`fractions.Fraction` である。畳み込みはどれも左から順に行う。ランナーは各系の答えを
+Ajisai の表示（`p/q`、`[ a b ]`、`1/1+sqrt(2)`）で突き合わせ、答えが違う系には時間を出さない。
+FLINT の Calcium（`ca`）は平方根の和を正規形で出せないので、そのケースは小数部の先頭
+25 桁で照合した。WebAssembly 版の答えはネイティブ版の答えと DIGEST（値の内容の同一性）で
+照合した。10 万要素のベクトルのように表示しきれない値も、エージェント用の上限を超える
+計算も、値まるごと比べられる。今回は全ケースで全系の答えが一致した。
 
 時間は 5 回の最良値。どの系も起動は測らない。Ajisai の時間には、ソースの解釈と、被演算子を
-作る `RANGE` も含む。FLINT（C）の時間はループだけである。
+作る `RANGE` も含む。FLINT（C）の時間はループだけである。WebAssembly 版は Node 22 の上で、
+`scripts/rebuild-wasm.sh` が作るバンドル（Playground のデプロイと同じ手順。固定版の
+`wasm-opt` で最適化し、最適化の前後で 13,946 個のプログラムの答えが一致することを
+確かめたもの）を測った。
 
 ## 結果
 
-| ケース | n | Ajisai | FLINT (C) | python-flint | SymPy | Fraction |
-|---|---:|---:|---:|---:|---:|---:|
-| harmonic（Σ1/k） | 2000 | 1.35 ms | 0.77 ms | 1.84 ms | 47.3 ms | 6.32 ms |
-| basel（Σ1/k²） | 2000 | 2.01 ms | 1.26 ms | 2.90 ms | 84.0 ms | 10.0 ms |
-| newton-sqrt2（16 段、約 2.5 万桁） | 16 | 4.40 ms | 1.85 ms | 2.13 ms | 4.46 ms | 6.94 ms |
-| elementwise（(k+1)/k · k/(k+2) のベクトル） | 100000 | 12.4 ms | 18.2 ms | 75.9 ms | 1148 ms | 209 ms |
-| sqrt-sum（Σ√k） | 100 | 1.22 ms | 2379 ms | — | 44.0 ms | — |
-| sqrt-sum（Σ√k） | 1000 | 316 ms | 120 s で終わらず | — | 1675 ms | — |
+表は一度の実行で全系を測ったもの。
+
+| ケース | n | Ajisai | Ajisai (WASM) | FLINT (C) | python-flint | SymPy | Fraction |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| harmonic（Σ1/k） | 2000 | 1.34 ms | 3.81 ms | 0.81 ms | 1.88 ms | 50.0 ms | 6.51 ms |
+| basel（Σ1/k²） | 2000 | 2.00 ms | 5.40 ms | 1.30 ms | 3.12 ms | 91.0 ms | 10.1 ms |
+| newton-sqrt2（16 段、約 2.5 万桁） | 16 | 4.44 ms | 17.6 ms | 3.22 ms | 2.07 ms | 2.80 ms | 6.97 ms |
+| elementwise（(k+1)/k · k/(k+2) のベクトル） | 100000 | 12.4 ms | 21.6 ms | 18.3 ms | 73.1 ms | 1280 ms | 213 ms |
+| sqrt-sum（Σ√k） | 100 | 1.30 ms | 2.73 ms | 2406 ms | — | 46.5 ms | — |
+| sqrt-sum（Σ√k） | 1000 | 303 ms | 493 ms | 120 s で終わらず | — | 1659 ms | — |
 
 「—」はその系に厳密な平方根がないこと（python-flint 0.9 は Calcium を出していない）。
+FLINT（C）の newton-sqrt2 は実行ごとに 1.9〜3.2 ms の間で揺れた（大きな数のメモリを毎回
+新しいプロセスで確保するため）。ほかの行の揺れは数 % だった。
 
 ## 読み取れること
 
-- **有理数の畳み込み**は FLINT（C）が 1.6〜1.7 倍速い。Ajisai は、Python から FLINT を呼ぶ
-  python-flint より速く、`Fraction` の約 5 倍、SymPy の 35〜42 倍速い。
-- **桁の大きい多倍長**（newton-sqrt2）は FLINT と python-flint が 2 倍強速い。GMP の乗算と
-  `num-bigint` の差である。ここは Ajisai が負けている。
+- **有理数の畳み込み**は FLINT（C）が 1.5〜1.7 倍速い。Ajisai は、Python から FLINT を呼ぶ
+  python-flint より速く、`Fraction` の約 5 倍、SymPy の 37〜45 倍速い。
+- **桁の大きい多倍長**（newton-sqrt2）は FLINT・python-flint・SymPy が速い（1.4〜2.1 倍）。
+  GMP の乗算と `num-bigint` の差である。ここは Ajisai が負けている。
 - **ベクトルの要素ごとの演算**は Ajisai が FLINT（C）より 1.5 倍速い。小さい有理数の列を
   密な列のまま計算する経路（column kernels）が効いている。FLINT は要素ごとに `fmpq` を
   確保して掛ける。
 - **平方根の和**は Ajisai の独壇場である。FLINT の `ca` は一般の代数的数を扱うので、
-  √k を足すたびに体の拡大を組み直し、n = 100 で約 2000 倍遅く、n = 1000 は 2 分で
-  終わらなかった。SymPy は n = 100 で 36 倍、n = 1000 で 5.3 倍遅い。Ajisai は平方根で
+  √k を足すたびに体の拡大を組み直し、n = 100 で約 1900 倍遅く、n = 1000 は 2 分で
+  終わらなかった。SymPy は n = 100 で 36 倍、n = 1000 で 5.5 倍遅い。Ajisai は平方根で
   生成される体（多二次体）の正規形を直接持つ（LANG.VALUES.EXACT）ので、その分だけ速い。
+- **WebAssembly 版**はネイティブ版の 1.6〜4.0 倍の時間がかかる。差が大きいのは多倍長が
+  重いケースで（newton-sqrt2 は 4.0 倍）、wasm32 では `num-bigint` の一桁が 64 ビットでなく
+  32 ビットになり、同じ数を倍の桁数で掛けるためと見られる。差が小さいのはベクトルと平方根の和（1.6〜2.1
+  倍）である。それでも WebAssembly 版は、有理数の畳み込みで `Fraction` より速く、SymPy の
+  13〜17 倍速く、ベクトルの演算では FLINT（C）との差が 1.2 倍、平方根の和では FLINT・SymPy
+  のどちらよりも速い。
 
 訴求に使える主張は、「SymPy のように厳密で、有理数では python-flint 並み、ベクトルでは
-FLINT（C）より速く、平方根を含む厳密計算では FLINT・SymPy のどちらよりも大幅に速い」まで
-である。「FLINT より速い」とだけ言えば、有理数の畳み込みと多倍長で事実と反する。
+FLINT（C）より速く、平方根を含む厳密計算では FLINT・SymPy のどちらよりも大幅に速い。
+WebAssembly 版（Node の上で測った）でも、平方根の和では FLINT・SymPy より速い」までである。
+「FLINT より速い」とだけ言えば、有理数の畳み込みと多倍長で事実と反する。
 
 ## 測定で見つけて直したこと
 
@@ -54,13 +71,17 @@ FLINT（C）より速く、平方根を含む厳密計算では FLINT・SymPy �
 約 170 個の基底要素で、一回の加算に 10 万回規模の多倍長の剰余）。足す側の単項式がすでに
 和の基底の上で分解できるとき（√6 を {2, 3, 5, …} の和に足すとき）は、マージも和の項の
 分解し直しも恒等変換なので、足す側の項だけを分解する近道を入れた（`add_over_own_basis`）。
-1.9 秒が 316 ms になった。
+1.9 秒が 316 ms（上の表の実行では 303 ms）になった。WebAssembly 版では、近道を入れる前の
+バンドルで 2868 ms、入れた後で 493 ms である。
 
 残りの時間は、新しい素数が現れて基底のマージが本当に要る回（約 170 回）にかかる。基底を
 差分で更新すれば、さらに縮められる見込みがある。
 
 ## 測っていないこと
 
-- WebAssembly ビルド（Playground・MCP サーバーが使う方）。`scripts/bench/speed-bench-wasm.mjs`
-  の仕組みで同じケースを測れるが、今回はしていない。
+- ブラウザの JavaScript エンジンの上での WebAssembly 版。上の数字は Node 22（V8）の上のもので、
+  Chrome は同じ V8 なので近いと見込むが、Firefox・Safari では測っていない。
+- MCP サーバーが同梱する WebAssembly（`tools/mcp-server/wasm/generated/`、`--target nodejs`）。
+  これは `scripts/rebuild-mcp-wasm.sh` で別に作り直すもので、今回は作り直していない。
+  加算の近道は、作り直すまでそちらには入らない。
 - 行列・多項式など、Ajisai の語彙にない計算。FLINT の本領はそちらにある。

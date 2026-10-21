@@ -8,6 +8,10 @@
 //   PYTHON         interpreter with sympy and python-flint installed (default python3)
 //   FLINT_TIMEOUT  seconds one FLINT case may take before it is reported as
 //                  not finishing (default 60)
+//   AJISAI_WASM    wasm-pack `--target web` output to time as "Ajisai (WASM)"
+//                  (default src/wasm/generated/; build it from the current
+//                  source with scripts/rebuild-wasm.sh, as the Playground
+//                  deploy does, or the column times whatever was committed)
 //
 // Every system computes the same exact value; a time is reported only for a
 // system whose answer matches Ajisai's, compared as text in Ajisai's own
@@ -17,13 +21,14 @@
 // cannot express a case, or is not installed, is shown as "—".
 //
 // Ajisai is the native release build, timed in-process (rust/examples/
-// exact_bench.rs); FLINT is C compiled here with -O2 when a C compiler and the
+// exact_bench.rs), and the WebAssembly build under Node (exact-bench-wasm.mjs),
+// whose answers are checked against the native ones by DIGEST; FLINT is C compiled here with -O2 when a C compiler and the
 // FLINT headers are present; the Python systems are timed in-process too. No
 // system's start-up is timed. Times are the best of `repeats` runs on this
 // machine and say nothing about another.
 
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -97,12 +102,35 @@ function flint() {
 // The fractional digits both renderings carry, without the last two digits of
 // either, so a correctly rounded last digit on one side and a differently
 // rounded one on the other cannot decide the comparison.
+function ajisaiWasm(nativeRows) {
+  const moduleDir = resolve(process.env.AJISAI_WASM ?? join(repoRoot, 'src', 'wasm', 'generated'));
+  log(`[exact-bench] Ajisai WebAssembly (${moduleDir})`);
+  const dir = mkdtempSync(join(tmpdir(), 'exact-bench-wasm-'));
+  try {
+    const expect = join(dir, 'native.json');
+    writeFileSync(expect, JSON.stringify(nativeRows));
+    const run = spawnSync(
+      process.execPath,
+      [join(here, 'exact-bench-wasm.mjs'), '--json', '--module', moduleDir, '--expect', expect],
+      { encoding: 'utf8', maxBuffer: 1 << 30 },
+    );
+    if (run.status !== 0) {
+      log(`[exact-bench] WebAssembly side failed; skipping it\n${run.stderr}`);
+      return [];
+    }
+    return JSON.parse(run.stdout).map((r) => ({ system: 'Ajisai (WASM)', ...r }));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
 function fractionalDigits(text) {
   const [whole, fraction = ''] = text.trim().split('.');
   return `${whole}.${fraction.slice(0, COMPARED_DIGITS)}`;
 }
 
 function agrees(row, reference) {
+  if ('matchesNative' in row) return row.matchesNative === true;
   if (row.answer === reference.answer) return true;
   if (reference.decimal && /^-?\d+\.\d+$/.test(row.answer ?? '')) {
     return fractionalDigits(row.answer) === fractionalDigits(reference.decimal);
@@ -111,16 +139,18 @@ function agrees(row, reference) {
 }
 
 const ajisaiRows = ajisai();
+const wasmRows = ajisaiWasm(ajisaiRows);
 const py = pythonSystems();
 const fl = flint();
 
-const systems = ['Ajisai', 'FLINT', 'python-flint', 'SymPy', 'Fraction'];
+const systems = ['Ajisai', 'Ajisai (WASM)', 'FLINT', 'python-flint', 'SymPy', 'Fraction'];
 const versions = {
   Ajisai: `Ajisai ${JSON.parse(readFileSync(join(repoRoot, 'package.json'), 'utf8')).version} (native release build)`,
+  ...(wasmRows.length ? { 'Ajisai (WASM)': 'the same engine compiled to WebAssembly, under Node ' + process.versions.node } : {}),
   ...(fl.version ? { FLINT: fl.version } : {}),
   ...py.versions,
 };
-const others = [...fl.rows, ...py.rows];
+const others = [...wasmRows, ...fl.rows, ...py.rows];
 
 const table = suite.cases.map((c) => {
   const reference = ajisaiRows.find((r) => r.name === c.name);
