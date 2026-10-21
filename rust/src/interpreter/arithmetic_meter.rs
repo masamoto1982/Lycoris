@@ -23,7 +23,7 @@ use crate::interpreter::arithmetic::ExactArithmeticSchema;
 use crate::interpreter::exact_work::reciprocal_numeric_work;
 use crate::interpreter::runtime_limits::{
     broadcast_numeric_work, exact_work_bits, fraction_result_bits, fraction_work_bits, OperandWork,
-    ALGEBRAIC_PAIR_UNITS,
+    ALGEBRAIC_PAIR_UNITS, ALGEBRAIC_SUM_TERM_UNITS,
 };
 use crate::interpreter::Interpreter;
 use crate::types::exact::ExactReal;
@@ -91,17 +91,17 @@ pub(crate) fn charge_binary_schema(
         // constant on top of the bignum work each pair performs.
         let left_terms = left.terms.max(1);
         let right_terms = right.terms.max(1);
-        let pairs = match schema {
+        match schema {
             // Division multiplies by the right operand's inverse, which is
             // charged below.
-            ExactArithmeticSchema::Mul | ExactArithmeticSchema::Div => {
-                left_terms.saturating_mul(right_terms)
-            }
-            ExactArithmeticSchema::Add | ExactArithmeticSchema::Sub => {
-                left_terms.saturating_add(right_terms)
-            }
-        };
-        pairs.saturating_mul(ALGEBRAIC_PAIR_UNITS)
+            ExactArithmeticSchema::Mul | ExactArithmeticSchema::Div => left_terms
+                .saturating_mul(right_terms)
+                .saturating_mul(ALGEBRAIC_PAIR_UNITS),
+            // A sum merges two term maps rather than multiplying term pairs.
+            ExactArithmeticSchema::Add | ExactArithmeticSchema::Sub => left_terms
+                .saturating_add(right_terms)
+                .saturating_mul(ALGEBRAIC_SUM_TERM_UNITS),
+        }
     } else {
         1
     };

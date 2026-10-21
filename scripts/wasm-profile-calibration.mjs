@@ -114,6 +114,34 @@ const wide = '9'.repeat(4096);
 const PAIRS = [[2, 3], [5, 7], [11, 13], [17, 19], [23, 29], [31, 37], [41, 43], [47, 53]];
 const cascade = (f) => PAIRS.slice(0, f).map(([l, r], i) => `${l} SQRT ${r} SQRT ADD${i > 0 ? ' MUL' : ''}`).join(' ');
 
+const primes = (count) => {
+    const found = [];
+    for (let candidate = 2; found.length < count; candidate++) {
+        if (found.every((p) => p * p > candidate || candidate % p !== 0)) found.push(candidate);
+    }
+    return found;
+};
+// `√(p₁p₂) + √(p₃p₄) + …`, then `√p₁`, `√p₃`, … added one at a time.
+const refining = (pairs) => {
+    const ps = primes(2 * pairs);
+    let setup = '0';
+    let ops = '';
+    for (let i = 0; i < ps.length; i += 2) {
+        setup += ` ${ps[i]} ${ps[i + 1]} MUL SQRT ADD`;
+        ops += ` ${ps[i]} SQRT ADD`;
+    }
+    return [setup, ops];
+};
+// `√(C·q₁) + √(C·q₂) + …` with `C` the product of the first `splits` primes,
+// then the primes of `C` added one at a time.
+const sharedSplit = (splits, terms) => {
+    const ps = primes(splits + terms);
+    const product = `${ps.slice(0, splits).join(' ')}${' MUL'.repeat(splits - 1)}`;
+    const setup = '0' + ps.slice(splits).map((q) => ` ${product} ${q} MUL SQRT ADD`).join('');
+    const ops = ps.slice(0, splits).map((p) => ` ${p} SQRT ADD`).join('');
+    return [setup, ops];
+};
+
 const NUMERIC = [
     // The floor candidate: one charged unit per lane, a machine-word add
     // inside a tensor kernel, with nothing else to amortize it.
@@ -122,9 +150,16 @@ const NUMERIC = [
     // `bigintBits` (272,133 against 262,144), which is the very boundary
     // `profile_liveness_tests` pins. Measuring under a real profile means
     // living inside every one of its ceilings, not just the one being timed.
-    ['scalar wide MUL x19 (4096-digit)', `{ ${wide} MUL } 'M' DEF 1`, ' M'.repeat(19)],
-    ['scalar wide ADD x200 (4096-digit)', `{ ${wide} ADD } 'W' DEF 1`, ' W'.repeat(200)],
-    ['algebraic cascade(8) x18', `{ ${cascade(8)} } 'C' DEF`, ' C'.repeat(18)],
+    ['scalar wide MUL x19 (4096-digit)', `[ ${wide} MUL ] 'M' DEF 1`, ' M'.repeat(19)],
+    ['scalar wide ADD x200 (4096-digit)', `[ ${wide} ADD ] 'W' DEF 1`, ' W'.repeat(200)],
+    ['algebraic cascade(8) x18', `[ ${cascade(8)} ] 'C' DEF`, ' C'.repeat(18)],
+    // Sums, priced by ALGEBRAIC_SUM_TERM_UNITS. The same three shapes
+    // `work_meter_calibration.rs` measures natively, sized to fit the profile:
+    // a fold of square roots, a sum whose every addend splits a composite
+    // basis element, and one whose split element every monomial shares.
+    ['algebraic sum (fold of SQRT 1..150)', '', '1 150 RANGE SQRT 0 [ ADD ] FOLD'],
+    ['algebraic sum, refining (60 splits)', refining(60)[0], refining(60)[1]],
+    ['algebraic sum, shared split (16 x 50)', sharedSplit(16, 50)[0], sharedSplit(16, 50)[1]],
 ];
 
 const COLLECTION = [
@@ -142,7 +177,7 @@ const COLLECTION = [
     // Wide elements: an equality probe walks limbs, and this was by far the
     // dearest per-element shape on native. If any collection path is the WASM
     // floor, it is a candidate.
-    ['UNIQUE 4k x 4096-digit x2', `1 4000 RANGE { ${wide} MUL } MAP`, ' UNIQUE'.repeat(2)],
+    ['UNIQUE 4k x 4096-digit x2', `1 4000 RANGE [ ${wide} MUL ] MAP`, ' UNIQUE'.repeat(2)],
 ];
 
 const STEPS = [

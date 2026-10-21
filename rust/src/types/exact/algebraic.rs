@@ -48,7 +48,7 @@ pub enum AlgebraicResult {
 }
 
 impl AlgebraicResult {
-    fn from_parts(basis: Basis, terms: BTreeMap<BigInt, Fraction>) -> AlgebraicResult {
+    pub(crate) fn from_parts(basis: Basis, terms: BTreeMap<BigInt, Fraction>) -> AlgebraicResult {
         let rational = match terms.len() {
             0 => Some(Fraction::new(BigInt::zero(), BigInt::one())),
             1 => terms
@@ -165,6 +165,13 @@ impl Algebraic {
         AlgebraicResult::from_parts(source.basis.clone(), terms)
     }
 
+    /// An irrational from terms already in normal form over `basis`, every
+    /// element of which divides one of them, so `from_parts` would neither
+    /// prune nor demote; the sum module builds these (`algebraic_sum.rs`).
+    pub(crate) fn from_normal_parts(basis: Basis, terms: BTreeMap<BigInt, Fraction>) -> Algebraic {
+        Algebraic { basis, terms }
+    }
+
     pub(crate) fn basis(&self) -> &Basis {
         &self.basis
     }
@@ -191,7 +198,7 @@ impl Algebraic {
 
     /// Rebuild `self`'s terms over `target`, which must cover every
     /// monomial (callers merge bases before rebasing).
-    fn rebased_terms(&self, target: &Basis) -> BTreeMap<BigInt, Fraction> {
+    pub(crate) fn rebased_terms(&self, target: &Basis) -> BTreeMap<BigInt, Fraction> {
         let mut out: BTreeMap<BigInt, Fraction> = BTreeMap::new();
         for (m, c) in &self.terms {
             let (outside, monomial) = target
@@ -219,67 +226,17 @@ impl Algebraic {
         }
     }
 
-    /// `self + other`.
-    pub fn add(&self, other: &Algebraic) -> AlgebraicResult {
-        if let Some(sum) = self
-            .add_over_own_basis(other)
-            .or_else(|| other.add_over_own_basis(self))
-        {
-            return sum;
-        }
-        let basis = Basis::merged(&self.basis, &other.basis, &[]);
-        let mut terms = self.rebased_terms(&basis);
-        for (m, c) in other.rebased_terms(&basis) {
-            add_term(&mut terms, m, c);
-        }
-        AlgebraicResult::from_parts(basis, terms)
-    }
-
-    /// `self + other` over `self`'s basis, when every monomial of `other`
-    /// decomposes over it — as `√6` does over `{2, 3, 5}`. Merging the bases
-    /// would refine nothing and rebasing `self`'s terms is the identity, so a
-    /// fold adding one radical at a time to a long sum stays linear in its
-    /// size instead of rebuilding the basis and every term on each step.
-    /// `None` when some monomial of `other` needs a basis element `self` lacks.
-    fn add_over_own_basis(&self, other: &Algebraic) -> Option<AlgebraicResult> {
-        let rebased: Vec<(BigInt, Fraction)> = other
-            .terms
-            .iter()
-            .map(|(m, c)| {
-                let (outside, monomial) = self.basis.decompose_sqrt(m)?;
-                Some((monomial, c.mul(&Fraction::new(outside, BigInt::one()))))
-            })
-            .collect::<Option<_>>()?;
-        let mut terms = self.terms.clone();
-        let mut cancelled = false;
-        for (monomial, coefficient) in rebased {
-            let present = terms.contains_key(&monomial);
-            add_term(&mut terms, monomial.clone(), coefficient);
-            cancelled |= present && !terms.contains_key(&monomial);
-        }
-        // Without a cancellation every element of the basis still divides a
-        // monomial and a non-rational monomial remains, so the pruning and
-        // demotion `from_parts` performs would change nothing.
-        Some(if cancelled {
-            AlgebraicResult::from_parts(self.basis.clone(), terms)
-        } else {
-            AlgebraicResult::Irrational(Algebraic {
-                basis: self.basis.clone(),
-                terms,
-            })
-        })
-    }
-
-    /// `self - other`.
-    pub fn sub(&self, other: &Algebraic) -> AlgebraicResult {
-        self.add(&other.neg())
-    }
-
     /// `self + q` for a rational `q`.
     pub fn add_fraction(&self, q: &Fraction) -> AlgebraicResult {
+        // Only the rational term changes, and it is keyed by `1`, which no
+        // basis element divides: the basis needs no pruning, and the
+        // irrational terms that keep `self` irrational are all still there.
         let mut terms = self.terms.clone();
         add_term(&mut terms, BigInt::one(), q.clone());
-        AlgebraicResult::from_parts(self.basis.clone(), terms)
+        AlgebraicResult::Irrational(Algebraic {
+            basis: self.basis.clone(),
+            terms,
+        })
     }
 
     /// `self · q` for a rational `q`. Multiplying by zero demotes to the
@@ -479,21 +436,29 @@ fn rational_sign(f: &Fraction) -> Ordering {
 }
 
 /// Merge a term into a coefficient map, dropping the monomial when the
-/// coefficients cancel (the no-zero-coefficients invariant).
-pub(crate) fn add_term(terms: &mut BTreeMap<BigInt, Fraction>, monomial: BigInt, coeff: Fraction) {
+/// coefficients cancel (the no-zero-coefficients invariant). Answers whether
+/// a monomial the map held cancelled away.
+pub(crate) fn add_term(
+    terms: &mut BTreeMap<BigInt, Fraction>,
+    monomial: BigInt,
+    coeff: Fraction,
+) -> bool {
     if coeff.is_zero() {
-        return;
+        return false;
     }
     match terms.entry(monomial) {
         std::collections::btree_map::Entry::Vacant(e) => {
             e.insert(coeff);
+            false
         }
         std::collections::btree_map::Entry::Occupied(mut e) => {
             let sum = e.get().add(&coeff);
             if sum.is_zero() {
                 e.remove();
+                true
             } else {
                 e.insert(sum);
+                false
             }
         }
     }

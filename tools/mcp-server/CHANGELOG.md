@@ -23,7 +23,7 @@ Specification: 1.0.0-beta.3.
 
 - **`CONTRACT` takes a String name.** `'INC' CONTRACT` answers the Word's contract, as `[ INC ] 0 GET CONTRACT` does; it used to be `error:notASymbol`. `DIGEST` keeps reading a String as text, and the quickstart's §3 says which spelling reaches a Word.
 
-- **Sums of square roots are faster.** Adding an irrational whose radicals the sum already holds no longer rebuilds the sum's whole normal form: in the WASM backend `1 100 RANGE SQRT 0 [ ADD ] FOLD` takes 4.3 ms instead of 6.8 ms. Answers do not change; the work meter still charges these additions as before, so a run refused for `numericWork` (`1 500 RANGE SQRT 0 [ ADD ] FOLD`, now 86 ms of work instead of 433 ms) is still refused.
+- **Sums of square roots are faster, and charged a quarter of what they were.** An addition refines and rebuilds only the radicals the two operands actually share, and the work meter prices a sum by its own constant rather than as products of terms. `1 200 RANGE SQRT 0 [ ADD ] FOLD` was refused for `numericWork` (10,097,345 units) and now answers at 3,209,921; answers themselves do not change. Under this profile the `numericWork` boundary moved with it: the 8-factor cascade applied 19 times succeeds and 20 times is refused (`numericWork of 10030760 exceeds the limit of 10000000`), where it was 18 and 19.
 
 - **The quickstart is less than half its size.** `ajisai://guide/quickstart` was 79 KB, most of it every Word's full summary; it is now about 37 KB, with a one-line index of the Words by family. The full summaries are where they already were, `word_contract` and `ajisai://contracts`.
 

@@ -7,6 +7,7 @@
 
 pub mod algebraic;
 mod algebraic_field;
+mod algebraic_sum;
 #[cfg(test)]
 mod algebraic_tests;
 pub(crate) mod basis;

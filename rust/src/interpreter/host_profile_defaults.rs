@@ -264,7 +264,7 @@ pub const DEFAULT_MAX_BIGINT_BITS: u64 = 1_000_000;
 /// [`DEFAULT_MAX_NUMERIC_WORK`]'s re-derivation and stopped being live once the
 /// numeric-work budget shrank to match this container's measured floor rate:
 /// the doubling cascade that first exceeds 100,000 terms (131,072 terms, at
-/// factor 17) charges 520,124,416 units — over the 311,190,000 budget this
+/// factor 17) charges 520,099,280 units — over the 311,190,000 budget this
 /// constant is checked against now, and further still over the 139,800,000 the
 /// native-calibrated first attempt would have shipped — so `numericWork` would
 /// always answer first and the term ceiling would never fire in its life,
@@ -273,7 +273,7 @@ pub const DEFAULT_MAX_BIGINT_BITS: u64 = 1_000_000;
 /// `max_algebraic_terms` was 4,096 there for the same reason before being
 /// lowered to 512). 10,000 is chosen the same way 512 was for the MCP profile:
 /// the cascade that first crosses it (16,384 terms, at factor 14) charges
-/// 50,356,224 units — a fixed, host-independent cost — ~16% of the current work
+/// 50,335,424 units — a fixed, host-independent cost — ~16% of the current work
 /// budget (was ~36% under the smaller native-calibrated one; either way
 /// comfortably reachable with room to spare, not cut close the way `bigintBits`
 /// is). Left at 10,000 rather than raised back toward 100,000 now that the
