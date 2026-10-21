@@ -38,5 +38,6 @@ proptest にしかなかった）。
 | 代数的無理数を最小多項式の次数で打ち切る | すでに有界である。値の域は平方根で生成される多二次体の正規形で、被開平数の因数分解は数値作業に課金され、残りの作業で分解できなければ `resourceLimitExceeded`（LANG.VALUES.EXACT） |
 | 決定性を最大の売りにする | 実行は初期状態に対して決定的（LANG.MACHINE.TRANSFORMERS）で、`scripts/bench/wasm-parity.mjs` が二つの WASM ビルドの答えを照合している。ただし IEEE 754 の四則も決定的なので、差別化としては弱い。差別化として正確なのは上の順序非依存性である |
 
-数式処理系（FLINT、SymPy など）との速度比較の公開は、ここでは決めない。速度を
-何と約束するかは `rust-10k-reduction-plan.md` が作者の判断事項に挙げている。
+数式処理系（FLINT、SymPy など）との速度比較は `exact-arithmetic-benchmark-2026-10-21.md`
+に測定した。速度を何と約束するかは、引き続き `rust-10k-reduction-plan.md` が作者の
+判断事項に挙げている。
