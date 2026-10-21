@@ -221,12 +221,53 @@ impl Algebraic {
 
     /// `self + other`.
     pub fn add(&self, other: &Algebraic) -> AlgebraicResult {
+        if let Some(sum) = self
+            .add_over_own_basis(other)
+            .or_else(|| other.add_over_own_basis(self))
+        {
+            return sum;
+        }
         let basis = Basis::merged(&self.basis, &other.basis, &[]);
         let mut terms = self.rebased_terms(&basis);
         for (m, c) in other.rebased_terms(&basis) {
             add_term(&mut terms, m, c);
         }
         AlgebraicResult::from_parts(basis, terms)
+    }
+
+    /// `self + other` over `self`'s basis, when every monomial of `other`
+    /// decomposes over it — as `√6` does over `{2, 3, 5}`. Merging the bases
+    /// would refine nothing and rebasing `self`'s terms is the identity, so a
+    /// fold adding one radical at a time to a long sum stays linear in its
+    /// size instead of rebuilding the basis and every term on each step.
+    /// `None` when some monomial of `other` needs a basis element `self` lacks.
+    fn add_over_own_basis(&self, other: &Algebraic) -> Option<AlgebraicResult> {
+        let rebased: Vec<(BigInt, Fraction)> = other
+            .terms
+            .iter()
+            .map(|(m, c)| {
+                let (outside, monomial) = self.basis.decompose_sqrt(m)?;
+                Some((monomial, c.mul(&Fraction::new(outside, BigInt::one()))))
+            })
+            .collect::<Option<_>>()?;
+        let mut terms = self.terms.clone();
+        let mut cancelled = false;
+        for (monomial, coefficient) in rebased {
+            let present = terms.contains_key(&monomial);
+            add_term(&mut terms, monomial.clone(), coefficient);
+            cancelled |= present && !terms.contains_key(&monomial);
+        }
+        // Without a cancellation every element of the basis still divides a
+        // monomial and a non-rational monomial remains, so the pruning and
+        // demotion `from_parts` performs would change nothing.
+        Some(if cancelled {
+            AlgebraicResult::from_parts(self.basis.clone(), terms)
+        } else {
+            AlgebraicResult::Irrational(Algebraic {
+                basis: self.basis.clone(),
+                terms,
+            })
+        })
     }
 
     /// `self - other`.

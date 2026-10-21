@@ -47,6 +47,7 @@ I began the work in June, in Japan's rainy season. Watching the rain, I pictured
 | Reference (English) | Ajisai users | [docs/en/index.html](https://masamoto1982.github.io/Ajisai/docs/en/index.html) — from a program down to its elements and every built-in Word with its contract (generated from `spec/words.json`), with runnable samples |
 | Reference (Japanese) | Ajisai users | [docs/ja/index.html](https://masamoto1982.github.io/Ajisai/docs/ja/index.html) — the same content in Japanese |
 | Phrasebook | Ajisai users | [docs/phrasebook/phrasebook.ajisai](docs/phrasebook/phrasebook.ajisai) — User Words for phrases programs write again and again (a remainder, a disjunction, a sum or mean, text joined with a separator), each with a verified contract and examples. Run it once, or copy the definitions you need |
+| Showcase | Anyone weighing Ajisai | [docs/showcase/showcase.ajisai](docs/showcase/showcase.ajisai) — short programs beside what binary floating point would answer: decimals that add up, Fibonacci numbers from Binet's formula through exact square roots, division by zero inside a Vector, and contracts that say before running whether code can reach a point over zero. Every example is run by the test suite |
 | Playground | Run it now | [masamoto1982.github.io/Ajisai](https://masamoto1982.github.io/Ajisai/) — its Reference button opens the Reference in the UI language, English or Japanese |
 
 ## Build and run
