@@ -81,7 +81,10 @@ WebAssembly 版（Node の上で測った）でも、平方根の和では FLINT
 
 - ブラウザの JavaScript エンジンの上での WebAssembly 版。上の数字は Node 22（V8）の上のもので、
   Chrome は同じ V8 なので近いと見込むが、Firefox・Safari では測っていない。
-- MCP サーバーが同梱する WebAssembly（`tools/mcp-server/wasm/generated/`、`--target nodejs`）。
-  これは `scripts/rebuild-mcp-wasm.sh` で別に作り直すもので、今回は作り直していない。
-  加算の近道は、作り直すまでそちらには入らない。
+- MCP サーバーが同梱する WebAssembly（`tools/mcp-server/wasm/generated/`、`--target nodejs`、
+  `wasm-opt` なし）の表。作り直したうえで、Σ√k（n = 100）が 6.8 ms から 4.3 ms、
+  （n = 500）が 433 ms から 86 ms になることだけ確かめた。ただし n = 500 は、エージェント用の
+  上限では今も `numericWork` を超えて断られる。作業メーターは代数的数の加算を「両辺の項数の
+  和 × `ALGEBRAIC_PAIR_UNITS`」で値付けしていて、この定数は近道を入れる前の実装で較正したもの
+  だからである。乗算と共通の定数なので、加算だけを測り直すには値付けを分ける必要がある。
 - 行列・多項式など、Ajisai の語彙にない計算。FLINT の本領はそちらにある。
