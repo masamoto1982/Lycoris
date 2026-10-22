@@ -27,12 +27,10 @@ export default defineConfig({
         // Fail fast on snapshot drift; we don't use snapshots here, but
         // future contributors should opt in explicitly.
         passWithNoTests: false,
-        // Coverage runs only under `npm run test:coverage` (CI's Quality
-        // Gate); a plain `npm test` stays uninstrumented. Every source file
-        // is measured, tested or not, so an untested module shows as 0%
-        // rather than vanishing from the report. The JSON summary feeds the
-        // job summary and the QL-A / QL-B coverage ratchet
-        // (scripts/check-coverage-ratchet.mjs).
+        // Coverage runs only under `npm run test:coverage`; a plain
+        // `npm test` stays uninstrumented. Every source file is measured,
+        // tested or not, so an untested module shows as 0% rather than
+        // vanishing from the report.
         coverage: {
             provider: 'istanbul',
             include: ['src/**/*.ts'],

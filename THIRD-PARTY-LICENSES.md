@@ -85,14 +85,8 @@ Rust crates linked into `ajisai-core` (`rust/Cargo.toml`):
 | Crate | License (SPDX) |
 | --- | --- |
 | `serde`, `serde_json` | MIT OR Apache-2.0 |
-| `num-bigint`, `num-traits`, `num-integer` | MIT OR Apache-2.0 |
-| `lazy_static` | MIT OR Apache-2.0 |
-| `smallvec` | MIT OR Apache-2.0 |
-| `wasm-bindgen`, `wasm-bindgen-futures`, `js-sys`, `web-sys` | MIT OR Apache-2.0 |
-| `serde-wasm-bindgen` | MIT OR Apache-2.0 |
+| `wasm-bindgen`, `js-sys` | MIT OR Apache-2.0 |
 | `console_error_panic_hook` | MIT OR Apache-2.0 |
-| `getrandom` | MIT OR Apache-2.0 |
-| `mimalloc`, `libmimalloc-sys` (and the bundled mimalloc C library, © Microsoft) — native builds only, not the WebAssembly module | MIT |
 
 The full text of the two licenses referenced above is available at:
 

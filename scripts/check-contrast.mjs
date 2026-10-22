@@ -24,7 +24,8 @@
 
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { repoRoot } from './lib/common.mjs';
+
+const repoRoot = join(import.meta.dirname, '..');
 
 const stylesDir = join(repoRoot, 'src', 'styles');
 const tokensCss = readFileSync(join(stylesDir, 'playground.css'), 'utf8');

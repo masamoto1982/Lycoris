@@ -84,16 +84,8 @@ function setPlaygroundBadgeTooltip(lines: string[]): void {
 }
 
 /**
- * Say which resource profile this host applies, and what its ceilings are.
- *
- * LANG.MACHINE.LIMITS makes limits a host safety control rather than value semantics, so
- * two conforming hosts legitimately enforce different ceilings — and they do:
- * `0 100001 RANGE` materializes here and is refused under the MCP agent
- * profile (`resourceLimitExceeded`, naming `materializedElements`). A ceiling
- * is never a value, so the difference is a named failure on one host and an
- * answer on the other, never two answers; it is only a trap when a host does
- * not disclose what it applies, so this one does.
- * See docs/dev/mcp-host-profiles.md for the comparison.
+ * Say which resource profile this host applies, and what its ceilings are,
+ * read from the live interpreter so what is shown is what is enforced.
  */
 function setHostProfileLabel(interpreter: AjisaiInterpreter): void {
     // Best effort throughout: this is a label, and nothing below it may throw
@@ -107,52 +99,24 @@ function setHostProfileLabel(interpreter: AjisaiInterpreter): void {
     }
     const profile = parseHostProfile(reported);
     if (!profile) return;
-    // The MCP server's profile, beside this host's: the two differ by 10x to
-    // 120x on purpose, and a program tried here and then handed to an agent
-    // met that difference as a surprise, because only the Reference and the
-    // MCP README said so. Best effort like everything else here — an engine
-    // without the method simply shows this host's table alone.
-    let agentProfile: ReturnType<typeof parseHostProfile> = null;
-    try {
-        agentProfile = parseHostProfile(interpreter.agent_host_profile());
-    } catch {
-        agentProfile = null;
-    }
     const text = `resource limits: ${profile.profile}`;
     const limitLines = [
-        ...Object.entries(profile.limits).map(([name, value]) => {
-            const agentValue = agentProfile?.limits[name];
-            const beside =
-                typeof agentValue === 'number' && agentValue !== value
-                    ? ` (${agentProfile?.profile}: ${agentValue.toLocaleString()})`
-                    : '';
-            return `${name}: ${value.toLocaleString()}${beside}`;
-        }),
+        ...Object.entries(profile.limits).map(([name, value]) => `${name}: ${value.toLocaleString()}`),
         // The wall-clock guard is this host's alone and is not one of the
         // interpreter's ceilings, so `host_profile()` cannot report it — and a
         // list that omits the guard most likely to stop a long run reads as a
         // complete list that is wrong.
         `executionTimeoutMs: ${EXECUTION_TIMEOUT_MS.toLocaleString()} (wall clock, this host only)`,
     ];
-    if (agentProfile) {
-        limitLines.push(
-            `A program run through the MCP server (${agentProfile.profile}) meets the ceilings in parentheses instead.`
-        );
-    }
 
     // Now that the ceilings are known, the badge's tooltip can state the whole
     // thing: build detail, then the full ceiling table.
     setPlaygroundBadgeTooltip([...buildDetailLines(), '', text, ...limitLines]);
 
-    // The splash names the profiles only. The full table (eleven rows) pushed
-    // everything else off a phone screen; what a first visit needs is to know
-    // that this host and the MCP server enforce different ceilings at all.
+    // The splash names the profile only; the full table stays on the badge.
     setLabelForAll(['#splash-host-profile'], (el) => {
         el.hidden = false;
-        el.textContent =
-            agentProfile && agentProfile.profile !== profile.profile
-                ? `Limits: ${profile.profile} · MCP: ${agentProfile.profile}`
-                : `Limits: ${profile.profile}`;
+        el.textContent = `Limits: ${profile.profile}`;
     });
 }
 
