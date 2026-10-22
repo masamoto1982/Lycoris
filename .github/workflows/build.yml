@@ -1,4 +1,4 @@
-name: Build and Deploy Ajisai
+name: Build and Deploy
 
 on:
   push:
@@ -66,13 +66,6 @@ jobs:
         # `npm run build` is `vite build` (package.json); the site is built
         # once, from the freshly rebuilt wasm bundle and the stamped index.html.
         run: npm run build
-
-      - name: Copy the specification into the site
-        # SPECIFICATION.html is an authored HTML document
-        # (docs/dev/ajisai-authoring-style.md). GitHub's repository view shows
-        # HTML as source, so the rendered surface is the Pages site:
-        # /SPECIFICATION.html next to the Playground.
-        run: cp SPECIFICATION.html dist/
 
       - name: Create .nojekyll file
         run: touch dist/.nojekyll

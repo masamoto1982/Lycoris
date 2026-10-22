@@ -7,7 +7,7 @@
 // and license notice travels with each redistributed file.
 import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { repoRoot } from './lib/common.mjs';
+const repoRoot = resolve(import.meta.dirname, '..');
 
 const vendorDir = resolve(repoRoot, 'public/vendor/katex');
 
